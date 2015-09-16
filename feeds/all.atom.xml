@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="http://haypo.github.io/" rel="alternate"></link><link href="http://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>http://haypo.github.io/</id><updated>2015-06-16T15:00:00+02:00</updated><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="http://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
+&lt;h2&gt;From 2to3 to 2to6&lt;/h2&gt;
+&lt;p&gt;When Python 3.0 was released, the official statement was to port your
+application using &lt;a class="reference external" href="https://docs.python.org/3.5/library/2to3.html"&gt;2to3&lt;/a&gt; and
+drop Python 2 support. It didn't work because you had to port all libraries
+first. If a library drops Python 2 support, existing applications running on
+Python 2 cannot use this library anymore.&lt;/p&gt;
+&lt;p&gt;This chicken-and-egg issue was solved by the creation of the &lt;a class="reference external" href="https://pythonhosted.org/six/"&gt;six module&lt;/a&gt; by &lt;a class="reference external" href="https://benjamin.pe/"&gt;Benjamin Peterson&lt;/a&gt;. Thank you so much Benjamin! Using the six module, it
+is possible to write a single code base working on Python 2 and Python 3.&lt;/p&gt;
+&lt;p&gt;2to3 was hacked to create the &lt;a class="reference external" href="http://python-modernize.readthedocs.org/"&gt;modernize&lt;/a&gt; and &lt;a class="reference external" href="https://github.com/limodou/2to6"&gt;2to6&lt;/a&gt; projects to &lt;em&gt;add Python 3 support&lt;/em&gt; without
+loosing Python 2 support. Problem solved!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="creation-of-the-sixer-tool"&gt;
+&lt;h2&gt;Creation of the sixer tool&lt;/h2&gt;
+&lt;p&gt;Problem solved? Well, not for my specific use case. I'm porting the huge
+OpenStack project to Python 3. modernize and 2to6 modify a lot of things at
+once, add unwanted changes (ex: add &lt;tt class="docutils literal"&gt;from __future__ import absolute_import&lt;/tt&gt;
+at the top of each file), and don't respect the OpenStack coding style
+(especially the &lt;a class="reference external" href="http://docs.openstack.org/developer/hacking/#imports"&gt;complex rules to sort and group Python imports&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;I wrote the &lt;a class="reference external" href="https://pypi.python.org/pypi/sixer"&gt;sixer&lt;/a&gt; project to
+&lt;em&gt;generate&lt;/em&gt; patches for OpenStack. The problem is that OpenStack code changes
+very quickly, so it's common to have to fix conflicts the day after submiting
+a change. At the beginning, it took at least one week to get Python 3 changes
+merged, whereas many changes are merged every day, so being able to regenerate
+patches helped a lot.&lt;/p&gt;
+&lt;p&gt;I created the &lt;a class="reference external" href="https://pypi.python.org/pypi/sixer"&gt;sixer&lt;/a&gt; tool using a list
+of regular expressions to replace a pattern with another. For example, it
+replaces &lt;tt class="docutils literal"&gt;dict.itervalues()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;six.itervalues(dict)&lt;/tt&gt;. The code was
+very simple.  The most difficult part was to respect the OpenStack coding
+style for Python imports.&lt;/p&gt;
+&lt;p&gt;sixer is a success since its creationg, it helped me to fix the all obvious
+Python 3 issues: replace &lt;tt class="docutils literal"&gt;unicode(x)&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;six.text_type(x)&lt;/tt&gt;, replace
+&lt;tt class="docutils literal"&gt;dict.itervalues()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;six.itervalues(dict)&lt;/tt&gt;, etc. These changes are
+simple, but it's boring to have to modify manually many files. The OpenStack
+Nova project has almost 1500 Python files for example.&lt;/p&gt;
+&lt;p&gt;The development version of sixer supports the following operations:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;all&lt;/li&gt;
+&lt;li&gt;basestring&lt;/li&gt;
+&lt;li&gt;dict0&lt;/li&gt;
+&lt;li&gt;dict_add&lt;/li&gt;
+&lt;li&gt;iteritems&lt;/li&gt;
+&lt;li&gt;iterkeys&lt;/li&gt;
+&lt;li&gt;itertools&lt;/li&gt;
+&lt;li&gt;itervalues&lt;/li&gt;
+&lt;li&gt;long&lt;/li&gt;
+&lt;li&gt;next&lt;/li&gt;
+&lt;li&gt;raise&lt;/li&gt;
+&lt;li&gt;six_moves&lt;/li&gt;
+&lt;li&gt;stringio&lt;/li&gt;
+&lt;li&gt;unicode&lt;/li&gt;
+&lt;li&gt;urllib&lt;/li&gt;
+&lt;li&gt;xrange&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="creation-of-the-sixer-test-suite"&gt;
+&lt;h2&gt;Creation of the Sixer Test Suite&lt;/h2&gt;
+&lt;p&gt;Slowly, I added more and more patterns to sixer. The code became too complex
+to be able to check regressions manually, so I also started to write unit
+tests. Now each operation has at least one unit test. Some complex operations
+have four tests or more.&lt;/p&gt;
+&lt;p&gt;At the beginning, tests called directly the Python function. It is fast and
+convenient, but it failed to catch regressions on the command line program.
+So I added tests running sixer has a blackbox: pass an input file and check
+the output file. Then I added specific tests on the code parsing command line
+options.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-new-all-operation"&gt;
+&lt;h2&gt;The new &amp;quot;all&amp;quot; operation&lt;/h2&gt;
+&lt;p&gt;At the beginning, I used sixer to generate a patch for a single pattern. For
+example, replace &lt;tt class="docutils literal"&gt;unicode()&lt;/tt&gt; in a whole project.&lt;/p&gt;
+&lt;p&gt;Later, I started to use it differently: I fixed all Python 3 issues at once,
+but only in some selected files. I did that when we reached a minimum set of
+tests which pass on Python 3 to have a green py34 check on Jenkins. Then we
+ported tests one by one. It's better to write short patches, they are easier
+and faster to review. And the review process is the bottlebeck of the
+OpenStack development process.&lt;/p&gt;
+&lt;p&gt;To fix all Python 3 at once, I added an &lt;tt class="docutils literal"&gt;all&lt;/tt&gt; operation which simply applies
+sequentially each operation. So &lt;tt class="docutils literal"&gt;sixer&lt;/tt&gt; can now be used as &lt;tt class="docutils literal"&gt;modernize&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;2to6&lt;/tt&gt; to fix all Python 3 issues at once in a whole project.&lt;/p&gt;
+&lt;p&gt;I also added the ability to pass filenames instead of having to pass a
+directory to modify all files in all subdirectories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-urllib-six-moves-and-stringio-operations"&gt;
+&lt;h2&gt;New urllib, six_moves and stringio operations&lt;/h2&gt;
+&lt;div class="section" id="urllib"&gt;
+&lt;h3&gt;urllib&lt;/h3&gt;
+&lt;p&gt;I tried to keep the sixer code simple. But some changes are boring to write,
+like replacing &lt;tt class="docutils literal"&gt;urllib&lt;/tt&gt; imports &lt;tt class="docutils literal"&gt;six.moves.urllib&lt;/tt&gt; imports. Python 2 has 3
+modules (&lt;tt class="docutils literal"&gt;urllib&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;urllib2&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;urlparse&lt;/tt&gt;), whereas Pytohn 3 uses a
+single &lt;tt class="docutils literal"&gt;urllib&lt;/tt&gt; namespace with submodules (&lt;tt class="docutils literal"&gt;urllib.request&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;urllib.parse&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;urllib.error&lt;/tt&gt;). Some Python 2 functions moved to one
+submodule, whereas others moved to another submodules. It required to know
+well the old and new layout.&lt;/p&gt;
+&lt;p&gt;After loosing many hours to write manually patches for &lt;tt class="docutils literal"&gt;urllib&lt;/tt&gt;, I decided
+to add a &lt;tt class="docutils literal"&gt;urllib&lt;/tt&gt; operation. In fact, it was so not long to implement it,
+compared to the time taken to write patches manually.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="stringio"&gt;
+&lt;h3&gt;stringio&lt;/h3&gt;
+&lt;p&gt;Handling StringIO is also a little bit tricky because String.StringIO and
+String.cStringIO don't have the same performance on Python 2. Producing
+patches without killing performances require to pick the right module or
+symbol from six: &lt;tt class="docutils literal"&gt;six.StringIO()&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;six.moves.cStringIO.StringIO&lt;/tt&gt; for
+example.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="six-moves"&gt;
+&lt;h3&gt;six_moves&lt;/h3&gt;
+&lt;p&gt;The generic &lt;tt class="docutils literal"&gt;six_moves&lt;/tt&gt; operation replaces various Python 2 imports with
+imports from &lt;tt class="docutils literal"&gt;six.moves&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;BaseHTTPServer&lt;/li&gt;
+&lt;li&gt;ConfigParser&lt;/li&gt;
+&lt;li&gt;Cookie&lt;/li&gt;
+&lt;li&gt;HTMLParser&lt;/li&gt;
+&lt;li&gt;Queue&lt;/li&gt;
+&lt;li&gt;SimpleHTTPServer&lt;/li&gt;
+&lt;li&gt;SimpleXMLRPCServer&lt;/li&gt;
+&lt;li&gt;__builtin__&lt;/li&gt;
+&lt;li&gt;cPickle&lt;/li&gt;
+&lt;li&gt;cookielib&lt;/li&gt;
+&lt;li&gt;htmlentitydefs&lt;/li&gt;
+&lt;li&gt;httplib&lt;/li&gt;
+&lt;li&gt;repr&lt;/li&gt;
+&lt;li&gt;xmlrpclib&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="kiss-emit-warnings-instead-of-complex-implementation"&gt;
+&lt;h2&gt;KISS: emit warnings instead of complex implementation&lt;/h2&gt;
+&lt;p&gt;As I wrote, I tried to keep sixer simple (KISS principle: Keep It Simple,
+Stupid). I'm also lazy, I didn't try to write a perfect tool. I don't want to
+spend hours on the sixer project.&lt;/p&gt;
+&lt;p&gt;When it was too tricky to make a decision or to implement a pattern, sixer
+emits &amp;quot;warnings&amp;quot; instead. For example, a warning is emitted on
+&lt;tt class="docutils literal"&gt;def next(self):&lt;/tt&gt; to remind that a &lt;tt class="docutils literal"&gt;__next__ = next&lt;/tt&gt; alias is probably
+needed on this class for Python 3.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;The sixer tool is incomplete and generates invalid changes. For example, it
+replaces patterns in comments, docstrings and strings, whereas usually these
+changes don't make sense. But I'm happy because the tool helped me a lot
+for to port OpenStack, it saved me hours.&lt;/p&gt;
+&lt;p&gt;I hope that the tool will now be useful to others! Don't hesitate to give me
+feedback.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="python3"></category><category term="sixer"></category></entry></feed>
