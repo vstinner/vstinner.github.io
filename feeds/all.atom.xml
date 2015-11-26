@@ -71,11 +71,13 @@ def func():
 required on builtin and global namespaces.&lt;/p&gt;
 &lt;p&gt;The optimization also handles tuple iterator. No guard is needed in this case
 (the code is always optimized).&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://faster-cpython.readthedocs.org/fat_python.html#loop-unrolling"&gt;Loop unrolling&lt;/a&gt;
+for more information.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="lot-of-enhancements-of-the-ast-optimizer"&gt;
 &lt;h2&gt;Lot of enhancements of the AST optimizer&lt;/h2&gt;
-&lt;p&gt;New optimizations helped to find bugs in the AST optimizer. Many fixes and
-various enhancements were done in the AST optimizer.&lt;/p&gt;
+&lt;p&gt;New optimizations helped to find bugs in the &lt;a class="reference external" href="https://faster-cpython.readthedocs.org/new_ast_optimizer.html"&gt;AST optimizer&lt;/a&gt;. Many fixes
+and various enhancements were done in the AST optimizer.&lt;/p&gt;
 &lt;p&gt;The number of lines of code more than doubled: 500 to 1200 lines.&lt;/p&gt;
 &lt;p&gt;Optimization: &lt;tt class="docutils literal"&gt;copy.deepcopy()&lt;/tt&gt; is no more used to duplicate a full tree. The
 new &lt;tt class="docutils literal"&gt;NodeTransformer&lt;/tt&gt; class now only copies a single node, if at least one
@@ -115,7 +117,7 @@ because the &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; is expected to be
 &lt;p&gt;I worked around the bug by creating manually a &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; in FAT mode,
 instead of a &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
 &lt;p&gt;This bug will go avoid if the versionning feature is moved directly into
-the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type.&lt;/p&gt;
+the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type (and the &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; type is removed).&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 </summary><category term="optimization"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;

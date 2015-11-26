@@ -109,11 +109,13 @@ def func():
 required on builtin and global namespaces.</p>
 <p>The optimization also handles tuple iterator. No guard is needed in this case
 (the code is always optimized).</p>
+<p>See <a class="reference external" href="https://faster-cpython.readthedocs.org/fat_python.html#loop-unrolling">Loop unrolling</a>
+for more information.</p>
 </div>
 <div class="section" id="lot-of-enhancements-of-the-ast-optimizer">
 <h2>Lot of enhancements of the AST optimizer</h2>
-<p>New optimizations helped to find bugs in the AST optimizer. Many fixes and
-various enhancements were done in the AST optimizer.</p>
+<p>New optimizations helped to find bugs in the <a class="reference external" href="https://faster-cpython.readthedocs.org/new_ast_optimizer.html">AST optimizer</a>. Many fixes
+and various enhancements were done in the AST optimizer.</p>
 <p>The number of lines of code more than doubled: 500 to 1200 lines.</p>
 <p>Optimization: <tt class="docutils literal">copy.deepcopy()</tt> is no more used to duplicate a full tree. The
 new <tt class="docutils literal">NodeTransformer</tt> class now only copies a single node, if at least one
@@ -153,7 +155,7 @@ because the <tt class="docutils literal">dict</tt> is expected to be mutated, an
 <p>I worked around the bug by creating manually a <tt class="docutils literal">fat.verdict</tt> in FAT mode,
 instead of a <tt class="docutils literal">dict</tt>.</p>
 <p>This bug will go avoid if the versionning feature is moved directly into
-the builtin <tt class="docutils literal">dict</tt> type.</p>
+the builtin <tt class="docutils literal">dict</tt> type (and the <tt class="docutils literal">fat.verdict</tt> type is removed).</p>
 </div>
 </div>
 
