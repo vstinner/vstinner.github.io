@@ -103,12 +103,17 @@ required on builtin and global namespaces.
 The optimization also handles tuple iterator. No guard is needed in this case
 (the code is always optimized).
 
+See `Loop unrolling
+<https://faster-cpython.readthedocs.org/fat_python.html#loop-unrolling>`_
+for more information.
+
 
 Lot of enhancements of the AST optimizer
 ========================================
 
-New optimizations helped to find bugs in the AST optimizer. Many fixes and
-various enhancements were done in the AST optimizer.
+New optimizations helped to find bugs in the `AST optimizer
+<https://faster-cpython.readthedocs.org/new_ast_optimizer.html>`_. Many fixes
+and various enhancements were done in the AST optimizer.
 
 The number of lines of code more than doubled: 500 to 1200 lines.
 
@@ -163,4 +168,4 @@ I worked around the bug by creating manually a ``fat.verdict`` in FAT mode,
 instead of a ``dict``.
 
 This bug will go avoid if the versionning feature is moved directly into
-the builtin ``dict`` type.
+the builtin ``dict`` type (and the ``fat.verdict`` type is removed).
