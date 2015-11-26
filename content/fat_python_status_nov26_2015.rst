@@ -9,7 +9,7 @@ Status of the FAT Python project, November 26, 2015
 :authors: Victor Stinner
 :summary: Status of the FAT Python project, November 26, 2015
 
-.. image:: fat_python.jpg
+.. image:: images/fat_python.jpg
    :alt: Three-year-old Cambodian boy Oeun Sambat hugs his best friend, a four-metre long female python named Chamreun
    :align: right
    :target: http://pictures.reuters.com/archive/CAMBODIA-PYTHONBOY-RP3DRIMPKQAA.html
