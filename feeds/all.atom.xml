@@ -1,5 +1,124 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="http://haypo.github.io/" rel="alternate"></link><link href="http://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>http://haypo.github.io/</id><updated>2015-06-16T15:00:00+02:00</updated><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="http://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="http://haypo.github.io/" rel="alternate"></link><link href="http://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>http://haypo.github.io/</id><updated>2015-11-26T17:30:00+01:00</updated><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="http://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://pictures.reuters.com/archive/CAMBODIA-PYTHONBOY-RP3DRIMPKQAA.html"&gt;&lt;img alt="Three-year-old Cambodian boy Oeun Sambat hugs his best friend, a four-metre long female python named Chamreun" class="align-right" src="fat_python.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
+(Nov 4, 2015).&lt;/p&gt;
+&lt;div class="section" id="documentation"&gt;
+&lt;h2&gt;Documentation&lt;/h2&gt;
+&lt;p&gt;I combined the documentation of various optimizations projects into a single
+documentation: &lt;a class="reference external" href="http://faster-cpython.readthedocs.org/"&gt;Faster CPython&lt;/a&gt;.
+My previous optimizations projects:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://faster-cpython.readthedocs.org/old_ast_optimizer.html"&gt;&amp;quot;old&amp;quot; astoptimizer&lt;/a&gt; (now
+replaced with a &amp;quot;new&amp;quot; astoptimizer included in the FAT Python)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://faster-cpython.readthedocs.org/registervm.html"&gt;registervm&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://faster-cpython.readthedocs.org/readonly.html"&gt;read-only Python&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The FAT Python project has its own page: &lt;a class="reference external" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;FAT Python project&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="copy-builtins-to-constants-optimization"&gt;
+&lt;h2&gt;Copy builtins to constants optimization&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;LOAD_GLOBAL&lt;/tt&gt; instruction is used to load a builtin function.  The
+instruction requires two dictionary lookup: one in the global namespace (which
+almost always fail) and then in the builtin namespaces.&lt;/p&gt;
+&lt;p&gt;It's rare to replace builtins, so the idea here is to replace the dynamic
+&lt;tt class="docutils literal"&gt;LOAD_GLOBAL&lt;/tt&gt; instruction with a static &lt;tt class="docutils literal"&gt;LOAD_CONST&lt;/tt&gt; instruction which
+loads the function from a C array, a fast O(1) lookup.&lt;/p&gt;
+&lt;p&gt;It is not possible to inject a builtin function during the compilation. Python
+code objects are serialized by the marshal module which only support simple
+types like integers, strings and tuples, not functions. The trick is to modify
+the constants at runtime when the module is loaded. I added a new
+&lt;tt class="docutils literal"&gt;patch_constants()&lt;/tt&gt; method to functions.&lt;/p&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def log(message):
+    print(message)
+&lt;/pre&gt;
+&lt;p&gt;This function is specialized to:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def log(message):
+    'LOAD_GLOBAL print'(message)
+log.patch_constants({'LOAD_GLOBAL print': print})
+&lt;/pre&gt;
+&lt;p&gt;The specialized bytecode uses two guards on builtin and global namespaces to
+disable the optimization if the builtin function is replaced.&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://faster-cpython.readthedocs.org/fat_python.html#copy-builtin-functions-to-constants"&gt;Copy builtin functions to constants&lt;/a&gt;
+for more information.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="loop-unrolling-optimization"&gt;
+&lt;h2&gt;Loop unrolling optimization&lt;/h2&gt;
+&lt;p&gt;A simple optimization is to &amp;quot;unroll&amp;quot; a loop to reduce the cost of loops. The
+optimization generates assignement statements (for the loop index variable)
+and duplicates the loop body.&lt;/p&gt;
+&lt;p&gt;Example with a &lt;tt class="docutils literal"&gt;range()&lt;/tt&gt; iterator:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def func():
+    for i in (1, 2, 3):
+        print(i)
+&lt;/pre&gt;
+&lt;p&gt;The function is specialized to:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def func():
+    i = 1
+    print(i)
+
+    i = 2
+    print(i)
+
+    i = 3
+    print(i)
+&lt;/pre&gt;
+&lt;p&gt;If the iterator uses the builtin &lt;tt class="docutils literal"&gt;range&lt;/tt&gt; function, two guards are
+required on builtin and global namespaces.&lt;/p&gt;
+&lt;p&gt;The optimization also handles tuple iterator. No guard is needed in this case
+(the code is always optimized).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="lot-of-enhancements-of-the-ast-optimizer"&gt;
+&lt;h2&gt;Lot of enhancements of the AST optimizer&lt;/h2&gt;
+&lt;p&gt;New optimizations helped to find bugs in the AST optimizer. Many fixes and
+various enhancements were done in the AST optimizer.&lt;/p&gt;
+&lt;p&gt;The number of lines of code more than doubled: 500 to 1200 lines.&lt;/p&gt;
+&lt;p&gt;Optimization: &lt;tt class="docutils literal"&gt;copy.deepcopy()&lt;/tt&gt; is no more used to duplicate a full tree. The
+new &lt;tt class="docutils literal"&gt;NodeTransformer&lt;/tt&gt; class now only copies a single node, if at least one
+field is modified.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;VariableVisitor&lt;/tt&gt; class which detects local and global variables was
+heavily modified. It understands much more kinds of AST node: &lt;tt class="docutils literal"&gt;For&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;AugAssign&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;AsyncFunctionDef&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;ClassDef&lt;/tt&gt;, etc. It now also detects non-local
+variables (&lt;tt class="docutils literal"&gt;nonlocal&lt;/tt&gt; keyword). The scope is now limited to the current
+function, it doesn't enter inside nested &lt;tt class="docutils literal"&gt;DictComp&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;FunctionDef&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;Lambda&lt;/tt&gt;, etc. These nodes create a new separated namespace.&lt;/p&gt;
+&lt;p&gt;The optimizer is now able to optimize a function without guards: it's needed to
+unroll a loop using a tuple as iterator.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="known-bugs"&gt;
+&lt;h2&gt;Known bugs&lt;/h2&gt;
+&lt;p&gt;See the &lt;a class="reference external" href="https://hg.python.org/sandbox/fatpython/file/0d30dba5fa64/TODO.rst"&gt;TODO.rst file&lt;/a&gt; for
+known bugs.&lt;/p&gt;
+&lt;div class="section" id="wrong-line-numbers-and-tracebacks"&gt;
+&lt;h3&gt;Wrong Line Numbers (and Tracebacks)&lt;/h3&gt;
+&lt;p&gt;AST nodes have &lt;tt class="docutils literal"&gt;lineno&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;col_offset&lt;/tt&gt; fields, so an AST optimizer is not
+&amp;quot;supposed&amp;quot; to break line numbers. In practice, line numbers, and so tracebacks,
+are completly wrong in FAT mode. The problem is probably that AST optimizer can
+copy and move instructions. Line numbers are no more motononic. CPython
+probably don't handle this case (negative line delta).&lt;/p&gt;
+&lt;p&gt;It should be possible to fix it, but right now I prefer to focus on new
+optimizations and fix other bugs.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="exec-code-dict"&gt;
+&lt;h3&gt;exec(code, dict)&lt;/h3&gt;
+&lt;p&gt;In FAT mode, some optimizations require guards on the global namespace.
+If &lt;tt class="docutils literal"&gt;exec()&lt;/tt&gt; if called with a Python &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; for globals, an exception
+is raised because &lt;tt class="docutils literal"&gt;func.specialize()&lt;/tt&gt; requires a &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; for
+globals.&lt;/p&gt;
+&lt;p&gt;It's not possible to convert implicitly the &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; to a &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt;,
+because the &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; is expected to be mutated, and the guards be will on
+&lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; not on the original &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I worked around the bug by creating manually a &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; in FAT mode,
+instead of a &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;This bug will go avoid if the versionning feature is moved directly into
+the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="http://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
 &lt;h2&gt;From 2to3 to 2to6&lt;/h2&gt;
 &lt;p&gt;When Python 3.0 was released, the official statement was to port your
 application using &lt;a class="reference external" href="https://docs.python.org/3.5/library/2to3.html"&gt;2to3&lt;/a&gt; and
