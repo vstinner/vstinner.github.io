@@ -21,7 +21,244 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/fat-python-status-nov26-2015.html">Status of the FAT Python project, November 26, 2015</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/fat-python-status-janv12-2016.html">Status of the FAT Python project, January 12, 2016</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-01-12T13:42:00+01:00">
+                Published: mar. 12 janvier 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> </p>
+</footer><!-- /.post-info --><a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"><img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /></a>
+<p>Previous status: <a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html">Status of the FAT Python project, November 26, 2015</a>.</p>
+<div class="section" id="summary">
+<h2>Summary</h2>
+<ul class="simple">
+<li>New optimizations implemented:<ul>
+<li>constant propagation</li>
+<li>constant folding</li>
+<li>dead code elimination</li>
+<li>simplify iterable</li>
+<li>replace builtin __debug__ variable with its value</li>
+</ul>
+</li>
+<li>Major API refactoring to make the API more generic and reusable by other
+projects, and maybe different use case.</li>
+<li>Work on 3 different Python Enhancement Proposals (PEP): API for pluggable
+static optimizers and function specialization</li>
+</ul>
+<p>The two previously known major bugs, &quot;Wrong Line Numbers (and Tracebacks)&quot; and
+&quot;exec(code, dict)&quot;, are now fixed.</p>
+</div>
+<div class="section" id="python-enhancement-proposals-pep">
+<h2>Python Enhancement Proposals (PEP)</h2>
+<p>I proposed an API for to support function specialization and static optimizers.
+I splitted changes in 3 different Python Enhancement Proposals (PEP):</p>
+<ul class="simple">
+<li><a class="reference external" href="https://www.python.org/dev/peps/pep-0509/">PEP 509 - Add a private version to dict</a>: &quot;Add a new private version to
+builtin <tt class="docutils literal">dict</tt> type, incremented at each change, to implement fast guards
+on namespaces.&quot;</li>
+<li><a class="reference external" href="https://www.python.org/dev/peps/pep-0510/">PEP 510 - Specialize functions</a>: &quot;Add functions to the Python C
+API to specialize pure Python functions: add specialized codes with guards.
+It allows to implement static optimizers respecting the Python semantics.&quot;</li>
+<li><a class="reference external" href="https://faster-cpython.readthedocs.org/pep_ast.html">PEP 511 - API for AST transformers</a>: &quot;Propose an API to
+support AST transformers.&quot;</li>
+</ul>
+<p>The PEP 509 was sent to the python-ideas mailing list for a first round, and
+then to python-dev mailing list.  The PEP 510 was sent to python-ideas to a
+first round. The last PEP was not published yet, I'm still working on it.</p>
+</div>
+<div class="section" id="major-api-refactor">
+<h2>Major API refactor</h2>
+<p>The API has been deeply refactored to write the Python Enhancement Proposals.</p>
+<p>First set of changes for function specialization (PEP 510):</p>
+<ul class="simple">
+<li>astoptimizer now adds <tt class="docutils literal">import fat</tt> to optimized code when specialization is
+used</li>
+<li>Remove the function subtype: add directly the <tt class="docutils literal">specialize()</tt> method to
+functions</li>
+<li>Add support of any callable object to <tt class="docutils literal">func.specialize()</tt>, not only code
+object (bytecode)</li>
+<li>Create guard objects:<ul>
+<li>fat.Guard</li>
+<li>fat.GuardArgType</li>
+<li>fat.GuardBuiltins</li>
+<li>fat.GuardDict</li>
+<li>fat.GuardFunc</li>
+</ul>
+</li>
+<li>Add functions to create guards:<ul>
+<li>fat.GuardGlobals</li>
+<li>fat.GuardTypeDict</li>
+</ul>
+</li>
+<li>Move code.replace_consts() to the fat.replace_consts()</li>
+</ul>
+<p>Second set of changes for AST transformers (PEP 511):</p>
+<ul class="simple">
+<li>Add sys.implementation.ast_transformers and sys.implementation.optim_tag</li>
+<li>Rename sys.asthook to sys.ast_transformers</li>
+<li>Add -X fat command line option to enable the FAT mode: register the
+astoptimizer in AST transformers</li>
+<li>Replace -F command line option with -o OPTIM_TAG</li>
+<li>Remove sys.flags.fat (Python flag) and Py_FatPython (C variable)</li>
+<li>Rewrite how an AST transformer is registered</li>
+<li>importlib skips .py if optim_tag is not 'opt' and required AST transformers
+are missing. Raise ImportError if the .pyc file is missing.</li>
+</ul>
+<p>Third set of changes for dictionary versionning, updates after the first round
+of the PEP 509 on python-ideas:</p>
+<ul class="simple">
+<li>Remove dict.__version__ read-only property: the version is now only
+accessible from the C API</li>
+<li>Change the type of the C field <tt class="docutils literal">ma_verison</tt> from <tt class="docutils literal">size_t</tt> to <tt class="docutils literal">unsigned
+PY_INT64_T</tt> to also use 64-bit unsigned integer on 32-bit platforms. The
+risk of misisng a change in a guard with a 32-bit version is too high,
+whereas the risk with a 64-bit version is very very low.</li>
+</ul>
+<p>Fourth set of changes for function specialization, updates after the first round
+of the PEP 510 on python-ideas:</p>
+<ul class="simple">
+<li>Remove func.specialize() and func.get_specialized() at the Python level,
+replace them with C functions. Expose them again as fat.specialize(func, ...)
+and fat.get_specialized(func)</li>
+<li>fat.get_specialized() now returns a list of tuples, instead of a list of dict</li>
+<li>Make fat.Guard type private: rename it to fat._Guard</li>
+<li>Add fat.PyGuard: toy to implement a guard in pure Python</li>
+<li>Guard C API: rename first_check to init and support reporting errors</li>
+</ul>
+</div>
+<div class="section" id="change-log">
+<h2>Change log</h2>
+<p>Detailed changes of the FAT Python between November 24, 2015 and January 12,
+2016.</p>
+<div class="section" id="end-of-november">
+<h3>End of november</h3>
+<p>Major change:</p>
+<ul class="simple">
+<li>Add a __version__ read-only property to dict, remove the verdict subtype of
+dict. As a consequence, dictionary guards now hold a strong reference to the
+dict value</li>
+</ul>
+<p>Minor changes:</p>
+<ul class="simple">
+<li>Allocate dynamically memory for specialized code and guards, don't use fixed-size
+arrays anymore</li>
+<li>astoptimizer: enhance scope detection</li>
+<li>optimize astoptimizer: don't copy a whole AST tree anymore with
+copy.deepcopy(), only copy modified nodes.</li>
+<li>Add Config.max_constant_size</li>
+<li>Reenable checks on cell variables: allow cell variables if they are the same</li>
+<li>Reenable optimizations on methods calling super(), but never copy super()
+builtin to constants. If super() is replaced with a string, the required free
+variable (reference to the current class) is not created by the compiler</li>
+<li>Add PureBuiltin config</li>
+<li>NodeVisitor now calls generic_visit() before visit_XXX()</li>
+<li>Loop unrolling now also optimizes tuple iterators</li>
+<li>At the end of Python initialization, create a copy of the builtins dictionary
+to be able later to detect if a builtin name was replaced.</li>
+<li>Implement collections.UserDict.__version__</li>
+</ul>
+</div>
+<div class="section" id="december-first-half">
+<h3>December (first half)</h3>
+<p>Major changes:</p>
+<ul class="simple">
+<li>Implement 4 new optimizations:<ul>
+<li>constant propagation</li>
+<li>constant folding</li>
+<li>replace builtin __debug__ variable with its value</li>
+<li>dead code elimination</li>
+</ul>
+</li>
+<li>Add support of per module configuration using an __astoptimizer__ variable</li>
+<li>code.co_lnotab now supports negative line number delta.  Change the type of
+line number delta in co_lnotab from unsigned 8-bit integer to signed 8-bit
+integer. This change fixes almost all issues about line numbers.</li>
+</ul>
+<p>Minor changes:</p>
+<ul class="simple">
+<li>Change .pyc magic number to 3600</li>
+<li>Remove unused fat.specialized_method() function</li>
+<li>Remove Lib/fat.py, rename Modules/_fat.c to Modules/fat.c: fat module is now
+only implemented in C</li>
+<li>Fix more tests of the Python test suite</li>
+<li>A builtin guard now adds a guard on globals. Ignore also the specialization
+if globals()[name] already exists.</li>
+<li>Ignore duplicated guards</li>
+<li>Implement namespace following the control flow for constant propagation</li>
+<li>Config.max_int_bits becomes a simple integer</li>
+<li>Fix bytecode compilation for tuple constants. Don't merge (0, 0) and (0.0,
+0.0) constants, they are different.</li>
+<li>Call more builtin functions</li>
+<li>Optimize the optimizer: write a metaclass to discover visitors when the class
+is created, not when the class is instanciated</li>
+</ul>
+</div>
+<div class="section" id="december-second-half">
+<h3>December (second half)</h3>
+<p>Major changes:</p>
+<ul class="simple">
+<li>Implement &quot;simplify iterable&quot; optimization. The loop unrolling optimization
+now relies on it to replace <tt class="docutils literal">range(n)</tt>.</li>
+<li>Split the function optimization in two stages: first apply optimizations
+which don't require specialization, then apply optimizations which
+require specialization.</li>
+<li>Replace the builtin __fat__ variable with a new sys.flags.fat flag</li>
+</ul>
+<p>Minor changes:</p>
+<ul class="simple">
+<li>Extend optimizations to optimize more cases (more builtins, more loop
+unrolling, remove more dead code, etc.)</li>
+<li>Add Config.logger attribute. astoptimize logs into sys.stderr when Python is
+started in verbose mode (python3 -v)</li>
+<li>Move func.patch_constants() to code.replace_consts()</li>
+<li>Enhance marshal to fix tests: call frozenset() to get the empty frozenset
+singleton</li>
+<li>Don't remove code which must raise a SyntaxError. Don't remove code
+containing the continue instruction.</li>
+<li>Restrict GlobalNonlocalVisitor to the current namespace</li>
+<li>Emit logs when optimizations are skipped</li>
+<li>Use some maths to avoid optimization pow() if result is an integer and will
+be larger than the configuration. For example, don't optimize 2 ** (2**100).</li>
+</ul>
+</div>
+<div class="section" id="january">
+<h3>January</h3>
+<p>Major changes:</p>
+<ul class="simple">
+<li>astoptimizer now produces a single builtin guard with all names,
+instead of a guard per name.</li>
+<li>Major API refactoring detailed in a dedicated section above</li>
+</ul>
+<p>Minor changes:</p>
+<ul class="simple">
+<li>Start to write PEPs</li>
+<li>Dictionary guards now expect a list of names, instead of a single name, to
+reduce the cost of guards.</li>
+<li>GuardFunc now uses a strong reference to the function, instead of a weak
+reference to simplify the code</li>
+<li>Initialize dictionary version to 0</li>
+</ul>
+</div>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="bookmark"
+                           title="Permalink to Status of the FAT Python project, November 26, 2015">Status of the FAT Python project, November 26, 2015</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2015-11-26T17:30:00+01:00">
                 Published: jeu. 26 novembre 2015
@@ -32,133 +269,11 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> </p>
-</footer><!-- /.post-info --><a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"><img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /></a>
-<p>Previous status: [python-dev] <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html">Second milestone of FAT Python</a>
-(Nov 4, 2015).</p>
-<div class="section" id="documentation">
-<h2>Documentation</h2>
-<p>I combined the documentation of various optimizations projects into a single
-documentation: <a class="reference external" href="http://faster-cpython.readthedocs.org/">Faster CPython</a>.
-My previous optimizations projects:</p>
-<ul class="simple">
-<li><a class="reference external" href="http://faster-cpython.readthedocs.org/old_ast_optimizer.html">&quot;old&quot; astoptimizer</a> (now
-replaced with a &quot;new&quot; astoptimizer included in the FAT Python)</li>
-<li><a class="reference external" href="http://faster-cpython.readthedocs.org/registervm.html">registervm</a></li>
-<li><a class="reference external" href="http://faster-cpython.readthedocs.org/readonly.html">read-only Python</a></li>
-</ul>
-<p>The FAT Python project has its own page: <a class="reference external" href="http://faster-cpython.readthedocs.org/fat_python.html">FAT Python project</a>.</p>
-</div>
-<div class="section" id="copy-builtins-to-constants-optimization">
-<h2>Copy builtins to constants optimization</h2>
-<p>The <tt class="docutils literal">LOAD_GLOBAL</tt> instruction is used to load a builtin function.  The
-instruction requires two dictionary lookup: one in the global namespace (which
-almost always fail) and then in the builtin namespaces.</p>
-<p>It's rare to replace builtins, so the idea here is to replace the dynamic
-<tt class="docutils literal">LOAD_GLOBAL</tt> instruction with a static <tt class="docutils literal">LOAD_CONST</tt> instruction which
-loads the function from a C array, a fast O(1) lookup.</p>
-<p>It is not possible to inject a builtin function during the compilation. Python
-code objects are serialized by the marshal module which only support simple
-types like integers, strings and tuples, not functions. The trick is to modify
-the constants at runtime when the module is loaded. I added a new
-<tt class="docutils literal">patch_constants()</tt> method to functions.</p>
-<p>Example:</p>
-<pre class="literal-block">
-def log(message):
-    print(message)
-</pre>
-<p>This function is specialized to:</p>
-<pre class="literal-block">
-def log(message):
-    'LOAD_GLOBAL print'(message)
-log.patch_constants({'LOAD_GLOBAL print': print})
-</pre>
-<p>The specialized bytecode uses two guards on builtin and global namespaces to
-disable the optimization if the builtin function is replaced.</p>
-<p>See <a class="reference external" href="https://faster-cpython.readthedocs.org/fat_python.html#copy-builtin-functions-to-constants">Copy builtin functions to constants</a>
-for more information.</p>
-</div>
-<div class="section" id="loop-unrolling-optimization">
-<h2>Loop unrolling optimization</h2>
-<p>A simple optimization is to &quot;unroll&quot; a loop to reduce the cost of loops. The
-optimization generates assignement statements (for the loop index variable)
-and duplicates the loop body.</p>
-<p>Example with a <tt class="docutils literal">range()</tt> iterator:</p>
-<pre class="literal-block">
-def func():
-    for i in (1, 2, 3):
-        print(i)
-</pre>
-<p>The function is specialized to:</p>
-<pre class="literal-block">
-def func():
-    i = 1
-    print(i)
+</footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, November 26, 2015</p>
 
-    i = 2
-    print(i)
-
-    i = 3
-    print(i)
-</pre>
-<p>If the iterator uses the builtin <tt class="docutils literal">range</tt> function, two guards are
-required on builtin and global namespaces.</p>
-<p>The optimization also handles tuple iterator. No guard is needed in this case
-(the code is always optimized).</p>
-<p>See <a class="reference external" href="https://faster-cpython.readthedocs.org/fat_python.html#loop-unrolling">Loop unrolling</a>
-for more information.</p>
-</div>
-<div class="section" id="lot-of-enhancements-of-the-ast-optimizer">
-<h2>Lot of enhancements of the AST optimizer</h2>
-<p>New optimizations helped to find bugs in the <a class="reference external" href="https://faster-cpython.readthedocs.org/new_ast_optimizer.html">AST optimizer</a>. Many fixes
-and various enhancements were done in the AST optimizer.</p>
-<p>The number of lines of code more than doubled: 500 to 1200 lines.</p>
-<p>Optimization: <tt class="docutils literal">copy.deepcopy()</tt> is no more used to duplicate a full tree. The
-new <tt class="docutils literal">NodeTransformer</tt> class now only copies a single node, if at least one
-field is modified.</p>
-<p>The <tt class="docutils literal">VariableVisitor</tt> class which detects local and global variables was
-heavily modified. It understands much more kinds of AST node: <tt class="docutils literal">For</tt>, <tt class="docutils literal">AugAssign</tt>,
-<tt class="docutils literal">AsyncFunctionDef</tt>, <tt class="docutils literal">ClassDef</tt>, etc. It now also detects non-local
-variables (<tt class="docutils literal">nonlocal</tt> keyword). The scope is now limited to the current
-function, it doesn't enter inside nested <tt class="docutils literal">DictComp</tt>, <tt class="docutils literal">FunctionDef</tt>,
-<tt class="docutils literal">Lambda</tt>, etc. These nodes create a new separated namespace.</p>
-<p>The optimizer is now able to optimize a function without guards: it's needed to
-unroll a loop using a tuple as iterator.</p>
-</div>
-<div class="section" id="known-bugs">
-<h2>Known bugs</h2>
-<p>See the <a class="reference external" href="https://hg.python.org/sandbox/fatpython/file/0d30dba5fa64/TODO.rst">TODO.rst file</a> for
-known bugs.</p>
-<div class="section" id="wrong-line-numbers-and-tracebacks">
-<h3>Wrong Line Numbers (and Tracebacks)</h3>
-<p>AST nodes have <tt class="docutils literal">lineno</tt> and <tt class="docutils literal">col_offset</tt> fields, so an AST optimizer is not
-&quot;supposed&quot; to break line numbers. In practice, line numbers, and so tracebacks,
-are completly wrong in FAT mode. The problem is probably that AST optimizer can
-copy and move instructions. Line numbers are no more motononic. CPython
-probably don't handle this case (negative line delta).</p>
-<p>It should be possible to fix it, but right now I prefer to focus on new
-optimizations and fix other bugs.</p>
-</div>
-<div class="section" id="exec-code-dict">
-<h3>exec(code, dict)</h3>
-<p>In FAT mode, some optimizations require guards on the global namespace.
-If <tt class="docutils literal">exec()</tt> if called with a Python <tt class="docutils literal">dict</tt> for globals, an exception
-is raised because <tt class="docutils literal">func.specialize()</tt> requires a <tt class="docutils literal">fat.verdict</tt> for
-globals.</p>
-<p>It's not possible to convert implicitly the <tt class="docutils literal">dict</tt> to a <tt class="docutils literal">fat.verdict</tt>,
-because the <tt class="docutils literal">dict</tt> is expected to be mutated, and the guards be will on
-<tt class="docutils literal">fat.verdict</tt> not on the original <tt class="docutils literal">dict</tt>.</p>
-<p>I worked around the bug by creating manually a <tt class="docutils literal">fat.verdict</tt> in FAT mode,
-instead of a <tt class="docutils literal">dict</tt>.</p>
-<p>This bug will go avoid if the versionning feature is moved directly into
-the builtin <tt class="docutils literal">dict</tt> type (and the <tt class="docutils literal">fat.verdict</tt> type is removed).</p>
-</div>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+                <a class="readmore" href="https://haypo.github.io/fat-python-status-nov26-2015.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>

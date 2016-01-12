@@ -1,5 +1,218 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2015-11-26T17:30:00+01:00</updated><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-01-12T13:42:00+01:00</updated><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Previous status: &lt;a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="summary"&gt;
+&lt;h2&gt;Summary&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;New optimizations implemented:&lt;ul&gt;
+&lt;li&gt;constant propagation&lt;/li&gt;
+&lt;li&gt;constant folding&lt;/li&gt;
+&lt;li&gt;dead code elimination&lt;/li&gt;
+&lt;li&gt;simplify iterable&lt;/li&gt;
+&lt;li&gt;replace builtin __debug__ variable with its value&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Major API refactoring to make the API more generic and reusable by other
+projects, and maybe different use case.&lt;/li&gt;
+&lt;li&gt;Work on 3 different Python Enhancement Proposals (PEP): API for pluggable
+static optimizers and function specialization&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The two previously known major bugs, &amp;quot;Wrong Line Numbers (and Tracebacks)&amp;quot; and
+&amp;quot;exec(code, dict)&amp;quot;, are now fixed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-enhancement-proposals-pep"&gt;
+&lt;h2&gt;Python Enhancement Proposals (PEP)&lt;/h2&gt;
+&lt;p&gt;I proposed an API for to support function specialization and static optimizers.
+I splitted changes in 3 different Python Enhancement Proposals (PEP):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0509/"&gt;PEP 509 - Add a private version to dict&lt;/a&gt;: &amp;quot;Add a new private version to
+builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type, incremented at each change, to implement fast guards
+on namespaces.&amp;quot;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0510/"&gt;PEP 510 - Specialize functions&lt;/a&gt;: &amp;quot;Add functions to the Python C
+API to specialize pure Python functions: add specialized codes with guards.
+It allows to implement static optimizers respecting the Python semantics.&amp;quot;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://faster-cpython.readthedocs.org/pep_ast.html"&gt;PEP 511 - API for AST transformers&lt;/a&gt;: &amp;quot;Propose an API to
+support AST transformers.&amp;quot;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The PEP 509 was sent to the python-ideas mailing list for a first round, and
+then to python-dev mailing list.  The PEP 510 was sent to python-ideas to a
+first round. The last PEP was not published yet, I'm still working on it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="major-api-refactor"&gt;
+&lt;h2&gt;Major API refactor&lt;/h2&gt;
+&lt;p&gt;The API has been deeply refactored to write the Python Enhancement Proposals.&lt;/p&gt;
+&lt;p&gt;First set of changes for function specialization (PEP 510):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;astoptimizer now adds &lt;tt class="docutils literal"&gt;import fat&lt;/tt&gt; to optimized code when specialization is
+used&lt;/li&gt;
+&lt;li&gt;Remove the function subtype: add directly the &lt;tt class="docutils literal"&gt;specialize()&lt;/tt&gt; method to
+functions&lt;/li&gt;
+&lt;li&gt;Add support of any callable object to &lt;tt class="docutils literal"&gt;func.specialize()&lt;/tt&gt;, not only code
+object (bytecode)&lt;/li&gt;
+&lt;li&gt;Create guard objects:&lt;ul&gt;
+&lt;li&gt;fat.Guard&lt;/li&gt;
+&lt;li&gt;fat.GuardArgType&lt;/li&gt;
+&lt;li&gt;fat.GuardBuiltins&lt;/li&gt;
+&lt;li&gt;fat.GuardDict&lt;/li&gt;
+&lt;li&gt;fat.GuardFunc&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Add functions to create guards:&lt;ul&gt;
+&lt;li&gt;fat.GuardGlobals&lt;/li&gt;
+&lt;li&gt;fat.GuardTypeDict&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Move code.replace_consts() to the fat.replace_consts()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Second set of changes for AST transformers (PEP 511):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add sys.implementation.ast_transformers and sys.implementation.optim_tag&lt;/li&gt;
+&lt;li&gt;Rename sys.asthook to sys.ast_transformers&lt;/li&gt;
+&lt;li&gt;Add -X fat command line option to enable the FAT mode: register the
+astoptimizer in AST transformers&lt;/li&gt;
+&lt;li&gt;Replace -F command line option with -o OPTIM_TAG&lt;/li&gt;
+&lt;li&gt;Remove sys.flags.fat (Python flag) and Py_FatPython (C variable)&lt;/li&gt;
+&lt;li&gt;Rewrite how an AST transformer is registered&lt;/li&gt;
+&lt;li&gt;importlib skips .py if optim_tag is not 'opt' and required AST transformers
+are missing. Raise ImportError if the .pyc file is missing.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Third set of changes for dictionary versionning, updates after the first round
+of the PEP 509 on python-ideas:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Remove dict.__version__ read-only property: the version is now only
+accessible from the C API&lt;/li&gt;
+&lt;li&gt;Change the type of the C field &lt;tt class="docutils literal"&gt;ma_verison&lt;/tt&gt; from &lt;tt class="docutils literal"&gt;size_t&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;unsigned
+PY_INT64_T&lt;/tt&gt; to also use 64-bit unsigned integer on 32-bit platforms. The
+risk of misisng a change in a guard with a 32-bit version is too high,
+whereas the risk with a 64-bit version is very very low.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Fourth set of changes for function specialization, updates after the first round
+of the PEP 510 on python-ideas:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Remove func.specialize() and func.get_specialized() at the Python level,
+replace them with C functions. Expose them again as fat.specialize(func, ...)
+and fat.get_specialized(func)&lt;/li&gt;
+&lt;li&gt;fat.get_specialized() now returns a list of tuples, instead of a list of dict&lt;/li&gt;
+&lt;li&gt;Make fat.Guard type private: rename it to fat._Guard&lt;/li&gt;
+&lt;li&gt;Add fat.PyGuard: toy to implement a guard in pure Python&lt;/li&gt;
+&lt;li&gt;Guard C API: rename first_check to init and support reporting errors&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="change-log"&gt;
+&lt;h2&gt;Change log&lt;/h2&gt;
+&lt;p&gt;Detailed changes of the FAT Python between November 24, 2015 and January 12,
+2016.&lt;/p&gt;
+&lt;div class="section" id="end-of-november"&gt;
+&lt;h3&gt;End of november&lt;/h3&gt;
+&lt;p&gt;Major change:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add a __version__ read-only property to dict, remove the verdict subtype of
+dict. As a consequence, dictionary guards now hold a strong reference to the
+dict value&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Minor changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Allocate dynamically memory for specialized code and guards, don't use fixed-size
+arrays anymore&lt;/li&gt;
+&lt;li&gt;astoptimizer: enhance scope detection&lt;/li&gt;
+&lt;li&gt;optimize astoptimizer: don't copy a whole AST tree anymore with
+copy.deepcopy(), only copy modified nodes.&lt;/li&gt;
+&lt;li&gt;Add Config.max_constant_size&lt;/li&gt;
+&lt;li&gt;Reenable checks on cell variables: allow cell variables if they are the same&lt;/li&gt;
+&lt;li&gt;Reenable optimizations on methods calling super(), but never copy super()
+builtin to constants. If super() is replaced with a string, the required free
+variable (reference to the current class) is not created by the compiler&lt;/li&gt;
+&lt;li&gt;Add PureBuiltin config&lt;/li&gt;
+&lt;li&gt;NodeVisitor now calls generic_visit() before visit_XXX()&lt;/li&gt;
+&lt;li&gt;Loop unrolling now also optimizes tuple iterators&lt;/li&gt;
+&lt;li&gt;At the end of Python initialization, create a copy of the builtins dictionary
+to be able later to detect if a builtin name was replaced.&lt;/li&gt;
+&lt;li&gt;Implement collections.UserDict.__version__&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="december-first-half"&gt;
+&lt;h3&gt;December (first half)&lt;/h3&gt;
+&lt;p&gt;Major changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Implement 4 new optimizations:&lt;ul&gt;
+&lt;li&gt;constant propagation&lt;/li&gt;
+&lt;li&gt;constant folding&lt;/li&gt;
+&lt;li&gt;replace builtin __debug__ variable with its value&lt;/li&gt;
+&lt;li&gt;dead code elimination&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Add support of per module configuration using an __astoptimizer__ variable&lt;/li&gt;
+&lt;li&gt;code.co_lnotab now supports negative line number delta.  Change the type of
+line number delta in co_lnotab from unsigned 8-bit integer to signed 8-bit
+integer. This change fixes almost all issues about line numbers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Minor changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Change .pyc magic number to 3600&lt;/li&gt;
+&lt;li&gt;Remove unused fat.specialized_method() function&lt;/li&gt;
+&lt;li&gt;Remove Lib/fat.py, rename Modules/_fat.c to Modules/fat.c: fat module is now
+only implemented in C&lt;/li&gt;
+&lt;li&gt;Fix more tests of the Python test suite&lt;/li&gt;
+&lt;li&gt;A builtin guard now adds a guard on globals. Ignore also the specialization
+if globals()[name] already exists.&lt;/li&gt;
+&lt;li&gt;Ignore duplicated guards&lt;/li&gt;
+&lt;li&gt;Implement namespace following the control flow for constant propagation&lt;/li&gt;
+&lt;li&gt;Config.max_int_bits becomes a simple integer&lt;/li&gt;
+&lt;li&gt;Fix bytecode compilation for tuple constants. Don't merge (0, 0) and (0.0,
+0.0) constants, they are different.&lt;/li&gt;
+&lt;li&gt;Call more builtin functions&lt;/li&gt;
+&lt;li&gt;Optimize the optimizer: write a metaclass to discover visitors when the class
+is created, not when the class is instanciated&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="december-second-half"&gt;
+&lt;h3&gt;December (second half)&lt;/h3&gt;
+&lt;p&gt;Major changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Implement &amp;quot;simplify iterable&amp;quot; optimization. The loop unrolling optimization
+now relies on it to replace &lt;tt class="docutils literal"&gt;range(n)&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Split the function optimization in two stages: first apply optimizations
+which don't require specialization, then apply optimizations which
+require specialization.&lt;/li&gt;
+&lt;li&gt;Replace the builtin __fat__ variable with a new sys.flags.fat flag&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Minor changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Extend optimizations to optimize more cases (more builtins, more loop
+unrolling, remove more dead code, etc.)&lt;/li&gt;
+&lt;li&gt;Add Config.logger attribute. astoptimize logs into sys.stderr when Python is
+started in verbose mode (python3 -v)&lt;/li&gt;
+&lt;li&gt;Move func.patch_constants() to code.replace_consts()&lt;/li&gt;
+&lt;li&gt;Enhance marshal to fix tests: call frozenset() to get the empty frozenset
+singleton&lt;/li&gt;
+&lt;li&gt;Don't remove code which must raise a SyntaxError. Don't remove code
+containing the continue instruction.&lt;/li&gt;
+&lt;li&gt;Restrict GlobalNonlocalVisitor to the current namespace&lt;/li&gt;
+&lt;li&gt;Emit logs when optimizations are skipped&lt;/li&gt;
+&lt;li&gt;Use some maths to avoid optimization pow() if result is an integer and will
+be larger than the configuration. For example, don't optimize 2 ** (2**100).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="january"&gt;
+&lt;h3&gt;January&lt;/h3&gt;
+&lt;p&gt;Major changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;astoptimizer now produces a single builtin guard with all names,
+instead of a guard per name.&lt;/li&gt;
+&lt;li&gt;Major API refactoring detailed in a dedicated section above&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Minor changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Start to write PEPs&lt;/li&gt;
+&lt;li&gt;Dictionary guards now expect a list of names, instead of a single name, to
+reduce the cost of guards.&lt;/li&gt;
+&lt;li&gt;GuardFunc now uses a strong reference to the function, instead of a weak
+reference to simplify the code&lt;/li&gt;
+&lt;li&gt;Initialize dictionary version to 0&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
 &lt;div class="section" id="documentation"&gt;
