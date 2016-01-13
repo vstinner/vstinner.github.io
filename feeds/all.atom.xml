@@ -31,7 +31,7 @@ on namespaces.&amp;quot;&lt;/li&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0510/"&gt;PEP 510 - Specialize functions&lt;/a&gt;: &amp;quot;Add functions to the Python C
 API to specialize pure Python functions: add specialized codes with guards.
 It allows to implement static optimizers respecting the Python semantics.&amp;quot;&lt;/li&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://faster-cpython.readthedocs.org/pep_ast.html"&gt;PEP 511 - API for AST transformers&lt;/a&gt;: &amp;quot;Propose an API to
+&lt;li&gt;&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0511/"&gt;PEP 511 - API for AST transformers&lt;/a&gt;: &amp;quot;Propose an API to
 support AST transformers.&amp;quot;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;The PEP 509 was sent to the python-ideas mailing list for a first round, and
