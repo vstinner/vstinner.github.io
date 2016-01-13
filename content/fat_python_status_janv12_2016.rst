@@ -53,7 +53,7 @@ I splitted changes in 3 different Python Enhancement Proposals (PEP):
   API to specialize pure Python functions: add specialized codes with guards.
   It allows to implement static optimizers respecting the Python semantics."
 * `PEP 511 - API for AST transformers
-  <https://faster-cpython.readthedocs.org/pep_ast.html>`_: "Propose an API to
+  <https://www.python.org/dev/peps/pep-0511/>`_: "Propose an API to
   support AST transformers."
 
 The PEP 509 was sent to the python-ideas mailing list for a first round, and
