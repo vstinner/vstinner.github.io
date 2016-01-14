@@ -333,7 +333,7 @@ instead of a &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
 the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type (and the &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; type is removed).&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
+</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
 &lt;h2&gt;From 2to3 to 2to6&lt;/h2&gt;
 &lt;p&gt;When Python 3.0 was released, the official statement was to port your
 application using &lt;a class="reference external" href="https://docs.python.org/3.5/library/2to3.html"&gt;2to3&lt;/a&gt; and
