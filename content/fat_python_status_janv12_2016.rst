@@ -107,7 +107,7 @@ of the PEP 509 on python-ideas:
 
 * Remove dict.__version__ read-only property: the version is now only
   accessible from the C API
-* Change the type of the C field ``ma_verison`` from ``size_t`` to ``unsigned
+* Change the type of the C field ``ma_version`` from ``size_t`` to ``unsigned
   PY_INT64_T`` to also use 64-bit unsigned integer on 32-bit platforms. The
   risk of misisng a change in a guard with a 32-bit version is too high,
   whereas the risk with a 64-bit version is very very low.
