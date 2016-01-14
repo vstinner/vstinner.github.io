@@ -212,7 +212,7 @@ reference to simplify the code&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
 &lt;div class="section" id="documentation"&gt;
