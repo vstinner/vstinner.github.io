@@ -62,7 +62,7 @@ object (bytecode)&lt;/li&gt;
 &lt;li&gt;fat.GuardTypeDict&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
-&lt;li&gt;Move code.replace_consts() to the fat.replace_consts()&lt;/li&gt;
+&lt;li&gt;Move code.replace_consts() to fat.replace_consts()&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Second set of changes for AST transformers (PEP 511):&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -83,7 +83,7 @@ of the PEP 509 on python-ideas:&lt;/p&gt;
 accessible from the C API&lt;/li&gt;
 &lt;li&gt;Change the type of the C field &lt;tt class="docutils literal"&gt;ma_version&lt;/tt&gt; from &lt;tt class="docutils literal"&gt;size_t&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;unsigned
 PY_INT64_T&lt;/tt&gt; to also use 64-bit unsigned integer on 32-bit platforms. The
-risk of misisng a change in a guard with a 32-bit version is too high,
+risk of missing a change in a guard with a 32-bit version is too high,
 whereas the risk with a 64-bit version is very very low.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Fourth set of changes for function specialization, updates after the first round

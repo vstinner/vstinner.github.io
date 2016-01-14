@@ -95,7 +95,7 @@ object (bytecode)</li>
 <li>fat.GuardTypeDict</li>
 </ul>
 </li>
-<li>Move code.replace_consts() to the fat.replace_consts()</li>
+<li>Move code.replace_consts() to fat.replace_consts()</li>
 </ul>
 <p>Second set of changes for AST transformers (PEP 511):</p>
 <ul class="simple">
@@ -116,7 +116,7 @@ of the PEP 509 on python-ideas:</p>
 accessible from the C API</li>
 <li>Change the type of the C field <tt class="docutils literal">ma_version</tt> from <tt class="docutils literal">size_t</tt> to <tt class="docutils literal">unsigned
 PY_INT64_T</tt> to also use 64-bit unsigned integer on 32-bit platforms. The
-risk of misisng a change in a guard with a 32-bit version is too high,
+risk of missing a change in a guard with a 32-bit version is too high,
 whereas the risk with a 64-bit version is very very low.</li>
 </ul>
 <p>Fourth set of changes for function specialization, updates after the first round
