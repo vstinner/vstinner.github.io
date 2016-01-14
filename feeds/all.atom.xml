@@ -81,7 +81,7 @@ of the PEP 509 on python-ideas:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Remove dict.__version__ read-only property: the version is now only
 accessible from the C API&lt;/li&gt;
-&lt;li&gt;Change the type of the C field &lt;tt class="docutils literal"&gt;ma_verison&lt;/tt&gt; from &lt;tt class="docutils literal"&gt;size_t&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;unsigned
+&lt;li&gt;Change the type of the C field &lt;tt class="docutils literal"&gt;ma_version&lt;/tt&gt; from &lt;tt class="docutils literal"&gt;size_t&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;unsigned
 PY_INT64_T&lt;/tt&gt; to also use 64-bit unsigned integer on 32-bit platforms. The
 risk of misisng a change in a guard with a 32-bit version is too high,
 whereas the risk with a 64-bit version is very very low.&lt;/li&gt;
