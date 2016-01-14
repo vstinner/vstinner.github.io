@@ -5,7 +5,7 @@ Status of the FAT Python project, November 26, 2015
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2015-11-26 17:30
-:tags: optimization
+:tags: optimization, fatpython
 :category: python
 :slug: fat-python-status-nov26-2015
 :authors: Victor Stinner
