@@ -3,8 +3,8 @@ Status of the FAT Python project, January 12, 2016
 ++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2016-01-12 13:42
-:tags: optimization
-:category: python, fatpython
+:tags: optimization, fatpython
+:category: python
 :slug: fat-python-status-janv12-2016
 :authors: Victor Stinner
 :summary: Status of the FAT Python project, January 12, 2016
