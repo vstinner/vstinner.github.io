@@ -87,7 +87,7 @@ First set of changes for function specialization (PEP 510):
   * fat.GuardGlobals
   * fat.GuardTypeDict
 
-* Move code.replace_consts() to the fat.replace_consts()
+* Move code.replace_consts() to fat.replace_consts()
 
 
 Second set of changes for AST transformers (PEP 511):
@@ -109,7 +109,7 @@ of the PEP 509 on python-ideas:
   accessible from the C API
 * Change the type of the C field ``ma_version`` from ``size_t`` to ``unsigned
   PY_INT64_T`` to also use 64-bit unsigned integer on 32-bit platforms. The
-  risk of misisng a change in a guard with a 32-bit version is too high,
+  risk of missing a change in a guard with a 32-bit version is too high,
   whereas the risk with a 64-bit version is very very low.
 
 Fourth set of changes for function specialization, updates after the first round
