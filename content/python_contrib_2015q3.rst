@@ -24,6 +24,7 @@ Most complex bugs:
 
 * FreeBSD bug
 * sys recursion limit: Issue #25274 (fixed during 2015 Q4)
+* timestamp rounding
 
 Major changes:
 

@@ -9,12 +9,57 @@ _PyBytesWriter API
 :authors: Victor Stinner
 :summary: _PyBytesWriter API
 
-The "bytes writer" (_PyBytesWriter) is an API designed to reduce the number of
-memory reallocations when the output size is unknown. This article explains its
-history.
+This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
+CPython. These APIs are design to optimize code producing strings when the
+ouput size is not known in advance.
 
-During 2015 Q4, I focused my work on optimizing the bytes type. For me, it was
-an opportunity for a new attempt to implement a fast "bytes writer API".
+
+_PyAccu API
+===========
+
+Issue #12778: In 2011, Antoine Pitrou noticed that the JSON serializer was
+inefficient when serializing many small objects: it used too much memory for
+temporary objects compared to the final output string.
+
+The JSON serializer used a list of strings and joined all strings at the end of
+create a final output string. Pseudocode::
+
+    def serialize():
+        pieces = [serialize(item) for item in self]
+        return ''.join(pieces)
+
+Antoine introduced an accumulator compacting the temporary list of "small"
+strings and put the result in a second list of "large" strings. At the end, the
+list of "large" strings was also compacted to build the final output string.
+Pseudo-code::
+
+    def serialize():
+        small = []
+        large = []
+        for item in self:
+            small.append(serialize(item))
+            if len(small) > 10000:
+                large.append(''.join(small))
+                small.clear()
+        if small
+            large.append(''.join(small))
+        return ''.join(large)
+
+The threshold of 10,000  strings is justified by this comment::
+
+    /* Each item in a list of unicode objects has an overhead (in 64-bit
+     * builds) of:
+     *   - 8 bytes for the list slot
+     *   - 56 bytes for the header of the unicode object
+     * that is, 64 bytes.  100000 such objects waste more than 6MB
+     * compared to a single concatenated string.
+     */
+
+Issue #12911: Antoine Pitrou noticed that repr(list) used an inefficient code
+similar to the JSON serializer, and so proposed to convert its accumular code
+into a new private _PyAccu API. He added the _PyAccu API to Python 2.7.5 and
+3.2.3 and used it to "Fix memory consumption when calculating the repr() of
+huge tuples or lists".
 
 
 The _PyUnicodeWriter API
@@ -23,9 +68,8 @@ The _PyUnicodeWriter API
 Inefficient implementation of the PEP 393
 -----------------------------------------
 
-The core type str (Unicode) was reimplemented in Python 3.3 by the `PEP 393 --
-Flexible String Representation <https://www.python.org/dev/peps/pep-0393/>`_ to
-use less memory. The new internal structure is now very complex and require
+
+The new internal structure is now very complex and require
 to be smart when building a new string to avoid memory copies. I created
 the _PyUnicodeWriter API to start to avoid expensive memory copies.
 
@@ -33,8 +77,9 @@ The first implementation of the PEP 393 used a lot of ``Py_UCS4*`` buffer which
 used a lot of memory and required expensive conversion to ``Py_UCS1*`` (ASCII,
 Latin1) or ``Py_UCS2*`` buffers.
 
-Design of the API
------------------
+
+Design of the _PyUnicodeWriter API
+----------------------------------
 
 According to benchmarks, creating a ``Py_UCS1*`` buffer and then expand it
 to ``Py_UCS2*`` or ``Py_UCS4*`` is more efficient, since ``Py_UCS1*`` is the
@@ -60,6 +105,13 @@ Features:
 The API allows to disable overallocate before the last write. For example,
 ``"%s%s" % ('abc', 'def')`` disables the overallocation before writing
 ``'def'``.
+
+The _PyUnicodeWriter was introduced by the issue #14716 (change 7be716a47e9d):
+
+    Close #14716: str.format() now uses the new "unicode writer" API instead
+    of the PyAccu API. For example, it makes str.format() from 25% to 30%
+    faster on Linux.
+
 
 Fast-path for ASCII
 -------------------
