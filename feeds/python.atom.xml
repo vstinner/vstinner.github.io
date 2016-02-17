@@ -1,5 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-01-12T13:42:00+01:00</updated><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-02-17T22:00:00+01:00</updated><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:pytime.html</id><summary type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
+various formats. I expected to spend a few days, at the end I spent 3 years
+(2012-2015) on them!&lt;/p&gt;
+&lt;div class="section" id="python-3-3"&gt;
+&lt;h2&gt;Python 3.3&lt;/h2&gt;
+&lt;p&gt;In 2012, I proposed the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0410/"&gt;PEP 410 -- Use decimal.Decimal type for timestamps&lt;/a&gt; because storing timestamps as
+floating point numbers looses precision. The PEP was rejected because it
+modified many functions and had a bad API. At least, os.stat() got 3 new fields
+(atime_ns, mtime_ns, ctime_ns): timestamps  as a number of nanoseconds
+(&lt;tt class="docutils literal"&gt;int&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;My &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0418/"&gt;PEP 418 -- Add monotonic time, performance counter, and process time
+functions&lt;/a&gt; was accepted, Python
+3.3 got a new &lt;tt class="docutils literal"&gt;time.monotonic()&lt;/tt&gt; function (and a few others). Again, I spent
+much more time than I expected on a problem which looked simple at the first
+look.&lt;/p&gt;
+&lt;p&gt;With the &lt;a class="reference external" href="http://bugs.python.org/issue14180"&gt;issue #14180&lt;/a&gt;, I added functions
+to convert timestamps to the private &amp;quot;pytime&amp;quot; API to factorize the code of
+various modules. Timestamps were rounded towards +infinity (ROUND_CEILING), but
+it was not a deliberate choice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-4"&gt;
+&lt;h2&gt;Python 3.4&lt;/h2&gt;
+&lt;p&gt;To fix correctly a performance issue in asyncio (&lt;a class="reference external" href="https://bugs.python.org/issue20311"&gt;issue20311&lt;/a&gt;), I added two rounding modes to the
+pytime API: _PyTime_ROUND_DOWN (round towards zero), and _PyTime_ROUND_UP
+(round away from zero). Polling for events (ex: using &lt;tt class="docutils literal"&gt;select.select()&lt;/tt&gt;) with
+a non-zero timestamp must not call the underlying C level in non-blocking mode.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-5"&gt;
+&lt;h2&gt;Python 3.5&lt;/h2&gt;
+&lt;p&gt;When working on the &lt;a class="reference external" href="https://bugs.python.org/issue22117"&gt;issue #22117&lt;/a&gt;, I
+noticed that the implementation of rounding methods was buggy for negative
+timestamps. I replaced the _PyTime_ROUND_DOWN with _PyTime_ROUND_FLOOR (round
+towards minus infinity), and _PyTime_ROUND_UP with _PyTime_ROUND_CEILING (round
+towards infinity).&lt;/p&gt;
+&lt;p&gt;This issue also introduced a new private &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; type to support
+nanosecond resolution.  The type is an opaque integer type to store timestamps.
+In practice, it's a signed 64-bit integer. Since it's an integer, it's easy and
+natural to compute the sum or differecence of two timestamps: &lt;tt class="docutils literal"&gt;t1 + t2&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;t2 - t1&lt;/tt&gt;. I added _PyTime_XXX() functions to create a timestamp and
+_PyTime_AsXXX() functions to convert a timestamp to a different format.&lt;/p&gt;
+&lt;p&gt;I had to keep three _PyTime_ObjectToXXX() functions for fromtimestamp() methods
+of the datetime module. These methods must support extreme timestamps (year
+1..9999), whereas _PyTime_t is &amp;quot;limited&amp;quot; to a delta of +/- 292 years (year
+1678..2262).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-6"&gt;
+&lt;h2&gt;Python 3.6&lt;/h2&gt;
+&lt;p&gt;In 2015, the &lt;a class="reference external" href="http://bugs.python.org/issue23517"&gt;issue #23517&lt;/a&gt; reported that
+Python 2 and Python 3 don't use the same rounding method in
+datetime.datetime.fromtimestamp(): there was a difference of 1 microsecond.&lt;/p&gt;
+&lt;p&gt;After a long discussion, I modified fromtimestamp() methods of the datetime
+module to round to nearest with ties going away from zero (ROUND_HALF_UP), as
+done in Python 2.7, as round() in all Python versions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;It took me three years to stabilize the API and fix all issues. Well, I didn't
+spend all my days on it, but it shows that handling time is not a simple issue.&lt;/p&gt;
+&lt;p&gt;At the Python level, nothing changed, timestamps are still stored as float
+(except of the 3 new fieleds of os.stat()).&lt;/p&gt;
+&lt;p&gt;Python 3.5 only supports timezones with fixed offset, it does not support the
+locale timestamp for example. Timezones are still an hot topic: the
+&lt;a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig"&gt;datetime-sig mailing list&lt;/a&gt; was created to
+enhance timezone support in Python.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: &lt;a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;

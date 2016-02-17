@@ -21,7 +21,96 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/fat-python-status-janv12-2016.html">Status of the FAT Python project, January 12, 2016</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/pytime.html">History of the Python private C API _PyTime</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-02-17T22:00:00+01:00">
+                Published: mer. 17 février 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>I added functions to the private &quot;pytime&quot; library to convert timestamps from/to
+various formats. I expected to spend a few days, at the end I spent 3 years
+(2012-2015) on them!</p>
+<div class="section" id="python-3-3">
+<h2>Python 3.3</h2>
+<p>In 2012, I proposed the <a class="reference external" href="https://www.python.org/dev/peps/pep-0410/">PEP 410 -- Use decimal.Decimal type for timestamps</a> because storing timestamps as
+floating point numbers looses precision. The PEP was rejected because it
+modified many functions and had a bad API. At least, os.stat() got 3 new fields
+(atime_ns, mtime_ns, ctime_ns): timestamps  as a number of nanoseconds
+(<tt class="docutils literal">int</tt>).</p>
+<p>My <a class="reference external" href="https://www.python.org/dev/peps/pep-0418/">PEP 418 -- Add monotonic time, performance counter, and process time
+functions</a> was accepted, Python
+3.3 got a new <tt class="docutils literal">time.monotonic()</tt> function (and a few others). Again, I spent
+much more time than I expected on a problem which looked simple at the first
+look.</p>
+<p>With the <a class="reference external" href="http://bugs.python.org/issue14180">issue #14180</a>, I added functions
+to convert timestamps to the private &quot;pytime&quot; API to factorize the code of
+various modules. Timestamps were rounded towards +infinity (ROUND_CEILING), but
+it was not a deliberate choice.</p>
+</div>
+<div class="section" id="python-3-4">
+<h2>Python 3.4</h2>
+<p>To fix correctly a performance issue in asyncio (<a class="reference external" href="https://bugs.python.org/issue20311">issue20311</a>), I added two rounding modes to the
+pytime API: _PyTime_ROUND_DOWN (round towards zero), and _PyTime_ROUND_UP
+(round away from zero). Polling for events (ex: using <tt class="docutils literal">select.select()</tt>) with
+a non-zero timestamp must not call the underlying C level in non-blocking mode.</p>
+</div>
+<div class="section" id="python-3-5">
+<h2>Python 3.5</h2>
+<p>When working on the <a class="reference external" href="https://bugs.python.org/issue22117">issue #22117</a>, I
+noticed that the implementation of rounding methods was buggy for negative
+timestamps. I replaced the _PyTime_ROUND_DOWN with _PyTime_ROUND_FLOOR (round
+towards minus infinity), and _PyTime_ROUND_UP with _PyTime_ROUND_CEILING (round
+towards infinity).</p>
+<p>This issue also introduced a new private <tt class="docutils literal">_PyTime_t</tt> type to support
+nanosecond resolution.  The type is an opaque integer type to store timestamps.
+In practice, it's a signed 64-bit integer. Since it's an integer, it's easy and
+natural to compute the sum or differecence of two timestamps: <tt class="docutils literal">t1 + t2</tt> and
+<tt class="docutils literal">t2 - t1</tt>. I added _PyTime_XXX() functions to create a timestamp and
+_PyTime_AsXXX() functions to convert a timestamp to a different format.</p>
+<p>I had to keep three _PyTime_ObjectToXXX() functions for fromtimestamp() methods
+of the datetime module. These methods must support extreme timestamps (year
+1..9999), whereas _PyTime_t is &quot;limited&quot; to a delta of +/- 292 years (year
+1678..2262).</p>
+</div>
+<div class="section" id="python-3-6">
+<h2>Python 3.6</h2>
+<p>In 2015, the <a class="reference external" href="http://bugs.python.org/issue23517">issue #23517</a> reported that
+Python 2 and Python 3 don't use the same rounding method in
+datetime.datetime.fromtimestamp(): there was a difference of 1 microsecond.</p>
+<p>After a long discussion, I modified fromtimestamp() methods of the datetime
+module to round to nearest with ties going away from zero (ROUND_HALF_UP), as
+done in Python 2.7, as round() in all Python versions.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>It took me three years to stabilize the API and fix all issues. Well, I didn't
+spend all my days on it, but it shows that handling time is not a simple issue.</p>
+<p>At the Python level, nothing changed, timestamps are still stored as float
+(except of the 3 new fieleds of os.stat()).</p>
+<p>Python 3.5 only supports timezones with fixed offset, it does not support the
+locale timestamp for example. Timezones are still an hot topic: the
+<a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig">datetime-sig mailing list</a> was created to
+enhance timezone support in Python.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="bookmark"
+                           title="Permalink to Status of the FAT Python project, January 12, 2016">Status of the FAT Python project, January 12, 2016</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-01-12T13:42:00+01:00">
                 Published: mar. 12 janvier 2016
@@ -32,225 +121,11 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/fatpython.html">fatpython</a> </p>
-</footer><!-- /.post-info --><a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"><img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /></a>
-<p>Previous status: <a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html">Status of the FAT Python project, November 26, 2015</a>.</p>
-<div class="section" id="summary">
-<h2>Summary</h2>
-<ul class="simple">
-<li>New optimizations implemented:<ul>
-<li>constant propagation</li>
-<li>constant folding</li>
-<li>dead code elimination</li>
-<li>simplify iterable</li>
-<li>replace builtin __debug__ variable with its value</li>
-</ul>
-</li>
-<li>Major API refactoring to make the API more generic and reusable by other
-projects, and maybe different use case.</li>
-<li>Work on 3 different Python Enhancement Proposals (PEP): API for pluggable
-static optimizers and function specialization</li>
-</ul>
-<p>The two previously known major bugs, &quot;Wrong Line Numbers (and Tracebacks)&quot; and
-&quot;exec(code, dict)&quot;, are now fixed.</p>
-</div>
-<div class="section" id="python-enhancement-proposals-pep">
-<h2>Python Enhancement Proposals (PEP)</h2>
-<p>I proposed an API for to support function specialization and static optimizers.
-I splitted changes in 3 different Python Enhancement Proposals (PEP):</p>
-<ul class="simple">
-<li><a class="reference external" href="https://www.python.org/dev/peps/pep-0509/">PEP 509 - Add a private version to dict</a>: &quot;Add a new private version to
-builtin <tt class="docutils literal">dict</tt> type, incremented at each change, to implement fast guards
-on namespaces.&quot;</li>
-<li><a class="reference external" href="https://www.python.org/dev/peps/pep-0510/">PEP 510 - Specialize functions</a>: &quot;Add functions to the Python C
-API to specialize pure Python functions: add specialized codes with guards.
-It allows to implement static optimizers respecting the Python semantics.&quot;</li>
-<li><a class="reference external" href="https://www.python.org/dev/peps/pep-0511/">PEP 511 - API for AST transformers</a>: &quot;Propose an API to
-support AST transformers.&quot;</li>
-</ul>
-<p>The PEP 509 was sent to the python-ideas mailing list for a first round, and
-then to python-dev mailing list.  The PEP 510 was sent to python-ideas to a
-first round. The last PEP was not published yet, I'm still working on it.</p>
-</div>
-<div class="section" id="major-api-refactor">
-<h2>Major API refactor</h2>
-<p>The API has been deeply refactored to write the Python Enhancement Proposals.</p>
-<p>First set of changes for function specialization (PEP 510):</p>
-<ul class="simple">
-<li>astoptimizer now adds <tt class="docutils literal">import fat</tt> to optimized code when specialization is
-used</li>
-<li>Remove the function subtype: add directly the <tt class="docutils literal">specialize()</tt> method to
-functions</li>
-<li>Add support of any callable object to <tt class="docutils literal">func.specialize()</tt>, not only code
-object (bytecode)</li>
-<li>Create guard objects:<ul>
-<li>fat.Guard</li>
-<li>fat.GuardArgType</li>
-<li>fat.GuardBuiltins</li>
-<li>fat.GuardDict</li>
-<li>fat.GuardFunc</li>
-</ul>
-</li>
-<li>Add functions to create guards:<ul>
-<li>fat.GuardGlobals</li>
-<li>fat.GuardTypeDict</li>
-</ul>
-</li>
-<li>Move code.replace_consts() to fat.replace_consts()</li>
-</ul>
-<p>Second set of changes for AST transformers (PEP 511):</p>
-<ul class="simple">
-<li>Add sys.implementation.ast_transformers and sys.implementation.optim_tag</li>
-<li>Rename sys.asthook to sys.ast_transformers</li>
-<li>Add -X fat command line option to enable the FAT mode: register the
-astoptimizer in AST transformers</li>
-<li>Replace -F command line option with -o OPTIM_TAG</li>
-<li>Remove sys.flags.fat (Python flag) and Py_FatPython (C variable)</li>
-<li>Rewrite how an AST transformer is registered</li>
-<li>importlib skips .py if optim_tag is not 'opt' and required AST transformers
-are missing. Raise ImportError if the .pyc file is missing.</li>
-</ul>
-<p>Third set of changes for dictionary versionning, updates after the first round
-of the PEP 509 on python-ideas:</p>
-<ul class="simple">
-<li>Remove dict.__version__ read-only property: the version is now only
-accessible from the C API</li>
-<li>Change the type of the C field <tt class="docutils literal">ma_version</tt> from <tt class="docutils literal">size_t</tt> to <tt class="docutils literal">unsigned
-PY_INT64_T</tt> to also use 64-bit unsigned integer on 32-bit platforms. The
-risk of missing a change in a guard with a 32-bit version is too high,
-whereas the risk with a 64-bit version is very very low.</li>
-</ul>
-<p>Fourth set of changes for function specialization, updates after the first round
-of the PEP 510 on python-ideas:</p>
-<ul class="simple">
-<li>Remove func.specialize() and func.get_specialized() at the Python level,
-replace them with C functions. Expose them again as fat.specialize(func, ...)
-and fat.get_specialized(func)</li>
-<li>fat.get_specialized() now returns a list of tuples, instead of a list of dict</li>
-<li>Make fat.Guard type private: rename it to fat._Guard</li>
-<li>Add fat.PyGuard: toy to implement a guard in pure Python</li>
-<li>Guard C API: rename first_check to init and support reporting errors</li>
-</ul>
-</div>
-<div class="section" id="change-log">
-<h2>Change log</h2>
-<p>Detailed changes of the FAT Python between November 24, 2015 and January 12,
-2016.</p>
-<div class="section" id="end-of-november">
-<h3>End of november</h3>
-<p>Major change:</p>
-<ul class="simple">
-<li>Add a __version__ read-only property to dict, remove the verdict subtype of
-dict. As a consequence, dictionary guards now hold a strong reference to the
-dict value</li>
-</ul>
-<p>Minor changes:</p>
-<ul class="simple">
-<li>Allocate dynamically memory for specialized code and guards, don't use fixed-size
-arrays anymore</li>
-<li>astoptimizer: enhance scope detection</li>
-<li>optimize astoptimizer: don't copy a whole AST tree anymore with
-copy.deepcopy(), only copy modified nodes.</li>
-<li>Add Config.max_constant_size</li>
-<li>Reenable checks on cell variables: allow cell variables if they are the same</li>
-<li>Reenable optimizations on methods calling super(), but never copy super()
-builtin to constants. If super() is replaced with a string, the required free
-variable (reference to the current class) is not created by the compiler</li>
-<li>Add PureBuiltin config</li>
-<li>NodeVisitor now calls generic_visit() before visit_XXX()</li>
-<li>Loop unrolling now also optimizes tuple iterators</li>
-<li>At the end of Python initialization, create a copy of the builtins dictionary
-to be able later to detect if a builtin name was replaced.</li>
-<li>Implement collections.UserDict.__version__</li>
-</ul>
-</div>
-<div class="section" id="december-first-half">
-<h3>December (first half)</h3>
-<p>Major changes:</p>
-<ul class="simple">
-<li>Implement 4 new optimizations:<ul>
-<li>constant propagation</li>
-<li>constant folding</li>
-<li>replace builtin __debug__ variable with its value</li>
-<li>dead code elimination</li>
-</ul>
-</li>
-<li>Add support of per module configuration using an __astoptimizer__ variable</li>
-<li>code.co_lnotab now supports negative line number delta.  Change the type of
-line number delta in co_lnotab from unsigned 8-bit integer to signed 8-bit
-integer. This change fixes almost all issues about line numbers.</li>
-</ul>
-<p>Minor changes:</p>
-<ul class="simple">
-<li>Change .pyc magic number to 3600</li>
-<li>Remove unused fat.specialized_method() function</li>
-<li>Remove Lib/fat.py, rename Modules/_fat.c to Modules/fat.c: fat module is now
-only implemented in C</li>
-<li>Fix more tests of the Python test suite</li>
-<li>A builtin guard now adds a guard on globals. Ignore also the specialization
-if globals()[name] already exists.</li>
-<li>Ignore duplicated guards</li>
-<li>Implement namespace following the control flow for constant propagation</li>
-<li>Config.max_int_bits becomes a simple integer</li>
-<li>Fix bytecode compilation for tuple constants. Don't merge (0, 0) and (0.0,
-0.0) constants, they are different.</li>
-<li>Call more builtin functions</li>
-<li>Optimize the optimizer: write a metaclass to discover visitors when the class
-is created, not when the class is instanciated</li>
-</ul>
-</div>
-<div class="section" id="december-second-half">
-<h3>December (second half)</h3>
-<p>Major changes:</p>
-<ul class="simple">
-<li>Implement &quot;simplify iterable&quot; optimization. The loop unrolling optimization
-now relies on it to replace <tt class="docutils literal">range(n)</tt>.</li>
-<li>Split the function optimization in two stages: first apply optimizations
-which don't require specialization, then apply optimizations which
-require specialization.</li>
-<li>Replace the builtin __fat__ variable with a new sys.flags.fat flag</li>
-</ul>
-<p>Minor changes:</p>
-<ul class="simple">
-<li>Extend optimizations to optimize more cases (more builtins, more loop
-unrolling, remove more dead code, etc.)</li>
-<li>Add Config.logger attribute. astoptimize logs into sys.stderr when Python is
-started in verbose mode (python3 -v)</li>
-<li>Move func.patch_constants() to code.replace_consts()</li>
-<li>Enhance marshal to fix tests: call frozenset() to get the empty frozenset
-singleton</li>
-<li>Don't remove code which must raise a SyntaxError. Don't remove code
-containing the continue instruction.</li>
-<li>Restrict GlobalNonlocalVisitor to the current namespace</li>
-<li>Emit logs when optimizations are skipped</li>
-<li>Use some maths to avoid optimization pow() if result is an integer and will
-be larger than the configuration. For example, don't optimize 2 ** (2**100).</li>
-</ul>
-</div>
-<div class="section" id="january">
-<h3>January</h3>
-<p>Major changes:</p>
-<ul class="simple">
-<li>astoptimizer now produces a single builtin guard with all names,
-instead of a guard per name.</li>
-<li>Major API refactoring detailed in a dedicated section above</li>
-</ul>
-<p>Minor changes:</p>
-<ul class="simple">
-<li>Start to write PEPs</li>
-<li>Dictionary guards now expect a list of names, instead of a single name, to
-reduce the cost of guards.</li>
-<li>GuardFunc now uses a strong reference to the function, instead of a weak
-reference to simplify the code</li>
-<li>Initialize dictionary version to 0</li>
-</ul>
-</div>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, January 12, 2016</p>
+
+                <a class="readmore" href="https://haypo.github.io/fat-python-status-janv12-2016.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
