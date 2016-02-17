@@ -1,3 +1,14 @@
+++++++++++++++++++++++++++++++++++++++
+My contributions to CPython in 2015 Q3
+++++++++++++++++++++++++++++++++++++++
+
+:date: 2016-02-17 01:00
+:tags: cpython
+:category: python
+:slug: contrib-cpython-2015q3
+:authors: Victor Stinner
+:summary: My contributions to CPython in 2015 Q3
+
 My contributions to CPython in 2015 Q3 (july, august, september)::
 
     hg log --no-merge -u Stinner -r 'date("2015-07-01"):date("2015-09-30")'
@@ -12,7 +23,7 @@ I found a bug in FreeBSD kernel! Issue #25122. fix will be released in FreeBSD 1
 Most complex bugs:
 
 * FreeBSD bug
-* sys recursion limit: Issue #25274 (fixed in Q4)
+* sys recursion limit: Issue #25274 (fixed during 2015 Q4)
 
 Major changes:
 
@@ -67,11 +78,10 @@ Changes:
   processes running tests for regrtest -jN) now inherit --memlimit/-M,
   --threshold/-t and --nowindows/-n options.
 
-Python 2.7 changes:
+Changes specific to Python 2.7:
 
 * python-gdb.py: enhance py-bt command
 * Issue #23375: Fix test_py3kwarn for modules implemented in C
-
 
 Bug fixes:
 
