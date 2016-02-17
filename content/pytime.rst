@@ -2,6 +2,13 @@
 History of the Python private C API _PyTime
 +++++++++++++++++++++++++++++++++++++++++++
 
+:date: 2016-02-17 22:00
+:tags: cpython
+:category: python
+:slug: pytime
+:authors: Victor Stinner
+:summary: History of the Python private C API _PyTime
+
 Before _PyTime, Python 3.2
 --------------------------
 

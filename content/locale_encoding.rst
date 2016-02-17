@@ -1,3 +1,14 @@
+++++++++++++++++++++++++++
+Locale encodings in Python
+++++++++++++++++++++++++++
+
+:date: 2016-02-17 22:10
+:tags: cpython
+:category: python
+:slug: locale_encoding
+:authors: Victor Stinner
+:summary: Locale encodings in Python
+
 * OS X: force UTF-8
 * FreeBSD, Solaris: use Python implementation of ASCII codec, libc functions
   are lying => "force ASCII"

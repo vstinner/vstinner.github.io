@@ -40,9 +40,9 @@ Major changes:
 Enhancements:
 
 * type_call() now detect bugs in type new and init: Call
-_Py_CheckFunctionResult() to check for bugs in type constructors (tp_new).
- Add assertions to ensure an exception was raised if tp_init failed or that no
- exception was raised if tp_init succeed.
+  _Py_CheckFunctionResult() to check for bugs in type constructors (tp_new).
+  Add assertions to ensure an exception was raised if tp_init failed or that no
+  exception was raised if tp_init succeed.
 
 Optimizations:
 
