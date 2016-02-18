@@ -1,17 +1,15 @@
 ++++++++++++++++++++++++++++++++++++++
-My contributions to CPython in 2015 Q4
+My contributions to CPython during 2015 Q4
 ++++++++++++++++++++++++++++++++++++++
 
-:date: 2016-02-17 01:30
+:date: 2016-02-18 18:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2015q4
 :authors: Victor Stinner
-:summary: My contributions to CPython in 2015 Q4
+:summary: My contributions to CPython during 2015 Q4
 
-My contributions to CPython in 2015 Q4 (october, november, december)::
-
-    hg log --no-merge -u Stinner -r 'date("2015-10-01"):date("2015-12-31")'
+My contributions to CPython during 2015 Q4 (october, november, december).
 
 As usual, I pushed changes of various contributors and helped them to polish
 their change.
@@ -21,18 +19,68 @@ issue #24870 opened by INADA Naoki who works on PyMySQL: decoding bytes
 using the surrogateescape error handler was slow. For me, it was an opportunity
 for a new attempt to implement a fast "bytes writer API".
 
-Funny bugs:
 
-* Issue #25274: test_recursionlimit_recovery() of test_sys now checks
-  sys.gettrace() when the test is executed, not when the module is loaded.
-  sys.settrace() may be after after the test is loaded.
-  Bug found while working on XXX.
-* Issue #25274: sys.setrecursionlimit() now raises a RecursionError if the new
-  recursion limit is too low depending at the current recursion depth. Modify
-  also the "lower-water mark" formula to make it monotonic. This mark is used
-  to decide when the overflowed flag of the thread state is reset.
+Recursion error
+===============
 
-Optimizations:
+The bug
+-------
+
+Issue #25274.
+
+During the previous quarter, I refactored Lib/test/regrtest.py huge file (1,600
+lines) into a new Lib/test/libregrtest/ library (8 files). The problem is that
+test_sys started to crash with "Fatal Python error: Cannot recover from stack
+overflow" on test_recursionlimit_recovery(). The regression was introduced by a
+change on regrtest which indirectly added one more Python frame in the code
+executing test_sys.
+
+CPython has a limit on the depth of a call stack: ``sys.getrecursionlimit()``,
+1000 by default. The limit is a weak protection against overflow of the C
+stack. Weak because it only counts Python frames, intermediate C functions may
+allocate a lot of memory on the stack.
+
+When we reach the limit, an "overflow" flag is set, but we still allow up to
+limit+50 frames, because handling a RecursionError may need a few more frames.
+The flag is cleared when the stack level goes below a "low-water mark".
+
+After the regrtest change, test_recursionlimit_recovery() was called at stack
+level 36, before it was called at level 35. The test triggers a RecursionError.
+The problem is that we never goes again below the low-water mark, so the
+overflow is never cleared.
+
+The fix
+-------
+
+Another problem is that the function used to compute the "low-level mark" is
+not monotonic:
+
+* limit = 99 => low-level = 74
+* limit = 100 => low-level = 75
+* limit = 101 => low-level = 51
+
+The old formula::
+
+    if limit > 100:
+        low_water_mark = limit - 50
+    else:
+        low_water_mark = 3 * limit // 4
+
+was replaced with::
+
+    if limit > 200:
+        low_water_mark = limit - 50
+    else:
+        low_water_mark = 3 * limit // 4
+
+The fix (`change eb0c76442cee
+<https://hg.python.org/cpython/rev/eb0c76442cee>`_) modified the
+``sys.setrecursionlimit()`` function to raise a ``RecursionError`` exception if
+the new limit is too low depend on the *current* stack depth.
+
+
+Optimizations
+=============
 
 As usual for performance, Serhiy Storchaka was very helpful on reviews, to run
 independant benchmarks, etc.
@@ -69,7 +117,9 @@ independant benchmarks, etc.
   bytes.fromhex() and bytearray.fromhex(): they are now between 2x and 3.5x
   faster.
 
-Changes:
+
+Changes
+=======
 
 * Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the getrandom()
   function instead of the getentropy() function. The getentropy() function is
@@ -83,12 +133,16 @@ Changes:
 * Issue #25868: Try to make test_eintr.test_sigwaitinfo() more reliable
   especially on slow buildbots
 
-Changes specific to Python 2.7:
+
+Changes specific to Python 2.7
+==============================
 
 * Closes #25742: locale.setlocale() now accepts a Unicode string for its second
   parameter.
 
-Bugfixes:
+
+Bugfixes
+========
 
 * Fix regrtest --coverage on Windows
 * Fix pytime on OpenBSD
