@@ -1,13 +1,13 @@
-++++++++++++++++++++++++++++++++++++++
-My contributions to CPython in 2015 Q3
-++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++
+My contributions to CPython during 2015 Q3
+++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2016-02-18 01:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2015q3
 :authors: Victor Stinner
-:summary: My contributions to CPython in 2015 Q3
+:summary: My contributions to CPython during 2015 Q3
 
 A few years ago, someone asked me: "Why do you contribute to CPython? Python is
 perfect, there are no more bugs, right?". The article list most of my
