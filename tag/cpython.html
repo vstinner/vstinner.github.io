@@ -21,7 +21,144 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/pytime.html">History of the Python private C API _PyTime</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2015q3.html">My contributions to CPython in 2015 Q3</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-02-18T01:00:00+01:00">
+                Published: jeu. 18 février 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>A few years ago, someone asked me: &quot;Why do you contribute to CPython? Python is
+perfect, there are no more bugs, right?&quot;. The article list most of my
+contributions to CPython during 2015 Q3 (july, august, september). It gives an
+idea of which areas of Python are not perfect yet :-)</p>
+<p>The major event in Python of this quarter was the release of Python 3.5.0.</p>
+<p>As usual, I helped various contributors to refine their changes and I pushed
+their final changes.</p>
+<div class="section" id="freebsd-kernel-bug">
+<h2>FreeBSD kernel bug</h2>
+<p>It took me a while to polish the implementation of the <a class="reference external" href="https://www.python.org/dev/peps/pep-0475/">PEP 475 (retry syscall
+on EINTR)</a> especially its unit
+test <tt class="docutils literal">test_eintr</tt>. The unit test is supposed to test Python, but as usual,
+it also tests indirectly the operating system.</p>
+<p>I spent some days investigating a random hang on the FreeBSD buildbots: <a class="reference external" href="https://bugs.python.org/issue25122">issue
+#25122</a>. I quickly found the guilty test
+(test_eintr.test_open), but it took me a while to understand that it was a
+kernel bug in the FIFO driver. Hopefully at the end, I was able to reproduce
+the bug with a short C program in my FreeBSD VM. It is the best way to ask a
+fix upstream.</p>
+<p>My <a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=203162">FreeBSD bug report #203162</a> (&quot;when close(fd)
+on a fifo fails with EINTR, the file descriptor is not really closed&quot;) was
+quickly fixed. The FreeBSD team is reactive!</p>
+<p>I like free softwares because it's possible to investigate bugs deep in the
+code, and it's usually quick to get a fix.</p>
+</div>
+<div class="section" id="timestamp-rounding-issue">
+<h2>Timestamp rounding issue</h2>
+<p>Even if the <a class="reference external" href="http://bugs.python.org/issue23517">issue #23517</a> is well defined
+and simple to fix, it took me days (weeks?) to understand exactly how
+timestamps are supposed to be rounded and agree on the &quot;right&quot; rounding method.
+Alexander Belopolsky reminded me the important property:</p>
+<pre class="literal-block">
+(datetime(1970,1,1) + timedelta(seconds=t)) == datetime.utcfromtimestamp(t)
+</pre>
+<p>Tim Peters helped me to understand why Python rounds to nearest with ties going
+away from zero (ROUND_HALF_UP) in <tt class="docutils literal">round(float)</tt> and other functions. At
+the first look, the rounding method doesn't look natural nor logical:</p>
+<pre class="literal-block">
+&gt;&gt;&gt; round(0.5)
+0
+&gt;&gt;&gt; round(1.5)
+2
+</pre>
+<p>See my previous article on the _PyTime API for the long story of rounding
+methods between Python 3.2 and Python 3.6.</p>
+</div>
+<div class="section" id="enhancements">
+<h2>Enhancements</h2>
+<ul class="simple">
+<li>type_call() now detect C bugs in type __new__() and __init__() methods.</li>
+<li>Issue #25220: Enhancements of the test runner: add more info when regrtest runs
+tests in parallel, fix some features of regrtest, add functional tests to
+test_regrtest.</li>
+</ul>
+</div>
+<div class="section" id="optimizations">
+<h2>Optimizations</h2>
+<ul class="simple">
+<li>Issue #25227: Optimize ASCII and latin1 encoders with the <tt class="docutils literal">surrogateescape</tt>
+error handler: the encoders are now up to 3 times as fast.</li>
+</ul>
+</div>
+<div class="section" id="changes">
+<h2>Changes</h2>
+<ul class="simple">
+<li>Polish the implementation of the PEP 475 (retry syscall on EINTR)</li>
+<li>Work on the &quot;What's New in Python 3.5&quot; document: add my changes
+(PEP 475, socket timeout, os.urandom)</li>
+<li>Work on asyncio: fix ResourceWarning warnings, fixes specific to Windows</li>
+<li>test_time: rewrite rounding tests of the private pytime API</li>
+<li>Issue #24707: Remove an assertion in monotonic clock. Don't check anymore at
+runtime that the monotonic clock doesn't go backward.  Yes, it happens! It
+occurs sometimes each month on a Debian buildbot slave running in a VM.</li>
+<li>test_eintr: replace os.fork() with subprocess (fork+exec) to make the test
+more reliable</li>
+</ul>
+</div>
+<div class="section" id="changes-specific-to-python-2-7">
+<h2>Changes specific to Python 2.7</h2>
+<ul class="simple">
+<li>Backport python-gdb.py changes: enhance py-bt command</li>
+<li>Issue #23375: Fix test_py3kwarn for modules implemented in C</li>
+</ul>
+</div>
+<div class="section" id="bug-fixes">
+<h2>Bug fixes</h2>
+<ul class="simple">
+<li>Closes #23247: Fix a crash in the StreamWriter.reset() of CJK codecs</li>
+<li>Issue #24732, #23834: Fix sock_accept_impl() on Windows. Regression of the
+PEP 475 (retry syscall on EINTR)</li>
+<li>test_gdb: fix regex to parse the GDB version and fix ResourceWarning on error</li>
+<li>Fix test_warnings: don't modify warnings.filters to fix random failures of
+the test.</li>
+<li>Issue #24891: Fix a race condition at Python startup if the file descriptor
+of stdin (0), stdout (1) or stderr (2) is closed while Python is creating
+sys.stdin, sys.stdout and sys.stderr objects.</li>
+<li>Issue #24684: socket.socket.getaddrinfo() now calls
+PyUnicode_AsEncodedString() instead of calling the encode() method of the
+host, to handle correctly custom string with an encode() method which doesn't
+return a byte string. The encoder of the IDNA codec is now called directly
+instead of calling the encode() method of the string.</li>
+<li>Issue #25118: Fix a regression of Python 3.5.0 in os.waitpid() on Windows.
+Add an unit test on os.waitpid()</li>
+<li>Issue #25122: Fix test_eintr, kill child process on error</li>
+<li>Issue #25155: Add _PyTime_AsTimevalTime_t() function to fix a regression:
+support again years after 2038.</li>
+<li>Issue #25150: Hide the private _Py_atomic_xxx symbols from the public
+Python.h header to fix a compilation error with OpenMP. PyThreadState_GET()
+becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.</li>
+<li>Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the getrandom()
+function instead of the getentropy() function.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/pytime.html" rel="bookmark"
+                           title="Permalink to History of the Python private C API _PyTime">History of the Python private C API _PyTime</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-02-17T22:00:00+01:00">
                 Published: mer. 17 février 2016
@@ -32,73 +169,13 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>I added functions to the private &quot;pytime&quot; library to convert timestamps from/to
-various formats. I expected to spend a few days, at the end I spent 3 years
-(2012-2015) on them!</p>
-<div class="section" id="python-3-3">
-<h2>Python 3.3</h2>
-<p>In 2012, I proposed the <a class="reference external" href="https://www.python.org/dev/peps/pep-0410/">PEP 410 -- Use decimal.Decimal type for timestamps</a> because storing timestamps as
-floating point numbers looses precision. The PEP was rejected because it
-modified many functions and had a bad API. At least, os.stat() got 3 new fields
-(atime_ns, mtime_ns, ctime_ns): timestamps  as a number of nanoseconds
-(<tt class="docutils literal">int</tt>).</p>
-<p>My <a class="reference external" href="https://www.python.org/dev/peps/pep-0418/">PEP 418 -- Add monotonic time, performance counter, and process time
-functions</a> was accepted, Python
-3.3 got a new <tt class="docutils literal">time.monotonic()</tt> function (and a few others). Again, I spent
-much more time than I expected on a problem which looked simple at the first
-look.</p>
-<p>With the <a class="reference external" href="http://bugs.python.org/issue14180">issue #14180</a>, I added functions
-to convert timestamps to the private &quot;pytime&quot; API to factorize the code of
-various modules. Timestamps were rounded towards +infinity (ROUND_CEILING), but
-it was not a deliberate choice.</p>
-</div>
-<div class="section" id="python-3-4">
-<h2>Python 3.4</h2>
-<p>To fix correctly a performance issue in asyncio (<a class="reference external" href="https://bugs.python.org/issue20311">issue20311</a>), I added two rounding modes to the
-pytime API: _PyTime_ROUND_DOWN (round towards zero), and _PyTime_ROUND_UP
-(round away from zero). Polling for events (ex: using <tt class="docutils literal">select.select()</tt>) with
-a non-zero timestamp must not call the underlying C level in non-blocking mode.</p>
-</div>
-<div class="section" id="python-3-5">
-<h2>Python 3.5</h2>
-<p>When working on the <a class="reference external" href="https://bugs.python.org/issue22117">issue #22117</a>, I
-noticed that the implementation of rounding methods was buggy for negative
-timestamps. I replaced the _PyTime_ROUND_DOWN with _PyTime_ROUND_FLOOR (round
-towards minus infinity), and _PyTime_ROUND_UP with _PyTime_ROUND_CEILING (round
-towards infinity).</p>
-<p>This issue also introduced a new private <tt class="docutils literal">_PyTime_t</tt> type to support
-nanosecond resolution.  The type is an opaque integer type to store timestamps.
-In practice, it's a signed 64-bit integer. Since it's an integer, it's easy and
-natural to compute the sum or differecence of two timestamps: <tt class="docutils literal">t1 + t2</tt> and
-<tt class="docutils literal">t2 - t1</tt>. I added _PyTime_XXX() functions to create a timestamp and
-_PyTime_AsXXX() functions to convert a timestamp to a different format.</p>
-<p>I had to keep three _PyTime_ObjectToXXX() functions for fromtimestamp() methods
-of the datetime module. These methods must support extreme timestamps (year
-1..9999), whereas _PyTime_t is &quot;limited&quot; to a delta of +/- 292 years (year
-1678..2262).</p>
-</div>
-<div class="section" id="python-3-6">
-<h2>Python 3.6</h2>
-<p>In 2015, the <a class="reference external" href="http://bugs.python.org/issue23517">issue #23517</a> reported that
-Python 2 and Python 3 don't use the same rounding method in
-datetime.datetime.fromtimestamp(): there was a difference of 1 microsecond.</p>
-<p>After a long discussion, I modified fromtimestamp() methods of the datetime
-module to round to nearest with ties going away from zero (ROUND_HALF_UP), as
-done in Python 2.7, as round() in all Python versions.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>It took me three years to stabilize the API and fix all issues. Well, I didn't
-spend all my days on it, but it shows that handling time is not a simple issue.</p>
-<p>At the Python level, nothing changed, timestamps are still stored as float
-(except of the 3 new fieleds of os.stat()).</p>
-<p>Python 3.5 only supports timezones with fixed offset, it does not support the
-locale timestamp for example. Timezones are still an hot topic: the
-<a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig">datetime-sig mailing list</a> was created to
-enhance timezone support in Python.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
+</footer><!-- /.post-info -->                <p class="first last">History of the Python private C API _PyTime</p>
+
+                <a class="readmore" href="https://haypo.github.io/pytime.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+                </ol><!-- /#posts-list -->
+                </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>blogroll</h2>

@@ -1,5 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-02-17T22:00:00+01:00</updated><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:pytime.html</id><summary type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-02-18T01:00:00+01:00</updated><entry><title>My contributions to CPython in 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:contrib-cpython-2015q3.html</id><summary type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
+perfect, there are no more bugs, right?&amp;quot;. The article list most of my
+contributions to CPython during 2015 Q3 (july, august, september). It gives an
+idea of which areas of Python are not perfect yet :-)&lt;/p&gt;
+&lt;p&gt;The major event in Python of this quarter was the release of Python 3.5.0.&lt;/p&gt;
+&lt;p&gt;As usual, I helped various contributors to refine their changes and I pushed
+their final changes.&lt;/p&gt;
+&lt;div class="section" id="freebsd-kernel-bug"&gt;
+&lt;h2&gt;FreeBSD kernel bug&lt;/h2&gt;
+&lt;p&gt;It took me a while to polish the implementation of the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0475/"&gt;PEP 475 (retry syscall
+on EINTR)&lt;/a&gt; especially its unit
+test &lt;tt class="docutils literal"&gt;test_eintr&lt;/tt&gt;. The unit test is supposed to test Python, but as usual,
+it also tests indirectly the operating system.&lt;/p&gt;
+&lt;p&gt;I spent some days investigating a random hang on the FreeBSD buildbots: &lt;a class="reference external" href="https://bugs.python.org/issue25122"&gt;issue
+#25122&lt;/a&gt;. I quickly found the guilty test
+(test_eintr.test_open), but it took me a while to understand that it was a
+kernel bug in the FIFO driver. Hopefully at the end, I was able to reproduce
+the bug with a short C program in my FreeBSD VM. It is the best way to ask a
+fix upstream.&lt;/p&gt;
+&lt;p&gt;My &lt;a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=203162"&gt;FreeBSD bug report #203162&lt;/a&gt; (&amp;quot;when close(fd)
+on a fifo fails with EINTR, the file descriptor is not really closed&amp;quot;) was
+quickly fixed. The FreeBSD team is reactive!&lt;/p&gt;
+&lt;p&gt;I like free softwares because it's possible to investigate bugs deep in the
+code, and it's usually quick to get a fix.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="timestamp-rounding-issue"&gt;
+&lt;h2&gt;Timestamp rounding issue&lt;/h2&gt;
+&lt;p&gt;Even if the &lt;a class="reference external" href="http://bugs.python.org/issue23517"&gt;issue #23517&lt;/a&gt; is well defined
+and simple to fix, it took me days (weeks?) to understand exactly how
+timestamps are supposed to be rounded and agree on the &amp;quot;right&amp;quot; rounding method.
+Alexander Belopolsky reminded me the important property:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+(datetime(1970,1,1) + timedelta(seconds=t)) == datetime.utcfromtimestamp(t)
+&lt;/pre&gt;
+&lt;p&gt;Tim Peters helped me to understand why Python rounds to nearest with ties going
+away from zero (ROUND_HALF_UP) in &lt;tt class="docutils literal"&gt;round(float)&lt;/tt&gt; and other functions. At
+the first look, the rounding method doesn't look natural nor logical:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;gt;&amp;gt;&amp;gt; round(0.5)
+0
+&amp;gt;&amp;gt;&amp;gt; round(1.5)
+2
+&lt;/pre&gt;
+&lt;p&gt;See my previous article on the _PyTime API for the long story of rounding
+methods between Python 3.2 and Python 3.6.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="enhancements"&gt;
+&lt;h2&gt;Enhancements&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;type_call() now detect C bugs in type __new__() and __init__() methods.&lt;/li&gt;
+&lt;li&gt;Issue #25220: Enhancements of the test runner: add more info when regrtest runs
+tests in parallel, fix some features of regrtest, add functional tests to
+test_regrtest.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="optimizations"&gt;
+&lt;h2&gt;Optimizations&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Issue #25227: Optimize ASCII and latin1 encoders with the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;
+error handler: the encoders are now up to 3 times as fast.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="changes"&gt;
+&lt;h2&gt;Changes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Polish the implementation of the PEP 475 (retry syscall on EINTR)&lt;/li&gt;
+&lt;li&gt;Work on the &amp;quot;What's New in Python 3.5&amp;quot; document: add my changes
+(PEP 475, socket timeout, os.urandom)&lt;/li&gt;
+&lt;li&gt;Work on asyncio: fix ResourceWarning warnings, fixes specific to Windows&lt;/li&gt;
+&lt;li&gt;test_time: rewrite rounding tests of the private pytime API&lt;/li&gt;
+&lt;li&gt;Issue #24707: Remove an assertion in monotonic clock. Don't check anymore at
+runtime that the monotonic clock doesn't go backward.  Yes, it happens! It
+occurs sometimes each month on a Debian buildbot slave running in a VM.&lt;/li&gt;
+&lt;li&gt;test_eintr: replace os.fork() with subprocess (fork+exec) to make the test
+more reliable&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="changes-specific-to-python-2-7"&gt;
+&lt;h2&gt;Changes specific to Python 2.7&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Backport python-gdb.py changes: enhance py-bt command&lt;/li&gt;
+&lt;li&gt;Issue #23375: Fix test_py3kwarn for modules implemented in C&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bug-fixes"&gt;
+&lt;h2&gt;Bug fixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Closes #23247: Fix a crash in the StreamWriter.reset() of CJK codecs&lt;/li&gt;
+&lt;li&gt;Issue #24732, #23834: Fix sock_accept_impl() on Windows. Regression of the
+PEP 475 (retry syscall on EINTR)&lt;/li&gt;
+&lt;li&gt;test_gdb: fix regex to parse the GDB version and fix ResourceWarning on error&lt;/li&gt;
+&lt;li&gt;Fix test_warnings: don't modify warnings.filters to fix random failures of
+the test.&lt;/li&gt;
+&lt;li&gt;Issue #24891: Fix a race condition at Python startup if the file descriptor
+of stdin (0), stdout (1) or stderr (2) is closed while Python is creating
+sys.stdin, sys.stdout and sys.stderr objects.&lt;/li&gt;
+&lt;li&gt;Issue #24684: socket.socket.getaddrinfo() now calls
+PyUnicode_AsEncodedString() instead of calling the encode() method of the
+host, to handle correctly custom string with an encode() method which doesn't
+return a byte string. The encoder of the IDNA codec is now called directly
+instead of calling the encode() method of the string.&lt;/li&gt;
+&lt;li&gt;Issue #25118: Fix a regression of Python 3.5.0 in os.waitpid() on Windows.
+Add an unit test on os.waitpid()&lt;/li&gt;
+&lt;li&gt;Issue #25122: Fix test_eintr, kill child process on error&lt;/li&gt;
+&lt;li&gt;Issue #25155: Add _PyTime_AsTimevalTime_t() function to fix a regression:
+support again years after 2038.&lt;/li&gt;
+&lt;li&gt;Issue #25150: Hide the private _Py_atomic_xxx symbols from the public
+Python.h header to fix a compilation error with OpenMP. PyThreadState_GET()
+becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.&lt;/li&gt;
+&lt;li&gt;Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the getrandom()
+function instead of the getentropy() function.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:pytime.html</id><summary type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
 various formats. I expected to spend a few days, at the end I spent 3 years
 (2012-2015) on them!&lt;/p&gt;
 &lt;div class="section" id="python-3-3"&gt;
