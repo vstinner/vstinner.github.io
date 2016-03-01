@@ -1,5 +1,233 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-03-01T15:00:00+01:00</updated><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to CPython during 2015 Q4 (october, november, december).&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-03-01T16:00:00+01:00</updated><entry><title>_PyBytesWriter API</title><link href="https://haypo.github.io/pybyteswriter.html" rel="alternate"></link><updated>2016-03-01T16:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:pybyteswriter.html</id><summary type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
+CPython. These APIs are design to optimize code producing strings when the
+ouput size is not known in advance.&lt;/p&gt;
+&lt;p&gt;I created the _PyUnicodeWriter API to reply to complains that Python 3 was much
+slower than Python 2, especially with the new Unicode implementation (PEP 393).&lt;/p&gt;
+&lt;div class="section" id="pyaccu-api"&gt;
+&lt;h2&gt;_PyAccu API&lt;/h2&gt;
+&lt;p&gt;Issue #12778: In 2011, Antoine Pitrou found a performance issue in the JSON
+serializer when serializing many small objects: it used way too much memory for
+temporary objects compared to the final output string.&lt;/p&gt;
+&lt;p&gt;The JSON serializer used a list of strings and joined all strings at the end of
+create a final output string. Pseudocode:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def serialize():
+    pieces = [serialize(item) for item in self]
+    return ''.join(pieces)
+&lt;/pre&gt;
+&lt;p&gt;Antoine introduced an accumulator compacting the temporary list of &amp;quot;small&amp;quot;
+strings and put the result in a second list of &amp;quot;large&amp;quot; strings. At the end, the
+list of &amp;quot;large&amp;quot; strings was also compacted to build the final output string.
+Pseudo-code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def serialize():
+    small = []
+    large = []
+    for item in self:
+        small.append(serialize(item))
+        if len(small) &amp;gt; 10000:
+            large.append(''.join(small))
+            small.clear()
+    if small
+        large.append(''.join(small))
+    return ''.join(large)
+&lt;/pre&gt;
+&lt;p&gt;The threshold of 10,000  strings is justified by this comment:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* Each item in a list of unicode objects has an overhead (in 64-bit
+ * builds) of:
+ *   - 8 bytes for the list slot
+ *   - 56 bytes for the header of the unicode object
+ * that is, 64 bytes.  100000 such objects waste more than 6MB
+ * compared to a single concatenated string.
+ */
+&lt;/pre&gt;
+&lt;p&gt;Issue #12911: Antoine Pitrou found a similar performance issue in repr(list),
+and so proposed to convert its accumular code into a new private _PyAccu API.
+He added the _PyAccu API to Python 2.7.5 and 3.2.3. Title of te repr(list)
+change: &amp;quot;Fix memory consumption when calculating the repr() of huge tuples or
+lists&amp;quot;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-pyunicodewriter-api"&gt;
+&lt;h2&gt;The _PyUnicodeWriter API&lt;/h2&gt;
+&lt;div class="section" id="inefficient-implementation-of-the-pep-393"&gt;
+&lt;h3&gt;Inefficient implementation of the PEP 393&lt;/h3&gt;
+&lt;p&gt;In 2010, Python 3.3 got a completly new Unicode implementation, the Python type
+&lt;tt class="docutils literal"&gt;str&lt;/tt&gt;, with the PEP 393. The implementation of the PEP was the topic of a
+Google Summer of Code 2011 with the student Torsten Becker menthored by Martin
+v. Löwis (author of the PEP). The project was successful: the PEP 393 was
+implemented, it worked!&lt;/p&gt;
+&lt;p&gt;The first implementation of the PEP 393 used a lot of 32-bit character buffers
+(&lt;tt class="docutils literal"&gt;Py_UCS4&lt;/tt&gt;) which uses a lot of memory and requires expensive conversion to
+8-bit (&lt;tt class="docutils literal"&gt;Py_UCS1&lt;/tt&gt;, ASCII and Latin1) or 16-bit (&lt;tt class="docutils literal"&gt;Py_UCS2&lt;/tt&gt;, BMP) characters.&lt;/p&gt;
+&lt;p&gt;The new internal structures for Unicode strings are now very complex and
+require to be smart when building a new string to avoid memory copies. I
+created the _PyUnicodeWriter API to try to reduce expensive memory copies, and
+even completly avoid memory copies in best cases.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="design-of-the-pyunicodewriter-api"&gt;
+&lt;h3&gt;Design of the _PyUnicodeWriter API&lt;/h3&gt;
+&lt;p&gt;According to benchmarks, creating a &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; buffer and then expand it
+to &lt;tt class="docutils literal"&gt;Py_UCS2*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;Py_UCS4*&lt;/tt&gt; is more efficient, since &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; is the
+most common format.&lt;/p&gt;
+&lt;p&gt;Python &lt;tt class="docutils literal"&gt;str&lt;/tt&gt; type is used for a wide range of usages. For example, it is used
+for the name of variable names in the Python language itself. Variable names
+are almost always ASCII.&lt;/p&gt;
+&lt;p&gt;The worst case for _PyUnicodeWriter is when a long &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; buffer must be
+converted to &lt;tt class="docutils literal"&gt;Py_UCS2*&lt;/tt&gt;, and then converted to &lt;tt class="docutils literal"&gt;Py_UCS4*&lt;/tt&gt;. Each conversion
+is expensive: need to allocate a second memory block and convert characters to
+the new format.&lt;/p&gt;
+&lt;p&gt;_PyUnicodeWriter features:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Optional overallocation: overallocate the buffer by 25% on Windows and 50%
+on Linux. The ratio changes depending on the OS, it is a raw heuristic to get
+the best performances depending on the &lt;tt class="docutils literal"&gt;malloc()&lt;/tt&gt; memory allocator.&lt;/li&gt;
+&lt;li&gt;The buffer can be a shared read-only string if the buffer was only created
+from a single string. Micro-optimization for &lt;tt class="docutils literal"&gt;&amp;quot;%s&amp;quot; % str&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The API allows to disable overallocation before the last write. For example,
+&lt;tt class="docutils literal"&gt;&amp;quot;%s%s&amp;quot; % ('abc', 'def')&lt;/tt&gt; disables the overallocation before writing
+&lt;tt class="docutils literal"&gt;'def'&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The _PyUnicodeWriter was introduced by the issue #14716 (change 7be716a47e9d):&lt;/p&gt;
+&lt;blockquote&gt;
+Close #14716: str.format() now uses the new &amp;quot;unicode writer&amp;quot; API instead
+of the PyAccu API. For example, it makes str.format() from 25% to 30%
+faster on Linux.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fast-path-for-ascii"&gt;
+&lt;h3&gt;Fast-path for ASCII&lt;/h3&gt;
+&lt;p&gt;The cool and &lt;em&gt;unexpected&lt;/em&gt; side-effect of the _PyUnicodeWriter is that many
+intermediate operations got a fast-path for &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt;, especially for ASCII
+strings. For example, padding a number with spaces on &lt;tt class="docutils literal"&gt;'%10i' % 123&lt;/tt&gt; is
+implemented with &lt;tt class="docutils literal"&gt;memset()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Formating a floating point number uses the &lt;tt class="docutils literal"&gt;PyOS_double_to_string()&lt;/tt&gt; function
+which creates an ASCII buffer. If the writer buffer uses Py_UCS1, a
+&lt;tt class="docutils literal"&gt;memcpy()&lt;/tt&gt; is enough to copy the formatted number.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="avoid-temporary-buffers"&gt;
+&lt;h3&gt;Avoid temporary buffers&lt;/h3&gt;
+&lt;p&gt;Since the beginning, I had the idea of avoiding temporary buffers thanks
+to an unified API to handle a &amp;quot;Unicode buffer&amp;quot;. Slowly, I spread my changes
+to all functions producing Unicode strings.&lt;/p&gt;
+&lt;p&gt;The obvious target were &lt;tt class="docutils literal"&gt;str % args&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;str.format(args)&lt;/tt&gt;. Both
+instructions use very different code, but it was possible to share a few
+functions especially the code to format integers in bases 2 (binary), 8
+(octal), 10 (decimal) and 16 (hexadecimal).&lt;/p&gt;
+&lt;p&gt;The function formatting an integer computes the exact size of the output,
+requests a number of characters and then write characters. The characters are
+written directly in the writer buffer. No temporary memory block is needed
+anymore, and moreover no Py_UCS conversion is need: &lt;tt class="docutils literal"&gt;_PyLong_Format()&lt;/tt&gt; writes
+directly characters into the character format (PyUCS1, Py_UCS2 or Py_UCS4) of
+the buffer.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="performance-compared-to-python-2"&gt;
+&lt;h3&gt;Performance compared to Python 2&lt;/h3&gt;
+&lt;p&gt;The PEP 393 uses a complex storage for strings, so the exact performances
+now depends on the character set used in the benchmark. For benchmarks using
+a character set different than ASCII, the result are more tricky to understand.&lt;/p&gt;
+&lt;p&gt;To compare performances with Python 2, I focused my benchmarks on ASCII.  I
+compared Python 3 str with Python 2 unicode, but also sometimes to Python 2 str
+(bytes). On ASCII, Python 3.3 was as fast as Python 2, or even faster on some
+very specific cases, but these cases are probably artificial and never seen in
+real applications.&lt;/p&gt;
+&lt;p&gt;In the best case, Python 3 str (Unicode) was faster than Python 2 bytes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pybyteswriter-api-first-try-big-fail"&gt;
+&lt;h2&gt;_PyBytesWriter API: first try, big fail&lt;/h2&gt;
+&lt;p&gt;Since Python was &lt;em&gt;much&lt;/em&gt; faster with _PyUnicodeWriter, I expected to get good
+speedup with a similar API for bytes. The graal would be to share code for
+bytes and Unicode (Spoiler alert! I reached this goal, but only for a single
+function: format an integer to decimal).&lt;/p&gt;
+&lt;p&gt;My first attempt of a _PyBytesWriter API was in 2013: &lt;a class="reference external" href="https://bugs.python.org/issue17742"&gt;Issue #17742: Add
+_PyBytesWriter API&lt;/a&gt;. But quickly, I
+noticed with microbenchmarks that my change made Python slower! I spent hours
+to understand why GCC produced less efficient machine code. When I started to
+dig the &amp;quot;strict aliasing&amp;quot; optimization issue, I realized that I reached a
+deadend.&lt;/p&gt;
+&lt;p&gt;Extract of the _PyBytesWriter structure:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+typedef struct {
+    /* Current position in the buffer */
+    char *str;
+
+    /* Start of the buffer */
+    char *start;
+
+    /* End of the buffer */
+    char *end;
+
+    ...
+} _PyBytesWriter;
+&lt;/pre&gt;
+&lt;p&gt;The problem is that GCC emited less efficient machine code for the C code (see
+my &lt;a class="reference external" href="https://bugs.python.org/issue17742#msg187595"&gt;msg187595&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+while (collstart++&amp;lt;collend)
+    *writer.str++ = '?';
+&lt;/pre&gt;
+&lt;p&gt;For the &lt;tt class="docutils literal"&gt;writer.str++&lt;/tt&gt; instruction, the new pointer value is written
+immediatly in the structure. The pointer value is read again at each iteration.
+So we have 1 LOAD and 1 STORE per iteration.&lt;/p&gt;
+&lt;p&gt;GCC emits better code for the original C code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+while (collstart++&amp;lt;collend)
+    *str++ = '?';
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;str&lt;/tt&gt; variable is stored in a register and the new value of &lt;tt class="docutils literal"&gt;str&lt;/tt&gt; is
+only written &lt;em&gt;once&lt;/em&gt;, at the end of loop (instead of writing it at each
+iteration). The pointer value is &lt;em&gt;only read once&lt;/em&gt; before the loop. So we have 0
+LOAD and 0 STORE (related to the pointer value) in the loop body.&lt;/p&gt;
+&lt;p&gt;It looks like an aliasing issue, but I didn't find how to say to GCC that the
+new value of &lt;tt class="docutils literal"&gt;writer.str&lt;/tt&gt; can be written only once at the end of the loop. I
+tried the &lt;tt class="docutils literal"&gt;__restrict__&lt;/tt&gt; keyword: the LOAD (get the pointer value) was moved
+out of the loop. But the STORE was still in the loop body.&lt;/p&gt;
+&lt;p&gt;I wrote to gcc-help: &lt;a class="reference external" href="https://gcc.gnu.org/ml/gcc-help/2013-04/msg00192.html"&gt;Missed optimization when using a structure&lt;/a&gt;, but I didn't get any
+reply. I just gave up.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pybyteswriter-api-new-try-the-good-one"&gt;
+&lt;h2&gt;_PyBytesWriter API: new try, the good one&lt;/h2&gt;
+&lt;p&gt;In 2015, I created the &lt;a class="reference external" href="https://bugs.python.org/issue25318"&gt;Issue #25318: Add _PyBytesWriter API to optimize
+Unicode encoders&lt;/a&gt;. I redesigned the API
+to avoid the aliasing issue.&lt;/p&gt;
+&lt;p&gt;The new _PyBytesWriter doesn't contain the &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; pointers anymore: they are
+now local variables in functions. Instead, functions of API requires two
+parameters: the bytes writer and a &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; parameter. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject * _PyBytesWriter_Finish(_PyBytesWriter *writer, char *str)
+&lt;/pre&gt;
+&lt;p&gt;The idea is to keep &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; pointers in functions to keep the most efficient
+machine code in loops. The compiler doesn't have to compute complex aliasing
+rules to decide if a CPU register can be used or not.&lt;/p&gt;
+&lt;p&gt;_PyBytesWriter features:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Optional overallocation: overallocate the buffer by 25% on Windows and 50%
+on Linux. Same idea than _PyUnicodeWriter.&lt;/li&gt;
+&lt;li&gt;Support &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;bytearray&lt;/tt&gt; type as output format to avoid an expensive
+memory copy from &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;bytearray&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Small buffer of 512 bytes allocated on the stack to avoid the need of a
+buffer allocated on the heap, before creating the final
+&lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;/&lt;tt class="docutils literal"&gt;bytearray&lt;/tt&gt; object.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A _PyBytesWriter structure must always be allocated on the stack (to get fast
+memory allocation of the smaller buffer).&lt;/p&gt;
+&lt;p&gt;While _PyUnicodeWriter has a 5 functions and 1 macro to write a single
+character, write strings, write a substring, etc. _PyBytesWriter has a single
+_PyBytesWriter_WriteBytes() function to write a string, since all other writes
+are done directly with regular C code on &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; pointers.&lt;/p&gt;
+&lt;p&gt;The API itself doesn't make the code faster. Disabling overallocation on the
+last write and the usage of the small buffer allocated on the stack may be
+faster.&lt;/p&gt;
+&lt;p&gt;In Python 3.6, I optimized error handlers on various codecs: ASCII, Latin1
+and UTF-8. For example, the UTF-8 encoder is now up to 75 times as fast for
+error handlers: &lt;tt class="docutils literal"&gt;ignore&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;replace&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;surrogatepass&lt;/tt&gt;. The &lt;tt class="docutils literal"&gt;bytes % int&lt;/tt&gt; instruction became between 30% and 50%
+faster on a microbenchmark.&lt;/p&gt;
+&lt;p&gt;Later, I replaced &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; type with &lt;tt class="docutils literal"&gt;void*&lt;/tt&gt; to avoid compiler warnings
+in functions using &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;unsigned char*&lt;/tt&gt;, unsigned types.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to CPython during 2015 Q4 (october, november, december).&lt;/p&gt;
 &lt;p&gt;As usual, I pushed changes of various contributors and helped them to polish
 their change.&lt;/p&gt;
 &lt;p&gt;I fighted against a recursion error, a regression introduced by my recent work
