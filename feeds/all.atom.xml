@@ -1,5 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-02-18T01:00:00+01:00</updated><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:contrib-cpython-2015q3.html</id><summary type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-03-01T15:00:00+01:00</updated><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to CPython during 2015 Q4 (october, november, december).&lt;/p&gt;
+&lt;p&gt;As usual, I pushed changes of various contributors and helped them to polish
+their change.&lt;/p&gt;
+&lt;p&gt;I fighted against a recursion error, a regression introduced by my recent work
+on the Python test suite.&lt;/p&gt;
+&lt;p&gt;I focused on optimizing the bytes type during this quarter. It started with the
+issue #24870 opened by INADA Naoki who works on PyMySQL: decoding bytes
+using the surrogateescape error handler was the bottleneck of this benchmark.
+For me, it was an opportunity for a new attempt to implement a fast &amp;quot;bytes
+writer API&amp;quot;.&lt;/p&gt;
+&lt;p&gt;I pushed my first change related to &lt;a class="reference external" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;FAT Python&lt;/a&gt;! Fix parser and AST:
+fill lineno and col_offset of &amp;quot;arg&amp;quot; node when compiling AST from Python
+objects.&lt;/p&gt;
+&lt;div class="section" id="recursion-error"&gt;
+&lt;h2&gt;Recursion error&lt;/h2&gt;
+&lt;div class="section" id="the-bug-issue-25274"&gt;
+&lt;h3&gt;The bug: issue #25274&lt;/h3&gt;
+&lt;p&gt;During the previous quarter, I refactored Lib/test/regrtest.py huge file (1,600
+lines) into a new Lib/test/libregrtest/ library (8 files). The problem is that
+test_sys started to crash with &amp;quot;Fatal Python error: Cannot recover from stack
+overflow&amp;quot; on test_recursionlimit_recovery(). The regression was introduced by a
+change on regrtest which indirectly added one more Python frame in the code
+executing test_sys.&lt;/p&gt;
+&lt;p&gt;CPython has a limit on the depth of a call stack: &lt;tt class="docutils literal"&gt;sys.getrecursionlimit()&lt;/tt&gt;,
+1000 by default. The limit is a weak protection against overflow of the C
+stack. Weak because it only counts Python frames, intermediate C functions may
+allocate a lot of memory on the stack.&lt;/p&gt;
+&lt;p&gt;When we reach the limit, an &amp;quot;overflow&amp;quot; flag is set, but we still allow up to
+limit+50 frames, because handling a RecursionError may need a few more frames.
+The overflow flag is cleared when the stack level goes below a &amp;quot;low-water
+mark&amp;quot;.&lt;/p&gt;
+&lt;p&gt;After the regrtest change, test_recursionlimit_recovery() was called at stack
+level 36. Before, it was called at level 35. The test triggers a RecursionError.
+The problem is that we never goes again below the low-water mark, so the
+overflow flag is never cleared.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-fix"&gt;
+&lt;h3&gt;The fix&lt;/h3&gt;
+&lt;p&gt;Another problem is that the function used to compute the &amp;quot;low-level mark&amp;quot; was
+not monotonic:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if limit &amp;gt; 100:
+    low_water_mark = limit - 50
+else:
+    low_water_mark = 3 * limit // 4
+&lt;/pre&gt;
+&lt;p&gt;The gap occurs near a limit of 100 frames:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;limit = 99 =&amp;gt; low_level_mark = 74&lt;/li&gt;
+&lt;li&gt;limit = 100 =&amp;gt; low_level_mark = 75&lt;/li&gt;
+&lt;li&gt;limit = 101 =&amp;gt; low_level_mark = 51&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The formula was replaced with:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if limit &amp;gt; 200:
+    low_water_mark = limit - 50
+else:
+    low_water_mark = 3 * limit // 4
+&lt;/pre&gt;
+&lt;p&gt;The fix (&lt;a class="reference external" href="https://hg.python.org/cpython/rev/eb0c76442cee"&gt;change eb0c76442cee&lt;/a&gt;) modified the
+&lt;tt class="docutils literal"&gt;sys.setrecursionlimit()&lt;/tt&gt; function to raise a &lt;tt class="docutils literal"&gt;RecursionError&lt;/tt&gt; exception if
+the new limit is too low depending on the &lt;em&gt;current&lt;/em&gt; stack depth.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="optimizations"&gt;
+&lt;h2&gt;Optimizations&lt;/h2&gt;
+&lt;p&gt;As usual for performance, Serhiy Storchaka was very helpful on reviews, to run
+independant benchmarks, etc.&lt;/p&gt;
+&lt;p&gt;Optimizations on the &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; type, ASCII, Latin1 and UTF-8 codecs:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Issue #25318: Add _PyBytesWriter API. Add a new private API to optimize
+Unicode encoders. It uses a small buffer of 512 bytes allocated on the stack
+and supports configurable overallocation.&lt;/li&gt;
+&lt;li&gt;Use _PyBytesWriter API for UCS1 (ASCII and Latin1) and UTF-8 encoders. Enable
+overallocation for the UTF-8 encoder with error handlers.&lt;/li&gt;
+&lt;li&gt;unicode_encode_ucs1(): initialize collend to collstart+1 to not check the
+current character twice, we already know that it is not ASCII.&lt;/li&gt;
+&lt;li&gt;Issue #25267: The UTF-8 encoder is now up to 75 times as fast for error
+handlers: &lt;tt class="docutils literal"&gt;ignore&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;replace&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;surrogatepass&lt;/tt&gt;.
+Patch co-written with Serhiy Storchaka.&lt;/li&gt;
+&lt;li&gt;Issue #25301: The UTF-8 decoder is now up to 15 times as fast for error
+handlers: &lt;tt class="docutils literal"&gt;ignore&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;replace&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Issue #25318: Optimize backslashreplace and xmlcharrefreplace error handlers
+in UTF-8 encoder. Optimize also backslashreplace error handler for ASCII and
+Latin1 encoders.&lt;/li&gt;
+&lt;li&gt;Issue #25349: Optimize bytes % args using the new private _PyBytesWriter API&lt;/li&gt;
+&lt;li&gt;Optimize error handlers of ASCII and Latin1 encoders when the replacement
+string is pure ASCII: use _PyBytesWriter_WriteBytes(), don't check individual
+character.&lt;/li&gt;
+&lt;li&gt;Issue #25349: Optimize bytes % int. Formatting is between 30% and 50% faster
+on a microbenchmark.&lt;/li&gt;
+&lt;li&gt;Issue #25357: Add an optional newline paramer to binascii.b2a_base64().
+base64.b64encode() uses it to avoid a memory copy.&lt;/li&gt;
+&lt;li&gt;Issue #25353: Optimize unicode escape and raw unicode escape encoders: use
+the new _PyBytesWriter API.&lt;/li&gt;
+&lt;li&gt;Rewrite PyBytes_FromFormatV() using _PyBytesWriter API&lt;/li&gt;
+&lt;li&gt;Issue #25399: Optimize bytearray % args. Most formatting operations are now
+between 2.5 and 5 times faster.&lt;/li&gt;
+&lt;li&gt;Issue #25401: Optimize bytes.fromhex() and bytearray.fromhex(): they are now
+between 2x and 3.5x faster.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="changes"&gt;
+&lt;h2&gt;Changes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the getrandom()
+function instead of the getentropy() function. The getentropy() function is
+blocking to generate very good quality entropy, os.urandom() doesn't need
+such high-quality entropy.&lt;/li&gt;
+&lt;li&gt;Issue #22806: Add &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-m&lt;/span&gt; test &lt;span class="pre"&gt;--list-tests&lt;/span&gt;&lt;/tt&gt; command to list tests.&lt;/li&gt;
+&lt;li&gt;Issue #25670: Remove duplicate getattr() in ast.NodeTransformer&lt;/li&gt;
+&lt;li&gt;Issue #25557: Refactor _PyDict_LoadGlobal(). Don't fallback to
+PyDict_GetItemWithError() if the hash is unknown: compute the hash instead.
+Add also comments to explain the _PyDict_LoadGlobal() optimization.&lt;/li&gt;
+&lt;li&gt;Issue #25868: Try to make test_eintr.test_sigwaitinfo() more reliable
+especially on slow buildbots&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="changes-specific-to-python-2-7"&gt;
+&lt;h2&gt;Changes specific to Python 2.7&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Closes #25742: locale.setlocale() now accepts a Unicode string for its second
+parameter.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bugfixes"&gt;
+&lt;h2&gt;Bugfixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Fix regrtest --coverage on Windows&lt;/li&gt;
+&lt;li&gt;Fix pytime on OpenBSD&lt;/li&gt;
+&lt;li&gt;More fixes for test_eintr on FreeBSD&lt;/li&gt;
+&lt;li&gt;Close #25373: Fix regrtest --slow with interrupted test&lt;/li&gt;
+&lt;li&gt;Issue #25555: Fix parser and AST: fill lineno and col_offset of &amp;quot;arg&amp;quot; node
+when compiling AST from Python objects. First contribution related
+to FAT Python ;-)&lt;/li&gt;
+&lt;li&gt;Issue #25696: Fix installation of Python on UNIX with make -j9.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:contrib-cpython-2015q3.html</id><summary type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
 perfect, there are no more bugs, right?&amp;quot;. The article list most of my
 contributions to CPython during 2015 Q3 (july, august, september). It gives an
 idea of which areas of Python are not perfect yet :-)&lt;/p&gt;

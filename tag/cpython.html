@@ -21,7 +21,169 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2015q3.html">My contributions to CPython during 2015 Q3</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-03-01T15:00:00+01:00">
+                Published: mar. 01 mars 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to CPython during 2015 Q4 (october, november, december).</p>
+<p>As usual, I pushed changes of various contributors and helped them to polish
+their change.</p>
+<p>I fighted against a recursion error, a regression introduced by my recent work
+on the Python test suite.</p>
+<p>I focused on optimizing the bytes type during this quarter. It started with the
+issue #24870 opened by INADA Naoki who works on PyMySQL: decoding bytes
+using the surrogateescape error handler was the bottleneck of this benchmark.
+For me, it was an opportunity for a new attempt to implement a fast &quot;bytes
+writer API&quot;.</p>
+<p>I pushed my first change related to <a class="reference external" href="http://faster-cpython.readthedocs.org/fat_python.html">FAT Python</a>! Fix parser and AST:
+fill lineno and col_offset of &quot;arg&quot; node when compiling AST from Python
+objects.</p>
+<div class="section" id="recursion-error">
+<h2>Recursion error</h2>
+<div class="section" id="the-bug-issue-25274">
+<h3>The bug: issue #25274</h3>
+<p>During the previous quarter, I refactored Lib/test/regrtest.py huge file (1,600
+lines) into a new Lib/test/libregrtest/ library (8 files). The problem is that
+test_sys started to crash with &quot;Fatal Python error: Cannot recover from stack
+overflow&quot; on test_recursionlimit_recovery(). The regression was introduced by a
+change on regrtest which indirectly added one more Python frame in the code
+executing test_sys.</p>
+<p>CPython has a limit on the depth of a call stack: <tt class="docutils literal">sys.getrecursionlimit()</tt>,
+1000 by default. The limit is a weak protection against overflow of the C
+stack. Weak because it only counts Python frames, intermediate C functions may
+allocate a lot of memory on the stack.</p>
+<p>When we reach the limit, an &quot;overflow&quot; flag is set, but we still allow up to
+limit+50 frames, because handling a RecursionError may need a few more frames.
+The overflow flag is cleared when the stack level goes below a &quot;low-water
+mark&quot;.</p>
+<p>After the regrtest change, test_recursionlimit_recovery() was called at stack
+level 36. Before, it was called at level 35. The test triggers a RecursionError.
+The problem is that we never goes again below the low-water mark, so the
+overflow flag is never cleared.</p>
+</div>
+<div class="section" id="the-fix">
+<h3>The fix</h3>
+<p>Another problem is that the function used to compute the &quot;low-level mark&quot; was
+not monotonic:</p>
+<pre class="literal-block">
+if limit &gt; 100:
+    low_water_mark = limit - 50
+else:
+    low_water_mark = 3 * limit // 4
+</pre>
+<p>The gap occurs near a limit of 100 frames:</p>
+<ul class="simple">
+<li>limit = 99 =&gt; low_level_mark = 74</li>
+<li>limit = 100 =&gt; low_level_mark = 75</li>
+<li>limit = 101 =&gt; low_level_mark = 51</li>
+</ul>
+<p>The formula was replaced with:</p>
+<pre class="literal-block">
+if limit &gt; 200:
+    low_water_mark = limit - 50
+else:
+    low_water_mark = 3 * limit // 4
+</pre>
+<p>The fix (<a class="reference external" href="https://hg.python.org/cpython/rev/eb0c76442cee">change eb0c76442cee</a>) modified the
+<tt class="docutils literal">sys.setrecursionlimit()</tt> function to raise a <tt class="docutils literal">RecursionError</tt> exception if
+the new limit is too low depending on the <em>current</em> stack depth.</p>
+</div>
+</div>
+<div class="section" id="optimizations">
+<h2>Optimizations</h2>
+<p>As usual for performance, Serhiy Storchaka was very helpful on reviews, to run
+independant benchmarks, etc.</p>
+<p>Optimizations on the <tt class="docutils literal">bytes</tt> type, ASCII, Latin1 and UTF-8 codecs:</p>
+<ul class="simple">
+<li>Issue #25318: Add _PyBytesWriter API. Add a new private API to optimize
+Unicode encoders. It uses a small buffer of 512 bytes allocated on the stack
+and supports configurable overallocation.</li>
+<li>Use _PyBytesWriter API for UCS1 (ASCII and Latin1) and UTF-8 encoders. Enable
+overallocation for the UTF-8 encoder with error handlers.</li>
+<li>unicode_encode_ucs1(): initialize collend to collstart+1 to not check the
+current character twice, we already know that it is not ASCII.</li>
+<li>Issue #25267: The UTF-8 encoder is now up to 75 times as fast for error
+handlers: <tt class="docutils literal">ignore</tt>, <tt class="docutils literal">replace</tt>, <tt class="docutils literal">surrogateescape</tt>, <tt class="docutils literal">surrogatepass</tt>.
+Patch co-written with Serhiy Storchaka.</li>
+<li>Issue #25301: The UTF-8 decoder is now up to 15 times as fast for error
+handlers: <tt class="docutils literal">ignore</tt>, <tt class="docutils literal">replace</tt> and <tt class="docutils literal">surrogateescape</tt>.</li>
+<li>Issue #25318: Optimize backslashreplace and xmlcharrefreplace error handlers
+in UTF-8 encoder. Optimize also backslashreplace error handler for ASCII and
+Latin1 encoders.</li>
+<li>Issue #25349: Optimize bytes % args using the new private _PyBytesWriter API</li>
+<li>Optimize error handlers of ASCII and Latin1 encoders when the replacement
+string is pure ASCII: use _PyBytesWriter_WriteBytes(), don't check individual
+character.</li>
+<li>Issue #25349: Optimize bytes % int. Formatting is between 30% and 50% faster
+on a microbenchmark.</li>
+<li>Issue #25357: Add an optional newline paramer to binascii.b2a_base64().
+base64.b64encode() uses it to avoid a memory copy.</li>
+<li>Issue #25353: Optimize unicode escape and raw unicode escape encoders: use
+the new _PyBytesWriter API.</li>
+<li>Rewrite PyBytes_FromFormatV() using _PyBytesWriter API</li>
+<li>Issue #25399: Optimize bytearray % args. Most formatting operations are now
+between 2.5 and 5 times faster.</li>
+<li>Issue #25401: Optimize bytes.fromhex() and bytearray.fromhex(): they are now
+between 2x and 3.5x faster.</li>
+</ul>
+</div>
+<div class="section" id="changes">
+<h2>Changes</h2>
+<ul class="simple">
+<li>Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the getrandom()
+function instead of the getentropy() function. The getentropy() function is
+blocking to generate very good quality entropy, os.urandom() doesn't need
+such high-quality entropy.</li>
+<li>Issue #22806: Add <tt class="docutils literal">python <span class="pre">-m</span> test <span class="pre">--list-tests</span></tt> command to list tests.</li>
+<li>Issue #25670: Remove duplicate getattr() in ast.NodeTransformer</li>
+<li>Issue #25557: Refactor _PyDict_LoadGlobal(). Don't fallback to
+PyDict_GetItemWithError() if the hash is unknown: compute the hash instead.
+Add also comments to explain the _PyDict_LoadGlobal() optimization.</li>
+<li>Issue #25868: Try to make test_eintr.test_sigwaitinfo() more reliable
+especially on slow buildbots</li>
+</ul>
+</div>
+<div class="section" id="changes-specific-to-python-2-7">
+<h2>Changes specific to Python 2.7</h2>
+<ul class="simple">
+<li>Closes #25742: locale.setlocale() now accepts a Unicode string for its second
+parameter.</li>
+</ul>
+</div>
+<div class="section" id="bugfixes">
+<h2>Bugfixes</h2>
+<ul class="simple">
+<li>Fix regrtest --coverage on Windows</li>
+<li>Fix pytime on OpenBSD</li>
+<li>More fixes for test_eintr on FreeBSD</li>
+<li>Close #25373: Fix regrtest --slow with interrupted test</li>
+<li>Issue #25555: Fix parser and AST: fill lineno and col_offset of &quot;arg&quot; node
+when compiling AST from Python objects. First contribution related
+to FAT Python ;-)</li>
+<li>Issue #25696: Fix installation of Python on UNIX with make -j9.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2015 Q3">My contributions to CPython during 2015 Q3</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-02-18T01:00:00+01:00">
                 Published: jeu. 18 février 2016
@@ -32,125 +194,11 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>A few years ago, someone asked me: &quot;Why do you contribute to CPython? Python is
-perfect, there are no more bugs, right?&quot;. The article list most of my
-contributions to CPython during 2015 Q3 (july, august, september). It gives an
-idea of which areas of Python are not perfect yet :-)</p>
-<p>The major event in Python of this quarter was the release of Python 3.5.0.</p>
-<p>As usual, I helped various contributors to refine their changes and I pushed
-their final changes.</p>
-<div class="section" id="freebsd-kernel-bug">
-<h2>FreeBSD kernel bug</h2>
-<p>It took me a while to polish the implementation of the <a class="reference external" href="https://www.python.org/dev/peps/pep-0475/">PEP 475 (retry syscall
-on EINTR)</a> especially its unit
-test <tt class="docutils literal">test_eintr</tt>. The unit test is supposed to test Python, but as usual,
-it also tests indirectly the operating system.</p>
-<p>I spent some days investigating a random hang on the FreeBSD buildbots: <a class="reference external" href="https://bugs.python.org/issue25122">issue
-#25122</a>. I quickly found the guilty test
-(test_eintr.test_open), but it took me a while to understand that it was a
-kernel bug in the FIFO driver. Hopefully at the end, I was able to reproduce
-the bug with a short C program in my FreeBSD VM. It is the best way to ask a
-fix upstream.</p>
-<p>My <a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=203162">FreeBSD bug report #203162</a> (&quot;when close(fd)
-on a fifo fails with EINTR, the file descriptor is not really closed&quot;) was
-quickly fixed. The FreeBSD team is reactive!</p>
-<p>I like free softwares because it's possible to investigate bugs deep in the
-code, and it's usually quick to get a fix.</p>
-</div>
-<div class="section" id="timestamp-rounding-issue">
-<h2>Timestamp rounding issue</h2>
-<p>Even if the <a class="reference external" href="http://bugs.python.org/issue23517">issue #23517</a> is well defined
-and simple to fix, it took me days (weeks?) to understand exactly how
-timestamps are supposed to be rounded and agree on the &quot;right&quot; rounding method.
-Alexander Belopolsky reminded me the important property:</p>
-<pre class="literal-block">
-(datetime(1970,1,1) + timedelta(seconds=t)) == datetime.utcfromtimestamp(t)
-</pre>
-<p>Tim Peters helped me to understand why Python rounds to nearest with ties going
-away from zero (ROUND_HALF_UP) in <tt class="docutils literal">round(float)</tt> and other functions. At
-the first look, the rounding method doesn't look natural nor logical:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; round(0.5)
-0
-&gt;&gt;&gt; round(1.5)
-2
-</pre>
-<p>See my previous article on the _PyTime API for the long story of rounding
-methods between Python 3.2 and Python 3.6.</p>
-</div>
-<div class="section" id="enhancements">
-<h2>Enhancements</h2>
-<ul class="simple">
-<li>type_call() now detect C bugs in type __new__() and __init__() methods.</li>
-<li>Issue #25220: Enhancements of the test runner: add more info when regrtest runs
-tests in parallel, fix some features of regrtest, add functional tests to
-test_regrtest.</li>
-</ul>
-</div>
-<div class="section" id="optimizations">
-<h2>Optimizations</h2>
-<ul class="simple">
-<li>Issue #25227: Optimize ASCII and latin1 encoders with the <tt class="docutils literal">surrogateescape</tt>
-error handler: the encoders are now up to 3 times as fast.</li>
-</ul>
-</div>
-<div class="section" id="changes">
-<h2>Changes</h2>
-<ul class="simple">
-<li>Polish the implementation of the PEP 475 (retry syscall on EINTR)</li>
-<li>Work on the &quot;What's New in Python 3.5&quot; document: add my changes
-(PEP 475, socket timeout, os.urandom)</li>
-<li>Work on asyncio: fix ResourceWarning warnings, fixes specific to Windows</li>
-<li>test_time: rewrite rounding tests of the private pytime API</li>
-<li>Issue #24707: Remove an assertion in monotonic clock. Don't check anymore at
-runtime that the monotonic clock doesn't go backward.  Yes, it happens! It
-occurs sometimes each month on a Debian buildbot slave running in a VM.</li>
-<li>test_eintr: replace os.fork() with subprocess (fork+exec) to make the test
-more reliable</li>
-</ul>
-</div>
-<div class="section" id="changes-specific-to-python-2-7">
-<h2>Changes specific to Python 2.7</h2>
-<ul class="simple">
-<li>Backport python-gdb.py changes: enhance py-bt command</li>
-<li>Issue #23375: Fix test_py3kwarn for modules implemented in C</li>
-</ul>
-</div>
-<div class="section" id="bug-fixes">
-<h2>Bug fixes</h2>
-<ul class="simple">
-<li>Closes #23247: Fix a crash in the StreamWriter.reset() of CJK codecs</li>
-<li>Issue #24732, #23834: Fix sock_accept_impl() on Windows. Regression of the
-PEP 475 (retry syscall on EINTR)</li>
-<li>test_gdb: fix regex to parse the GDB version and fix ResourceWarning on error</li>
-<li>Fix test_warnings: don't modify warnings.filters to fix random failures of
-the test.</li>
-<li>Issue #24891: Fix a race condition at Python startup if the file descriptor
-of stdin (0), stdout (1) or stderr (2) is closed while Python is creating
-sys.stdin, sys.stdout and sys.stderr objects.</li>
-<li>Issue #24684: socket.socket.getaddrinfo() now calls
-PyUnicode_AsEncodedString() instead of calling the encode() method of the
-host, to handle correctly custom string with an encode() method which doesn't
-return a byte string. The encoder of the IDNA codec is now called directly
-instead of calling the encode() method of the string.</li>
-<li>Issue #25118: Fix a regression of Python 3.5.0 in os.waitpid() on Windows.
-Add an unit test on os.waitpid()</li>
-<li>Issue #25122: Fix test_eintr, kill child process on error</li>
-<li>Issue #25155: Add _PyTime_AsTimevalTime_t() function to fix a regression:
-support again years after 2038.</li>
-<li>Issue #25150: Hide the private _Py_atomic_xxx symbols from the public
-Python.h header to fix a compilation error with OpenMP. PyThreadState_GET()
-becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.</li>
-<li>Issue #25003: On Solaris 11.3 or newer, os.urandom() now uses the getrandom()
-function instead of the getentropy() function.</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                <p class="first last">My contributions to CPython during 2015 Q3</p>
+
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2015q3.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -180,10 +228,7 @@ function instead of the getentropy() function.</li>
                 <div class="blogroll">
                         <h2>blogroll</h2>
                         <ul>
-                            <li><a href="http://getpelican.com/">Pelican</a></li>
-                            <li><a href="http://python.org/">Python.org</a></li>
-                            <li><a href="http://jinja.pocoo.org/">Jinja2</a></li>
-                            <li><a href="#">You can modify those links in your config file</a></li>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
                         </ul>
                 </div><!-- /.blogroll -->
                 <div class="social">
@@ -191,8 +236,7 @@ function instead of the getentropy() function.</li>
                         <ul>
                             <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
-                            <li><a href="#">You can add links in your config file</a></li>
-                            <li><a href="#">Another social link</a></li>
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>
                 </div><!-- /.social -->
         </section><!-- /#extras -->
