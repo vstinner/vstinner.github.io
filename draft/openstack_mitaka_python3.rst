@@ -5,7 +5,7 @@ Status of Python 3 in OpenStack Mitaka
 :date: 2016-03-01 17:00
 :tags: openstack, python3
 :category: python
-:slug: python3_openstack_mitaka
+:slug: openstack_mitaka_python3
 :authors: Victor Stinner
 :summary: Status of Python 3 in OpenStack Mitaka
 
