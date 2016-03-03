@@ -10,7 +10,7 @@ Status of Python 3 in OpenStack Mitaka
 :summary: Status of Python 3 in OpenStack Mitaka
 
 Since most OpenStack services reached the feature freeze of the Mitaka cycle
-(November 2015-April 2016), it's time to look behind to see the progress made
+(November 2015-April 2016), it's time to look back to see the progress made
 on the Python 3 support.
 
 See also the previous status: `Python 3 Status in OpenStack Liberty
@@ -37,11 +37,11 @@ Services ported to Python 3
 * Watcher
 * Zaqar
 
-Red Hat contributed at least to the port of Cinder, Glance and Horizon
+Red Hat contributed at least to the port of the Cinder, Designate, Glance and Horizon
 services.
 
 "Ported to Python 3" means that all unit tests pass on Python 3.4 and a voting
-job runs these tests on the gate. It is not enough to run applications on
+job runs these tests on the gate. It is not enough to run applications in
 production with Python 3. Integration and functional tests are not run on
 Python 3 yet. See the section dedicated to these tests below.
 
@@ -53,10 +53,10 @@ services ported to Python 3.
 Services not ported yet
 =======================
 
-It became simpler to list services which are not compatible with Python 3, than
+It became simpler to list services which are not compatible with Python 3 than
 listing services already ported to Python!
 
-8 services still needs to be ported:
+8 services still need to be ported:
 
 * Work-in-progress:
 
@@ -72,11 +72,11 @@ listing services already ported to Python!
   * Murano: non-voting python34 gate
   * Trove: no python34 gate
 
-Red Hat contributed Python 3 patches to at least Cue, Designate, Swift and
+Red Hat contributed Python 3 patches to at least Cue, Swift and
 Trove during the Mitaka cycle.
 
-Trove developers are ok to start the port at the beginning of the next Newton
-cycle. The py34 test environment was blocked by the MySQL-Python dependency (it
+Trove developers are OK to start the port at the beginning of the next cycle
+(Newton). The py34 test environment was blocked by the MySQL-Python dependency (it
 was not possible to build the test environment), but this dependency is now
 skipped on Python 3. Later, it will be `replaced with PyMySQL
 <https://review.openstack.org/#/c/225915/>`_ on Python 2 and Python 3.
@@ -106,8 +106,8 @@ Four Python 3 issues were fixed in Eventlet:
 Next Milestone: Functional and integration tests
 ================================================
 
-Same plan than the previous status on OpenStack Liberty: the next major
-milestone will be to run functional and integration tests on Python 3.
+The plan is the same as in the previous status report on OpenStack Liberty: the next major
+milestone will be running functional and integration tests on Python 3.
 
 There are two kinds of tests:
 
@@ -117,11 +117,11 @@ There are two kinds of tests:
 It is now possible to install some packages on Python 3 in DevStack using
 ``USE_PYTHON3`` and ``PYTHON3_VERSION`` variables: `Enable optional Python 3
 support <https://review.openstack.org/#/c/181165/>`_. It means that it is
-possible to run tests with some services running on Python 3, and remaining
+possible to run tests with some services running on Python 3, and the remaining
 services on Python 2.
 
 The `python3-dev(el) dependency <https://review.openstack.org/#/c/238492/>`_
-was also added to images used to run tests on the gate. It blocked Neutron
+was also added to images used to run tests on the gate. This blocked Neutron
 functional tests.
 
 The port to Python 3 of Glance, Heat and Neutron functional and integration
@@ -142,7 +142,7 @@ job was added yet to run it on the gate.
 
 Functional and integration tests will identify remaining Python 3 issues.
 
-Another pending project is to fix issues specific to Python 3.5, but no gate
+Another pending project is to fix issues specific to Python 3.5, but no gates
 use Python 3.5 yet. There are some minor issues, probably easy to fix.
 
 
