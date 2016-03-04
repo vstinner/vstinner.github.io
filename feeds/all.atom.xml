@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-03-02T14:00:00+01:00</updated><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Since most OpenStack services reached the feature freeze of the Mitaka cycle
-(November 2015-April 2016), it's time to look behind to see the progress made
-on the Python 3 support.&lt;/p&gt;
-&lt;p&gt;See also the previous status: &lt;a class="reference external" href="http://techs.enovance.com/7807/python-3-status-openstack-liberty"&gt;Python 3 Status in OpenStack Liberty&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-03-02T14:00:00+01:00</updated><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
+cycle (November 2015-April 2016), it's time to look back on the progress made
+for Python 3 support.&lt;/p&gt;
+&lt;p&gt;Previous status update: &lt;a class="reference external" href="http://techs.enovance.com/7807/python-3-status-openstack-liberty"&gt;Python 3 Status in OpenStack Liberty&lt;/a&gt;
 (September 2015).&lt;/p&gt;
 &lt;div class="section" id="services-ported-to-python-3"&gt;
 &lt;h2&gt;Services ported to Python 3&lt;/h2&gt;
@@ -22,44 +22,44 @@ on the Python 3 support.&lt;/p&gt;
 &lt;li&gt;Watcher&lt;/li&gt;
 &lt;li&gt;Zaqar&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Red Hat contributed at least to the port of Cinder, Glance and Horizon
-services.&lt;/p&gt;
-&lt;p&gt;&amp;quot;Ported to Python 3&amp;quot; means that all unit tests pass on Python 3.4 and a voting
-job runs these tests on the gate. It is not enough to run applications on
+&lt;p&gt;Red Hat contributed to the Cinder, Designate, Glance and Horizon service
+porting efforts.&lt;/p&gt;
+&lt;p&gt;&amp;quot;Ported to Python 3&amp;quot; means that all unit tests pass on Python 3.4 which is
+verified by a voting gate job. It is not enough to run applications in
 production with Python 3. Integration and functional tests are not run on
 Python 3 yet. See the section dedicated to these tests below.&lt;/p&gt;
 &lt;p&gt;See the &lt;a class="reference external" href="https://wiki.openstack.org/wiki/Python3"&gt;Python 3 wiki page&lt;/a&gt; for the
-current status of the OpenStack port to Python 3, especially the list of
+current status of the OpenStack port to Python 3; especially the list of
 services ported to Python 3.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="services-not-ported-yet"&gt;
 &lt;h2&gt;Services not ported yet&lt;/h2&gt;
-&lt;p&gt;It became simpler to list services which are not compatible with Python 3, than
-listing services already ported to Python!&lt;/p&gt;
-&lt;p&gt;8 services still needs to be ported:&lt;/p&gt;
+&lt;p&gt;It's become easier to list services which are not compatible with Python 3 than
+listing services already ported to Python 3!&lt;/p&gt;
+&lt;p&gt;9 services still need to be ported:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Work-in-progress:&lt;ul&gt;
 &lt;li&gt;Magnum: 83% (959 unit tests/1,161)&lt;/li&gt;
 &lt;li&gt;Cue: 81% (208 unit tests/257)&lt;/li&gt;
 &lt;li&gt;Nova: 74% (10,859 unit tests/14,726)&lt;/li&gt;
 &lt;li&gt;Barbican: 34% (392 unit tests/1168)&lt;/li&gt;
+&lt;li&gt;Murano: 29% (133 unit tests/455)&lt;/li&gt;
 &lt;li&gt;Keystone: 27% (1200 unit tests/4455)&lt;/li&gt;
 &lt;li&gt;Swift: 0% (3 unit tests/4,435)&lt;/li&gt;
+&lt;li&gt;Neutron-LBaaS: 0% (1 unit test/806)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;li&gt;Port not started yet:&lt;ul&gt;
-&lt;li&gt;Murano: non-voting python34 gate&lt;/li&gt;
 &lt;li&gt;Trove: no python34 gate&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Red Hat contributed Python 3 patches to at least Cue, Designate, Swift and
-Trove during the Mitaka cycle.&lt;/p&gt;
-&lt;p&gt;Trove developers are ok to start the port at the beginning of the next Newton
-cycle. The py34 test environment was blocked by the MySQL-Python dependency (it
+&lt;p&gt;Red Hat contributed Python 3 patches to Cue, Neutron-LBaaS, Swift and Trove
+during the Mitaka cycle.&lt;/p&gt;
+&lt;p&gt;Trove developers are ready to start the port at the beginning of the next cycle
+(Newton). The py34 test environment was blocked by the MySQL-Python dependency (it
 was not possible to build the test environment), but this dependency is now
 skipped on Python 3. Later, it will be &lt;a class="reference external" href="https://review.openstack.org/#/c/225915/"&gt;replaced with PyMySQL&lt;/a&gt; on Python 2 and Python 3.&lt;/p&gt;
-&lt;p&gt;The status of Murano is unclear yet.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="python-3-issues-in-eventlet"&gt;
 &lt;h2&gt;Python 3 issues in Eventlet&lt;/h2&gt;
@@ -78,9 +78,8 @@ request &lt;a class="reference external" href="https://github.com/eventlet/event
 &lt;/div&gt;
 &lt;div class="section" id="next-milestone-functional-and-integration-tests"&gt;
 &lt;h2&gt;Next Milestone: Functional and integration tests&lt;/h2&gt;
-&lt;p&gt;Same plan than the previous status on OpenStack Liberty: the next major
-milestone will be to run functional and integration tests on Python 3.&lt;/p&gt;
-&lt;p&gt;There are two kinds of tests:&lt;/p&gt;
+&lt;p&gt;The next major milestone will be to run functional and integration tests on
+Python 3.&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;functional tests are restricted to one component (ex: only Glance)&lt;/li&gt;
 &lt;li&gt;integration tests, like Tempest, test the integration of multiple components&lt;/li&gt;
@@ -88,13 +87,10 @@ milestone will be to run functional and integration tests on Python 3.&lt;/p&gt;
 &lt;p&gt;It is now possible to install some packages on Python 3 in DevStack using
 &lt;tt class="docutils literal"&gt;USE_PYTHON3&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PYTHON3_VERSION&lt;/tt&gt; variables: &lt;a class="reference external" href="https://review.openstack.org/#/c/181165/"&gt;Enable optional Python 3
 support&lt;/a&gt;. It means that it is
-possible to run tests with some services running on Python 3, and remaining
+possible to run tests with some services running on Python 3, and the remaining
 services on Python 2.&lt;/p&gt;
-&lt;p&gt;The &lt;a class="reference external" href="https://review.openstack.org/#/c/238492/"&gt;python3-dev(el) dependency&lt;/a&gt;
-was also added to images used to run tests on the gate. It blocked Neutron
-functional tests.&lt;/p&gt;
 &lt;p&gt;The port to Python 3 of Glance, Heat and Neutron functional and integration
-tests already started.&lt;/p&gt;
+tests have already started.&lt;/p&gt;
 &lt;p&gt;For Glance, 159 functional tests already pass on Python 3.4.&lt;/p&gt;
 &lt;p&gt;Heat:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -103,18 +99,17 @@ tests already started.&lt;/p&gt;
 (WIP)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Neutron: the &lt;a class="reference external" href="https://review.openstack.org/#/c/231897/"&gt;Add the functional-py34 and dsvm-functional-py34 targets to
-tox.ini&lt;/a&gt; change was merged, but no
-job was added yet to run it on the gate.&lt;/p&gt;
-&lt;p&gt;Functional and integration tests will identify remaining Python 3 issues.&lt;/p&gt;
-&lt;p&gt;Another pending project is to fix issues specific to Python 3.5, but no gate
-use Python 3.5 yet. There are some minor issues, probably easy to fix.&lt;/p&gt;
+tox.ini&lt;/a&gt; change was merged, but a
+gate job hasn't been added for it yet.&lt;/p&gt;
+&lt;p&gt;Another pending project is to fix issues specific to Python 3.5, but the gate
+doesn’t use Python 3.5 yet. There are some minor issues, probably easy to fix.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="how-to-port-remainaing-code"&gt;
-&lt;h2&gt;How to port remainaing code?&lt;/h2&gt;
+&lt;div class="section" id="how-to-port-remaining-code"&gt;
+&lt;h2&gt;How to port remaining code?&lt;/h2&gt;
 &lt;p&gt;The &lt;a class="reference external" href="https://wiki.openstack.org/wiki/Python3"&gt;Python 3 wiki page&lt;/a&gt; contains
 a lot of information about adding Python 3 support to Python 2 code.&lt;/p&gt;
-&lt;p&gt;Come to the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;#openstack-python3&lt;/span&gt;&lt;/tt&gt; IRC channel on the Freenode network to
-discuss Python 3!&lt;/p&gt;
+&lt;p&gt;Join us in the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;#openstack-python3&lt;/span&gt;&lt;/tt&gt; IRC channel on Freenode to discuss
+Python 3!&lt;/p&gt;
 &lt;/div&gt;
 </summary><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://haypo.github.io/pybyteswriter.html" rel="alternate"></link><updated>2016-03-01T16:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:pybyteswriter.html</id><summary type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
 CPython. These APIs are design to optimize code producing strings when the
