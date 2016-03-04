@@ -56,7 +56,7 @@ Services not ported yet
 It became simpler to list services which are not compatible with Python 3 than
 listing services already ported to Python!
 
-8 services still need to be ported:
+9 services still need to be ported:
 
 * Work-in-progress:
 
@@ -66,6 +66,7 @@ listing services already ported to Python!
   * Barbican: 34% (392 unit tests/1168)
   * Keystone: 27% (1200 unit tests/4455)
   * Swift: 0% (3 unit tests/4,435)
+  * neutron-lbaas: 0% (1 unit test/806)
 
 * Port not started yet:
 
