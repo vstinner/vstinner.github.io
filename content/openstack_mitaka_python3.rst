@@ -64,13 +64,13 @@ listing services already ported to Python 3!
   * Cue: 81% (208 unit tests/257)
   * Nova: 74% (10,859 unit tests/14,726)
   * Barbican: 34% (392 unit tests/1168)
+  * Murano: 29% (133 unit tests/455)
   * Keystone: 27% (1200 unit tests/4455)
   * Swift: 0% (3 unit tests/4,435)
   * Neutron-LBaaS: 0% (1 unit test/806)
 
 * Port not started yet:
 
-  * Murano: non-voting python34 gate
   * Trove: no python34 gate
 
 Red Hat contributed Python 3 patches to Cue, Neutron-LBaaS, Swift and Trove
@@ -81,8 +81,6 @@ Trove developers are ready to start the port at the beginning of the next cycle
 was not possible to build the test environment), but this dependency is now
 skipped on Python 3. Later, it will be `replaced with PyMySQL
 <https://review.openstack.org/#/c/225915/>`_ on Python 2 and Python 3.
-
-The status of Murano is unclear yet.
 
 
 Python 3 issues in Eventlet
