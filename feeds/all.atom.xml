@@ -1,5 +1,142 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-03-02T14:00:00+01:00</updated><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-21T16:50:00+02:00</updated><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-part1.html" rel="alternate"></link><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:journey-to-stable-benchmark-part1.html</id><summary type="html">&lt;div class="section" id="background"&gt;
+&lt;h2&gt;Background&lt;/h2&gt;
+&lt;p&gt;In the CPython development, it became common to require the result of the
+&lt;a class="reference external" href="https://hg.python.org/benchmarks"&gt;CPython benchmark suite&lt;/a&gt; (&amp;quot;The Grand
+Unified Python Benchmark Suite&amp;quot;) to evaluate the effect of an optimization
+patch. The minimum requirement is to not introduce performance regressions.&lt;/p&gt;
+&lt;p&gt;I used the CPython benchmark suite and I had many bad surprises when trying to
+analyze (understand) results. A change expected to be faster makes some
+benchmarks slower without any obvious reason. At least, the change is expected
+to be faster on some specific benchmarks, but have no impact on the other
+benchmarks. The slow down is usually between 5% and 10% slower. I am not
+confortable with any kind of slow down.&lt;/p&gt;
+&lt;p&gt;Many benchmarks look unstable. The problem is to trust the overall report.
+Some developers started to say that they learnt to ignore some benchmarks known
+to be unstable.&lt;/p&gt;
+&lt;p&gt;It's not the first time that I am totally disappointed by microbenchmark
+results, so I decided to analyze completely the issue and go as deep as
+possible to really understand the problem.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="how-to-get-stable-benchmarks-on-a-busy-linux-system"&gt;
+&lt;h2&gt;How to get stable benchmarks on a busy Linux system&lt;/h2&gt;
+&lt;p&gt;A common advice to get stable benchmark is to stay away the keyboard
+(&amp;quot;freeze!&amp;quot;) and stop all other applications to only run one application, the
+benchmark.&lt;/p&gt;
+&lt;p&gt;Well, I'm working on a single computer and the full CPython benchmark suite
+take up to 2 hours in rigorous mode. I just cannot stop working during 2 hours
+to wait for the result of the benchmark. I like running benchmarks locally. It
+is convenient to run benchmarks on the same computer used to develop.&lt;/p&gt;
+&lt;p&gt;The goal here is to &amp;quot;remove the noise of the system&amp;quot;. Get the same result on a
+busy system than an idle system. My simple &lt;a class="reference external" href="https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py"&gt;system_load.py&lt;/a&gt; program can be
+used to increase the system load. For example, run &lt;tt class="docutils literal"&gt;system_load.py 10&lt;/tt&gt; in a
+terminal to get at least a system load of 10 (busy system) and run the
+benchmark in a different terminal. Use CTRL+c to stop &lt;tt class="docutils literal"&gt;system_load.py&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cpu-isolation"&gt;
+&lt;h2&gt;CPU isolation&lt;/h2&gt;
+&lt;p&gt;In 2016, it is common to get a CPU with multiple physical cores. For example,
+my Intel CPU has 4 physical cores and 8 logical cores thanks to
+&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Hyper-threading"&gt;Hyper-Threading&lt;/a&gt;. It is
+possible to configure the Linux kernel to not schedule processes on some CPUs
+using the &amp;quot;CPU isolation&amp;quot; feature. It is the &lt;tt class="docutils literal"&gt;isolcpus&lt;/tt&gt; parameter of the
+Linux command line, the value is a list of CPUs. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+isolcpus=2,3,6,7
+&lt;/pre&gt;
+&lt;p&gt;Check with:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/isolated
+2-3,6-7
+&lt;/pre&gt;
+&lt;p&gt;If you have Hyper-Threading, you must isolate the two logicial cores of each
+isolated physical core. You can use the &lt;tt class="docutils literal"&gt;lscpu &lt;span class="pre"&gt;--all&lt;/span&gt; &lt;span class="pre"&gt;--extended&lt;/span&gt;&lt;/tt&gt; command to
+identify physical cores. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ lscpu -a -e
+CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE MAXMHZ    MINMHZ
+0   0    0      0    0:0:0:0       yes    5900,0000 1600,0000
+1   0    0      1    1:1:1:0       yes    5900,0000 1600,0000
+2   0    0      2    2:2:2:0       yes    5900,0000 1600,0000
+3   0    0      3    3:3:3:0       yes    5900,0000 1600,0000
+4   0    0      0    0:0:0:0       yes    5900,0000 1600,0000
+5   0    0      1    1:1:1:0       yes    5900,0000 1600,0000
+6   0    0      2    2:2:2:0       yes    5900,0000 1600,0000
+7   0    0      3    3:3:3:0       yes    5900,0000 1600,0000
+&lt;/pre&gt;
+&lt;p&gt;The physical core &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; (CORE column) is made of two logical cores (CPU
+column): &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;4&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="nohz-mode"&gt;
+&lt;h2&gt;NOHZ mode&lt;/h2&gt;
+&lt;p&gt;By default, the Linux kernel uses a scheduling-clock which interrupts the
+running application &lt;tt class="docutils literal"&gt;HZ&lt;/tt&gt; times per second to run the scheduler. &lt;tt class="docutils literal"&gt;HZ&lt;/tt&gt; is
+usually between 100 and 1000: time slice between 1 ms and 10 ms.&lt;/p&gt;
+&lt;p&gt;Linux supports a &lt;a class="reference external" href="https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt"&gt;NOHZ mode&lt;/a&gt; which is able to
+disable the scheduling-clock when the system is idle to reduce the power
+consumption. Linux 3.10 introduces a &lt;a class="reference external" href="https://lwn.net/Articles/549580/"&gt;full ticketless mode&lt;/a&gt;, NOHZ full, which is able to disable the
+scheduling-clock when only one application is running on a CPU.&lt;/p&gt;
+&lt;p&gt;NOHZ full is disabled by default. It can be enabled with the &lt;tt class="docutils literal"&gt;nohz_full&lt;/tt&gt;
+parameter of the Linux command line, the value is a list of CPUs. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+nohz_full=2,3,6,7
+&lt;/pre&gt;
+&lt;p&gt;Check with:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/nohz_full
+2-3,6-7
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="interrupts-irq"&gt;
+&lt;h2&gt;Interrupts (IRQ)&lt;/h2&gt;
+&lt;p&gt;The Linux kernel can also be configured to not run &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Interrupt_request_%28PC_architecture%29"&gt;interruptions (IRQ)&lt;/a&gt;
+handlers on some CPUs using &lt;tt class="docutils literal"&gt;/proc/irq/default_smp_affinity&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;/proc/irq/&amp;lt;number&amp;gt;/smp_affinity&lt;/span&gt;&lt;/tt&gt; files. The value is not a list of CPUs but
+a bitmask.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;/proc/interrupts&lt;/tt&gt; file can be read to see the number of interruptions
+per CPU.&lt;/p&gt;
+&lt;p&gt;Read the &lt;a class="reference external" href="https://www.kernel.org/doc/Documentation/IRQ-affinity.txt"&gt;Linux SMP IRQ affinity&lt;/a&gt; documentation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="example-of-effect-of-cpu-isolation-on-a-microbenchmark"&gt;
+&lt;h2&gt;Example of effect of CPU isolation on a microbenchmark&lt;/h2&gt;
+&lt;p&gt;Example with Linux parameters:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+isolcpus=2,3,6,7 nohz_full=2,3,6,7
+&lt;/pre&gt;
+&lt;p&gt;Microbenchmark on an idle system (without CPU isolation):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m timeit 'sum(range(10**7))'
+10 loops, best of 3: 229 msec per loop
+&lt;/pre&gt;
+&lt;p&gt;Result on a busy system using &lt;tt class="docutils literal"&gt;system_load.py 10&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;find /&lt;/tt&gt; commands
+running in other terminals:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m timeit 'sum(range(10**7))'
+10 loops, best of 3: 372 msec per loop
+&lt;/pre&gt;
+&lt;p&gt;The microbenchmark is 56% slower because of the high system load!&lt;/p&gt;
+&lt;p&gt;Result on the same busy system but using isolated CPUs. The &lt;tt class="docutils literal"&gt;taskset&lt;/tt&gt; command
+allows to pin an application to specific CPUs:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ taskset -c 1,3 python3 -m timeit 'sum(range(10**7))'
+10 loops, best of 3: 230 msec per loop
+&lt;/pre&gt;
+&lt;p&gt;Just to check, new run without CPU isolation:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m timeit 'sum(range(10**7))'
+10 loops, best of 3: 357 msec per loop
+&lt;/pre&gt;
+&lt;p&gt;The result with CPU isolation on a busy system is the same than the result an
+idle system! CPU isolation removes most of the noise of the system.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Great job Linux!&lt;/p&gt;
+&lt;p&gt;Ok! Now, the benchmar is super stable, no? ...  Sorry, no, it's not stable yet.
+I found a lot of other sources of &amp;quot;noise&amp;quot;.  We will see them in the following
+article ;-)&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
 cycle (November 2015-April 2016), it's time to look back on the progress made
 for Python 3 support.&lt;/p&gt;
 &lt;p&gt;Previous status update: &lt;a class="reference external" href="http://techs.enovance.com/7807/python-3-status-openstack-liberty"&gt;Python 3 Status in OpenStack Liberty&lt;/a&gt;
