@@ -1,3 +1,5 @@
+.. _pybyteswriter:
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
