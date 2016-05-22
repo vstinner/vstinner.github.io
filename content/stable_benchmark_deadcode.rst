@@ -32,7 +32,8 @@ be a big and inacceptable mistake of my work.
 Linux perf
 ==========
 
-I started to learn how to use the great Linux ``perf`` tool to analyze why
+I started to learn how to use the great `Linux perf
+<https://perf.wiki.kernel.org/index.php/Main_Page>`_ tool to analyze why
 ``call_simple`` was slower. I tried to find a major difference between my
 reference python and the patched python.
 
@@ -139,6 +140,6 @@ execution of the Python test suite.
 
 Using PGO, adding dead code has no more impact on the performance.
 
-With system tuning and compilation using PGO, benchmarks must now be stable
-this time, no? ... No, sorry, not yet. We will see more sources of noise
-in following articles ;-)
+With system tuning and PGO compilation, benchmarks must now be stable this
+time, no? ... No, sorry, not yet. We will see more sources of noise in
+following articles ;-)
