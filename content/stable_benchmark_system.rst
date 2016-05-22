@@ -21,8 +21,8 @@ I used the CPython benchmark suite and I had many bad surprises when trying to
 analyze (understand) results. A change expected to be faster makes some
 benchmarks slower without any obvious reason. At least, the change is expected
 to be faster on some specific benchmarks, but have no impact on the other
-benchmarks. The slow down is usually between 5% and 10% slower. I am not
-confortable with any kind of slow down.
+benchmarks. The slowdown is usually between 5% and 10% slower. I am not
+confortable with any kind of slowdown.
 
 Many benchmarks look unstable. The problem is to trust the overall report.
 Some developers started to say that they learnt to ignore some benchmarks known
