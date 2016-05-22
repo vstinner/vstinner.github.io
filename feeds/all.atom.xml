@@ -1,5 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-21T16:50:00+02:00</updated><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:journey-to-stable-benchmark-system.html</id><summary type="html">&lt;div class="section" id="background"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-22T22:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="images/snail.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
+expected to get very stable benchmarks and so I started to benchmark seriously
+my &lt;a class="reference external" href="https://bugs.python.org/issue26814"&gt;FASTCALL branch&lt;/a&gt; of CPython (a new
+calling convention avoiding temporary tuples).&lt;/p&gt;
+&lt;p&gt;I was disappointed to get many slowdowns in the CPython benchmark suite. I
+started to analyze why my change introduced performance regressions.&lt;/p&gt;
+&lt;p&gt;I took my overall patch and slowly reverted more and more code to check which
+changes introduced most of the slowdowns.&lt;/p&gt;
+&lt;p&gt;I focused on the &lt;tt class="docutils literal"&gt;call_simple&lt;/tt&gt; benchmark which does only one thing: call
+Python functions which do nothing.  Making Python function calls slower would
+be a big and inacceptable mistake of my work.&lt;/p&gt;
+&lt;div class="section" id="linux-perf"&gt;
+&lt;h2&gt;Linux perf&lt;/h2&gt;
+&lt;p&gt;I started to learn how to use the great &lt;a class="reference external" href="https://perf.wiki.kernel.org/index.php/Main_Page"&gt;Linux perf&lt;/a&gt; tool to analyze why
+&lt;tt class="docutils literal"&gt;call_simple&lt;/tt&gt; was slower. I tried to find a major difference between my
+reference python and the patched python.&lt;/p&gt;
+&lt;p&gt;I analyzed cache misses on L1 instruction and data caches.  I analyzed stallen
+CPU cycles. I analyzed all memory events, branch events, etc. Basically, I tried
+all perf events and spent a lot of time to run benchmarks multiple times.&lt;/p&gt;
+&lt;p&gt;By the way, I strongly suggest to use &lt;tt class="docutils literal"&gt;perf stat&lt;/tt&gt; using the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--repeat&lt;/span&gt;&lt;/tt&gt;
+command line option to get an average on multiple runs and see the standard
+deviation. It helps to get more reliable numbers. I even wrote a Python script
+implementing &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--repeat&lt;/span&gt;&lt;/tt&gt; (run perf multiple times, parse the output), before
+seeing that it was already a builtin feature!&lt;/p&gt;
+&lt;p&gt;Use &lt;tt class="docutils literal"&gt;perf list&lt;/tt&gt; to list all available (pre-defined) events.&lt;/p&gt;
+&lt;p&gt;After many days, I decided to give up with perf.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cachegrind"&gt;
+&lt;h2&gt;Cachegrind&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="http://valgrind.org/"&gt;&lt;img alt="Logo of the Valgrind project" src="images/valgrind.png" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="http://valgrind.org/"&gt;Valgrind&lt;/a&gt; is a great tool known to detect memory
+leaks, but it also contains gems like the &lt;a class="reference external" href="http://valgrind.org/docs/manual/cg-manual.html"&gt;Cachegrind tool&lt;/a&gt; which &lt;em&gt;simulates&lt;/em&gt; the
+CPU caches.&lt;/p&gt;
+&lt;p&gt;I used Cachegrind with the nice &lt;a class="reference external" href="http://kcachegrind.sourceforge.net/"&gt;Kcachegrind GUI&lt;/a&gt;. Sadly, I also failed to see anything
+obvious in cache misses between the reference python and the patched python.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="strace-and-ltrace"&gt;
+&lt;h2&gt;strace and ltrace&lt;/h2&gt;
+&lt;img alt="strace and ltrace" src="images/strace_ltrace.png" /&gt;
+&lt;p&gt;I also tried &lt;tt class="docutils literal"&gt;strace&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;ltrace&lt;/tt&gt; tools to try to see a difference in the
+execution of the reference and the patched pythons. I saw different memory
+addresses, but no major difference which can explain a difference of the
+timing.&lt;/p&gt;
+&lt;p&gt;Morever, the hotcode simply does not call any syscall nor library
+function. It's pure CPU-bound code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="compiler-options"&gt;
+&lt;h2&gt;Compiler options&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://gcc.gnu.org/"&gt;&lt;img alt="GCC logo" class="align-right" src="images/gcc.png" /&gt;&lt;/a&gt;
+&lt;p&gt;I used &lt;a class="reference external" href="https://gcc.gnu.org/"&gt;GCC&lt;/a&gt; to build to code. Just in case, I tried
+LLVM compiler, but it didn't &amp;quot;fix&amp;quot; the issue.&lt;/p&gt;
+&lt;p&gt;I also tried different optimization levels: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O0&lt;/span&gt;&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O1&lt;/span&gt;&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O2&lt;/span&gt;&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O3&lt;/span&gt;&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I read that the exact address of functions can have an impact on the CPU L1
+cache: &lt;a class="reference external" href="https://stackoverflow.com/questions/19470873/why-does-gcc-generate-15-20-faster-code-if-i-optimize-for-size-instead-of-speed"&gt;Why does gcc generate 15-20% faster code if I optimize for size instead
+of speed?&lt;/a&gt;.
+I tried various values of the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-falign-functions=N&lt;/span&gt;&lt;/tt&gt; option (1, 2, 6, 12).&lt;/p&gt;
+&lt;p&gt;I also tried &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-fomit-pointer&lt;/span&gt;&lt;/tt&gt; (omit frame pointer) to record the callgraph with &lt;tt class="docutils literal"&gt;perf record&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I also tried &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-flto&lt;/span&gt;&lt;/tt&gt;: Link Time Optimization (LTO).&lt;/p&gt;
+&lt;p&gt;These compiler options didn't fix the issue.&lt;/p&gt;
+&lt;p&gt;The truth is out there.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="when-cpython-performance-depends-on-dead-code"&gt;
+&lt;h2&gt;When CPython performance depends on dead code&lt;/h2&gt;
+&lt;p&gt;I continued to revert changes. At the end, my giant patch was reduces to very
+few changes only adding code which was never called (at least, I was sure
+that it was not called in the &lt;tt class="docutils literal"&gt;call_simple&lt;/tt&gt; benchmark).&lt;/p&gt;
+&lt;p&gt;Let me rephase: &lt;em&gt;adding dead code&lt;/em&gt; makes Python slower. What?&lt;/p&gt;
+&lt;p&gt;A colleague suggested me to remove the body (replace it with &lt;tt class="docutils literal"&gt;return;&lt;/tt&gt;) of
+added function: the code became faster. Ok, now I'm completely lost. To be
+clear, I don't expect that adding dead code would have &lt;em&gt;any&lt;/em&gt; impact on the
+performance.&lt;/p&gt;
+&lt;p&gt;My email &lt;a class="reference external" href="https://mail.python.org/pipermail/speed/2016-April/000341.html"&gt;When CPython performance depends on dead code...&lt;/a&gt; explains how
+to reproduce the issue and contains many information.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="solution-pgo"&gt;
+&lt;h2&gt;Solution: PGO&lt;/h2&gt;
+&lt;p&gt;The solution is called Profiled Guided Optimization, &amp;quot;PGO&amp;quot;. Python build system
+supports it in a single command: &lt;tt class="docutils literal"&gt;make &lt;span class="pre"&gt;profile-opt&lt;/span&gt;&lt;/tt&gt;. It profiles the
+execution of the Python test suite.&lt;/p&gt;
+&lt;p&gt;Using PGO, adding dead code has no more impact on the performance.&lt;/p&gt;
+&lt;p&gt;With system tuning and PGO compilation, benchmarks must now be stable this
+time, no? ... No, sorry, not yet. We will see more sources of noise in
+following articles ;-)&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:journey-to-stable-benchmark-system.html</id><summary type="html">&lt;div class="section" id="background"&gt;
 &lt;h2&gt;Background&lt;/h2&gt;
 &lt;p&gt;In the CPython development, it became common to require the result of the
 &lt;a class="reference external" href="https://hg.python.org/benchmarks"&gt;CPython benchmark suite&lt;/a&gt; (&amp;quot;The Grand
@@ -9,8 +95,8 @@ patch. The minimum requirement is to not introduce performance regressions.&lt;/
 analyze (understand) results. A change expected to be faster makes some
 benchmarks slower without any obvious reason. At least, the change is expected
 to be faster on some specific benchmarks, but have no impact on the other
-benchmarks. The slow down is usually between 5% and 10% slower. I am not
-confortable with any kind of slow down.&lt;/p&gt;
+benchmarks. The slowdown is usually between 5% and 10% slower. I am not
+confortable with any kind of slowdown.&lt;/p&gt;
 &lt;p&gt;Many benchmarks look unstable. The problem is to trust the overall report.
 Some developers started to say that they learnt to ignore some benchmarks known
 to be unstable.&lt;/p&gt;
@@ -134,7 +220,7 @@ idle system! CPU isolation removes most of the noise of the system.&lt;/p&gt;
 &lt;p&gt;Great job Linux!&lt;/p&gt;
 &lt;p&gt;Ok! Now, the benchmar is super stable, no? ...  Sorry, no, it's not stable yet.
 I found a lot of other sources of &amp;quot;noise&amp;quot;.  We will see them in the following
-article ;-)&lt;/p&gt;
+articles ;-)&lt;/p&gt;
 &lt;/div&gt;
 </summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
 cycle (November 2015-April 2016), it's time to look back on the progress made

@@ -21,7 +21,117 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-system.html">My journey to stable benchmark, part 1 (system)</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">My journey to stable benchmark, part 2 (deadcode)</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-05-22T22:00:00+02:00">
+                Published: dim. 22 mai 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"><img alt="Snail" src="images/snail.jpg" /></a>
+<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">the system tuning (part 1)</a>, I
+expected to get very stable benchmarks and so I started to benchmark seriously
+my <a class="reference external" href="https://bugs.python.org/issue26814">FASTCALL branch</a> of CPython (a new
+calling convention avoiding temporary tuples).</p>
+<p>I was disappointed to get many slowdowns in the CPython benchmark suite. I
+started to analyze why my change introduced performance regressions.</p>
+<p>I took my overall patch and slowly reverted more and more code to check which
+changes introduced most of the slowdowns.</p>
+<p>I focused on the <tt class="docutils literal">call_simple</tt> benchmark which does only one thing: call
+Python functions which do nothing.  Making Python function calls slower would
+be a big and inacceptable mistake of my work.</p>
+<div class="section" id="linux-perf">
+<h2>Linux perf</h2>
+<p>I started to learn how to use the great <a class="reference external" href="https://perf.wiki.kernel.org/index.php/Main_Page">Linux perf</a> tool to analyze why
+<tt class="docutils literal">call_simple</tt> was slower. I tried to find a major difference between my
+reference python and the patched python.</p>
+<p>I analyzed cache misses on L1 instruction and data caches.  I analyzed stallen
+CPU cycles. I analyzed all memory events, branch events, etc. Basically, I tried
+all perf events and spent a lot of time to run benchmarks multiple times.</p>
+<p>By the way, I strongly suggest to use <tt class="docutils literal">perf stat</tt> using the <tt class="docutils literal"><span class="pre">--repeat</span></tt>
+command line option to get an average on multiple runs and see the standard
+deviation. It helps to get more reliable numbers. I even wrote a Python script
+implementing <tt class="docutils literal"><span class="pre">--repeat</span></tt> (run perf multiple times, parse the output), before
+seeing that it was already a builtin feature!</p>
+<p>Use <tt class="docutils literal">perf list</tt> to list all available (pre-defined) events.</p>
+<p>After many days, I decided to give up with perf.</p>
+</div>
+<div class="section" id="cachegrind">
+<h2>Cachegrind</h2>
+<a class="reference external image-reference" href="http://valgrind.org/"><img alt="Logo of the Valgrind project" src="images/valgrind.png" /></a>
+<p><a class="reference external" href="http://valgrind.org/">Valgrind</a> is a great tool known to detect memory
+leaks, but it also contains gems like the <a class="reference external" href="http://valgrind.org/docs/manual/cg-manual.html">Cachegrind tool</a> which <em>simulates</em> the
+CPU caches.</p>
+<p>I used Cachegrind with the nice <a class="reference external" href="http://kcachegrind.sourceforge.net/">Kcachegrind GUI</a>. Sadly, I also failed to see anything
+obvious in cache misses between the reference python and the patched python.</p>
+</div>
+<div class="section" id="strace-and-ltrace">
+<h2>strace and ltrace</h2>
+<img alt="strace and ltrace" src="images/strace_ltrace.png" />
+<p>I also tried <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt> tools to try to see a difference in the
+execution of the reference and the patched pythons. I saw different memory
+addresses, but no major difference which can explain a difference of the
+timing.</p>
+<p>Morever, the hotcode simply does not call any syscall nor library
+function. It's pure CPU-bound code.</p>
+</div>
+<div class="section" id="compiler-options">
+<h2>Compiler options</h2>
+<a class="reference external image-reference" href="https://gcc.gnu.org/"><img alt="GCC logo" class="align-right" src="images/gcc.png" /></a>
+<p>I used <a class="reference external" href="https://gcc.gnu.org/">GCC</a> to build to code. Just in case, I tried
+LLVM compiler, but it didn't &quot;fix&quot; the issue.</p>
+<p>I also tried different optimization levels: <tt class="docutils literal"><span class="pre">-O0</span></tt>, <tt class="docutils literal"><span class="pre">-O1</span></tt>, <tt class="docutils literal"><span class="pre">-O2</span></tt> and
+<tt class="docutils literal"><span class="pre">-O3</span></tt>.</p>
+<p>I read that the exact address of functions can have an impact on the CPU L1
+cache: <a class="reference external" href="https://stackoverflow.com/questions/19470873/why-does-gcc-generate-15-20-faster-code-if-i-optimize-for-size-instead-of-speed">Why does gcc generate 15-20% faster code if I optimize for size instead
+of speed?</a>.
+I tried various values of the <tt class="docutils literal"><span class="pre">-falign-functions=N</span></tt> option (1, 2, 6, 12).</p>
+<p>I also tried <tt class="docutils literal"><span class="pre">-fomit-pointer</span></tt> (omit frame pointer) to record the callgraph with <tt class="docutils literal">perf record</tt>.</p>
+<p>I also tried <tt class="docutils literal"><span class="pre">-flto</span></tt>: Link Time Optimization (LTO).</p>
+<p>These compiler options didn't fix the issue.</p>
+<p>The truth is out there.</p>
+</div>
+<div class="section" id="when-cpython-performance-depends-on-dead-code">
+<h2>When CPython performance depends on dead code</h2>
+<p>I continued to revert changes. At the end, my giant patch was reduces to very
+few changes only adding code which was never called (at least, I was sure
+that it was not called in the <tt class="docutils literal">call_simple</tt> benchmark).</p>
+<p>Let me rephase: <em>adding dead code</em> makes Python slower. What?</p>
+<p>A colleague suggested me to remove the body (replace it with <tt class="docutils literal">return;</tt>) of
+added function: the code became faster. Ok, now I'm completely lost. To be
+clear, I don't expect that adding dead code would have <em>any</em> impact on the
+performance.</p>
+<p>My email <a class="reference external" href="https://mail.python.org/pipermail/speed/2016-April/000341.html">When CPython performance depends on dead code...</a> explains how
+to reproduce the issue and contains many information.</p>
+</div>
+<div class="section" id="solution-pgo">
+<h2>Solution: PGO</h2>
+<p>The solution is called Profiled Guided Optimization, &quot;PGO&quot;. Python build system
+supports it in a single command: <tt class="docutils literal">make <span class="pre">profile-opt</span></tt>. It profiles the
+execution of the Python test suite.</p>
+<p>Using PGO, adding dead code has no more impact on the performance.</p>
+<p>With system tuning and PGO compilation, benchmarks must now be stable this
+time, no? ... No, sorry, not yet. We will see more sources of noise in
+following articles ;-)</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="bookmark"
+                           title="Permalink to My journey to stable benchmark, part 1 (system)">My journey to stable benchmark, part 1 (system)</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-05-21T16:50:00+02:00">
                 Published: sam. 21 mai 2016
@@ -32,149 +142,11 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><div class="section" id="background">
-<h2>Background</h2>
-<p>In the CPython development, it became common to require the result of the
-<a class="reference external" href="https://hg.python.org/benchmarks">CPython benchmark suite</a> (&quot;The Grand
-Unified Python Benchmark Suite&quot;) to evaluate the effect of an optimization
-patch. The minimum requirement is to not introduce performance regressions.</p>
-<p>I used the CPython benchmark suite and I had many bad surprises when trying to
-analyze (understand) results. A change expected to be faster makes some
-benchmarks slower without any obvious reason. At least, the change is expected
-to be faster on some specific benchmarks, but have no impact on the other
-benchmarks. The slow down is usually between 5% and 10% slower. I am not
-confortable with any kind of slow down.</p>
-<p>Many benchmarks look unstable. The problem is to trust the overall report.
-Some developers started to say that they learnt to ignore some benchmarks known
-to be unstable.</p>
-<p>It's not the first time that I am totally disappointed by microbenchmark
-results, so I decided to analyze completely the issue and go as deep as
-possible to really understand the problem.</p>
-</div>
-<div class="section" id="how-to-get-stable-benchmarks-on-a-busy-linux-system">
-<h2>How to get stable benchmarks on a busy Linux system</h2>
-<p>A common advice to get stable benchmark is to stay away the keyboard
-(&quot;freeze!&quot;) and stop all other applications to only run one application, the
-benchmark.</p>
-<p>Well, I'm working on a single computer and the full CPython benchmark suite
-take up to 2 hours in rigorous mode. I just cannot stop working during 2 hours
-to wait for the result of the benchmark. I like running benchmarks locally. It
-is convenient to run benchmarks on the same computer used to develop.</p>
-<p>The goal here is to &quot;remove the noise of the system&quot;. Get the same result on a
-busy system than an idle system. My simple <a class="reference external" href="https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py">system_load.py</a> program can be
-used to increase the system load. For example, run <tt class="docutils literal">system_load.py 10</tt> in a
-terminal to get at least a system load of 10 (busy system) and run the
-benchmark in a different terminal. Use CTRL+c to stop <tt class="docutils literal">system_load.py</tt>.</p>
-</div>
-<div class="section" id="cpu-isolation">
-<h2>CPU isolation</h2>
-<p>In 2016, it is common to get a CPU with multiple physical cores. For example,
-my Intel CPU has 4 physical cores and 8 logical cores thanks to
-<a class="reference external" href="https://en.wikipedia.org/wiki/Hyper-threading">Hyper-Threading</a>. It is
-possible to configure the Linux kernel to not schedule processes on some CPUs
-using the &quot;CPU isolation&quot; feature. It is the <tt class="docutils literal">isolcpus</tt> parameter of the
-Linux command line, the value is a list of CPUs. Example:</p>
-<pre class="literal-block">
-isolcpus=2,3,6,7
-</pre>
-<p>Check with:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/isolated
-2-3,6-7
-</pre>
-<p>If you have Hyper-Threading, you must isolate the two logicial cores of each
-isolated physical core. You can use the <tt class="docutils literal">lscpu <span class="pre">--all</span> <span class="pre">--extended</span></tt> command to
-identify physical cores. Example:</p>
-<pre class="literal-block">
-$ lscpu -a -e
-CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE MAXMHZ    MINMHZ
-0   0    0      0    0:0:0:0       yes    5900,0000 1600,0000
-1   0    0      1    1:1:1:0       yes    5900,0000 1600,0000
-2   0    0      2    2:2:2:0       yes    5900,0000 1600,0000
-3   0    0      3    3:3:3:0       yes    5900,0000 1600,0000
-4   0    0      0    0:0:0:0       yes    5900,0000 1600,0000
-5   0    0      1    1:1:1:0       yes    5900,0000 1600,0000
-6   0    0      2    2:2:2:0       yes    5900,0000 1600,0000
-7   0    0      3    3:3:3:0       yes    5900,0000 1600,0000
-</pre>
-<p>The physical core <tt class="docutils literal">0</tt> (CORE column) is made of two logical cores (CPU
-column): <tt class="docutils literal">0</tt> and <tt class="docutils literal">4</tt>.</p>
-</div>
-<div class="section" id="nohz-mode">
-<h2>NOHZ mode</h2>
-<p>By default, the Linux kernel uses a scheduling-clock which interrupts the
-running application <tt class="docutils literal">HZ</tt> times per second to run the scheduler. <tt class="docutils literal">HZ</tt> is
-usually between 100 and 1000: time slice between 1 ms and 10 ms.</p>
-<p>Linux supports a <a class="reference external" href="https://www.kernel.org/doc/Documentation/timers/NO_HZ.txt">NOHZ mode</a> which is able to
-disable the scheduling-clock when the system is idle to reduce the power
-consumption. Linux 3.10 introduces a <a class="reference external" href="https://lwn.net/Articles/549580/">full ticketless mode</a>, NOHZ full, which is able to disable the
-scheduling-clock when only one application is running on a CPU.</p>
-<p>NOHZ full is disabled by default. It can be enabled with the <tt class="docutils literal">nohz_full</tt>
-parameter of the Linux command line, the value is a list of CPUs. Example:</p>
-<pre class="literal-block">
-nohz_full=2,3,6,7
-</pre>
-<p>Check with:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/nohz_full
-2-3,6-7
-</pre>
-</div>
-<div class="section" id="interrupts-irq">
-<h2>Interrupts (IRQ)</h2>
-<p>The Linux kernel can also be configured to not run <a class="reference external" href="https://en.wikipedia.org/wiki/Interrupt_request_%28PC_architecture%29">interruptions (IRQ)</a>
-handlers on some CPUs using <tt class="docutils literal">/proc/irq/default_smp_affinity</tt> and
-<tt class="docutils literal"><span class="pre">/proc/irq/&lt;number&gt;/smp_affinity</span></tt> files. The value is not a list of CPUs but
-a bitmask.</p>
-<p>The <tt class="docutils literal">/proc/interrupts</tt> file can be read to see the number of interruptions
-per CPU.</p>
-<p>Read the <a class="reference external" href="https://www.kernel.org/doc/Documentation/IRQ-affinity.txt">Linux SMP IRQ affinity</a> documentation.</p>
-</div>
-<div class="section" id="example-of-effect-of-cpu-isolation-on-a-microbenchmark">
-<h2>Example of effect of CPU isolation on a microbenchmark</h2>
-<p>Example with Linux parameters:</p>
-<pre class="literal-block">
-isolcpus=2,3,6,7 nohz_full=2,3,6,7
-</pre>
-<p>Microbenchmark on an idle system (without CPU isolation):</p>
-<pre class="literal-block">
-$ python3 -m timeit 'sum(range(10**7))'
-10 loops, best of 3: 229 msec per loop
-</pre>
-<p>Result on a busy system using <tt class="docutils literal">system_load.py 10</tt> and <tt class="docutils literal">find /</tt> commands
-running in other terminals:</p>
-<pre class="literal-block">
-$ python3 -m timeit 'sum(range(10**7))'
-10 loops, best of 3: 372 msec per loop
-</pre>
-<p>The microbenchmark is 56% slower because of the high system load!</p>
-<p>Result on the same busy system but using isolated CPUs. The <tt class="docutils literal">taskset</tt> command
-allows to pin an application to specific CPUs:</p>
-<pre class="literal-block">
-$ taskset -c 1,3 python3 -m timeit 'sum(range(10**7))'
-10 loops, best of 3: 230 msec per loop
-</pre>
-<p>Just to check, new run without CPU isolation:</p>
-<pre class="literal-block">
-$ python3 -m timeit 'sum(range(10**7))'
-10 loops, best of 3: 357 msec per loop
-</pre>
-<p>The result with CPU isolation on a busy system is the same than the result an
-idle system! CPU isolation removes most of the noise of the system.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>Great job Linux!</p>
-<p>Ok! Now, the benchmar is super stable, no? ...  Sorry, no, it's not stable yet.
-I found a lot of other sources of &quot;noise&quot;.  We will see them in the following
-article ;-)</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 1</p>
+
+                <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
