@@ -1,13 +1,13 @@
 ++++++++++++++++++++++++++++++++++++++
-My journey to stable benchmark, part 2
+My journey to stable benchmark, part xxx
 ++++++++++++++++++++++++++++++++++++++
 
 :date: 2016-05-22 16:50
 :tags: optimization, benchmark
 :category: python
-:slug: journey-to-stable-benchmark-part2
+:slug: journey-to-stable-benchmark-xxx
 :authors: Victor Stinner
-:summary: My journey to stable benchmark, part 2
+:summary: My journey to stable benchmark, part xxx
 
 Sources of "noise" when running a Python microbenchmark
 =======================================================
