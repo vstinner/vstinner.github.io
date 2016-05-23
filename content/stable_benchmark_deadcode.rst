@@ -115,7 +115,7 @@ The truth is out there.
 When CPython performance depends on dead code
 =============================================
 
-I continued to revert changes. At the end, my giant patch was reduces to very
+I continued to revert changes. At the end, my giant patch was reduced to very
 few changes only adding code which was never called (at least, I was sure
 that it was not called in the ``call_simple`` benchmark).
 
