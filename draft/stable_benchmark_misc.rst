@@ -1,8 +1,14 @@
+<<<<<<< faa37002582a262c70ffd5614ba41414355f22d0
 ++++++++++++++++++++++++++++++++++++++
 My journey to stable benchmark, part xxx
 ++++++++++++++++++++++++++++++++++++++
+=======
+++++++++++++++++++++++++++++++++++++++++
+My journey to stable benchmark, part xxx
+++++++++++++++++++++++++++++++++++++++++
+>>>>>>> artlce
 
-:date: 2016-05-22 16:50
+:date: 2016-05-23 23:50
 :tags: optimization, benchmark
 :category: python
 :slug: journey-to-stable-benchmark-xxx
