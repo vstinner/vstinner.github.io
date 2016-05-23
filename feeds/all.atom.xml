@@ -64,7 +64,7 @@ I tried various values of the &lt;tt class="docutils literal"&gt;&lt;span class=
 &lt;/div&gt;
 &lt;div class="section" id="when-cpython-performance-depends-on-dead-code"&gt;
 &lt;h2&gt;When CPython performance depends on dead code&lt;/h2&gt;
-&lt;p&gt;I continued to revert changes. At the end, my giant patch was reduces to very
+&lt;p&gt;I continued to revert changes. At the end, my giant patch was reduced to very
 few changes only adding code which was never called (at least, I was sure
 that it was not called in the &lt;tt class="docutils literal"&gt;call_simple&lt;/tt&gt; benchmark).&lt;/p&gt;
 &lt;p&gt;Let me rephase: &lt;em&gt;adding dead code&lt;/em&gt; makes Python slower. What?&lt;/p&gt;
