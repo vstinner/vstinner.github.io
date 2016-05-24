@@ -85,7 +85,7 @@ patch is always faster :-)&lt;/p&gt;
 &lt;div class="section" id="command-line-and-environment-variables"&gt;
 &lt;h2&gt;Command line and environment variables&lt;/h2&gt;
 &lt;p&gt;Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
-patch doesn't touch at the hash function. So it doesn't matter.&lt;/p&gt;
+patch doesn't touch the hash function. So it doesn't matter.&lt;/p&gt;
 &lt;p&gt;While running benchmarks, I noticed differences when running the benchmark from
 a different directory:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
