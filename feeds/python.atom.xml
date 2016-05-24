@@ -1,5 +1,228 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-22T22:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="images/snail.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-23T23:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="images/fog.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;em&gt;Stable benchmarks are so close, but ...&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="address-space-layout-randomization"&gt;
+&lt;h2&gt;Address Space Layout Randomization&lt;/h2&gt;
+&lt;p&gt;When I started to work on removing the noise of the system, I was told that
+disabling &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Address_space_layout_randomization"&gt;Address Space Layout Randomization (ASLR)&lt;/a&gt; makes
+benchmarks more stable.&lt;/p&gt;
+&lt;p&gt;I followed this advice without trying to understand it. We will see in this
+article that it was a bad idea, but I had to hit other issues to really
+understand to root issue with disable ASLR.&lt;/p&gt;
+&lt;p&gt;Example of command to see the effect of ASLR, the first number of the output is
+the start address of the heap memory:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python -c 'import os; os.system(&amp;quot;grep heap /proc/%s/maps&amp;quot; % os.getpid())'
+55e6a716c000-55e6a7235000 rw-p 00000000 00:00 0                          [heap]
+&lt;/pre&gt;
+&lt;p&gt;Heap address of 3 runs with ASLR enabled (random):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;55e6a716c000&lt;/li&gt;
+&lt;li&gt;561c218eb000&lt;/li&gt;
+&lt;li&gt;55e6f628f000&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Disable ASLR:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo bash -c 'echo 0 &amp;gt;| /proc/sys/kernel/randomize_va_space'
+&lt;/pre&gt;
+&lt;p&gt;Heap addresses of 3 runs with ASLR disabled (all the same):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;555555756000&lt;/li&gt;
+&lt;li&gt;555555756000&lt;/li&gt;
+&lt;li&gt;555555756000&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note: To reenable ASLR, it's better to use the value 2, the value 1 only
+partially enables the feature:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo bash -c 'echo 2 &amp;gt;| /proc/sys/kernel/randomize_va_space'
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-randomized-hash-function"&gt;
+&lt;h2&gt;Python randomized hash function&lt;/h2&gt;
+&lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;system tuning  (part 1)&lt;/a&gt;, a
+&lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html"&gt;Python compiled with PGO (part 2)&lt;/a&gt;
+and ASLR disabled, I still I failed to get the same result when running
+manually &lt;tt class="docutils literal"&gt;bm_call_simple.py&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;On Python 3, the hash function is now randomized by default: &lt;a class="reference external" href="http://bugs.python.org/issue13703"&gt;issue #13703&lt;/a&gt;. The problem is that for a
+microbenchmark, the number of hash collisions of an &amp;quot;hot&amp;quot; dictionary has a
+non-negligible impact on performances.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PYTHONHASHSEED&lt;/tt&gt; environment variable can be used to get a fixed hash
+function. Example with the patch:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ PYTHONHASHSEED=1 taskset -c 1 ./python bm_call_simple.py -n 1
+0.198
+$ PYTHONHASHSEED=2 taskset -c 1 ./python bm_call_simple.py -n 1
+0.201
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
+0.207
+$ PYTHONHASHSEED=4 taskset -c 1 ./python bm_call_simple.py -n 1
+0.187
+$ PYTHONHASHSEED=5 taskset -c 1 ./python bm_call_simple.py -n 1
+0.180
+&lt;/pre&gt;
+&lt;p&gt;Timings of the reference python:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ PYTHONHASHSEED=1 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.204
+$ PYTHONHASHSEED=2 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.206
+$ PYTHONHASHSEED=3 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.195
+$ PYTHONHASHSEED=4 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.192
+$ PYTHONHASHSEED=5 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.187
+&lt;/pre&gt;
+&lt;p&gt;The minimums is 180 ms for the reference and 186 ms for the patch. The patched
+Python is 3% faster, yeah!&lt;/p&gt;
+&lt;p&gt;Wait. What if we only test PYTHONHASHSEED from 1 to 3? In this case, the
+minimum is 195 ms for the reference and 198 ms for the patch. The patched
+Python becomes 2% slower, oh no!&lt;/p&gt;
+&lt;p&gt;Faster? Slower? Who is right?&lt;/p&gt;
+&lt;p&gt;Maybe I should write a script to find a &lt;tt class="docutils literal"&gt;PYTHONHASHSEED&lt;/tt&gt; value for which my
+patch is always faster :-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="command-line-and-environment-variables"&gt;
+&lt;h2&gt;Command line and environment variables&lt;/h2&gt;
+&lt;p&gt;Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
+patch doesn't touch at the hash function. So it doesn't matter.&lt;/p&gt;
+&lt;p&gt;While running benchmarks, I noticed differences when running the benchmark from
+a different directory:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cd /home/haypo/prog/python/fastcall
+$ PYTHONHASHSEED=3 taskset -c 1 pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
+0.215
+
+$ cd /home/haypo/prog/python/benchmarks
+$ PYTHONHASHSEED=3 taskset -c 1 ../fastcall/pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
+0.203
+
+$ cd /home/haypo/prog/python
+$ PYTHONHASHSEED=3 taskset -c 1 fastcall/pgo/python benchmarks/performance/bm_call_simple.py -n 1
+0.200
+&lt;/pre&gt;
+&lt;p&gt;In fact, a different command line is enough so get different results (added
+arguments are ignored):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
+0.201
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1
+0.198
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3
+0.203
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5
+0.206
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5 arg6
+0.210
+&lt;/pre&gt;
+&lt;p&gt;I also noticed minor differences when the environment changes (added variables
+are ignored):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 1
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 ./python bm_call_simple.py -n 1
+0.202
+$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 VAR5=5 ./python bm_call_simple.py -n 1
+0.198
+&lt;/pre&gt;
+&lt;p&gt;Using &lt;tt class="docutils literal"&gt;strace&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;ltrace&lt;/tt&gt;, I saw the memory addresses are different when
+something (command line, env var, etc.) changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="average-and-standard-deviation"&gt;
+&lt;h2&gt;Average and standard deviation&lt;/h2&gt;
+&lt;p&gt;Basically, it looks like a lot of &amp;quot;external factors&amp;quot; have an impact on the
+exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
+started to think how to get get &lt;em&gt;exactly&lt;/em&gt; the same command line, the same
+environment (easy), the same current directory (easy), etc. The problem is that
+it's just not possible to control all external factors (having an effect on the
+exact memory addresses).&lt;/p&gt;
+&lt;p&gt;Maybe I was plain wrong from the beginning and ASLR must be enabled,
+as the default on Linux:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.198
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.202
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.199
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.207
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.200
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+&lt;/pre&gt;
+&lt;p&gt;These results look &amp;quot;random&amp;quot;. Yes, they are. It's exactly the purpose of ASLR.&lt;/p&gt;
+&lt;p&gt;But how can we compare performances if results are random? Take the minimum?&lt;/p&gt;
+&lt;p&gt;No! You must never (ever again) use the minimum for benchmarking! Compute the
+average and some statistics like the standard deviation:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3
+Python 3.4.3
+&amp;gt;&amp;gt;&amp;gt; timings=[0.198, 0.202, 0.199, 0.207, 0.200, 0.201]
+&amp;gt;&amp;gt;&amp;gt; import statistics
+&amp;gt;&amp;gt;&amp;gt; statistics.mean(timings)
+0.2011666666666667
+&amp;gt;&amp;gt;&amp;gt; statistics.stdev(timings)
+0.0031885210782848245
+&lt;/pre&gt;
+&lt;p&gt;On this example, the average is 201 ms +/- 3 ms. IMHO the standard deviation is
+quite small (reliable) which means that my benchmark is stable. To get a good
+distribution, it's better to have many samples. It looks like at least 25
+processes are needed. Each process tests a different memory layout and a
+different hash function.&lt;/p&gt;
+&lt;p&gt;Result of 5 runs, each run uses 25 processes (ASLR enabled, random hash
+function):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Average: 205.2 ms +/- 3.0 ms (min: 201.1 ms, max: 214.9 ms)&lt;/li&gt;
+&lt;li&gt;Average: 205.6 ms +/- 3.3 ms (min: 201.4 ms, max: 216.5 ms)&lt;/li&gt;
+&lt;li&gt;Average: 206.0 ms +/- 3.9 ms (min: 201.1 ms, max: 215.3 ms)&lt;/li&gt;
+&lt;li&gt;Average: 205.7 ms +/- 3.6 ms (min: 201.5 ms, max: 217.8 ms)&lt;/li&gt;
+&lt;li&gt;Average: 206.4 ms +/- 3.5 ms (min: 201.9 ms, max: 214.9 ms)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;While memory layout and hash functions are random again, the result looks
+&lt;em&gt;less&lt;/em&gt; random, and so more reliable, than before!&lt;/p&gt;
+&lt;p&gt;With ASLR enabled, the effect of the environment variables, command line and
+current directory is negligible on the (average) result.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-average-solves-issues-with-uniform-random-noises"&gt;
+&lt;h2&gt;The average solves issues with uniform random noises&lt;/h2&gt;
+&lt;p&gt;The user will run the application with default system settings which means
+ASLR enabled and Python hash function randomized. Running a benchmark in one
+specific environment is a mistake because it is not representative of the
+performance in practice.&lt;/p&gt;
+&lt;p&gt;Computing the average and standard deviation &amp;quot;fixes&amp;quot; the issue with hash
+randomization. It's much better to use random hash functions and compute the
+average, than using a fixed hash function (setting &lt;tt class="docutils literal"&gt;PYTHONHASHSEED&lt;/tt&gt; variable
+to a value).&lt;/p&gt;
+&lt;p&gt;Oh wow, already 3 big articles explaing how to get stable benchmarks. Please
+tell me that it was the last one!  Nope, more is coming...&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="annex-why-only-n1"&gt;
+&lt;h2&gt;Annex: why only -n1?&lt;/h2&gt;
+&lt;p&gt;In this article, I ran &lt;tt class="docutils literal"&gt;bm_call_simple.py&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-n&lt;/span&gt; 1&lt;/tt&gt; with only run one
+iteration.&lt;/p&gt;
+&lt;p&gt;Usually, a single iteration is not reliable at all, at least 50 iterations are
+needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
+&lt;tt class="docutils literal"&gt;PYTHONHASHSEED&lt;/tt&gt; set, a single iteration is enough.&lt;/p&gt;
+&lt;p&gt;Example of 3 runs, each with 3 iterations:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+0.201
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+0.201
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+0.201
+0.201
+&lt;/pre&gt;
+&lt;p&gt;Always the same timing!&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="images/snail.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
 expected to get very stable benchmarks and so I started to benchmark seriously
 my &lt;a class="reference external" href="https://bugs.python.org/issue26814"&gt;FASTCALL branch&lt;/a&gt; of CPython (a new

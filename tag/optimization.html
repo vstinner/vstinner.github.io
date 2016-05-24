@@ -21,7 +21,254 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">My journey to stable benchmark, part 2 (deadcode)</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-05-23T23:00:00+02:00">
+                Published: lun. 23 mai 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"><img alt="Fog" src="images/fog.jpg" /></a>
+<p><em>Stable benchmarks are so close, but ...</em></p>
+<div class="section" id="address-space-layout-randomization">
+<h2>Address Space Layout Randomization</h2>
+<p>When I started to work on removing the noise of the system, I was told that
+disabling <a class="reference external" href="https://en.wikipedia.org/wiki/Address_space_layout_randomization">Address Space Layout Randomization (ASLR)</a> makes
+benchmarks more stable.</p>
+<p>I followed this advice without trying to understand it. We will see in this
+article that it was a bad idea, but I had to hit other issues to really
+understand to root issue with disable ASLR.</p>
+<p>Example of command to see the effect of ASLR, the first number of the output is
+the start address of the heap memory:</p>
+<pre class="literal-block">
+$ python -c 'import os; os.system(&quot;grep heap /proc/%s/maps&quot; % os.getpid())'
+55e6a716c000-55e6a7235000 rw-p 00000000 00:00 0                          [heap]
+</pre>
+<p>Heap address of 3 runs with ASLR enabled (random):</p>
+<ul class="simple">
+<li>55e6a716c000</li>
+<li>561c218eb000</li>
+<li>55e6f628f000</li>
+</ul>
+<p>Disable ASLR:</p>
+<pre class="literal-block">
+sudo bash -c 'echo 0 &gt;| /proc/sys/kernel/randomize_va_space'
+</pre>
+<p>Heap addresses of 3 runs with ASLR disabled (all the same):</p>
+<ul class="simple">
+<li>555555756000</li>
+<li>555555756000</li>
+<li>555555756000</li>
+</ul>
+<p>Note: To reenable ASLR, it's better to use the value 2, the value 1 only
+partially enables the feature:</p>
+<pre class="literal-block">
+sudo bash -c 'echo 2 &gt;| /proc/sys/kernel/randomize_va_space'
+</pre>
+</div>
+<div class="section" id="python-randomized-hash-function">
+<h2>Python randomized hash function</h2>
+<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">system tuning  (part 1)</a>, a
+<a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">Python compiled with PGO (part 2)</a>
+and ASLR disabled, I still I failed to get the same result when running
+manually <tt class="docutils literal">bm_call_simple.py</tt>.</p>
+<p>On Python 3, the hash function is now randomized by default: <a class="reference external" href="http://bugs.python.org/issue13703">issue #13703</a>. The problem is that for a
+microbenchmark, the number of hash collisions of an &quot;hot&quot; dictionary has a
+non-negligible impact on performances.</p>
+<p>The <tt class="docutils literal">PYTHONHASHSEED</tt> environment variable can be used to get a fixed hash
+function. Example with the patch:</p>
+<pre class="literal-block">
+$ PYTHONHASHSEED=1 taskset -c 1 ./python bm_call_simple.py -n 1
+0.198
+$ PYTHONHASHSEED=2 taskset -c 1 ./python bm_call_simple.py -n 1
+0.201
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
+0.207
+$ PYTHONHASHSEED=4 taskset -c 1 ./python bm_call_simple.py -n 1
+0.187
+$ PYTHONHASHSEED=5 taskset -c 1 ./python bm_call_simple.py -n 1
+0.180
+</pre>
+<p>Timings of the reference python:</p>
+<pre class="literal-block">
+$ PYTHONHASHSEED=1 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.204
+$ PYTHONHASHSEED=2 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.206
+$ PYTHONHASHSEED=3 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.195
+$ PYTHONHASHSEED=4 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.192
+$ PYTHONHASHSEED=5 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.187
+</pre>
+<p>The minimums is 180 ms for the reference and 186 ms for the patch. The patched
+Python is 3% faster, yeah!</p>
+<p>Wait. What if we only test PYTHONHASHSEED from 1 to 3? In this case, the
+minimum is 195 ms for the reference and 198 ms for the patch. The patched
+Python becomes 2% slower, oh no!</p>
+<p>Faster? Slower? Who is right?</p>
+<p>Maybe I should write a script to find a <tt class="docutils literal">PYTHONHASHSEED</tt> value for which my
+patch is always faster :-)</p>
+</div>
+<div class="section" id="command-line-and-environment-variables">
+<h2>Command line and environment variables</h2>
+<p>Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
+patch doesn't touch at the hash function. So it doesn't matter.</p>
+<p>While running benchmarks, I noticed differences when running the benchmark from
+a different directory:</p>
+<pre class="literal-block">
+$ cd /home/haypo/prog/python/fastcall
+$ PYTHONHASHSEED=3 taskset -c 1 pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
+0.215
+
+$ cd /home/haypo/prog/python/benchmarks
+$ PYTHONHASHSEED=3 taskset -c 1 ../fastcall/pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
+0.203
+
+$ cd /home/haypo/prog/python
+$ PYTHONHASHSEED=3 taskset -c 1 fastcall/pgo/python benchmarks/performance/bm_call_simple.py -n 1
+0.200
+</pre>
+<p>In fact, a different command line is enough so get different results (added
+arguments are ignored):</p>
+<pre class="literal-block">
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
+0.201
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1
+0.198
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3
+0.203
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5
+0.206
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5 arg6
+0.210
+</pre>
+<p>I also noticed minor differences when the environment changes (added variables
+are ignored):</p>
+<pre class="literal-block">
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 1
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 ./python bm_call_simple.py -n 1
+0.202
+$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 VAR5=5 ./python bm_call_simple.py -n 1
+0.198
+</pre>
+<p>Using <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt>, I saw the memory addresses are different when
+something (command line, env var, etc.) changes.</p>
+</div>
+<div class="section" id="average-and-standard-deviation">
+<h2>Average and standard deviation</h2>
+<p>Basically, it looks like a lot of &quot;external factors&quot; have an impact on the
+exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
+started to think how to get get <em>exactly</em> the same command line, the same
+environment (easy), the same current directory (easy), etc. The problem is that
+it's just not possible to control all external factors (having an effect on the
+exact memory addresses).</p>
+<p>Maybe I was plain wrong from the beginning and ASLR must be enabled,
+as the default on Linux:</p>
+<pre class="literal-block">
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.198
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.202
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.199
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.207
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.200
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+</pre>
+<p>These results look &quot;random&quot;. Yes, they are. It's exactly the purpose of ASLR.</p>
+<p>But how can we compare performances if results are random? Take the minimum?</p>
+<p>No! You must never (ever again) use the minimum for benchmarking! Compute the
+average and some statistics like the standard deviation:</p>
+<pre class="literal-block">
+$ python3
+Python 3.4.3
+&gt;&gt;&gt; timings=[0.198, 0.202, 0.199, 0.207, 0.200, 0.201]
+&gt;&gt;&gt; import statistics
+&gt;&gt;&gt; statistics.mean(timings)
+0.2011666666666667
+&gt;&gt;&gt; statistics.stdev(timings)
+0.0031885210782848245
+</pre>
+<p>On this example, the average is 201 ms +/- 3 ms. IMHO the standard deviation is
+quite small (reliable) which means that my benchmark is stable. To get a good
+distribution, it's better to have many samples. It looks like at least 25
+processes are needed. Each process tests a different memory layout and a
+different hash function.</p>
+<p>Result of 5 runs, each run uses 25 processes (ASLR enabled, random hash
+function):</p>
+<ul class="simple">
+<li>Average: 205.2 ms +/- 3.0 ms (min: 201.1 ms, max: 214.9 ms)</li>
+<li>Average: 205.6 ms +/- 3.3 ms (min: 201.4 ms, max: 216.5 ms)</li>
+<li>Average: 206.0 ms +/- 3.9 ms (min: 201.1 ms, max: 215.3 ms)</li>
+<li>Average: 205.7 ms +/- 3.6 ms (min: 201.5 ms, max: 217.8 ms)</li>
+<li>Average: 206.4 ms +/- 3.5 ms (min: 201.9 ms, max: 214.9 ms)</li>
+</ul>
+<p>While memory layout and hash functions are random again, the result looks
+<em>less</em> random, and so more reliable, than before!</p>
+<p>With ASLR enabled, the effect of the environment variables, command line and
+current directory is negligible on the (average) result.</p>
+</div>
+<div class="section" id="the-average-solves-issues-with-uniform-random-noises">
+<h2>The average solves issues with uniform random noises</h2>
+<p>The user will run the application with default system settings which means
+ASLR enabled and Python hash function randomized. Running a benchmark in one
+specific environment is a mistake because it is not representative of the
+performance in practice.</p>
+<p>Computing the average and standard deviation &quot;fixes&quot; the issue with hash
+randomization. It's much better to use random hash functions and compute the
+average, than using a fixed hash function (setting <tt class="docutils literal">PYTHONHASHSEED</tt> variable
+to a value).</p>
+<p>Oh wow, already 3 big articles explaing how to get stable benchmarks. Please
+tell me that it was the last one!  Nope, more is coming...</p>
+</div>
+<div class="section" id="annex-why-only-n1">
+<h2>Annex: why only -n1?</h2>
+<p>In this article, I ran <tt class="docutils literal">bm_call_simple.py</tt> with <tt class="docutils literal"><span class="pre">-n</span> 1</tt> with only run one
+iteration.</p>
+<p>Usually, a single iteration is not reliable at all, at least 50 iterations are
+needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
+<tt class="docutils literal">PYTHONHASHSEED</tt> set, a single iteration is enough.</p>
+<p>Example of 3 runs, each with 3 iterations:</p>
+<pre class="literal-block">
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+0.201
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+0.201
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+0.201
+0.201
+</pre>
+<p>Always the same timing!</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="bookmark"
+                           title="Permalink to My journey to stable benchmark, part 2 (deadcode)">My journey to stable benchmark, part 2 (deadcode)</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-05-22T22:00:00+02:00">
                 Published: dim. 22 mai 2016
@@ -32,98 +279,11 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"><img alt="Snail" src="images/snail.jpg" /></a>
-<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">the system tuning (part 1)</a>, I
-expected to get very stable benchmarks and so I started to benchmark seriously
-my <a class="reference external" href="https://bugs.python.org/issue26814">FASTCALL branch</a> of CPython (a new
-calling convention avoiding temporary tuples).</p>
-<p>I was disappointed to get many slowdowns in the CPython benchmark suite. I
-started to analyze why my change introduced performance regressions.</p>
-<p>I took my overall patch and slowly reverted more and more code to check which
-changes introduced most of the slowdowns.</p>
-<p>I focused on the <tt class="docutils literal">call_simple</tt> benchmark which does only one thing: call
-Python functions which do nothing.  Making Python function calls slower would
-be a big and inacceptable mistake of my work.</p>
-<div class="section" id="linux-perf">
-<h2>Linux perf</h2>
-<p>I started to learn how to use the great <a class="reference external" href="https://perf.wiki.kernel.org/index.php/Main_Page">Linux perf</a> tool to analyze why
-<tt class="docutils literal">call_simple</tt> was slower. I tried to find a major difference between my
-reference python and the patched python.</p>
-<p>I analyzed cache misses on L1 instruction and data caches.  I analyzed stallen
-CPU cycles. I analyzed all memory events, branch events, etc. Basically, I tried
-all perf events and spent a lot of time to run benchmarks multiple times.</p>
-<p>By the way, I strongly suggest to use <tt class="docutils literal">perf stat</tt> using the <tt class="docutils literal"><span class="pre">--repeat</span></tt>
-command line option to get an average on multiple runs and see the standard
-deviation. It helps to get more reliable numbers. I even wrote a Python script
-implementing <tt class="docutils literal"><span class="pre">--repeat</span></tt> (run perf multiple times, parse the output), before
-seeing that it was already a builtin feature!</p>
-<p>Use <tt class="docutils literal">perf list</tt> to list all available (pre-defined) events.</p>
-<p>After many days, I decided to give up with perf.</p>
-</div>
-<div class="section" id="cachegrind">
-<h2>Cachegrind</h2>
-<a class="reference external image-reference" href="http://valgrind.org/"><img alt="Logo of the Valgrind project" src="images/valgrind.png" /></a>
-<p><a class="reference external" href="http://valgrind.org/">Valgrind</a> is a great tool known to detect memory
-leaks, but it also contains gems like the <a class="reference external" href="http://valgrind.org/docs/manual/cg-manual.html">Cachegrind tool</a> which <em>simulates</em> the
-CPU caches.</p>
-<p>I used Cachegrind with the nice <a class="reference external" href="http://kcachegrind.sourceforge.net/">Kcachegrind GUI</a>. Sadly, I also failed to see anything
-obvious in cache misses between the reference python and the patched python.</p>
-</div>
-<div class="section" id="strace-and-ltrace">
-<h2>strace and ltrace</h2>
-<img alt="strace and ltrace" src="images/strace_ltrace.png" />
-<p>I also tried <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt> tools to try to see a difference in the
-execution of the reference and the patched pythons. I saw different memory
-addresses, but no major difference which can explain a difference of the
-timing.</p>
-<p>Morever, the hotcode simply does not call any syscall nor library
-function. It's pure CPU-bound code.</p>
-</div>
-<div class="section" id="compiler-options">
-<h2>Compiler options</h2>
-<a class="reference external image-reference" href="https://gcc.gnu.org/"><img alt="GCC logo" class="align-right" src="images/gcc.png" /></a>
-<p>I used <a class="reference external" href="https://gcc.gnu.org/">GCC</a> to build to code. Just in case, I tried
-LLVM compiler, but it didn't &quot;fix&quot; the issue.</p>
-<p>I also tried different optimization levels: <tt class="docutils literal"><span class="pre">-O0</span></tt>, <tt class="docutils literal"><span class="pre">-O1</span></tt>, <tt class="docutils literal"><span class="pre">-O2</span></tt> and
-<tt class="docutils literal"><span class="pre">-O3</span></tt>.</p>
-<p>I read that the exact address of functions can have an impact on the CPU L1
-cache: <a class="reference external" href="https://stackoverflow.com/questions/19470873/why-does-gcc-generate-15-20-faster-code-if-i-optimize-for-size-instead-of-speed">Why does gcc generate 15-20% faster code if I optimize for size instead
-of speed?</a>.
-I tried various values of the <tt class="docutils literal"><span class="pre">-falign-functions=N</span></tt> option (1, 2, 6, 12).</p>
-<p>I also tried <tt class="docutils literal"><span class="pre">-fomit-pointer</span></tt> (omit frame pointer) to record the callgraph with <tt class="docutils literal">perf record</tt>.</p>
-<p>I also tried <tt class="docutils literal"><span class="pre">-flto</span></tt>: Link Time Optimization (LTO).</p>
-<p>These compiler options didn't fix the issue.</p>
-<p>The truth is out there.</p>
-</div>
-<div class="section" id="when-cpython-performance-depends-on-dead-code">
-<h2>When CPython performance depends on dead code</h2>
-<p>I continued to revert changes. At the end, my giant patch was reduced to very
-few changes only adding code which was never called (at least, I was sure
-that it was not called in the <tt class="docutils literal">call_simple</tt> benchmark).</p>
-<p>Let me rephase: <em>adding dead code</em> makes Python slower. What?</p>
-<p>A colleague suggested me to remove the body (replace it with <tt class="docutils literal">return;</tt>) of
-added function: the code became faster. Ok, now I'm completely lost. To be
-clear, I don't expect that adding dead code would have <em>any</em> impact on the
-performance.</p>
-<p>My email <a class="reference external" href="https://mail.python.org/pipermail/speed/2016-April/000341.html">When CPython performance depends on dead code...</a> explains how
-to reproduce the issue and contains many information.</p>
-</div>
-<div class="section" id="solution-pgo">
-<h2>Solution: PGO</h2>
-<p>The solution is called Profiled Guided Optimization, &quot;PGO&quot;. Python build system
-supports it in a single command: <tt class="docutils literal">make <span class="pre">profile-opt</span></tt>. It profiles the
-execution of the Python test suite.</p>
-<p>Using PGO, adding dead code has no more impact on the performance.</p>
-<p>With system tuning and PGO compilation, benchmarks must now be stable this
-time, no? ... No, sorry, not yet. We will see more sources of noise in
-following articles ;-)</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+</footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 2 (deadcode)</p>
+
+                <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
