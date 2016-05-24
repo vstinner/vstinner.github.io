@@ -112,7 +112,7 @@ Command line and environment variables
 ======================================
 
 Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
-patch doesn't touch at the hash function. So it doesn't matter.
+patch doesn't touch the hash function. So it doesn't matter.
 
 While running benchmarks, I noticed differences when running the benchmark from
 a different directory::
