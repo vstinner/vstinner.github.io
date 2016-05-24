@@ -8,7 +8,7 @@ disabling &lt;a class="reference external" href="https://en.wikipedia.org/wiki/A
 benchmarks more stable.&lt;/p&gt;
 &lt;p&gt;I followed this advice without trying to understand it. We will see in this
 article that it was a bad idea, but I had to hit other issues to really
-understand to root issue with disabling ASLR.&lt;/p&gt;
+understand the root issue with disabling ASLR.&lt;/p&gt;
 &lt;p&gt;Example of command to see the effect of ASLR, the first number of the output is
 the start address of the heap memory:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
