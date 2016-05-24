@@ -25,7 +25,7 @@ benchmarks more stable.
 
 I followed this advice without trying to understand it. We will see in this
 article that it was a bad idea, but I had to hit other issues to really
-understand to root issue with disabling ASLR.
+understand the root issue with disabling ASLR.
 
 Example of command to see the effect of ASLR, the first number of the output is
 the start address of the heap memory::
