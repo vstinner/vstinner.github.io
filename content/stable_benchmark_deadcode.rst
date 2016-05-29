@@ -9,7 +9,7 @@ My journey to stable benchmark, part 2 (deadcode)
 :authors: Victor Stinner
 :summary: My journey to stable benchmark, part 2 (deadcode)
 
-.. image:: images/snail.jpg
+.. image:: {filename}/images/snail.jpg
    :alt: Snail
    :target: https://www.flickr.com/photos/uw67/16875152403/
 
@@ -55,7 +55,7 @@ After many days, I decided to give up with perf.
 Cachegrind
 ==========
 
-.. image:: images/valgrind.png
+.. image:: {filename}/images/valgrind.png
    :alt: Logo of the Valgrind project
    :target: http://valgrind.org/
 
@@ -72,7 +72,7 @@ obvious in cache misses between the reference python and the patched python.
 strace and ltrace
 =================
 
-.. image:: images/strace_ltrace.png
+.. image:: {filename}/images/strace_ltrace.png
    :alt: strace and ltrace
 
 I also tried ``strace`` and ``ltrace`` tools to try to see a difference in the
@@ -86,7 +86,7 @@ function. It's pure CPU-bound code.
 Compiler options
 ================
 
-.. image:: images/gcc.png
+.. image:: {filename}/images/gcc.png
    :alt: GCC logo
    :align: right
    :target: https://gcc.gnu.org/
