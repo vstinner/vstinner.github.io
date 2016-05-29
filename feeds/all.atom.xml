@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-23T23:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="images/fog.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-23T23:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Stable benchmarks are so close, but ...&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="address-space-layout-randomization"&gt;
 &lt;h2&gt;Address Space Layout Randomization&lt;/h2&gt;
@@ -222,7 +222,7 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
 &lt;/pre&gt;
 &lt;p&gt;Always the same timing!&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="images/snail.jpg" /&gt;&lt;/a&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
 expected to get very stable benchmarks and so I started to benchmark seriously
 my &lt;a class="reference external" href="https://bugs.python.org/issue26814"&gt;FASTCALL branch&lt;/a&gt; of CPython (a new
@@ -252,7 +252,7 @@ seeing that it was already a builtin feature!&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="cachegrind"&gt;
 &lt;h2&gt;Cachegrind&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="http://valgrind.org/"&gt;&lt;img alt="Logo of the Valgrind project" src="images/valgrind.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://valgrind.org/"&gt;&lt;img alt="Logo of the Valgrind project" src="https://haypo.github.io/images/valgrind.png" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;a class="reference external" href="http://valgrind.org/"&gt;Valgrind&lt;/a&gt; is a great tool known to detect memory
 leaks, but it also contains gems like the &lt;a class="reference external" href="http://valgrind.org/docs/manual/cg-manual.html"&gt;Cachegrind tool&lt;/a&gt; which &lt;em&gt;simulates&lt;/em&gt; the
 CPU caches.&lt;/p&gt;
@@ -261,7 +261,7 @@ obvious in cache misses between the reference python and the patched python.&lt;
 &lt;/div&gt;
 &lt;div class="section" id="strace-and-ltrace"&gt;
 &lt;h2&gt;strace and ltrace&lt;/h2&gt;
-&lt;img alt="strace and ltrace" src="images/strace_ltrace.png" /&gt;
+&lt;img alt="strace and ltrace" src="https://haypo.github.io/images/strace_ltrace.png" /&gt;
 &lt;p&gt;I also tried &lt;tt class="docutils literal"&gt;strace&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;ltrace&lt;/tt&gt; tools to try to see a difference in the
 execution of the reference and the patched pythons. I saw different memory
 addresses, but no major difference which can explain a difference of the
@@ -271,7 +271,7 @@ function. It's pure CPU-bound code.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="compiler-options"&gt;
 &lt;h2&gt;Compiler options&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://gcc.gnu.org/"&gt;&lt;img alt="GCC logo" class="align-right" src="images/gcc.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://gcc.gnu.org/"&gt;&lt;img alt="GCC logo" class="align-right" src="https://haypo.github.io/images/gcc.png" /&gt;&lt;/a&gt;
 &lt;p&gt;I used &lt;a class="reference external" href="https://gcc.gnu.org/"&gt;GCC&lt;/a&gt; to build to code. Just in case, I tried
 LLVM compiler, but it didn't &amp;quot;fix&amp;quot; the issue.&lt;/p&gt;
 &lt;p&gt;I also tried different optimization levels: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O0&lt;/span&gt;&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O1&lt;/span&gt;&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O2&lt;/span&gt;&lt;/tt&gt; and
@@ -1101,7 +1101,7 @@ locale timestamp for example. Timezones are still an hot topic: the
 &lt;a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig"&gt;datetime-sig mailing list&lt;/a&gt; was created to
 enhance timezone support in Python.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: &lt;a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
@@ -1314,7 +1314,7 @@ reference to simplify the code&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
 &lt;div class="section" id="documentation"&gt;
