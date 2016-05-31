@@ -1,12 +1,6 @@
-<<<<<<< faa37002582a262c70ffd5614ba41414355f22d0
-++++++++++++++++++++++++++++++++++++++
-My journey to stable benchmark, part xxx
-++++++++++++++++++++++++++++++++++++++
-=======
 ++++++++++++++++++++++++++++++++++++++++
 My journey to stable benchmark, part xxx
 ++++++++++++++++++++++++++++++++++++++++
->>>>>>> artlce
 
 :date: 2016-05-23 23:50
 :tags: optimization, benchmark
