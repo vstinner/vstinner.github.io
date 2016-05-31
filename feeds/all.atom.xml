@@ -132,7 +132,7 @@ something (command line, env var, etc.) changes.&lt;/p&gt;
 &lt;h2&gt;Average and standard deviation&lt;/h2&gt;
 &lt;p&gt;Basically, it looks like a lot of &amp;quot;external factors&amp;quot; have an impact on the
 exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
-started to think how to get get &lt;em&gt;exactly&lt;/em&gt; the same command line, the same
+started to think how to get &lt;em&gt;exactly&lt;/em&gt; the same command line, the same
 environment (easy), the same current directory (easy), etc. The problem is that
 it's just not possible to control all external factors (having an effect on the
 exact memory addresses).&lt;/p&gt;
@@ -207,15 +207,15 @@ needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
 &lt;tt class="docutils literal"&gt;PYTHONHASHSEED&lt;/tt&gt; set, a single iteration is enough.&lt;/p&gt;
 &lt;p&gt;Example of 3 runs, each with 3 iterations:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 0.201
 0.201
 0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 0.201
 0.201
 0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 0.201
 0.201
 0.201
