@@ -162,7 +162,7 @@ Average and standard deviation
 
 Basically, it looks like a lot of "external factors" have an impact on the
 exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
-started to think how to get get *exactly* the same command line, the same
+started to think how to get *exactly* the same command line, the same
 environment (easy), the same current directory (easy), etc. The problem is that
 it's just not possible to control all external factors (having an effect on the
 exact memory addresses).
@@ -250,15 +250,15 @@ needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
 
 Example of 3 runs, each with 3 iterations::
 
-    $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+    $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
     0.201
     0.201
     0.201
-    $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+    $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
     0.201
     0.201
     0.201
-    $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+    $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
     0.201
     0.201
     0.201
