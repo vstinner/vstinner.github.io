@@ -1,13 +1,13 @@
 +++++++++++++++++++++++++++++++++++++++++++++
-My journey to stable benchmark, part 4 (misc)
+My journey to stable benchmark, part 4 (CPU)
 +++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2016-05-31 17:00
 :tags: optimization, benchmark
 :category: python
-:slug: journey-to-stable-benchmark-misc
+:slug: journey-to-stable-benchmark-cpu
 :authors: Victor Stinner
-:summary: My journey to stable benchmark, part 4 (misc)
+:summary: My journey to stable benchmark, part 4 (CPU)
 
 A bit of history, CPU power consumption
 =======================================
