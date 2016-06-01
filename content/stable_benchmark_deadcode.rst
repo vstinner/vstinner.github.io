@@ -111,6 +111,12 @@ These compiler options didn't fix the issue.
 
 The truth is out there.
 
+**UPDATE:** See also `Rethinking optimization for size
+<https://lwn.net/Articles/534735/>`_ article on Linux Weekly News (LWN):
+*"Such an option has obvious value if one is compiling for a
+space-constrained environment like a small device. But it turns out that, in
+some situations, optimizing for space can also produce faster code."*
+
 
 When CPython performance depends on dead code
 =============================================
