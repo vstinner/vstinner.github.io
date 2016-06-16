@@ -28,7 +28,7 @@ introduced `Turbo Boost <https://en.wikipedia.org/wiki/Intel_Turbo_Boost>`_ in
 management directly in the CPU.
 
 The `Thermal design power (TDP)
-<https://en.wikipedia.org/wiki/Thermal_design_power`_ matters!
+<https://en.wikipedia.org/wiki/Thermal_design_power>`_ matters!
 
 
 Impact of power consumption on benchmarks
@@ -126,8 +126,3 @@ HyperThreading
 ==============
 
 xxx
-
-
-===
-
-* https://lwn.net/Articles/534735/ Rethinking optimization for size
