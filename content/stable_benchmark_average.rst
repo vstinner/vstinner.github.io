@@ -4,7 +4,7 @@ My journey to stable benchmark, part 3 (average)
 
 :date: 2016-05-23 23:00
 :tags: optimization, benchmark
-:category: python
+:category: benchmark
 :slug: journey-to-stable-benchmark-average
 :authors: Victor Stinner
 :summary: My journey to stable benchmark, part 3 (average)

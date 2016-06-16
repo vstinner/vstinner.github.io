@@ -4,7 +4,7 @@ My journey to stable benchmark, part 4 (CPU)
 
 :date: 2016-05-31 17:00
 :tags: optimization, benchmark
-:category: python
+:category: benchmark
 :slug: journey-to-stable-benchmark-cpu
 :authors: Victor Stinner
 :summary: My journey to stable benchmark, part 4 (CPU)

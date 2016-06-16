@@ -4,7 +4,7 @@ My journey to stable benchmark, part 2 (deadcode)
 
 :date: 2016-05-22 22:00
 :tags: optimization, benchmark
-:category: python
+:category: benchmark
 :slug: journey-to-stable-benchmark-deadcode
 :authors: Victor Stinner
 :summary: My journey to stable benchmark, part 2 (deadcode)

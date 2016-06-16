@@ -4,7 +4,7 @@ My journey to stable benchmark, part 1 (system)
 
 :date: 2016-05-21 16:50
 :tags: optimization, benchmark
-:category: python
+:category: benchmark
 :slug: journey-to-stable-benchmark-system
 :authors: Victor Stinner
 :summary: My journey to stable benchmark, part 1
