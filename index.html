@@ -15,13 +15,161 @@
         <header id="banner" class="body">
                 <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
                 <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
                     <li><a href="https://haypo.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">Visualize the system noise using perf and CPU isolation</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-06-16T13:30:00+02:00">
+                Published: jeu. 16 juin 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
+stable benchmarks, give fine control on benchmark parameters and compute
+statistics on results. With such tool, it becomes simple to <em>visualize</em>
+sources of noise. The CPU isolation will be used to visualize the system noise.
+Running a benchmark on isolated CPUs isolates it from the system noise.</p>
+<div class="section" id="isolate-cpus">
+<h2>Isolate CPUs</h2>
+<p>My computer has 4 physical CPU cores. I isolated half of them using
+<tt class="docutils literal">isolcpus=2,3</tt> parameter of the Linux kernel. I modified manually the command
+line in GRUB to add this parameter.</p>
+<p>Check that CPUs are isolated:</p>
+<pre class="literal-block">
+$ cat /sys/devices/system/cpu/isolated
+2-3
+</pre>
+<p>The CPU supports HyperThreading, but I disabled it in the BIOS.</p>
+</div>
+<div class="section" id="run-a-benchmark">
+<h2>Run a benchmark</h2>
+<p>The <tt class="docutils literal">perf</tt> module automatically detects and uses isolated CPU cores. I will
+use the <tt class="docutils literal"><span class="pre">--affinity=0,1</span></tt> option to force running the benchmark on the CPUs
+which are not isolated.</p>
+<p>Microbenchmark with and without CPU isolation:</p>
+<pre class="literal-block">
+$ python3 -m perf.timeit --json-file=timeit_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
+Pin process to isolated CPUs: 2-3
+.........................
+Median +- std dev: 36.6 ns +- 0.1 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
+
+$ python3 -m perf.timeit --affinity=0,1 --json-file=timeit_no_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
+Pin process to CPUs: 0-1
+.........................
+Median +- std dev: 36.7 ns +- 1.3 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
+</pre>
+<p>My computer was not 100% idle, I was using it while the benchmarks were
+running.</p>
+<p>The median is almost the same (36.6 ns and 36.7 ns). The first major difference
+is the standard deviation: it is much larger without CPU isolation: 0.1 ns =&gt;
+1.3 ns (13x larger).</p>
+<p>Just in case, check manually CPU affinity in metadata:</p>
+<pre class="literal-block">
+$ python3 -m perf show timeit_isolcpus.json --metadata | grep cpu
+- cpu_affinity: 2-3 (isolated)
+- cpu_count: 4
+- cpu_model_name: Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz
+
+$ python3 -m perf show timeit_no_isolcpus.json --metadata | grep cpu_affinity
+- cpu_affinity: 0-1
+</pre>
+</div>
+<div class="section" id="statistics">
+<h2>Statistics</h2>
+<p>The <tt class="docutils literal">perf stats</tt> command computes statistics on the distribution of samples:</p>
+<pre class="literal-block">
+$ python3 -m perf stats timeit_isolcpus.json
+Number of samples: 75
+
+Minimum: 36.5 ns (-0.1%)
+Median +- std dev: 36.6 ns +- 0.1 ns (36.5 ns .. 36.7 ns)
+Maximum: 36.7 ns (+0.4%)
+
+$ python3 -m perf stats timeit_no_isolcpus.json
+Number of samples: 75
+
+Minimum: 36.5 ns (-0.5%)
+Median +- std dev: 36.7 ns +- 1.3 ns (35.4 ns .. 38.0 ns)
+Maximum: 43.0 ns (+17.0%)
+</pre>
+<p>The minimum is the same. The second major difference is the maximum: it is much
+larger without CPU isolation: 36.7 ns (+0.4%) =&gt; 43.0 ns (+17.0%).</p>
+<p>The difference between the maximum and the median is 63x larger without CPU
+isolation: 0.1 ns (<tt class="docutils literal">36.7 - 36.6</tt>) =&gt; 6.3 ns (<tt class="docutils literal">43.0 - 36.7</tt>).</p>
+<p>Depending on the system load, a single sample of the microbenchmark is up to
+17% slower (maximum of 43.0 ns with a median of 36.7 ns) without CPU isolation.
+The difference is smaller with CPU isolation: only 0.4% slower (for the
+maximum, and 0.1% faster for the minimum).</p>
+</div>
+<div class="section" id="histogram">
+<h2>Histogram</h2>
+<p>Another way to analyze the distribution of samples is to render an histogram:</p>
+<pre class="literal-block">
+$ python3 -m perf hist --bins=8 timeit_isolcpus.json timeit_no_isolcpus.json
+[ timeit_isolcpus ]
+36.1 ns: 75 ################################################
+36.9 ns:  0 |
+37.7 ns:  0 |
+38.5 ns:  0 |
+39.3 ns:  0 |
+40.1 ns:  0 |
+40.9 ns:  0 |
+41.7 ns:  0 |
+42.5 ns:  0 |
+
+[ timeit_no_isolcpus ]
+36.1 ns: 52 ################################################
+36.9 ns: 13 ############
+37.7 ns:  1 #
+38.5 ns:  4 ####
+39.3 ns:  2 ##
+40.1 ns:  0 |
+40.9 ns:  1 #
+41.7 ns:  0 |
+42.5 ns:  2 ##
+</pre>
+<p>I choose the number of bars to get a small histogram and to get all samples of
+the first benchmark on the same bar. With 8 bars, each bar is a range of 0.8
+ns.</p>
+<p>The last major difference is the shape of these histogram. Without CPU
+isolation, there is a &quot;long tail&quot; at the right of the median: <a class="reference external" href="https://en.wikipedia.org/wiki/Outlier">outliers</a> in the range [37.7 ns; 42.5 ns].
+The outliers come from the &quot;noise&quot; caused by the multitasking system.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>The <tt class="docutils literal">perf</tt> module provides multiple tools to analyze the distribution of
+benchmark samples. Three tools show a major difference without CPU isolation
+compared to results with CPU isolation:</p>
+<ul class="simple">
+<li>Standard deviation: 13x larger without isolation</li>
+<li>Maximum: difference to median 63x larger without isolation</li>
+<li>Shape of the histogram: long tail at the right of the median</li>
+</ul>
+<p>It explains why CPU isolation helps to make benchmarks more stable.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="bookmark"
+                           title="Permalink to My journey to stable benchmark, part 3 (average)">My journey to stable benchmark, part 3 (average)</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-05-23T23:00:00+02:00">
                 Published: lun. 23 mai 2016
@@ -30,237 +178,13 @@
         <address class="vcard author">
                 By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"><img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /></a>
-<p><em>Stable benchmarks are so close, but ...</em></p>
-<div class="section" id="address-space-layout-randomization">
-<h2>Address Space Layout Randomization</h2>
-<p>When I started to work on removing the noise of the system, I was told that
-disabling <a class="reference external" href="https://en.wikipedia.org/wiki/Address_space_layout_randomization">Address Space Layout Randomization (ASLR)</a> makes
-benchmarks more stable.</p>
-<p>I followed this advice without trying to understand it. We will see in this
-article that it was a bad idea, but I had to hit other issues to really
-understand the root issue with disabling ASLR.</p>
-<p>Example of command to see the effect of ASLR, the first number of the output is
-the start address of the heap memory:</p>
-<pre class="literal-block">
-$ python -c 'import os; os.system(&quot;grep heap /proc/%s/maps&quot; % os.getpid())'
-55e6a716c000-55e6a7235000 rw-p 00000000 00:00 0                          [heap]
-</pre>
-<p>Heap address of 3 runs with ASLR enabled (random):</p>
-<ul class="simple">
-<li>55e6a716c000</li>
-<li>561c218eb000</li>
-<li>55e6f628f000</li>
-</ul>
-<p>Disable ASLR:</p>
-<pre class="literal-block">
-sudo bash -c 'echo 0 &gt;| /proc/sys/kernel/randomize_va_space'
-</pre>
-<p>Heap addresses of 3 runs with ASLR disabled (all the same):</p>
-<ul class="simple">
-<li>555555756000</li>
-<li>555555756000</li>
-<li>555555756000</li>
-</ul>
-<p>Note: To reenable ASLR, it's better to use the value 2, the value 1 only
-partially enables the feature:</p>
-<pre class="literal-block">
-sudo bash -c 'echo 2 &gt;| /proc/sys/kernel/randomize_va_space'
-</pre>
-</div>
-<div class="section" id="python-randomized-hash-function">
-<h2>Python randomized hash function</h2>
-<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">system tuning  (part 1)</a>, a
-<a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">Python compiled with PGO (part 2)</a>
-and ASLR disabled, I still I failed to get the same result when running
-manually <tt class="docutils literal">bm_call_simple.py</tt>.</p>
-<p>On Python 3, the hash function is now randomized by default: <a class="reference external" href="http://bugs.python.org/issue13703">issue #13703</a>. The problem is that for a
-microbenchmark, the number of hash collisions of an &quot;hot&quot; dictionary has a
-non-negligible impact on performances.</p>
-<p>The <tt class="docutils literal">PYTHONHASHSEED</tt> environment variable can be used to get a fixed hash
-function. Example with the patch:</p>
-<pre class="literal-block">
-$ PYTHONHASHSEED=1 taskset -c 1 ./python bm_call_simple.py -n 1
-0.198
-$ PYTHONHASHSEED=2 taskset -c 1 ./python bm_call_simple.py -n 1
-0.201
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
-0.207
-$ PYTHONHASHSEED=4 taskset -c 1 ./python bm_call_simple.py -n 1
-0.187
-$ PYTHONHASHSEED=5 taskset -c 1 ./python bm_call_simple.py -n 1
-0.180
-</pre>
-<p>Timings of the reference python:</p>
-<pre class="literal-block">
-$ PYTHONHASHSEED=1 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.204
-$ PYTHONHASHSEED=2 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.206
-$ PYTHONHASHSEED=3 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.195
-$ PYTHONHASHSEED=4 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.192
-$ PYTHONHASHSEED=5 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.187
-</pre>
-<p>The minimums is 180 ms for the reference and 186 ms for the patch. The patched
-Python is 3% faster, yeah!</p>
-<p>Wait. What if we only test PYTHONHASHSEED from 1 to 3? In this case, the
-minimum is 195 ms for the reference and 198 ms for the patch. The patched
-Python becomes 2% slower, oh no!</p>
-<p>Faster? Slower? Who is right?</p>
-<p>Maybe I should write a script to find a <tt class="docutils literal">PYTHONHASHSEED</tt> value for which my
-patch is always faster :-)</p>
-</div>
-<div class="section" id="command-line-and-environment-variables">
-<h2>Command line and environment variables</h2>
-<p>Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
-patch doesn't touch the hash function. So it doesn't matter.</p>
-<p>While running benchmarks, I noticed differences when running the benchmark from
-a different directory:</p>
-<pre class="literal-block">
-$ cd /home/haypo/prog/python/fastcall
-$ PYTHONHASHSEED=3 taskset -c 1 pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
-0.215
+</footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 3 (average)</p>
 
-$ cd /home/haypo/prog/python/benchmarks
-$ PYTHONHASHSEED=3 taskset -c 1 ../fastcall/pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
-0.203
-
-$ cd /home/haypo/prog/python
-$ PYTHONHASHSEED=3 taskset -c 1 fastcall/pgo/python benchmarks/performance/bm_call_simple.py -n 1
-0.200
-</pre>
-<p>In fact, a different command line is enough so get different results (added
-arguments are ignored):</p>
-<pre class="literal-block">
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
-0.201
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1
-0.198
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3
-0.203
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5
-0.206
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5 arg6
-0.210
-</pre>
-<p>I also noticed minor differences when the environment changes (added variables
-are ignored):</p>
-<pre class="literal-block">
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 1
-0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 ./python bm_call_simple.py -n 1
-0.202
-$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 VAR5=5 ./python bm_call_simple.py -n 1
-0.198
-</pre>
-<p>Using <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt>, I saw the memory addresses are different when
-something (command line, env var, etc.) changes.</p>
-</div>
-<div class="section" id="average-and-standard-deviation">
-<h2>Average and standard deviation</h2>
-<p>Basically, it looks like a lot of &quot;external factors&quot; have an impact on the
-exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
-started to think how to get <em>exactly</em> the same command line, the same
-environment (easy), the same current directory (easy), etc. The problem is that
-it's just not possible to control all external factors (having an effect on the
-exact memory addresses).</p>
-<p>Maybe I was plain wrong from the beginning and ASLR must be enabled,
-as the default on Linux:</p>
-<pre class="literal-block">
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.198
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.202
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.199
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.207
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.200
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.201
-</pre>
-<p>These results look &quot;random&quot;. Yes, they are. It's exactly the purpose of ASLR.</p>
-<p>But how can we compare performances if results are random? Take the minimum?</p>
-<p>No! You must never (ever again) use the minimum for benchmarking! Compute the
-average and some statistics like the standard deviation:</p>
-<pre class="literal-block">
-$ python3
-Python 3.4.3
-&gt;&gt;&gt; timings=[0.198, 0.202, 0.199, 0.207, 0.200, 0.201]
-&gt;&gt;&gt; import statistics
-&gt;&gt;&gt; statistics.mean(timings)
-0.2011666666666667
-&gt;&gt;&gt; statistics.stdev(timings)
-0.0031885210782848245
-</pre>
-<p>On this example, the average is 201 ms +/- 3 ms. IMHO the standard deviation is
-quite small (reliable) which means that my benchmark is stable. To get a good
-distribution, it's better to have many samples. It looks like at least 25
-processes are needed. Each process tests a different memory layout and a
-different hash function.</p>
-<p>Result of 5 runs, each run uses 25 processes (ASLR enabled, random hash
-function):</p>
-<ul class="simple">
-<li>Average: 205.2 ms +/- 3.0 ms (min: 201.1 ms, max: 214.9 ms)</li>
-<li>Average: 205.6 ms +/- 3.3 ms (min: 201.4 ms, max: 216.5 ms)</li>
-<li>Average: 206.0 ms +/- 3.9 ms (min: 201.1 ms, max: 215.3 ms)</li>
-<li>Average: 205.7 ms +/- 3.6 ms (min: 201.5 ms, max: 217.8 ms)</li>
-<li>Average: 206.4 ms +/- 3.5 ms (min: 201.9 ms, max: 214.9 ms)</li>
-</ul>
-<p>While memory layout and hash functions are random again, the result looks
-<em>less</em> random, and so more reliable, than before!</p>
-<p>With ASLR enabled, the effect of the environment variables, command line and
-current directory is negligible on the (average) result.</p>
-</div>
-<div class="section" id="the-average-solves-issues-with-uniform-random-noises">
-<h2>The average solves issues with uniform random noises</h2>
-<p>The user will run the application with default system settings which means
-ASLR enabled and Python hash function randomized. Running a benchmark in one
-specific environment is a mistake because it is not representative of the
-performance in practice.</p>
-<p>Computing the average and standard deviation &quot;fixes&quot; the issue with hash
-randomization. It's much better to use random hash functions and compute the
-average, than using a fixed hash function (setting <tt class="docutils literal">PYTHONHASHSEED</tt> variable
-to a value).</p>
-<p>Oh wow, already 3 big articles explaing how to get stable benchmarks. Please
-tell me that it was the last one!  Nope, more is coming...</p>
-</div>
-<div class="section" id="annex-why-only-n1">
-<h2>Annex: why only -n1?</h2>
-<p>In this article, I ran <tt class="docutils literal">bm_call_simple.py</tt> with <tt class="docutils literal"><span class="pre">-n</span> 1</tt> with only run one
-iteration.</p>
-<p>Usually, a single iteration is not reliable at all, at least 50 iterations are
-needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
-<tt class="docutils literal">PYTHONHASHSEED</tt> set, a single iteration is enough.</p>
-<p>Example of 3 runs, each with 3 iterations:</p>
-<pre class="literal-block">
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
-0.201
-0.201
-0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
-0.201
-0.201
-0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
-0.201
-0.201
-0.201
-</pre>
-<p>Always the same timing!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+                <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-average.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -277,7 +201,7 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
         <address class="vcard author">
                 By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
 </footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 2 (deadcode)</p>
 
@@ -300,7 +224,7 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
         <address class="vcard author">
                 By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
 </footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 1</p>
 
@@ -443,29 +367,6 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 </footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, January 12, 2016</p>
 
                 <a class="readmore" href="https://haypo.github.io/fat-python-status-janv12-2016.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="bookmark"
-                           title="Permalink to Status of the FAT Python project, November 26, 2015">Status of the FAT Python project, November 26, 2015</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2015-11-26T17:30:00+01:00">
-                Published: jeu. 26 novembre 2015
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/fatpython.html">fatpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, November 26, 2015</p>
-
-                <a class="readmore" href="https://haypo.github.io/fat-python-status-nov26-2015.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

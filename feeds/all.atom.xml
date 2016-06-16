@@ -1,5 +1,128 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-05-23T23:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-06-16T13:30:00+02:00</updated><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><updated>2016-06-16T13:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
+stable benchmarks, give fine control on benchmark parameters and compute
+statistics on results. With such tool, it becomes simple to &lt;em&gt;visualize&lt;/em&gt;
+sources of noise. The CPU isolation will be used to visualize the system noise.
+Running a benchmark on isolated CPUs isolates it from the system noise.&lt;/p&gt;
+&lt;div class="section" id="isolate-cpus"&gt;
+&lt;h2&gt;Isolate CPUs&lt;/h2&gt;
+&lt;p&gt;My computer has 4 physical CPU cores. I isolated half of them using
+&lt;tt class="docutils literal"&gt;isolcpus=2,3&lt;/tt&gt; parameter of the Linux kernel. I modified manually the command
+line in GRUB to add this parameter.&lt;/p&gt;
+&lt;p&gt;Check that CPUs are isolated:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/isolated
+2-3
+&lt;/pre&gt;
+&lt;p&gt;The CPU supports HyperThreading, but I disabled it in the BIOS.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="run-a-benchmark"&gt;
+&lt;h2&gt;Run a benchmark&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;perf&lt;/tt&gt; module automatically detects and uses isolated CPU cores. I will
+use the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--affinity=0,1&lt;/span&gt;&lt;/tt&gt; option to force running the benchmark on the CPUs
+which are not isolated.&lt;/p&gt;
+&lt;p&gt;Microbenchmark with and without CPU isolation:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m perf.timeit --json-file=timeit_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
+Pin process to isolated CPUs: 2-3
+.........................
+Median +- std dev: 36.6 ns +- 0.1 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
+
+$ python3 -m perf.timeit --affinity=0,1 --json-file=timeit_no_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
+Pin process to CPUs: 0-1
+.........................
+Median +- std dev: 36.7 ns +- 1.3 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
+&lt;/pre&gt;
+&lt;p&gt;My computer was not 100% idle, I was using it while the benchmarks were
+running.&lt;/p&gt;
+&lt;p&gt;The median is almost the same (36.6 ns and 36.7 ns). The first major difference
+is the standard deviation: it is much larger without CPU isolation: 0.1 ns =&amp;gt;
+1.3 ns (13x larger).&lt;/p&gt;
+&lt;p&gt;Just in case, check manually CPU affinity in metadata:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m perf show timeit_isolcpus.json --metadata | grep cpu
+- cpu_affinity: 2-3 (isolated)
+- cpu_count: 4
+- cpu_model_name: Intel(R) Core(TM) i7-2600 CPU &amp;#64; 3.40GHz
+
+$ python3 -m perf show timeit_no_isolcpus.json --metadata | grep cpu_affinity
+- cpu_affinity: 0-1
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="statistics"&gt;
+&lt;h2&gt;Statistics&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;perf stats&lt;/tt&gt; command computes statistics on the distribution of samples:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m perf stats timeit_isolcpus.json
+Number of samples: 75
+
+Minimum: 36.5 ns (-0.1%)
+Median +- std dev: 36.6 ns +- 0.1 ns (36.5 ns .. 36.7 ns)
+Maximum: 36.7 ns (+0.4%)
+
+$ python3 -m perf stats timeit_no_isolcpus.json
+Number of samples: 75
+
+Minimum: 36.5 ns (-0.5%)
+Median +- std dev: 36.7 ns +- 1.3 ns (35.4 ns .. 38.0 ns)
+Maximum: 43.0 ns (+17.0%)
+&lt;/pre&gt;
+&lt;p&gt;The minimum is the same. The second major difference is the maximum: it is much
+larger without CPU isolation: 36.7 ns (+0.4%) =&amp;gt; 43.0 ns (+17.0%).&lt;/p&gt;
+&lt;p&gt;The difference between the maximum and the median is 63x larger without CPU
+isolation: 0.1 ns (&lt;tt class="docutils literal"&gt;36.7 - 36.6&lt;/tt&gt;) =&amp;gt; 6.3 ns (&lt;tt class="docutils literal"&gt;43.0 - 36.7&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;Depending on the system load, a single sample of the microbenchmark is up to
+17% slower (maximum of 43.0 ns with a median of 36.7 ns) without CPU isolation.
+The difference is smaller with CPU isolation: only 0.4% slower (for the
+maximum, and 0.1% faster for the minimum).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="histogram"&gt;
+&lt;h2&gt;Histogram&lt;/h2&gt;
+&lt;p&gt;Another way to analyze the distribution of samples is to render an histogram:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -m perf hist --bins=8 timeit_isolcpus.json timeit_no_isolcpus.json
+[ timeit_isolcpus ]
+36.1 ns: 75 ################################################
+36.9 ns:  0 |
+37.7 ns:  0 |
+38.5 ns:  0 |
+39.3 ns:  0 |
+40.1 ns:  0 |
+40.9 ns:  0 |
+41.7 ns:  0 |
+42.5 ns:  0 |
+
+[ timeit_no_isolcpus ]
+36.1 ns: 52 ################################################
+36.9 ns: 13 ############
+37.7 ns:  1 #
+38.5 ns:  4 ####
+39.3 ns:  2 ##
+40.1 ns:  0 |
+40.9 ns:  1 #
+41.7 ns:  0 |
+42.5 ns:  2 ##
+&lt;/pre&gt;
+&lt;p&gt;I choose the number of bars to get a small histogram and to get all samples of
+the first benchmark on the same bar. With 8 bars, each bar is a range of 0.8
+ns.&lt;/p&gt;
+&lt;p&gt;The last major difference is the shape of these histogram. Without CPU
+isolation, there is a &amp;quot;long tail&amp;quot; at the right of the median: &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Outlier"&gt;outliers&lt;/a&gt; in the range [37.7 ns; 42.5 ns].
+The outliers come from the &amp;quot;noise&amp;quot; caused by the multitasking system.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;perf&lt;/tt&gt; module provides multiple tools to analyze the distribution of
+benchmark samples. Three tools show a major difference without CPU isolation
+compared to results with CPU isolation:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Standard deviation: 13x larger without isolation&lt;/li&gt;
+&lt;li&gt;Maximum: difference to median 63x larger without isolation&lt;/li&gt;
+&lt;li&gt;Shape of the histogram: long tail at the right of the median&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It explains why CPU isolation helps to make benchmarks more stable.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Stable benchmarks are so close, but ...&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="address-space-layout-randomization"&gt;
 &lt;h2&gt;Address Space Layout Randomization&lt;/h2&gt;
@@ -284,6 +407,10 @@ I tried various values of the &lt;tt class="docutils literal"&gt;&lt;span class=
 &lt;p&gt;I also tried &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-flto&lt;/span&gt;&lt;/tt&gt;: Link Time Optimization (LTO).&lt;/p&gt;
 &lt;p&gt;These compiler options didn't fix the issue.&lt;/p&gt;
 &lt;p&gt;The truth is out there.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;UPDATE:&lt;/strong&gt; See also &lt;a class="reference external" href="https://lwn.net/Articles/534735/"&gt;Rethinking optimization for size&lt;/a&gt; article on Linux Weekly News (LWN):
+&lt;em&gt;&amp;quot;Such an option has obvious value if one is compiling for a
+space-constrained environment like a small device. But it turns out that, in
+some situations, optimizing for space can also produce faster code.&amp;quot;&lt;/em&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="when-cpython-performance-depends-on-dead-code"&gt;
 &lt;h2&gt;When CPython performance depends on dead code&lt;/h2&gt;

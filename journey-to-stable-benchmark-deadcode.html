@@ -15,7 +15,8 @@
         <header id="banner" class="body">
                 <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
                 <nav><ul>
-                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
@@ -35,7 +36,7 @@
         <address class="vcard author">
                 By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
 </footer><!-- /.post-info -->      <a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"><img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /></a>
 <p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">the system tuning (part 1)</a>, I
@@ -99,6 +100,10 @@ I tried various values of the <tt class="docutils literal"><span class="pre">-fa
 <p>I also tried <tt class="docutils literal"><span class="pre">-flto</span></tt>: Link Time Optimization (LTO).</p>
 <p>These compiler options didn't fix the issue.</p>
 <p>The truth is out there.</p>
+<p><strong>UPDATE:</strong> See also <a class="reference external" href="https://lwn.net/Articles/534735/">Rethinking optimization for size</a> article on Linux Weekly News (LWN):
+<em>&quot;Such an option has obvious value if one is compiling for a
+space-constrained environment like a small device. But it turns out that, in
+some situations, optimizing for space can also produce faster code.&quot;</em></p>
 </div>
 <div class="section" id="when-cpython-performance-depends-on-dead-code">
 <h2>When CPython performance depends on dead code</h2>
