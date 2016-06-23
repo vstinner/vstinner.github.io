@@ -2,7 +2,7 @@
 My journey to stable benchmark, part 4 (CPU)
 +++++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2016-05-31 17:00
+:date: 2016-06-17 00:00
 :tags: optimization, benchmark
 :category: benchmark
 :slug: journey-to-stable-benchmark-cpu
@@ -11,6 +11,12 @@ My journey to stable benchmark, part 4 (CPU)
 
 A bit of history, CPU power consumption
 =======================================
+
+Near 2010, the `Moore's Law <https://en.wikipedia.org/wiki/Moore's_law>`_
+started to slow down. The CPU frequency is around 3 GHz since 5 years. The
+number of transitors of the Intel i7 6700K is 1.75 B. In 2002, the process
+used 130 nm. 2010 : 32 nm. 2015 : 14 nm.
+
 
 In 2016, Intel CPU vendor stopped to only be focused on pure performances. The
 market of desktop PCs is decreasing, today computers are small and have no more
@@ -93,6 +99,27 @@ Use the ``wrmsr`` to set the Turbo Boost, or go into your BIOS/EFI.
 
 Fedora: ``dnf install -u msr-tools``.
 
+cpuinfo::
+
+    $ cpupower frequency-info
+    analyzing CPU 0:
+      driver: intel_pstate
+      CPUs which run at the same hardware frequency: 0
+      CPUs which need to have their frequency coordinated by software: 0
+      maximum transition latency: 0.97 ms.
+      hardware limits: 1.20 GHz - 3.60 GHz
+      available cpufreq governors: performance, powersave
+      current policy: frequency should be within 1.20 GHz and 3.60 GHz.
+                      The governor "powersave" may decide which speed to use
+                      within this range.
+      current CPU frequency is 1.35 GHz.
+      boost state support:
+        Supported: yes
+        Active: yes
+        25500 MHz max turbo 4 active cores
+        25500 MHz max turbo 3 active cores
+        25500 MHz max turbo 2 active cores
+        25500 MHz max turbo 1 active cores
 
 
 Linux
