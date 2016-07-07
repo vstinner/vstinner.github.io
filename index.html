@@ -22,7 +22,153 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">Visualize the system noise using perf and CPU isolation</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-cpu.html">My journey to stable benchmark, part 4 (CPU)</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-06-17T00:00:00+02:00">
+                Published: ven. 17 juin 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><div class="section" id="a-bit-of-history-cpu-power-consumption">
+<h2>A bit of history, CPU power consumption</h2>
+<p>Near 2010, the <a class="reference external" href="https://en.wikipedia.org/wiki/Moore's_law">Moore's Law</a>
+started to slow down. The CPU frequency is around 3 GHz since 5 years. The
+number of transitors of the Intel i7 6700K is 1.75 B. In 2002, the process
+used 130 nm. 2010 : 32 nm. 2015 : 14 nm.</p>
+<p>In 2016, Intel CPU vendor stopped to only be focused on pure performances. The
+market of desktop PCs is decreasing, today computers are small and have no more
+power cable, but a battery. If we exagerate, the power consumption matters more
+than performance. It would be hard to sell a smartphone which requires to be
+plugged to a power cable more frequently than every nights: one day is still
+strict minimum for the autonomy.</p>
+<p>ARM CPUs are commonly used in smartphones, tablets and other kinds of
+&quot;embedded&quot; devices. Intel developped technologies to reduce the power
+consumption to not loose markets, starting with laptops. It started with
+<a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep">SpeedStep</a> in 2005. Later Intel
+introduced <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost">Turbo Boost</a> in
+2008. With the latest generation, Skylake now runs the power
+management directly in the CPU.</p>
+<p>The <a class="reference external" href="https://en.wikipedia.org/wiki/Thermal_design_power">Thermal design power (TDP)</a> matters!</p>
+</div>
+<div class="section" id="impact-of-power-consumption-on-benchmarks">
+<h2>Impact of power consumption on benchmarks</h2>
+<p>In short, the speed of today Intel CPUs is no more constant. It changes a lot.
+It can change multiple times per minute depend many factors.</p>
+<p>The Turbo Mode makes the CPU faster if the CPU temperature is lower than
+a threshold. The Turbo Mode can be detected with a different CPU speed, the
+difference can be a single MHz.</p>
+<p>The result of a benchmark with and without Turbo Mode is huge.</p>
+<p>Linux uses a power manager to change dynamically the speed of the CPU. The
+default governor is usually &quot;powersave&quot;:</p>
+<pre class="literal-block">
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+powersave
+</pre>
+<p>See the driver:</p>
+<pre class="literal-block">
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
+intel_pstate
+</pre>
+<p>Other driver: acpi_xxx.</p>
+<p>Available governors:</p>
+<pre class="literal-block">
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+performance powersave
+</pre>
+<p>Changing the CPU speed takes a few milliseconds. The performance governor
+tries to limit the number of speed changes, whereas the powersave governor
+tries to reduce the power consumption and so tries to use the lowest
+CPU speed, without killing performances.</p>
+</div>
+<div class="section" id="cpu-turbo-boost">
+<h2>CPU Turbo Boost</h2>
+<p>If your system is using the intel_pstate frequency scaling driver:</p>
+<pre class="literal-block">
+$ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_driver
+intel_pstate
+...
+intel_pstate
+</pre>
+<p>Then you can inquire as to the turbo enabled or disabled status:</p>
+<pre class="literal-block">
+$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
+0
+</pre>
+<p>Check if Turbo Boost is enabled:</p>
+<pre class="literal-block">
+sudo rdmsr -f 38:38 0x1a0
+</pre>
+<ul class="simple">
+<li><tt class="docutils literal">1</tt> means disabled (no turbo)</li>
+<li><tt class="docutils literal">0</tt> means enabled</li>
+</ul>
+<p>Use the <tt class="docutils literal">wrmsr</tt> to set the Turbo Boost, or go into your BIOS/EFI.</p>
+<p>Fedora: <tt class="docutils literal">dnf install <span class="pre">-u</span> <span class="pre">msr-tools</span></tt>.</p>
+<p>cpuinfo:</p>
+<pre class="literal-block">
+$ cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  CPUs which run at the same hardware frequency: 0
+  CPUs which need to have their frequency coordinated by software: 0
+  maximum transition latency: 0.97 ms.
+  hardware limits: 1.20 GHz - 3.60 GHz
+  available cpufreq governors: performance, powersave
+  current policy: frequency should be within 1.20 GHz and 3.60 GHz.
+                  The governor &quot;powersave&quot; may decide which speed to use
+                  within this range.
+  current CPU frequency is 1.35 GHz.
+  boost state support:
+    Supported: yes
+    Active: yes
+    25500 MHz max turbo 4 active cores
+    25500 MHz max turbo 3 active cores
+    25500 MHz max turbo 2 active cores
+    25500 MHz max turbo 1 active cores
+</pre>
+</div>
+<div class="section" id="linux">
+<h2>Linux</h2>
+<ul class="simple">
+<li>Linux documentation<ul>
+<li><a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt">Linux CPUFreq: CPUFreq Governors</a></li>
+<li><a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/user-guide.txt">Linux CPUFreq User Guide</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="intel-power-states">
+<h2>Intel power states</h2>
+<p><a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states">Power Management States: P-States, C-States, and Package C-States</a>.</p>
+<p>C0...C6 states:</p>
+<ul class="simple">
+<li>C0: CPU fully turned on</li>
+<li>C6: Deep Power Down</li>
+<li><a class="reference external" href="http://www.hardwaresecrets.com/everything-you-need-to-know-about-the-cpu-c-states-power-saving-modes/">Everything You Need to Know About the CPU C-States Power Saving Modes</a></li>
+</ul>
+</div>
+<div class="section" id="hyperthreading">
+<h2>HyperThreading</h2>
+<p>xxx</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="bookmark"
+                           title="Permalink to Visualize the system noise using perf and CPU isolation">Visualize the system noise using perf and CPU isolation</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-06-16T13:30:00+02:00">
                 Published: jeu. 16 juin 2016
@@ -33,135 +179,14 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
+</footer><!-- /.post-info -->                <p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
 stable benchmarks, give fine control on benchmark parameters and compute
 statistics on results. With such tool, it becomes simple to <em>visualize</em>
 sources of noise. The CPU isolation will be used to visualize the system noise.
-Running a benchmark on isolated CPUs isolates it from the system noise.</p>
-<div class="section" id="isolate-cpus">
-<h2>Isolate CPUs</h2>
-<p>My computer has 4 physical CPU cores. I isolated half of them using
-<tt class="docutils literal">isolcpus=2,3</tt> parameter of the Linux kernel. I modified manually the command
-line in GRUB to add this parameter.</p>
-<p>Check that CPUs are isolated:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/isolated
-2-3
-</pre>
-<p>The CPU supports HyperThreading, but I disabled it in the BIOS.</p>
-</div>
-<div class="section" id="run-a-benchmark">
-<h2>Run a benchmark</h2>
-<p>The <tt class="docutils literal">perf</tt> module automatically detects and uses isolated CPU cores. I will
-use the <tt class="docutils literal"><span class="pre">--affinity=0,1</span></tt> option to force running the benchmark on the CPUs
-which are not isolated.</p>
-<p>Microbenchmark with and without CPU isolation:</p>
-<pre class="literal-block">
-$ python3 -m perf.timeit --json-file=timeit_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
-Pin process to isolated CPUs: 2-3
-.........................
-Median +- std dev: 36.6 ns +- 0.1 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
-
-$ python3 -m perf.timeit --affinity=0,1 --json-file=timeit_no_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
-Pin process to CPUs: 0-1
-.........................
-Median +- std dev: 36.7 ns +- 1.3 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
-</pre>
-<p>My computer was not 100% idle, I was using it while the benchmarks were
-running.</p>
-<p>The median is almost the same (36.6 ns and 36.7 ns). The first major difference
-is the standard deviation: it is much larger without CPU isolation: 0.1 ns =&gt;
-1.3 ns (13x larger).</p>
-<p>Just in case, check manually CPU affinity in metadata:</p>
-<pre class="literal-block">
-$ python3 -m perf show timeit_isolcpus.json --metadata | grep cpu
-- cpu_affinity: 2-3 (isolated)
-- cpu_count: 4
-- cpu_model_name: Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz
-
-$ python3 -m perf show timeit_no_isolcpus.json --metadata | grep cpu_affinity
-- cpu_affinity: 0-1
-</pre>
-</div>
-<div class="section" id="statistics">
-<h2>Statistics</h2>
-<p>The <tt class="docutils literal">perf stats</tt> command computes statistics on the distribution of samples:</p>
-<pre class="literal-block">
-$ python3 -m perf stats timeit_isolcpus.json
-Number of samples: 75
-
-Minimum: 36.5 ns (-0.1%)
-Median +- std dev: 36.6 ns +- 0.1 ns (36.5 ns .. 36.7 ns)
-Maximum: 36.7 ns (+0.4%)
-
-$ python3 -m perf stats timeit_no_isolcpus.json
-Number of samples: 75
-
-Minimum: 36.5 ns (-0.5%)
-Median +- std dev: 36.7 ns +- 1.3 ns (35.4 ns .. 38.0 ns)
-Maximum: 43.0 ns (+17.0%)
-</pre>
-<p>The minimum is the same. The second major difference is the maximum: it is much
-larger without CPU isolation: 36.7 ns (+0.4%) =&gt; 43.0 ns (+17.0%).</p>
-<p>The difference between the maximum and the median is 63x larger without CPU
-isolation: 0.1 ns (<tt class="docutils literal">36.7 - 36.6</tt>) =&gt; 6.3 ns (<tt class="docutils literal">43.0 - 36.7</tt>).</p>
-<p>Depending on the system load, a single sample of the microbenchmark is up to
-17% slower (maximum of 43.0 ns with a median of 36.7 ns) without CPU isolation.
-The difference is smaller with CPU isolation: only 0.4% slower (for the
-maximum, and 0.1% faster for the minimum).</p>
-</div>
-<div class="section" id="histogram">
-<h2>Histogram</h2>
-<p>Another way to analyze the distribution of samples is to render an histogram:</p>
-<pre class="literal-block">
-$ python3 -m perf hist --bins=8 timeit_isolcpus.json timeit_no_isolcpus.json
-[ timeit_isolcpus ]
-36.1 ns: 75 ################################################
-36.9 ns:  0 |
-37.7 ns:  0 |
-38.5 ns:  0 |
-39.3 ns:  0 |
-40.1 ns:  0 |
-40.9 ns:  0 |
-41.7 ns:  0 |
-42.5 ns:  0 |
-
-[ timeit_no_isolcpus ]
-36.1 ns: 52 ################################################
-36.9 ns: 13 ############
-37.7 ns:  1 #
-38.5 ns:  4 ####
-39.3 ns:  2 ##
-40.1 ns:  0 |
-40.9 ns:  1 #
-41.7 ns:  0 |
-42.5 ns:  2 ##
-</pre>
-<p>I choose the number of bars to get a small histogram and to get all samples of
-the first benchmark on the same bar. With 8 bars, each bar is a range of 0.8
-ns.</p>
-<p>The last major difference is the shape of these histogram. Without CPU
-isolation, there is a &quot;long tail&quot; at the right of the median: <a class="reference external" href="https://en.wikipedia.org/wiki/Outlier">outliers</a> in the range [37.7 ns; 42.5 ns].
-The outliers come from the &quot;noise&quot; caused by the multitasking system.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>The <tt class="docutils literal">perf</tt> module provides multiple tools to analyze the distribution of
-benchmark samples. Three tools show a major difference without CPU isolation
-compared to results with CPU isolation:</p>
-<ul class="simple">
-<li>Standard deviation: 13x larger without isolation</li>
-<li>Maximum: difference to median 63x larger without isolation</li>
-<li>Shape of the histogram: long tail at the right of the median</li>
-</ul>
-<p>It explains why CPU isolation helps to make benchmarks more stable.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Running a benchmark on isolated CPUs ...</p>
+                <a class="readmore" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -344,29 +369,6 @@ compared to results with CPU isolation:</p>
 </footer><!-- /.post-info -->                <p class="first last">History of the Python private C API _PyTime</p>
 
                 <a class="readmore" href="https://haypo.github.io/pytime.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="bookmark"
-                           title="Permalink to Status of the FAT Python project, January 12, 2016">Status of the FAT Python project, January 12, 2016</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-01-12T13:42:00+01:00">
-                Published: mar. 12 janvier 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/fatpython.html">fatpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, January 12, 2016</p>
-
-                <a class="readmore" href="https://haypo.github.io/fat-python-status-janv12-2016.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

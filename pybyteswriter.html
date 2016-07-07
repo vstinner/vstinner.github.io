@@ -119,7 +119,7 @@ is expensive: need to allocate a second memory block and convert characters to
 the new format.</p>
 <p>_PyUnicodeWriter features:</p>
 <ul class="simple">
-<li>Optional overallocation: overallocate the buffer by 25% on Windows and 50%
+<li>Optional overallocation: overallocate the buffer by 50% on Windows and 25%
 on Linux. The ratio changes depending on the OS, it is a raw heuristic to get
 the best performances depending on the <tt class="docutils literal">malloc()</tt> memory allocator.</li>
 <li>The buffer can be a shared read-only string if the buffer was only created

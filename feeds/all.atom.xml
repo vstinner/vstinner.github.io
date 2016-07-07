@@ -1,5 +1,127 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-06-16T13:30:00+02:00</updated><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><updated>2016-06-16T13:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-06-17T00:00:00+02:00</updated><entry><title>My journey to stable benchmark, part 4 (CPU)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-cpu.html" rel="alternate"></link><published>2016-06-17T00:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-17:journey-to-stable-benchmark-cpu.html</id><summary type="html">&lt;div class="section" id="a-bit-of-history-cpu-power-consumption"&gt;
+&lt;h2&gt;A bit of history, CPU power consumption&lt;/h2&gt;
+&lt;p&gt;Near 2010, the &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Moore's_law"&gt;Moore's Law&lt;/a&gt;
+started to slow down. The CPU frequency is around 3 GHz since 5 years. The
+number of transitors of the Intel i7 6700K is 1.75 B. In 2002, the process
+used 130 nm. 2010 : 32 nm. 2015 : 14 nm.&lt;/p&gt;
+&lt;p&gt;In 2016, Intel CPU vendor stopped to only be focused on pure performances. The
+market of desktop PCs is decreasing, today computers are small and have no more
+power cable, but a battery. If we exagerate, the power consumption matters more
+than performance. It would be hard to sell a smartphone which requires to be
+plugged to a power cable more frequently than every nights: one day is still
+strict minimum for the autonomy.&lt;/p&gt;
+&lt;p&gt;ARM CPUs are commonly used in smartphones, tablets and other kinds of
+&amp;quot;embedded&amp;quot; devices. Intel developped technologies to reduce the power
+consumption to not loose markets, starting with laptops. It started with
+&lt;a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep"&gt;SpeedStep&lt;/a&gt; in 2005. Later Intel
+introduced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost"&gt;Turbo Boost&lt;/a&gt; in
+2008. With the latest generation, Skylake now runs the power
+management directly in the CPU.&lt;/p&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Thermal_design_power"&gt;Thermal design power (TDP)&lt;/a&gt; matters!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="impact-of-power-consumption-on-benchmarks"&gt;
+&lt;h2&gt;Impact of power consumption on benchmarks&lt;/h2&gt;
+&lt;p&gt;In short, the speed of today Intel CPUs is no more constant. It changes a lot.
+It can change multiple times per minute depend many factors.&lt;/p&gt;
+&lt;p&gt;The Turbo Mode makes the CPU faster if the CPU temperature is lower than
+a threshold. The Turbo Mode can be detected with a different CPU speed, the
+difference can be a single MHz.&lt;/p&gt;
+&lt;p&gt;The result of a benchmark with and without Turbo Mode is huge.&lt;/p&gt;
+&lt;p&gt;Linux uses a power manager to change dynamically the speed of the CPU. The
+default governor is usually &amp;quot;powersave&amp;quot;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+powersave
+&lt;/pre&gt;
+&lt;p&gt;See the driver:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
+intel_pstate
+&lt;/pre&gt;
+&lt;p&gt;Other driver: acpi_xxx.&lt;/p&gt;
+&lt;p&gt;Available governors:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+performance powersave
+&lt;/pre&gt;
+&lt;p&gt;Changing the CPU speed takes a few milliseconds. The performance governor
+tries to limit the number of speed changes, whereas the powersave governor
+tries to reduce the power consumption and so tries to use the lowest
+CPU speed, without killing performances.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cpu-turbo-boost"&gt;
+&lt;h2&gt;CPU Turbo Boost&lt;/h2&gt;
+&lt;p&gt;If your system is using the intel_pstate frequency scaling driver:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_driver
+intel_pstate
+...
+intel_pstate
+&lt;/pre&gt;
+&lt;p&gt;Then you can inquire as to the turbo enabled or disabled status:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
+0
+&lt;/pre&gt;
+&lt;p&gt;Check if Turbo Boost is enabled:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo rdmsr -f 38:38 0x1a0
+&lt;/pre&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;1&lt;/tt&gt; means disabled (no turbo)&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;0&lt;/tt&gt; means enabled&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Use the &lt;tt class="docutils literal"&gt;wrmsr&lt;/tt&gt; to set the Turbo Boost, or go into your BIOS/EFI.&lt;/p&gt;
+&lt;p&gt;Fedora: &lt;tt class="docutils literal"&gt;dnf install &lt;span class="pre"&gt;-u&lt;/span&gt; &lt;span class="pre"&gt;msr-tools&lt;/span&gt;&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;cpuinfo:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  CPUs which run at the same hardware frequency: 0
+  CPUs which need to have their frequency coordinated by software: 0
+  maximum transition latency: 0.97 ms.
+  hardware limits: 1.20 GHz - 3.60 GHz
+  available cpufreq governors: performance, powersave
+  current policy: frequency should be within 1.20 GHz and 3.60 GHz.
+                  The governor &amp;quot;powersave&amp;quot; may decide which speed to use
+                  within this range.
+  current CPU frequency is 1.35 GHz.
+  boost state support:
+    Supported: yes
+    Active: yes
+    25500 MHz max turbo 4 active cores
+    25500 MHz max turbo 3 active cores
+    25500 MHz max turbo 2 active cores
+    25500 MHz max turbo 1 active cores
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="linux"&gt;
+&lt;h2&gt;Linux&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Linux documentation&lt;ul&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt"&gt;Linux CPUFreq: CPUFreq Governors&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/user-guide.txt"&gt;Linux CPUFreq User Guide&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="intel-power-states"&gt;
+&lt;h2&gt;Intel power states&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states"&gt;Power Management States: P-States, C-States, and Package C-States&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;C0...C6 states:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;C0: CPU fully turned on&lt;/li&gt;
+&lt;li&gt;C6: Deep Power Down&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://www.hardwaresecrets.com/everything-you-need-to-know-about-the-cpu-c-states-power-saving-modes/"&gt;Everything You Need to Know About the CPU C-States Power Saving Modes&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="hyperthreading"&gt;
+&lt;h2&gt;HyperThreading&lt;/h2&gt;
+&lt;p&gt;xxx&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
 stable benchmarks, give fine control on benchmark parameters and compute
 statistics on results. With such tool, it becomes simple to &lt;em&gt;visualize&lt;/em&gt;
 sources of noise. The CPU isolation will be used to visualize the system noise.
@@ -122,7 +244,7 @@ compared to results with CPU isolation:&lt;/p&gt;
 &lt;/ul&gt;
 &lt;p&gt;It explains why CPU isolation helps to make benchmarks more stable.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
+</summary><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><published>2016-05-23T23:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Stable benchmarks are so close, but ...&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="address-space-layout-randomization"&gt;
 &lt;h2&gt;Address Space Layout Randomization&lt;/h2&gt;
@@ -345,7 +467,7 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 &lt;/pre&gt;
 &lt;p&gt;Always the same timing!&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><published>2016-05-22T22:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
 expected to get very stable benchmarks and so I started to benchmark seriously
 my &lt;a class="reference external" href="https://bugs.python.org/issue26814"&gt;FASTCALL branch&lt;/a&gt; of CPython (a new
@@ -435,7 +557,7 @@ execution of the Python test suite.&lt;/p&gt;
 time, no? ... No, sorry, not yet. We will see more sources of noise in
 following articles ;-)&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:journey-to-stable-benchmark-system.html</id><summary type="html">&lt;div class="section" id="background"&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><published>2016-05-21T16:50:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:journey-to-stable-benchmark-system.html</id><summary type="html">&lt;div class="section" id="background"&gt;
 &lt;h2&gt;Background&lt;/h2&gt;
 &lt;p&gt;In the CPython development, it became common to require the result of the
 &lt;a class="reference external" href="https://hg.python.org/benchmarks"&gt;CPython benchmark suite&lt;/a&gt; (&amp;quot;The Grand
@@ -572,7 +694,7 @@ idle system! CPU isolation removes most of the noise of the system.&lt;/p&gt;
 I found a lot of other sources of &amp;quot;noise&amp;quot;.  We will see them in the following
 articles ;-)&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><published>2016-03-02T14:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
 cycle (November 2015-April 2016), it's time to look back on the progress made
 for Python 3 support.&lt;/p&gt;
 &lt;p&gt;Previous status update: &lt;a class="reference external" href="http://techs.enovance.com/7807/python-3-status-openstack-liberty"&gt;Python 3 Status in OpenStack Liberty&lt;/a&gt;
@@ -684,7 +806,7 @@ a lot of information about adding Python 3 support to Python 2 code.&lt;/p&gt;
 &lt;p&gt;Join us in the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;#openstack-python3&lt;/span&gt;&lt;/tt&gt; IRC channel on Freenode to discuss
 Python 3!&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://haypo.github.io/pybyteswriter.html" rel="alternate"></link><updated>2016-03-01T16:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:pybyteswriter.html</id><summary type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
+</summary><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://haypo.github.io/pybyteswriter.html" rel="alternate"></link><published>2016-03-01T16:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:pybyteswriter.html</id><summary type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
 CPython. These APIs are design to optimize code producing strings when the
 ouput size is not known in advance.&lt;/p&gt;
 &lt;p&gt;I created the _PyUnicodeWriter API to reply to complains that Python 3 was much
@@ -765,7 +887,7 @@ is expensive: need to allocate a second memory block and convert characters to
 the new format.&lt;/p&gt;
 &lt;p&gt;_PyUnicodeWriter features:&lt;/p&gt;
 &lt;ul class="simple"&gt;
-&lt;li&gt;Optional overallocation: overallocate the buffer by 25% on Windows and 50%
+&lt;li&gt;Optional overallocation: overallocate the buffer by 50% on Windows and 25%
 on Linux. The ratio changes depending on the OS, it is a raw heuristic to get
 the best performances depending on the &lt;tt class="docutils literal"&gt;malloc()&lt;/tt&gt; memory allocator.&lt;/li&gt;
 &lt;li&gt;The buffer can be a shared read-only string if the buffer was only created
@@ -912,7 +1034,7 @@ faster on a microbenchmark.&lt;/p&gt;
 &lt;p&gt;Later, I replaced &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; type with &lt;tt class="docutils literal"&gt;void*&lt;/tt&gt; to avoid compiler warnings
 in functions using &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;unsigned char*&lt;/tt&gt;, unsigned types.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to CPython during 2015 Q4 (october, november, december).&lt;/p&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to CPython during 2015 Q4 (october, november, december).&lt;/p&gt;
 &lt;p&gt;As usual, I pushed changes of various contributors and helped them to polish
 their change.&lt;/p&gt;
 &lt;p&gt;I fighted against a recursion error, a regression introduced by my recent work
@@ -1050,7 +1172,7 @@ to FAT Python ;-)&lt;/li&gt;
 &lt;li&gt;Issue #25696: Fix installation of Python on UNIX with make -j9.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:contrib-cpython-2015q3.html</id><summary type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><published>2016-02-18T01:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:contrib-cpython-2015q3.html</id><summary type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
 perfect, there are no more bugs, right?&amp;quot;. The article list most of my
 contributions to CPython during 2015 Q3 (july, august, september). It gives an
 idea of which areas of Python are not perfect yet :-)&lt;/p&gt;
@@ -1163,7 +1285,7 @@ becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.&lt;/li&gt;
 function instead of the getentropy() function.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:pytime.html</id><summary type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
+</summary><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><published>2016-02-17T22:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:pytime.html</id><summary type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
 various formats. I expected to spend a few days, at the end I spent 3 years
 (2012-2015) on them!&lt;/p&gt;
 &lt;div class="section" id="python-3-3"&gt;
@@ -1228,7 +1350,7 @@ locale timestamp for example. Timezones are still an hot topic: the
 &lt;a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig"&gt;datetime-sig mailing list&lt;/a&gt; was created to
 enhance timezone support in Python.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><published>2016-01-12T13:42:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: &lt;a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
@@ -1441,7 +1563,7 @@ reference to simplify the code&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><published>2015-11-26T17:30:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
 &lt;div class="section" id="documentation"&gt;
@@ -1562,7 +1684,7 @@ instead of a &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
 the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type (and the &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; type is removed).&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
+</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><published>2015-06-16T15:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
 &lt;h2&gt;From 2to3 to 2to6&lt;/h2&gt;
 &lt;p&gt;When Python 3.0 was released, the official statement was to port your
 application using &lt;a class="reference external" href="https://docs.python.org/3.5/library/2to3.html"&gt;2to3&lt;/a&gt; and
