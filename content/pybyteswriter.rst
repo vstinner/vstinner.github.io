@@ -107,7 +107,7 @@ the new format.
 
 _PyUnicodeWriter features:
 
-* Optional overallocation: overallocate the buffer by 25% on Windows and 50%
+* Optional overallocation: overallocate the buffer by 50% on Windows and 25%
   on Linux. The ratio changes depending on the OS, it is a raw heuristic to get
   the best performances depending on the ``malloc()`` memory allocator.
 * The buffer can be a shared read-only string if the buffer was only created
