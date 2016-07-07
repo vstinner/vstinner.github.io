@@ -34,4 +34,4 @@ Requirements:
 * pelican
 * ghp-import
 
-=> ``pip3 install -U pelican ghp-import``
+=> ``sudo python3 -m pip install -U pelican ghp-import``
