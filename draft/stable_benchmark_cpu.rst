@@ -122,6 +122,28 @@ cpuinfo::
         25500 MHz max turbo 1 active cores
 
 
+CPU drivers
+===========
+
+ACPI::
+
+    $ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
+    acpi-cpufreq
+    $ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+    conservative userspace powersave ondemand performance
+
+Intel P-state::
+
+    $ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
+    intel_ptstate
+    $ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+    powersave performance
+    $ ls /sys/devices/system/intel_pstate/
+    XXXX FIXME XXX
+
+XXXX FIXME XXX
+
+
 Linux
 =====
 
