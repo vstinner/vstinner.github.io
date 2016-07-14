@@ -22,153 +22,7 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-cpu.html">My journey to stable benchmark, part 4 (CPU)</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2016-06-17T00:00:00+02:00">
-                Published: ven. 17 juin 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><div class="section" id="a-bit-of-history-cpu-power-consumption">
-<h2>A bit of history, CPU power consumption</h2>
-<p>Near 2010, the <a class="reference external" href="https://en.wikipedia.org/wiki/Moore's_law">Moore's Law</a>
-started to slow down. The CPU frequency is around 3 GHz since 5 years. The
-number of transitors of the Intel i7 6700K is 1.75 B. In 2002, the process
-used 130 nm. 2010 : 32 nm. 2015 : 14 nm.</p>
-<p>In 2016, Intel CPU vendor stopped to only be focused on pure performances. The
-market of desktop PCs is decreasing, today computers are small and have no more
-power cable, but a battery. If we exagerate, the power consumption matters more
-than performance. It would be hard to sell a smartphone which requires to be
-plugged to a power cable more frequently than every nights: one day is still
-strict minimum for the autonomy.</p>
-<p>ARM CPUs are commonly used in smartphones, tablets and other kinds of
-&quot;embedded&quot; devices. Intel developped technologies to reduce the power
-consumption to not loose markets, starting with laptops. It started with
-<a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep">SpeedStep</a> in 2005. Later Intel
-introduced <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost">Turbo Boost</a> in
-2008. With the latest generation, Skylake now runs the power
-management directly in the CPU.</p>
-<p>The <a class="reference external" href="https://en.wikipedia.org/wiki/Thermal_design_power">Thermal design power (TDP)</a> matters!</p>
-</div>
-<div class="section" id="impact-of-power-consumption-on-benchmarks">
-<h2>Impact of power consumption on benchmarks</h2>
-<p>In short, the speed of today Intel CPUs is no more constant. It changes a lot.
-It can change multiple times per minute depend many factors.</p>
-<p>The Turbo Mode makes the CPU faster if the CPU temperature is lower than
-a threshold. The Turbo Mode can be detected with a different CPU speed, the
-difference can be a single MHz.</p>
-<p>The result of a benchmark with and without Turbo Mode is huge.</p>
-<p>Linux uses a power manager to change dynamically the speed of the CPU. The
-default governor is usually &quot;powersave&quot;:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-powersave
-</pre>
-<p>See the driver:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver
-intel_pstate
-</pre>
-<p>Other driver: acpi_xxx.</p>
-<p>Available governors:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
-performance powersave
-</pre>
-<p>Changing the CPU speed takes a few milliseconds. The performance governor
-tries to limit the number of speed changes, whereas the powersave governor
-tries to reduce the power consumption and so tries to use the lowest
-CPU speed, without killing performances.</p>
-</div>
-<div class="section" id="cpu-turbo-boost">
-<h2>CPU Turbo Boost</h2>
-<p>If your system is using the intel_pstate frequency scaling driver:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_driver
-intel_pstate
-...
-intel_pstate
-</pre>
-<p>Then you can inquire as to the turbo enabled or disabled status:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
-0
-</pre>
-<p>Check if Turbo Boost is enabled:</p>
-<pre class="literal-block">
-sudo rdmsr -f 38:38 0x1a0
-</pre>
-<ul class="simple">
-<li><tt class="docutils literal">1</tt> means disabled (no turbo)</li>
-<li><tt class="docutils literal">0</tt> means enabled</li>
-</ul>
-<p>Use the <tt class="docutils literal">wrmsr</tt> to set the Turbo Boost, or go into your BIOS/EFI.</p>
-<p>Fedora: <tt class="docutils literal">dnf install <span class="pre">-u</span> <span class="pre">msr-tools</span></tt>.</p>
-<p>cpuinfo:</p>
-<pre class="literal-block">
-$ cpupower frequency-info
-analyzing CPU 0:
-  driver: intel_pstate
-  CPUs which run at the same hardware frequency: 0
-  CPUs which need to have their frequency coordinated by software: 0
-  maximum transition latency: 0.97 ms.
-  hardware limits: 1.20 GHz - 3.60 GHz
-  available cpufreq governors: performance, powersave
-  current policy: frequency should be within 1.20 GHz and 3.60 GHz.
-                  The governor &quot;powersave&quot; may decide which speed to use
-                  within this range.
-  current CPU frequency is 1.35 GHz.
-  boost state support:
-    Supported: yes
-    Active: yes
-    25500 MHz max turbo 4 active cores
-    25500 MHz max turbo 3 active cores
-    25500 MHz max turbo 2 active cores
-    25500 MHz max turbo 1 active cores
-</pre>
-</div>
-<div class="section" id="linux">
-<h2>Linux</h2>
-<ul class="simple">
-<li>Linux documentation<ul>
-<li><a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/governors.txt">Linux CPUFreq: CPUFreq Governors</a></li>
-<li><a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/user-guide.txt">Linux CPUFreq User Guide</a></li>
-</ul>
-</li>
-</ul>
-</div>
-<div class="section" id="intel-power-states">
-<h2>Intel power states</h2>
-<p><a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states">Power Management States: P-States, C-States, and Package C-States</a>.</p>
-<p>C0...C6 states:</p>
-<ul class="simple">
-<li>C0: CPU fully turned on</li>
-<li>C6: Deep Power Down</li>
-<li><a class="reference external" href="http://www.hardwaresecrets.com/everything-you-need-to-know-about-the-cpu-c-states-power-saving-modes/">Everything You Need to Know About the CPU C-States Power Saving Modes</a></li>
-</ul>
-</div>
-<div class="section" id="hyperthreading">
-<h2>HyperThreading</h2>
-<p>xxx</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="bookmark"
-                           title="Permalink to My journey to stable benchmark, part 3 (average)">My journey to stable benchmark, part 3 (average)</a></h1>
-                </header>
-
-                <div class="entry-content">
+                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a></h1>
 <footer class="post-info">
         <abbr class="published" title="2016-05-23T23:00:00+02:00">
                 Published: lun. 23 mai 2016
@@ -179,11 +33,235 @@ analyzing CPU 0:
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 3 (average)</p>
+</footer><!-- /.post-info --><a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"><img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /></a>
+<p><em>Stable benchmarks are so close, but ...</em></p>
+<div class="section" id="address-space-layout-randomization">
+<h2>Address Space Layout Randomization</h2>
+<p>When I started to work on removing the noise of the system, I was told that
+disabling <a class="reference external" href="https://en.wikipedia.org/wiki/Address_space_layout_randomization">Address Space Layout Randomization (ASLR)</a> makes
+benchmarks more stable.</p>
+<p>I followed this advice without trying to understand it. We will see in this
+article that it was a bad idea, but I had to hit other issues to really
+understand the root issue with disabling ASLR.</p>
+<p>Example of command to see the effect of ASLR, the first number of the output is
+the start address of the heap memory:</p>
+<pre class="literal-block">
+$ python -c 'import os; os.system(&quot;grep heap /proc/%s/maps&quot; % os.getpid())'
+55e6a716c000-55e6a7235000 rw-p 00000000 00:00 0                          [heap]
+</pre>
+<p>Heap address of 3 runs with ASLR enabled (random):</p>
+<ul class="simple">
+<li>55e6a716c000</li>
+<li>561c218eb000</li>
+<li>55e6f628f000</li>
+</ul>
+<p>Disable ASLR:</p>
+<pre class="literal-block">
+sudo bash -c 'echo 0 &gt;| /proc/sys/kernel/randomize_va_space'
+</pre>
+<p>Heap addresses of 3 runs with ASLR disabled (all the same):</p>
+<ul class="simple">
+<li>555555756000</li>
+<li>555555756000</li>
+<li>555555756000</li>
+</ul>
+<p>Note: To reenable ASLR, it's better to use the value 2, the value 1 only
+partially enables the feature:</p>
+<pre class="literal-block">
+sudo bash -c 'echo 2 &gt;| /proc/sys/kernel/randomize_va_space'
+</pre>
+</div>
+<div class="section" id="python-randomized-hash-function">
+<h2>Python randomized hash function</h2>
+<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">system tuning  (part 1)</a>, a
+<a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">Python compiled with PGO (part 2)</a>
+and ASLR disabled, I still I failed to get the same result when running
+manually <tt class="docutils literal">bm_call_simple.py</tt>.</p>
+<p>On Python 3, the hash function is now randomized by default: <a class="reference external" href="http://bugs.python.org/issue13703">issue #13703</a>. The problem is that for a
+microbenchmark, the number of hash collisions of an &quot;hot&quot; dictionary has a
+non-negligible impact on performances.</p>
+<p>The <tt class="docutils literal">PYTHONHASHSEED</tt> environment variable can be used to get a fixed hash
+function. Example with the patch:</p>
+<pre class="literal-block">
+$ PYTHONHASHSEED=1 taskset -c 1 ./python bm_call_simple.py -n 1
+0.198
+$ PYTHONHASHSEED=2 taskset -c 1 ./python bm_call_simple.py -n 1
+0.201
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
+0.207
+$ PYTHONHASHSEED=4 taskset -c 1 ./python bm_call_simple.py -n 1
+0.187
+$ PYTHONHASHSEED=5 taskset -c 1 ./python bm_call_simple.py -n 1
+0.180
+</pre>
+<p>Timings of the reference python:</p>
+<pre class="literal-block">
+$ PYTHONHASHSEED=1 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.204
+$ PYTHONHASHSEED=2 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.206
+$ PYTHONHASHSEED=3 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.195
+$ PYTHONHASHSEED=4 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.192
+$ PYTHONHASHSEED=5 taskset -c 1 ./ref_python bm_call_simple.py -n 1
+0.187
+</pre>
+<p>The minimums is 180 ms for the reference and 186 ms for the patch. The patched
+Python is 3% faster, yeah!</p>
+<p>Wait. What if we only test PYTHONHASHSEED from 1 to 3? In this case, the
+minimum is 195 ms for the reference and 198 ms for the patch. The patched
+Python becomes 2% slower, oh no!</p>
+<p>Faster? Slower? Who is right?</p>
+<p>Maybe I should write a script to find a <tt class="docutils literal">PYTHONHASHSEED</tt> value for which my
+patch is always faster :-)</p>
+</div>
+<div class="section" id="command-line-and-environment-variables">
+<h2>Command line and environment variables</h2>
+<p>Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
+patch doesn't touch the hash function. So it doesn't matter.</p>
+<p>While running benchmarks, I noticed differences when running the benchmark from
+a different directory:</p>
+<pre class="literal-block">
+$ cd /home/haypo/prog/python/fastcall
+$ PYTHONHASHSEED=3 taskset -c 1 pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
+0.215
 
-                <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-average.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
+$ cd /home/haypo/prog/python/benchmarks
+$ PYTHONHASHSEED=3 taskset -c 1 ../fastcall/pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
+0.203
+
+$ cd /home/haypo/prog/python
+$ PYTHONHASHSEED=3 taskset -c 1 fastcall/pgo/python benchmarks/performance/bm_call_simple.py -n 1
+0.200
+</pre>
+<p>In fact, a different command line is enough so get different results (added
+arguments are ignored):</p>
+<pre class="literal-block">
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
+0.201
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1
+0.198
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3
+0.203
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5
+0.206
+$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5 arg6
+0.210
+</pre>
+<p>I also noticed minor differences when the environment changes (added variables
+are ignored):</p>
+<pre class="literal-block">
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 1
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 ./python bm_call_simple.py -n 1
+0.202
+$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 VAR5=5 ./python bm_call_simple.py -n 1
+0.198
+</pre>
+<p>Using <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt>, I saw the memory addresses are different when
+something (command line, env var, etc.) changes.</p>
+</div>
+<div class="section" id="average-and-standard-deviation">
+<h2>Average and standard deviation</h2>
+<p>Basically, it looks like a lot of &quot;external factors&quot; have an impact on the
+exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
+started to think how to get <em>exactly</em> the same command line, the same
+environment (easy), the same current directory (easy), etc. The problem is that
+it's just not possible to control all external factors (having an effect on the
+exact memory addresses).</p>
+<p>Maybe I was plain wrong from the beginning and ASLR must be enabled,
+as the default on Linux:</p>
+<pre class="literal-block">
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.198
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.202
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.199
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.207
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.200
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
+0.201
+</pre>
+<p>These results look &quot;random&quot;. Yes, they are. It's exactly the purpose of ASLR.</p>
+<p>But how can we compare performances if results are random? Take the minimum?</p>
+<p>No! You must never (ever again) use the minimum for benchmarking! Compute the
+average and some statistics like the standard deviation:</p>
+<pre class="literal-block">
+$ python3
+Python 3.4.3
+&gt;&gt;&gt; timings=[0.198, 0.202, 0.199, 0.207, 0.200, 0.201]
+&gt;&gt;&gt; import statistics
+&gt;&gt;&gt; statistics.mean(timings)
+0.2011666666666667
+&gt;&gt;&gt; statistics.stdev(timings)
+0.0031885210782848245
+</pre>
+<p>On this example, the average is 201 ms +/- 3 ms. IMHO the standard deviation is
+quite small (reliable) which means that my benchmark is stable. To get a good
+distribution, it's better to have many samples. It looks like at least 25
+processes are needed. Each process tests a different memory layout and a
+different hash function.</p>
+<p>Result of 5 runs, each run uses 25 processes (ASLR enabled, random hash
+function):</p>
+<ul class="simple">
+<li>Average: 205.2 ms +/- 3.0 ms (min: 201.1 ms, max: 214.9 ms)</li>
+<li>Average: 205.6 ms +/- 3.3 ms (min: 201.4 ms, max: 216.5 ms)</li>
+<li>Average: 206.0 ms +/- 3.9 ms (min: 201.1 ms, max: 215.3 ms)</li>
+<li>Average: 205.7 ms +/- 3.6 ms (min: 201.5 ms, max: 217.8 ms)</li>
+<li>Average: 206.4 ms +/- 3.5 ms (min: 201.9 ms, max: 214.9 ms)</li>
+</ul>
+<p>While memory layout and hash functions are random again, the result looks
+<em>less</em> random, and so more reliable, than before!</p>
+<p>With ASLR enabled, the effect of the environment variables, command line and
+current directory is negligible on the (average) result.</p>
+</div>
+<div class="section" id="the-average-solves-issues-with-uniform-random-noises">
+<h2>The average solves issues with uniform random noises</h2>
+<p>The user will run the application with default system settings which means
+ASLR enabled and Python hash function randomized. Running a benchmark in one
+specific environment is a mistake because it is not representative of the
+performance in practice.</p>
+<p>Computing the average and standard deviation &quot;fixes&quot; the issue with hash
+randomization. It's much better to use random hash functions and compute the
+average, than using a fixed hash function (setting <tt class="docutils literal">PYTHONHASHSEED</tt> variable
+to a value).</p>
+<p>Oh wow, already 3 big articles explaing how to get stable benchmarks. Please
+tell me that it was the last one!  Nope, more is coming...</p>
+</div>
+<div class="section" id="annex-why-only-n1">
+<h2>Annex: why only -n1?</h2>
+<p>In this article, I ran <tt class="docutils literal">bm_call_simple.py</tt> with <tt class="docutils literal"><span class="pre">-n</span> 1</tt> with only run one
+iteration.</p>
+<p>Usually, a single iteration is not reliable at all, at least 50 iterations are
+needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
+<tt class="docutils literal">PYTHONHASHSEED</tt> set, a single iteration is enough.</p>
+<p>Example of 3 runs, each with 3 iterations:</p>
+<pre class="literal-block">
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
+0.201
+0.201
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
+0.201
+0.201
+0.201
+$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
+0.201
+0.201
+0.201
+</pre>
+<p>Always the same timing!</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
 
             <li><article class="hentry">
                 <header>
