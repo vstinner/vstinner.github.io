@@ -1,1 +1,0 @@
-../draft/stable_benchmark_cpu.rst
