@@ -24,7 +24,7 @@ of modern Intel CPUs, so I tried to write mine.&lt;/p&gt;
 &lt;/ul&gt;
 &lt;p&gt;&lt;tt class="docutils literal"&gt;dnf install &lt;span class="pre"&gt;-y&lt;/span&gt; &lt;span class="pre"&gt;kernel-tools&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
-&lt;li&gt;cpupower&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://linux.die.net/man/1/cpupower"&gt;cpupower&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;turbostat&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;&lt;tt class="docutils literal"&gt;sudo dnf install &lt;span class="pre"&gt;-y&lt;/span&gt; &lt;span class="pre"&gt;msr-tools&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
@@ -130,6 +130,7 @@ penalty to CPU performance.&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;intel_pstate=disable&lt;/tt&gt; option in the kernel command line.&lt;/p&gt;
 &lt;p&gt;See also:&lt;/p&gt;
 &lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/intel-pstate.txt"&gt;Documentation of the intel-pstate driver&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://plus.google.com/+ArjanvandeVen/posts/dLn9T4ehywL"&gt;Some basics on CPU P states on Intel processors&lt;/a&gt; (2013) by Arjan
 van de Ven (Intel)&lt;/li&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf"&gt;Balancing Power and Performance in the Linux Kernel&lt;/a&gt;
@@ -189,8 +190,14 @@ scaling technologies to reduce the power consumption of laptop CPUs. Turbo
 Boost is an enhancement of these technologies, now also used on desktop and
 server CPUs.&lt;/p&gt;
 &lt;p&gt;Turbo Boost allows to run one or many CPU cores to higher P-states than usual.
-The maximum P-state depends on the workload, the temperature of CPUs, the
-number of active cores, etc. Example on my laptop:&lt;/p&gt;
+The maximum P-state is constrained by the following factors:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The number of active cores (in C0 or C1 state)&lt;/li&gt;
+&lt;li&gt;The estimated current consumption of the processor (Imax)&lt;/li&gt;
+&lt;li&gt;The estimated power consumption (TDP - Thermal Design Power) of processor&lt;/li&gt;
+&lt;li&gt;The temperature of the processor&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example on my laptop:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 selma$ cat /proc/cpuinfo
 model name : Intel(R) Core(TM) i7-3520M CPU &amp;#64; 2.90GHz
@@ -212,6 +219,7 @@ analyzing CPU 0:
 (busy), their frequency can be increased up to 3.4 GHz. If only 1 physical core
 is active, its frequency can be increased up to 3.6 GHz.&lt;/p&gt;
 &lt;p&gt;In this example, Turbo Boost is supported and active.&lt;/p&gt;
+&lt;p&gt;See also the &lt;a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/boost.txt"&gt;Linux cpu-freq documentation on CPU boost&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="turbo-boost-msr"&gt;
 &lt;h3&gt;Turbo Boost MSR&lt;/h3&gt;
 &lt;p&gt;The bit 38 of the &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Model-specific_register"&gt;Model-specific register
