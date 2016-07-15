@@ -43,7 +43,7 @@ This article mentions various tools. Commands to install them on Fedora 24:
 
 ``dnf install -y kernel-tools``:
 
-* cpupower
+* `cpupower <http://linux.die.net/man/1/cpupower>`_
 * turbostat
 
 ``sudo dnf install -y msr-tools``:
@@ -165,6 +165,8 @@ It is possible to force the legacy CPU driver (``acpi_cpufreq``) using
 
 See also:
 
+* `Documentation of the intel-pstate driver
+  <https://www.kernel.org/doc/Documentation/cpu-freq/intel-pstate.txt>`_
 * `Some basics on CPU P states on Intel processors
   <https://plus.google.com/+ArjanvandeVen/posts/dLn9T4ehywL>`_ (2013) by Arjan
   van de Ven (Intel)
@@ -236,8 +238,14 @@ Boost is an enhancement of these technologies, now also used on desktop and
 server CPUs.
 
 Turbo Boost allows to run one or many CPU cores to higher P-states than usual.
-The maximum P-state depends on the workload, the temperature of CPUs, the
-number of active cores, etc. Example on my laptop::
+The maximum P-state is constrained by the following factors:
+
+- The number of active cores (in C0 or C1 state)
+- The estimated current consumption of the processor (Imax)
+- The estimated power consumption (TDP - Thermal Design Power) of processor
+- The temperature of the processor
+
+Example on my laptop::
 
     selma$ cat /proc/cpuinfo
     model name : Intel(R) Core(TM) i7-3520M CPU @ 2.90GHz
@@ -260,6 +268,9 @@ The CPU base frequency is 2.9 GHz. If more than one physical cores is "active"
 is active, its frequency can be increased up to 3.6 GHz.
 
 In this example, Turbo Boost is supported and active.
+
+See also the `Linux cpu-freq documentation on CPU boost
+<https://www.kernel.org/doc/Documentation/cpu-freq/boost.txt>`_.
 
 
 Turbo Boost MSR
