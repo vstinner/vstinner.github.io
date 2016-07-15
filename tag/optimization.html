@@ -22,7 +22,385 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/intel-cpus.html">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-07-15T12:00:00+02:00">
+                Published: ven. 15 juillet 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><p>Ten years ago, most computers were desktop computers designed for best
+performances and their CPU frequency was fixed. Nowadays, most devices are
+embedded and use <a class="reference external" href="https://en.wikipedia.org/wiki/Low-power_electronics">low power consumption</a> processors like ARM
+CPUs. The power consumption now matters more than performance peaks.</p>
+<p>Intel CPUs evolved from a single core to multiple physical cores in the same
+<a class="reference external" href="https://en.wikipedia.org/wiki/CPU_socket">package</a> and got new features:
+<a class="reference external" href="https://en.wikipedia.org/wiki/Hyper-threading">Hyper-threading</a> to run two
+threads on the same physical core and <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost">Turbo Boost</a> to maximum performances.
+CPU cores can be completely turned off (CPU HALT, frequency of 0) temporary to
+reduce the power consumption, and the frequency of cores changes regulary
+depending on many factors like the workload and temperature. The power
+consumption is now an important part in the design of modern CPUs.</p>
+<p>Warning! This article is a summary of what I learnt last weeks from random
+articles. It may be full of mistakes, don't hesitate to report them, so I can
+enhance the article! It's hard to find simple articles explaining performances
+of modern Intel CPUs, so I tried to write mine.</p>
+<div class="section" id="tools-used-in-this-article">
+<h2>Tools used in this article</h2>
+<p>This article mentions various tools. Commands to install them on Fedora 24:</p>
+<p><tt class="docutils literal">dnf install <span class="pre">-y</span> <span class="pre">util-linux</span></tt>:</p>
+<ul class="simple">
+<li>lscpu</li>
+</ul>
+<p><tt class="docutils literal">dnf install <span class="pre">-y</span> <span class="pre">kernel-tools</span></tt>:</p>
+<ul class="simple">
+<li>cpupower</li>
+<li>turbostat</li>
+</ul>
+<p><tt class="docutils literal">sudo dnf install <span class="pre">-y</span> <span class="pre">msr-tools</span></tt>:</p>
+<ul class="simple">
+<li>rdmsr</li>
+<li>wrmsr</li>
+</ul>
+<p>Other interesting tools, not used in this article: i7z (sadly no more
+maintained), lshw, dmidecode, sensors.</p>
+<p>The sensors tool is supposed to report the current CPU voltage, but it doesn't
+provide this information on my computers. At least, it gives the temperature of
+different components, but also the speed of fans.</p>
+</div>
+<div class="section" id="example-of-intel-cpus">
+<h2>Example of Intel CPUs</h2>
+<div class="section" id="my-laptop-cpu-proc-cpuinfo">
+<h3>My laptop CPU: /proc/cpuinfo</h3>
+<p>On Linux, the most common way to retrieve information on the CPU is to read
+<tt class="docutils literal">/proc/cpuinfo</tt>. Example on my laptop:</p>
+<pre class="literal-block">
+selma$ cat /proc/cpuinfo
+processor  : 0
+vendor_id  : GenuineIntel
+model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
+cpu MHz    : 1200.214
+...
+
+processor  : 1
+vendor_id  : GenuineIntel
+model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
+cpu MHz    : 3299.882
+...
+</pre>
+<p>&quot;i7-3520M&quot; CPU is a model designed for Mobile Platforms (see the &quot;M&quot; suffix).
+It was built in 2012 and is the third generation of the Intel i7
+microarchitecture: <a class="reference external" href="https://en.wikipedia.org/wiki/Ivy_Bridge_(microarchitecture)">Ivy Bridge</a>.</p>
+<p>The CPU has two physical cores, I disabled HyperThreading in the BIOS.</p>
+<p>The first strange thing is that the CPU announces &quot;2.90 GHz&quot; but Linux reports
+1.2 GHz on the first core, and 3.3 GHz on the second core. 3.3 GHz is greater
+than 2.9 GHz!</p>
+</div>
+<div class="section" id="my-desktop-cpu-cpu-topology-with-lscpu">
+<h3>My desktop CPU: CPU topology with lscpu</h3>
+<p>cpuinfo:</p>
+<pre class="literal-block">
+smithers$ cat /proc/cpuinfo
+processor   : 0
+physical id : 0
+core id     : 0
+...
+model name  : Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz
+cpu cores   : 4
+...
+
+processor   : 1
+physical id : 0
+core id     : 1
+...
+
+(...)
+
+processor   : 7
+physical id : 0
+core id     : 3
+...
+</pre>
+<p>The CPU i7-2600 is the 2nd generation: <a class="reference external" href="https://en.wikipedia.org/wiki/Sandy_Bridge">Sandy Bridge microarchitecture</a>. There are 8 logical cores and 4
+physical cores (so with Hyper-threading).</p>
+<p>The <tt class="docutils literal">lscpu</tt> renders a short table which helps to understand the CPU topology:</p>
+<pre class="literal-block">
+smithers$ lscpu -a -e
+CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE MAXMHZ    MINMHZ
+0   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
+1   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
+2   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
+3   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
+4   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
+5   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
+6   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
+7   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
+</pre>
+<p>There are 8 logical CPUs (<tt class="docutils literal">CPU <span class="pre">0..7</span></tt>), all on the same node (<tt class="docutils literal">NODE 0</tt>) and
+the same socket (<tt class="docutils literal">SOCKET 0</tt>).  There are only 4 physical cores (<tt class="docutils literal">CORE
+<span class="pre">0..3</span></tt>). For example, the physical core <tt class="docutils literal">2</tt> is made of the two logical CPUs:
+<tt class="docutils literal">2</tt> and <tt class="docutils literal">6</tt>.</p>
+<p>Using the <tt class="docutils literal">L1d:L1i:L2:L3</tt> column, we can see that each pair of two logical
+cores share the same physical core caches for levels 1 (L1 data, L1
+instruction) and 2 (L2).  All physical cores share the same cache level 3 (L3).</p>
+</div>
+</div>
+<div class="section" id="p-states">
+<h2>P-states</h2>
+<p>A new CPU driver <tt class="docutils literal">intel_pstate</tt> was added to the Linux kernel 3.9 (April
+2009). First, it only supported SandyBridge CPUs (2nd generation), Linux 3.10
+extended it to Ivybridge generation CPUs (3rd gen), and so on and so forth.</p>
+<p>This driver supports recent features and thermal control of modern Intel CPUs.
+Its name comes from P-states.</p>
+<p>The processor P-state is the capability of running the processor at different
+voltage and/or frequency levels. Generally, P0 is the highest state resulting
+in maximum performance, while P1, P2, and so on, will save power but at some
+penalty to CPU performance.</p>
+<p>It is possible to force the legacy CPU driver (<tt class="docutils literal">acpi_cpufreq</tt>) using
+<tt class="docutils literal">intel_pstate=disable</tt> option in the kernel command line.</p>
+<p>See also:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://plus.google.com/+ArjanvandeVen/posts/dLn9T4ehywL">Some basics on CPU P states on Intel processors</a> (2013) by Arjan
+van de Ven (Intel)</li>
+<li><a class="reference external" href="https://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf">Balancing Power and Performance in the Linux Kernel</a>
+talk at LinuxCon Europe 2015 by Kristen Accardi (Intel)</li>
+<li><a class="reference external" href="https://software.intel.com/en-us/blogs/2008/05/29/what-exactly-is-a-p-state-pt-1">What exactly is a P-state? (Pt. 1)</a>
+(2008) by Taylor K. (Intel)</li>
+</ul>
+</div>
+<div class="section" id="idle-states-c-states">
+<h2>Idle states: C-states</h2>
+<p>C-states are idle power saving states, in contrast to P-states, which are
+execution power saving states.</p>
+<p>During a P-state, the processor is still executing instructions, whereas during
+a C-state (other than C0), the processor is idle, meaning that nothing is
+executing.</p>
+<p>C-states:</p>
+<ul class="simple">
+<li>C0 is the operational state, meaning that the CPU is doing useful work</li>
+<li>C1 is the first idle state</li>
+<li>C2 is the second idle state: The external I/O Controller Hub blocks
+interrupts to the processor.</li>
+<li>etc.</li>
+</ul>
+<p>When a logical processor is idle (C-state except of C0), its frequency is
+typically 0 (HALT).</p>
+<p>The <tt class="docutils literal">cpupower <span class="pre">idle-info</span></tt> command lists supported C-states:</p>
+<pre class="literal-block">
+selma$ cpupower idle-info
+CPUidle driver: intel_idle
+CPUidle governor: menu
+analyzing CPU 0:
+
+Number of idle states: 6
+Available idle states: POLL C1-IVB C1E-IVB C3-IVB C6-IVB C7-IVB
+...
+</pre>
+<p>The <tt class="docutils literal">cpupower monitor</tt> shows statistics on C-states:</p>
+<pre class="literal-block">
+smithers$ sudo cpupower monitor -m Idle_Stats
+    |Idle_Stats
+CPU | POLL | C1-S | C1E- | C3-S | C6-S
+   0|  0,00|  0,19|  0,09|  0,58| 96,23
+   4|  0,00|  0,00|  0,00|  0,00| 99,90
+   1|  0,00|  2,34|  0,00|  0,00| 97,63
+   5|  0,00|  0,00|  0,17|  0,00| 98,02
+   2|  0,00|  0,00|  0,00|  0,00|  0,00
+   6|  0,00|  0,00|  0,00|  0,00|  0,00
+   3|  0,00|  0,00|  0,00|  0,00|  0,00
+   7|  0,00|  0,00|  0,00|  0,00| 49,97
+</pre>
+<p>See also: <a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states">Power Management States: P-States, C-States, and Package C-States</a>.</p>
+</div>
+<div class="section" id="id1">
+<h2>Turbo Boost</h2>
+<p>In 2005, Intel introduced <a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep">SpeedStep</a>, a serie of dynamic frequency
+scaling technologies to reduce the power consumption of laptop CPUs. Turbo
+Boost is an enhancement of these technologies, now also used on desktop and
+server CPUs.</p>
+<p>Turbo Boost allows to run one or many CPU cores to higher P-states than usual.
+The maximum P-state depends on the workload, the temperature of CPUs, the
+number of active cores, etc. Example on my laptop:</p>
+<pre class="literal-block">
+selma$ cat /proc/cpuinfo
+model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
+...
+
+selma$ sudo cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  boost state support:
+    Supported: yes
+    Active: yes
+    3400 MHz max turbo 4 active cores
+    3400 MHz max turbo 3 active cores
+    3400 MHz max turbo 2 active cores
+    3600 MHz max turbo 1 active cores
+</pre>
+<p>The CPU base frequency is 2.9 GHz. If more than one physical cores is &quot;active&quot;
+(busy), their frequency can be increased up to 3.4 GHz. If only 1 physical core
+is active, its frequency can be increased up to 3.6 GHz.</p>
+<p>In this example, Turbo Boost is supported and active.</p>
+<div class="section" id="turbo-boost-msr">
+<h3>Turbo Boost MSR</h3>
+<p>The bit 38 of the <a class="reference external" href="https://en.wikipedia.org/wiki/Model-specific_register">Model-specific register
+(MSR)</a> <tt class="docutils literal">0x1a0</tt> can
+be used to check if the Turbo Boost is enabled:</p>
+<pre class="literal-block">
+selma$ sudo rdmsr -f 38:38 0x1a0
+0
+</pre>
+<p><tt class="docutils literal">0</tt> means that Turbo Boost is enabled, whereas <tt class="docutils literal">1</tt> means disabled (no
+turbo). (The <tt class="docutils literal"><span class="pre">-f</span> 38:38</tt> option asks to only display the bit 38.)</p>
+<p>If the command doesn't work, you may have to load the <tt class="docutils literal">msr</tt> kernel module:</p>
+<pre class="literal-block">
+sudo modprobe msr
+</pre>
+<p>Note: I'm not sure that all Intel CPU uses the same MSR.</p>
+</div>
+<div class="section" id="intel-state-no-turbo">
+<h3>intel_state/no_turbo</h3>
+<p>Turbo Boost can also be disabled at runtime in the <tt class="docutils literal">intel_pstate</tt> driver.</p>
+<p>Check if Turbo Boost is enabled:</p>
+<pre class="literal-block">
+selma$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
+0
+</pre>
+<p>where <tt class="docutils literal">0</tt> means that Turbo Boost is enabled. Disable Turbo Boost:</p>
+<pre class="literal-block">
+selma$ echo 1|sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo
+</pre>
+</div>
+<div class="section" id="cpu-flag-ida">
+<h3>CPU flag &quot;ida&quot;</h3>
+<p>It looks like the Turbo Boost status (supported or not) can also be read by the
+CPUID(6): &quot;Thermal/Power Management&quot;. It gives access to the flag <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Dynamic_Acceleration">Intel
+Dynamic Acceleration (IDA)</a>.</p>
+<p>The <tt class="docutils literal">ida</tt> flag can also be seen in CPU flags of <tt class="docutils literal">/proc/cpuinfo</tt>.</p>
+</div>
+</div>
+<div class="section" id="read-the-cpu-frequency">
+<h2>Read the CPU frequency</h2>
+<p>General information using <tt class="docutils literal">cpupower <span class="pre">frequency-info</span></tt>:</p>
+<pre class="literal-block">
+selma$ cpupower -c 0 frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  hardware limits: 1.20 GHz - 3.60 GHz
+  ...
+</pre>
+<p>The frequency of CPUs is between 1.2 GHz and 3.6 GHz (the base frequency is
+2.9 GHz on this CPU).</p>
+<div class="section" id="get-the-frequency-of-cpus-turbostat">
+<h3>Get the frequency of CPUs: turbostat</h3>
+<p>It looks like the most reliable way to get a relialistic estimation of the CPUs
+frequency is to use the tool <tt class="docutils literal">turbostat</tt>:</p>
+<pre class="literal-block">
+selma$ sudo turbostat
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+       -     224    7.80    2878    2893
+       0     448   15.59    2878    2893
+       1       0    0.01    2762    2893
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+       -     139    5.65    2469    2893
+       0     278   11.29    2469    2893
+       1       0    0.01    2686    2893
+    ...
+</pre>
+<ul class="simple">
+<li><tt class="docutils literal">Avg_MHz</tt>: average frequency, based on APERF</li>
+<li><tt class="docutils literal">Busy%</tt>: CPU usage in percent</li>
+<li><tt class="docutils literal">Bzy_MHz</tt>: busy frequency, based on MPERF</li>
+<li><tt class="docutils literal">TSC_MHz</tt>: fixed frequency, TSC stands for <a class="reference external" href="https://en.wikipedia.org/wiki/Time_Stamp_Counter">Time Stamp Counter</a></li>
+</ul>
+<p>APERF (average) and MPERF (maximum) are MSR registers that can provide feedback
+on current CPU frequency.</p>
+</div>
+<div class="section" id="other-tools-to-get-the-cpu-frequency">
+<h3>Other tools to get the CPU frequency</h3>
+<p>It looks like the following tools are less reliable to estimate the CPU
+frequency.</p>
+<p>cpuinfo:</p>
+<pre class="literal-block">
+selma$ grep MHz /proc/cpuinfo
+cpu MHz : 1372.289
+cpu MHz : 3401.042
+</pre>
+<p>In April 2016, Len Brown proposed a patch modifying cpuinfo to use APERF and
+MPERF MSR to estimate the CPU frequency: <a class="reference external" href="https://lkml.org/lkml/2016/4/1/7">x86: Calculate MHz using APERF/MPERF
+for cpuinfo and scaling_cur_freq</a>.</p>
+<p>The <tt class="docutils literal">tsc</tt> clock source logs the CPU frequency in kernel logs:</p>
+<pre class="literal-block">
+selma$ dmesg|grep 'MHz processor'
+[    0.000000] tsc: Detected 2893.331 MHz processor
+</pre>
+<p>cpupower frequency-info:</p>
+<pre class="literal-block">
+selma$ for core in $(seq 0 1); do sudo cpupower -c $core frequency-info|grep 'current CPU'; done
+  current CPU frequency: 3.48 GHz (asserted by call to hardware)
+  current CPU frequency: 3.40 GHz (asserted by call to hardware)
+</pre>
+<p>cpupower monitor:</p>
+<pre class="literal-block">
+selma$ sudo cpupower monitor -m 'Mperf'
+    |Mperf
+CPU | C0   | Cx   | Freq
+   0|  4.77| 95.23|  1924
+   1|  0.01| 99.99|  1751
+</pre>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>Modern Intel CPUs use various technologies to provide best performances without
+killing the power consumption. It became harder to monitor and understand CPU
+performances, than with older CPUs, since the performance now depends on much
+more factors.</p>
+<p>It also becomes common to get an integrated graphics processor (IGP) in the
+same package, which makes the exact performance even more complex to predict,
+since the IGP produces heat and so has an impact on the CPU P-state.</p>
+<p>I should also explain that P-state are &quot;voted&quot; between CPU cores, but I didn't
+understand this part. I'm not sure that understanding the exact algorithm
+matters much. I tried to not give too much information.</p>
+</div>
+<div class="section" id="annex-amt-and-the-me-power-management-coprocessor">
+<h2>Annex: AMT and the ME (power management coprocessor)</h2>
+<p>Computers with Intel vPro technology includes <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology">Intel Active Management
+Technology (AMT)</a>: &quot;hardware
+and firmware technology for remote out-of-band management of personal
+computers&quot;. AMT has many features which includes power management.</p>
+<p><a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology#Hardware">Management Engine (ME)</a>
+is the hardware part: an isolated and protected coprocessor, embedded as a
+non-optional part in all current (as of 2015) Intel chipsets. The coprocessor
+is a special 32-bit ARC microprocessor (RISC architecture) that's physically
+located inside the PCH chipset (or MCH on older chipsets). The coprocessor can
+for example be found on Intel MCH chipsets Q35 and Q45.</p>
+<p>See <a class="reference external" href="https://boingboing.net/2016/06/15/intel-x86-processors-ship-with.html">Intel x86s hide another CPU that can take over your machine (you can't
+audit it)</a> for
+more information on the coprocessor.</p>
+<p>More recently, the Intel Xeon Phi CPU (2016) also includes a coprocessor for
+power management. I didn't understand if it is the same coprocessor or not.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="bookmark"
+                           title="Permalink to My journey to stable benchmark, part 3 (average)">My journey to stable benchmark, part 3 (average)</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-05-23T23:00:00+02:00">
                 Published: lun. 23 mai 2016
@@ -33,235 +411,11 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"><img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /></a>
-<p><em>Stable benchmarks are so close, but ...</em></p>
-<div class="section" id="address-space-layout-randomization">
-<h2>Address Space Layout Randomization</h2>
-<p>When I started to work on removing the noise of the system, I was told that
-disabling <a class="reference external" href="https://en.wikipedia.org/wiki/Address_space_layout_randomization">Address Space Layout Randomization (ASLR)</a> makes
-benchmarks more stable.</p>
-<p>I followed this advice without trying to understand it. We will see in this
-article that it was a bad idea, but I had to hit other issues to really
-understand the root issue with disabling ASLR.</p>
-<p>Example of command to see the effect of ASLR, the first number of the output is
-the start address of the heap memory:</p>
-<pre class="literal-block">
-$ python -c 'import os; os.system(&quot;grep heap /proc/%s/maps&quot; % os.getpid())'
-55e6a716c000-55e6a7235000 rw-p 00000000 00:00 0                          [heap]
-</pre>
-<p>Heap address of 3 runs with ASLR enabled (random):</p>
-<ul class="simple">
-<li>55e6a716c000</li>
-<li>561c218eb000</li>
-<li>55e6f628f000</li>
-</ul>
-<p>Disable ASLR:</p>
-<pre class="literal-block">
-sudo bash -c 'echo 0 &gt;| /proc/sys/kernel/randomize_va_space'
-</pre>
-<p>Heap addresses of 3 runs with ASLR disabled (all the same):</p>
-<ul class="simple">
-<li>555555756000</li>
-<li>555555756000</li>
-<li>555555756000</li>
-</ul>
-<p>Note: To reenable ASLR, it's better to use the value 2, the value 1 only
-partially enables the feature:</p>
-<pre class="literal-block">
-sudo bash -c 'echo 2 &gt;| /proc/sys/kernel/randomize_va_space'
-</pre>
-</div>
-<div class="section" id="python-randomized-hash-function">
-<h2>Python randomized hash function</h2>
-<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">system tuning  (part 1)</a>, a
-<a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">Python compiled with PGO (part 2)</a>
-and ASLR disabled, I still I failed to get the same result when running
-manually <tt class="docutils literal">bm_call_simple.py</tt>.</p>
-<p>On Python 3, the hash function is now randomized by default: <a class="reference external" href="http://bugs.python.org/issue13703">issue #13703</a>. The problem is that for a
-microbenchmark, the number of hash collisions of an &quot;hot&quot; dictionary has a
-non-negligible impact on performances.</p>
-<p>The <tt class="docutils literal">PYTHONHASHSEED</tt> environment variable can be used to get a fixed hash
-function. Example with the patch:</p>
-<pre class="literal-block">
-$ PYTHONHASHSEED=1 taskset -c 1 ./python bm_call_simple.py -n 1
-0.198
-$ PYTHONHASHSEED=2 taskset -c 1 ./python bm_call_simple.py -n 1
-0.201
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
-0.207
-$ PYTHONHASHSEED=4 taskset -c 1 ./python bm_call_simple.py -n 1
-0.187
-$ PYTHONHASHSEED=5 taskset -c 1 ./python bm_call_simple.py -n 1
-0.180
-</pre>
-<p>Timings of the reference python:</p>
-<pre class="literal-block">
-$ PYTHONHASHSEED=1 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.204
-$ PYTHONHASHSEED=2 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.206
-$ PYTHONHASHSEED=3 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.195
-$ PYTHONHASHSEED=4 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.192
-$ PYTHONHASHSEED=5 taskset -c 1 ./ref_python bm_call_simple.py -n 1
-0.187
-</pre>
-<p>The minimums is 180 ms for the reference and 186 ms for the patch. The patched
-Python is 3% faster, yeah!</p>
-<p>Wait. What if we only test PYTHONHASHSEED from 1 to 3? In this case, the
-minimum is 195 ms for the reference and 198 ms for the patch. The patched
-Python becomes 2% slower, oh no!</p>
-<p>Faster? Slower? Who is right?</p>
-<p>Maybe I should write a script to find a <tt class="docutils literal">PYTHONHASHSEED</tt> value for which my
-patch is always faster :-)</p>
-</div>
-<div class="section" id="command-line-and-environment-variables">
-<h2>Command line and environment variables</h2>
-<p>Well, let's say that we will use a fixed PYTHONHASHSEED value. Anyway, my
-patch doesn't touch the hash function. So it doesn't matter.</p>
-<p>While running benchmarks, I noticed differences when running the benchmark from
-a different directory:</p>
-<pre class="literal-block">
-$ cd /home/haypo/prog/python/fastcall
-$ PYTHONHASHSEED=3 taskset -c 1 pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
-0.215
+</footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 3 (average)</p>
 
-$ cd /home/haypo/prog/python/benchmarks
-$ PYTHONHASHSEED=3 taskset -c 1 ../fastcall/pgo/python ../benchmarks/performance/bm_call_simple.py -n 1
-0.203
-
-$ cd /home/haypo/prog/python
-$ PYTHONHASHSEED=3 taskset -c 1 fastcall/pgo/python benchmarks/performance/bm_call_simple.py -n 1
-0.200
-</pre>
-<p>In fact, a different command line is enough so get different results (added
-arguments are ignored):</p>
-<pre class="literal-block">
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1
-0.201
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1
-0.198
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3
-0.203
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5
-0.206
-$ PYTHONHASHSEED=3 taskset -c 1 ./python bm_call_simple.py -n 1 arg1 arg2 arg3 arg4 arg5 arg6
-0.210
-</pre>
-<p>I also noticed minor differences when the environment changes (added variables
-are ignored):</p>
-<pre class="literal-block">
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 1
-0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 ./python bm_call_simple.py -n 1
-0.202
-$ taskset -c 1 env -i PYTHONHASHSEED=3 VAR1=1 VAR2=2 VAR3=3 VAR4=4 VAR5=5 ./python bm_call_simple.py -n 1
-0.198
-</pre>
-<p>Using <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt>, I saw the memory addresses are different when
-something (command line, env var, etc.) changes.</p>
-</div>
-<div class="section" id="average-and-standard-deviation">
-<h2>Average and standard deviation</h2>
-<p>Basically, it looks like a lot of &quot;external factors&quot; have an impact on the
-exact memory addresses, even if ASRL is disabled and PYTHONHASHSEED is set. I
-started to think how to get <em>exactly</em> the same command line, the same
-environment (easy), the same current directory (easy), etc. The problem is that
-it's just not possible to control all external factors (having an effect on the
-exact memory addresses).</p>
-<p>Maybe I was plain wrong from the beginning and ASLR must be enabled,
-as the default on Linux:</p>
-<pre class="literal-block">
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.198
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.202
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.199
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.207
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.200
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py
-0.201
-</pre>
-<p>These results look &quot;random&quot;. Yes, they are. It's exactly the purpose of ASLR.</p>
-<p>But how can we compare performances if results are random? Take the minimum?</p>
-<p>No! You must never (ever again) use the minimum for benchmarking! Compute the
-average and some statistics like the standard deviation:</p>
-<pre class="literal-block">
-$ python3
-Python 3.4.3
-&gt;&gt;&gt; timings=[0.198, 0.202, 0.199, 0.207, 0.200, 0.201]
-&gt;&gt;&gt; import statistics
-&gt;&gt;&gt; statistics.mean(timings)
-0.2011666666666667
-&gt;&gt;&gt; statistics.stdev(timings)
-0.0031885210782848245
-</pre>
-<p>On this example, the average is 201 ms +/- 3 ms. IMHO the standard deviation is
-quite small (reliable) which means that my benchmark is stable. To get a good
-distribution, it's better to have many samples. It looks like at least 25
-processes are needed. Each process tests a different memory layout and a
-different hash function.</p>
-<p>Result of 5 runs, each run uses 25 processes (ASLR enabled, random hash
-function):</p>
-<ul class="simple">
-<li>Average: 205.2 ms +/- 3.0 ms (min: 201.1 ms, max: 214.9 ms)</li>
-<li>Average: 205.6 ms +/- 3.3 ms (min: 201.4 ms, max: 216.5 ms)</li>
-<li>Average: 206.0 ms +/- 3.9 ms (min: 201.1 ms, max: 215.3 ms)</li>
-<li>Average: 205.7 ms +/- 3.6 ms (min: 201.5 ms, max: 217.8 ms)</li>
-<li>Average: 206.4 ms +/- 3.5 ms (min: 201.9 ms, max: 214.9 ms)</li>
-</ul>
-<p>While memory layout and hash functions are random again, the result looks
-<em>less</em> random, and so more reliable, than before!</p>
-<p>With ASLR enabled, the effect of the environment variables, command line and
-current directory is negligible on the (average) result.</p>
-</div>
-<div class="section" id="the-average-solves-issues-with-uniform-random-noises">
-<h2>The average solves issues with uniform random noises</h2>
-<p>The user will run the application with default system settings which means
-ASLR enabled and Python hash function randomized. Running a benchmark in one
-specific environment is a mistake because it is not representative of the
-performance in practice.</p>
-<p>Computing the average and standard deviation &quot;fixes&quot; the issue with hash
-randomization. It's much better to use random hash functions and compute the
-average, than using a fixed hash function (setting <tt class="docutils literal">PYTHONHASHSEED</tt> variable
-to a value).</p>
-<p>Oh wow, already 3 big articles explaing how to get stable benchmarks. Please
-tell me that it was the last one!  Nope, more is coming...</p>
-</div>
-<div class="section" id="annex-why-only-n1">
-<h2>Annex: why only -n1?</h2>
-<p>In this article, I ran <tt class="docutils literal">bm_call_simple.py</tt> with <tt class="docutils literal"><span class="pre">-n</span> 1</tt> with only run one
-iteration.</p>
-<p>Usually, a single iteration is not reliable at all, at least 50 iterations are
-needed. But thanks to system tuning, compilation with PGO, ASRL disabled and
-<tt class="docutils literal">PYTHONHASHSEED</tt> set, a single iteration is enough.</p>
-<p>Example of 3 runs, each with 3 iterations:</p>
-<pre class="literal-block">
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
-0.201
-0.201
-0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
-0.201
-0.201
-0.201
-$ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
-0.201
-0.201
-0.201
-</pre>
-<p>Always the same timing!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+                <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-average.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>

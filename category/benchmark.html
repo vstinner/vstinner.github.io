@@ -22,7 +22,385 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">Visualize the system noise using perf and CPU isolation</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/intel-cpus.html">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2016-07-15T12:00:00+02:00">
+                Published: ven. 15 juillet 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><p>Ten years ago, most computers were desktop computers designed for best
+performances and their CPU frequency was fixed. Nowadays, most devices are
+embedded and use <a class="reference external" href="https://en.wikipedia.org/wiki/Low-power_electronics">low power consumption</a> processors like ARM
+CPUs. The power consumption now matters more than performance peaks.</p>
+<p>Intel CPUs evolved from a single core to multiple physical cores in the same
+<a class="reference external" href="https://en.wikipedia.org/wiki/CPU_socket">package</a> and got new features:
+<a class="reference external" href="https://en.wikipedia.org/wiki/Hyper-threading">Hyper-threading</a> to run two
+threads on the same physical core and <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost">Turbo Boost</a> to maximum performances.
+CPU cores can be completely turned off (CPU HALT, frequency of 0) temporary to
+reduce the power consumption, and the frequency of cores changes regulary
+depending on many factors like the workload and temperature. The power
+consumption is now an important part in the design of modern CPUs.</p>
+<p>Warning! This article is a summary of what I learnt last weeks from random
+articles. It may be full of mistakes, don't hesitate to report them, so I can
+enhance the article! It's hard to find simple articles explaining performances
+of modern Intel CPUs, so I tried to write mine.</p>
+<div class="section" id="tools-used-in-this-article">
+<h2>Tools used in this article</h2>
+<p>This article mentions various tools. Commands to install them on Fedora 24:</p>
+<p><tt class="docutils literal">dnf install <span class="pre">-y</span> <span class="pre">util-linux</span></tt>:</p>
+<ul class="simple">
+<li>lscpu</li>
+</ul>
+<p><tt class="docutils literal">dnf install <span class="pre">-y</span> <span class="pre">kernel-tools</span></tt>:</p>
+<ul class="simple">
+<li>cpupower</li>
+<li>turbostat</li>
+</ul>
+<p><tt class="docutils literal">sudo dnf install <span class="pre">-y</span> <span class="pre">msr-tools</span></tt>:</p>
+<ul class="simple">
+<li>rdmsr</li>
+<li>wrmsr</li>
+</ul>
+<p>Other interesting tools, not used in this article: i7z (sadly no more
+maintained), lshw, dmidecode, sensors.</p>
+<p>The sensors tool is supposed to report the current CPU voltage, but it doesn't
+provide this information on my computers. At least, it gives the temperature of
+different components, but also the speed of fans.</p>
+</div>
+<div class="section" id="example-of-intel-cpus">
+<h2>Example of Intel CPUs</h2>
+<div class="section" id="my-laptop-cpu-proc-cpuinfo">
+<h3>My laptop CPU: /proc/cpuinfo</h3>
+<p>On Linux, the most common way to retrieve information on the CPU is to read
+<tt class="docutils literal">/proc/cpuinfo</tt>. Example on my laptop:</p>
+<pre class="literal-block">
+selma$ cat /proc/cpuinfo
+processor  : 0
+vendor_id  : GenuineIntel
+model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
+cpu MHz    : 1200.214
+...
+
+processor  : 1
+vendor_id  : GenuineIntel
+model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
+cpu MHz    : 3299.882
+...
+</pre>
+<p>&quot;i7-3520M&quot; CPU is a model designed for Mobile Platforms (see the &quot;M&quot; suffix).
+It was built in 2012 and is the third generation of the Intel i7
+microarchitecture: <a class="reference external" href="https://en.wikipedia.org/wiki/Ivy_Bridge_(microarchitecture)">Ivy Bridge</a>.</p>
+<p>The CPU has two physical cores, I disabled HyperThreading in the BIOS.</p>
+<p>The first strange thing is that the CPU announces &quot;2.90 GHz&quot; but Linux reports
+1.2 GHz on the first core, and 3.3 GHz on the second core. 3.3 GHz is greater
+than 2.9 GHz!</p>
+</div>
+<div class="section" id="my-desktop-cpu-cpu-topology-with-lscpu">
+<h3>My desktop CPU: CPU topology with lscpu</h3>
+<p>cpuinfo:</p>
+<pre class="literal-block">
+smithers$ cat /proc/cpuinfo
+processor   : 0
+physical id : 0
+core id     : 0
+...
+model name  : Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz
+cpu cores   : 4
+...
+
+processor   : 1
+physical id : 0
+core id     : 1
+...
+
+(...)
+
+processor   : 7
+physical id : 0
+core id     : 3
+...
+</pre>
+<p>The CPU i7-2600 is the 2nd generation: <a class="reference external" href="https://en.wikipedia.org/wiki/Sandy_Bridge">Sandy Bridge microarchitecture</a>. There are 8 logical cores and 4
+physical cores (so with Hyper-threading).</p>
+<p>The <tt class="docutils literal">lscpu</tt> renders a short table which helps to understand the CPU topology:</p>
+<pre class="literal-block">
+smithers$ lscpu -a -e
+CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE MAXMHZ    MINMHZ
+0   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
+1   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
+2   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
+3   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
+4   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
+5   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
+6   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
+7   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
+</pre>
+<p>There are 8 logical CPUs (<tt class="docutils literal">CPU <span class="pre">0..7</span></tt>), all on the same node (<tt class="docutils literal">NODE 0</tt>) and
+the same socket (<tt class="docutils literal">SOCKET 0</tt>).  There are only 4 physical cores (<tt class="docutils literal">CORE
+<span class="pre">0..3</span></tt>). For example, the physical core <tt class="docutils literal">2</tt> is made of the two logical CPUs:
+<tt class="docutils literal">2</tt> and <tt class="docutils literal">6</tt>.</p>
+<p>Using the <tt class="docutils literal">L1d:L1i:L2:L3</tt> column, we can see that each pair of two logical
+cores share the same physical core caches for levels 1 (L1 data, L1
+instruction) and 2 (L2).  All physical cores share the same cache level 3 (L3).</p>
+</div>
+</div>
+<div class="section" id="p-states">
+<h2>P-states</h2>
+<p>A new CPU driver <tt class="docutils literal">intel_pstate</tt> was added to the Linux kernel 3.9 (April
+2009). First, it only supported SandyBridge CPUs (2nd generation), Linux 3.10
+extended it to Ivybridge generation CPUs (3rd gen), and so on and so forth.</p>
+<p>This driver supports recent features and thermal control of modern Intel CPUs.
+Its name comes from P-states.</p>
+<p>The processor P-state is the capability of running the processor at different
+voltage and/or frequency levels. Generally, P0 is the highest state resulting
+in maximum performance, while P1, P2, and so on, will save power but at some
+penalty to CPU performance.</p>
+<p>It is possible to force the legacy CPU driver (<tt class="docutils literal">acpi_cpufreq</tt>) using
+<tt class="docutils literal">intel_pstate=disable</tt> option in the kernel command line.</p>
+<p>See also:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://plus.google.com/+ArjanvandeVen/posts/dLn9T4ehywL">Some basics on CPU P states on Intel processors</a> (2013) by Arjan
+van de Ven (Intel)</li>
+<li><a class="reference external" href="https://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf">Balancing Power and Performance in the Linux Kernel</a>
+talk at LinuxCon Europe 2015 by Kristen Accardi (Intel)</li>
+<li><a class="reference external" href="https://software.intel.com/en-us/blogs/2008/05/29/what-exactly-is-a-p-state-pt-1">What exactly is a P-state? (Pt. 1)</a>
+(2008) by Taylor K. (Intel)</li>
+</ul>
+</div>
+<div class="section" id="idle-states-c-states">
+<h2>Idle states: C-states</h2>
+<p>C-states are idle power saving states, in contrast to P-states, which are
+execution power saving states.</p>
+<p>During a P-state, the processor is still executing instructions, whereas during
+a C-state (other than C0), the processor is idle, meaning that nothing is
+executing.</p>
+<p>C-states:</p>
+<ul class="simple">
+<li>C0 is the operational state, meaning that the CPU is doing useful work</li>
+<li>C1 is the first idle state</li>
+<li>C2 is the second idle state: The external I/O Controller Hub blocks
+interrupts to the processor.</li>
+<li>etc.</li>
+</ul>
+<p>When a logical processor is idle (C-state except of C0), its frequency is
+typically 0 (HALT).</p>
+<p>The <tt class="docutils literal">cpupower <span class="pre">idle-info</span></tt> command lists supported C-states:</p>
+<pre class="literal-block">
+selma$ cpupower idle-info
+CPUidle driver: intel_idle
+CPUidle governor: menu
+analyzing CPU 0:
+
+Number of idle states: 6
+Available idle states: POLL C1-IVB C1E-IVB C3-IVB C6-IVB C7-IVB
+...
+</pre>
+<p>The <tt class="docutils literal">cpupower monitor</tt> shows statistics on C-states:</p>
+<pre class="literal-block">
+smithers$ sudo cpupower monitor -m Idle_Stats
+    |Idle_Stats
+CPU | POLL | C1-S | C1E- | C3-S | C6-S
+   0|  0,00|  0,19|  0,09|  0,58| 96,23
+   4|  0,00|  0,00|  0,00|  0,00| 99,90
+   1|  0,00|  2,34|  0,00|  0,00| 97,63
+   5|  0,00|  0,00|  0,17|  0,00| 98,02
+   2|  0,00|  0,00|  0,00|  0,00|  0,00
+   6|  0,00|  0,00|  0,00|  0,00|  0,00
+   3|  0,00|  0,00|  0,00|  0,00|  0,00
+   7|  0,00|  0,00|  0,00|  0,00| 49,97
+</pre>
+<p>See also: <a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states">Power Management States: P-States, C-States, and Package C-States</a>.</p>
+</div>
+<div class="section" id="id1">
+<h2>Turbo Boost</h2>
+<p>In 2005, Intel introduced <a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep">SpeedStep</a>, a serie of dynamic frequency
+scaling technologies to reduce the power consumption of laptop CPUs. Turbo
+Boost is an enhancement of these technologies, now also used on desktop and
+server CPUs.</p>
+<p>Turbo Boost allows to run one or many CPU cores to higher P-states than usual.
+The maximum P-state depends on the workload, the temperature of CPUs, the
+number of active cores, etc. Example on my laptop:</p>
+<pre class="literal-block">
+selma$ cat /proc/cpuinfo
+model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
+...
+
+selma$ sudo cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  boost state support:
+    Supported: yes
+    Active: yes
+    3400 MHz max turbo 4 active cores
+    3400 MHz max turbo 3 active cores
+    3400 MHz max turbo 2 active cores
+    3600 MHz max turbo 1 active cores
+</pre>
+<p>The CPU base frequency is 2.9 GHz. If more than one physical cores is &quot;active&quot;
+(busy), their frequency can be increased up to 3.4 GHz. If only 1 physical core
+is active, its frequency can be increased up to 3.6 GHz.</p>
+<p>In this example, Turbo Boost is supported and active.</p>
+<div class="section" id="turbo-boost-msr">
+<h3>Turbo Boost MSR</h3>
+<p>The bit 38 of the <a class="reference external" href="https://en.wikipedia.org/wiki/Model-specific_register">Model-specific register
+(MSR)</a> <tt class="docutils literal">0x1a0</tt> can
+be used to check if the Turbo Boost is enabled:</p>
+<pre class="literal-block">
+selma$ sudo rdmsr -f 38:38 0x1a0
+0
+</pre>
+<p><tt class="docutils literal">0</tt> means that Turbo Boost is enabled, whereas <tt class="docutils literal">1</tt> means disabled (no
+turbo). (The <tt class="docutils literal"><span class="pre">-f</span> 38:38</tt> option asks to only display the bit 38.)</p>
+<p>If the command doesn't work, you may have to load the <tt class="docutils literal">msr</tt> kernel module:</p>
+<pre class="literal-block">
+sudo modprobe msr
+</pre>
+<p>Note: I'm not sure that all Intel CPU uses the same MSR.</p>
+</div>
+<div class="section" id="intel-state-no-turbo">
+<h3>intel_state/no_turbo</h3>
+<p>Turbo Boost can also be disabled at runtime in the <tt class="docutils literal">intel_pstate</tt> driver.</p>
+<p>Check if Turbo Boost is enabled:</p>
+<pre class="literal-block">
+selma$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
+0
+</pre>
+<p>where <tt class="docutils literal">0</tt> means that Turbo Boost is enabled. Disable Turbo Boost:</p>
+<pre class="literal-block">
+selma$ echo 1|sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo
+</pre>
+</div>
+<div class="section" id="cpu-flag-ida">
+<h3>CPU flag &quot;ida&quot;</h3>
+<p>It looks like the Turbo Boost status (supported or not) can also be read by the
+CPUID(6): &quot;Thermal/Power Management&quot;. It gives access to the flag <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Dynamic_Acceleration">Intel
+Dynamic Acceleration (IDA)</a>.</p>
+<p>The <tt class="docutils literal">ida</tt> flag can also be seen in CPU flags of <tt class="docutils literal">/proc/cpuinfo</tt>.</p>
+</div>
+</div>
+<div class="section" id="read-the-cpu-frequency">
+<h2>Read the CPU frequency</h2>
+<p>General information using <tt class="docutils literal">cpupower <span class="pre">frequency-info</span></tt>:</p>
+<pre class="literal-block">
+selma$ cpupower -c 0 frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  hardware limits: 1.20 GHz - 3.60 GHz
+  ...
+</pre>
+<p>The frequency of CPUs is between 1.2 GHz and 3.6 GHz (the base frequency is
+2.9 GHz on this CPU).</p>
+<div class="section" id="get-the-frequency-of-cpus-turbostat">
+<h3>Get the frequency of CPUs: turbostat</h3>
+<p>It looks like the most reliable way to get a relialistic estimation of the CPUs
+frequency is to use the tool <tt class="docutils literal">turbostat</tt>:</p>
+<pre class="literal-block">
+selma$ sudo turbostat
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+       -     224    7.80    2878    2893
+       0     448   15.59    2878    2893
+       1       0    0.01    2762    2893
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+       -     139    5.65    2469    2893
+       0     278   11.29    2469    2893
+       1       0    0.01    2686    2893
+    ...
+</pre>
+<ul class="simple">
+<li><tt class="docutils literal">Avg_MHz</tt>: average frequency, based on APERF</li>
+<li><tt class="docutils literal">Busy%</tt>: CPU usage in percent</li>
+<li><tt class="docutils literal">Bzy_MHz</tt>: busy frequency, based on MPERF</li>
+<li><tt class="docutils literal">TSC_MHz</tt>: fixed frequency, TSC stands for <a class="reference external" href="https://en.wikipedia.org/wiki/Time_Stamp_Counter">Time Stamp Counter</a></li>
+</ul>
+<p>APERF (average) and MPERF (maximum) are MSR registers that can provide feedback
+on current CPU frequency.</p>
+</div>
+<div class="section" id="other-tools-to-get-the-cpu-frequency">
+<h3>Other tools to get the CPU frequency</h3>
+<p>It looks like the following tools are less reliable to estimate the CPU
+frequency.</p>
+<p>cpuinfo:</p>
+<pre class="literal-block">
+selma$ grep MHz /proc/cpuinfo
+cpu MHz : 1372.289
+cpu MHz : 3401.042
+</pre>
+<p>In April 2016, Len Brown proposed a patch modifying cpuinfo to use APERF and
+MPERF MSR to estimate the CPU frequency: <a class="reference external" href="https://lkml.org/lkml/2016/4/1/7">x86: Calculate MHz using APERF/MPERF
+for cpuinfo and scaling_cur_freq</a>.</p>
+<p>The <tt class="docutils literal">tsc</tt> clock source logs the CPU frequency in kernel logs:</p>
+<pre class="literal-block">
+selma$ dmesg|grep 'MHz processor'
+[    0.000000] tsc: Detected 2893.331 MHz processor
+</pre>
+<p>cpupower frequency-info:</p>
+<pre class="literal-block">
+selma$ for core in $(seq 0 1); do sudo cpupower -c $core frequency-info|grep 'current CPU'; done
+  current CPU frequency: 3.48 GHz (asserted by call to hardware)
+  current CPU frequency: 3.40 GHz (asserted by call to hardware)
+</pre>
+<p>cpupower monitor:</p>
+<pre class="literal-block">
+selma$ sudo cpupower monitor -m 'Mperf'
+    |Mperf
+CPU | C0   | Cx   | Freq
+   0|  4.77| 95.23|  1924
+   1|  0.01| 99.99|  1751
+</pre>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>Modern Intel CPUs use various technologies to provide best performances without
+killing the power consumption. It became harder to monitor and understand CPU
+performances, than with older CPUs, since the performance now depends on much
+more factors.</p>
+<p>It also becomes common to get an integrated graphics processor (IGP) in the
+same package, which makes the exact performance even more complex to predict,
+since the IGP produces heat and so has an impact on the CPU P-state.</p>
+<p>I should also explain that P-state are &quot;voted&quot; between CPU cores, but I didn't
+understand this part. I'm not sure that understanding the exact algorithm
+matters much. I tried to not give too much information.</p>
+</div>
+<div class="section" id="annex-amt-and-the-me-power-management-coprocessor">
+<h2>Annex: AMT and the ME (power management coprocessor)</h2>
+<p>Computers with Intel vPro technology includes <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology">Intel Active Management
+Technology (AMT)</a>: &quot;hardware
+and firmware technology for remote out-of-band management of personal
+computers&quot;. AMT has many features which includes power management.</p>
+<p><a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology#Hardware">Management Engine (ME)</a>
+is the hardware part: an isolated and protected coprocessor, embedded as a
+non-optional part in all current (as of 2015) Intel chipsets. The coprocessor
+is a special 32-bit ARC microprocessor (RISC architecture) that's physically
+located inside the PCH chipset (or MCH on older chipsets). The coprocessor can
+for example be found on Intel MCH chipsets Q35 and Q45.</p>
+<p>See <a class="reference external" href="https://boingboing.net/2016/06/15/intel-x86-processors-ship-with.html">Intel x86s hide another CPU that can take over your machine (you can't
+audit it)</a> for
+more information on the coprocessor.</p>
+<p>More recently, the Intel Xeon Phi CPU (2016) also includes a coprocessor for
+power management. I didn't understand if it is the same coprocessor or not.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="bookmark"
+                           title="Permalink to Visualize the system noise using perf and CPU isolation">Visualize the system noise using perf and CPU isolation</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-06-16T13:30:00+02:00">
                 Published: jeu. 16 juin 2016
@@ -33,135 +411,14 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
+</footer><!-- /.post-info -->                <p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
 stable benchmarks, give fine control on benchmark parameters and compute
 statistics on results. With such tool, it becomes simple to <em>visualize</em>
 sources of noise. The CPU isolation will be used to visualize the system noise.
-Running a benchmark on isolated CPUs isolates it from the system noise.</p>
-<div class="section" id="isolate-cpus">
-<h2>Isolate CPUs</h2>
-<p>My computer has 4 physical CPU cores. I isolated half of them using
-<tt class="docutils literal">isolcpus=2,3</tt> parameter of the Linux kernel. I modified manually the command
-line in GRUB to add this parameter.</p>
-<p>Check that CPUs are isolated:</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/isolated
-2-3
-</pre>
-<p>The CPU supports HyperThreading, but I disabled it in the BIOS.</p>
-</div>
-<div class="section" id="run-a-benchmark">
-<h2>Run a benchmark</h2>
-<p>The <tt class="docutils literal">perf</tt> module automatically detects and uses isolated CPU cores. I will
-use the <tt class="docutils literal"><span class="pre">--affinity=0,1</span></tt> option to force running the benchmark on the CPUs
-which are not isolated.</p>
-<p>Microbenchmark with and without CPU isolation:</p>
-<pre class="literal-block">
-$ python3 -m perf.timeit --json-file=timeit_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
-Pin process to isolated CPUs: 2-3
-.........................
-Median +- std dev: 36.6 ns +- 0.1 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
-
-$ python3 -m perf.timeit --affinity=0,1 --json-file=timeit_no_isolcpus.json --verbose -s 'x=1; y=2' 'x+y'
-Pin process to CPUs: 0-1
-.........................
-Median +- std dev: 36.7 ns +- 1.3 ns (25 runs x 3 samples x 10^7 loops; 1 warmup)
-</pre>
-<p>My computer was not 100% idle, I was using it while the benchmarks were
-running.</p>
-<p>The median is almost the same (36.6 ns and 36.7 ns). The first major difference
-is the standard deviation: it is much larger without CPU isolation: 0.1 ns =&gt;
-1.3 ns (13x larger).</p>
-<p>Just in case, check manually CPU affinity in metadata:</p>
-<pre class="literal-block">
-$ python3 -m perf show timeit_isolcpus.json --metadata | grep cpu
-- cpu_affinity: 2-3 (isolated)
-- cpu_count: 4
-- cpu_model_name: Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz
-
-$ python3 -m perf show timeit_no_isolcpus.json --metadata | grep cpu_affinity
-- cpu_affinity: 0-1
-</pre>
-</div>
-<div class="section" id="statistics">
-<h2>Statistics</h2>
-<p>The <tt class="docutils literal">perf stats</tt> command computes statistics on the distribution of samples:</p>
-<pre class="literal-block">
-$ python3 -m perf stats timeit_isolcpus.json
-Number of samples: 75
-
-Minimum: 36.5 ns (-0.1%)
-Median +- std dev: 36.6 ns +- 0.1 ns (36.5 ns .. 36.7 ns)
-Maximum: 36.7 ns (+0.4%)
-
-$ python3 -m perf stats timeit_no_isolcpus.json
-Number of samples: 75
-
-Minimum: 36.5 ns (-0.5%)
-Median +- std dev: 36.7 ns +- 1.3 ns (35.4 ns .. 38.0 ns)
-Maximum: 43.0 ns (+17.0%)
-</pre>
-<p>The minimum is the same. The second major difference is the maximum: it is much
-larger without CPU isolation: 36.7 ns (+0.4%) =&gt; 43.0 ns (+17.0%).</p>
-<p>The difference between the maximum and the median is 63x larger without CPU
-isolation: 0.1 ns (<tt class="docutils literal">36.7 - 36.6</tt>) =&gt; 6.3 ns (<tt class="docutils literal">43.0 - 36.7</tt>).</p>
-<p>Depending on the system load, a single sample of the microbenchmark is up to
-17% slower (maximum of 43.0 ns with a median of 36.7 ns) without CPU isolation.
-The difference is smaller with CPU isolation: only 0.4% slower (for the
-maximum, and 0.1% faster for the minimum).</p>
-</div>
-<div class="section" id="histogram">
-<h2>Histogram</h2>
-<p>Another way to analyze the distribution of samples is to render an histogram:</p>
-<pre class="literal-block">
-$ python3 -m perf hist --bins=8 timeit_isolcpus.json timeit_no_isolcpus.json
-[ timeit_isolcpus ]
-36.1 ns: 75 ################################################
-36.9 ns:  0 |
-37.7 ns:  0 |
-38.5 ns:  0 |
-39.3 ns:  0 |
-40.1 ns:  0 |
-40.9 ns:  0 |
-41.7 ns:  0 |
-42.5 ns:  0 |
-
-[ timeit_no_isolcpus ]
-36.1 ns: 52 ################################################
-36.9 ns: 13 ############
-37.7 ns:  1 #
-38.5 ns:  4 ####
-39.3 ns:  2 ##
-40.1 ns:  0 |
-40.9 ns:  1 #
-41.7 ns:  0 |
-42.5 ns:  2 ##
-</pre>
-<p>I choose the number of bars to get a small histogram and to get all samples of
-the first benchmark on the same bar. With 8 bars, each bar is a range of 0.8
-ns.</p>
-<p>The last major difference is the shape of these histogram. Without CPU
-isolation, there is a &quot;long tail&quot; at the right of the median: <a class="reference external" href="https://en.wikipedia.org/wiki/Outlier">outliers</a> in the range [37.7 ns; 42.5 ns].
-The outliers come from the &quot;noise&quot; caused by the multitasking system.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>The <tt class="docutils literal">perf</tt> module provides multiple tools to analyze the distribution of
-benchmark samples. Three tools show a major difference without CPU isolation
-compared to results with CPU isolation:</p>
-<ul class="simple">
-<li>Standard deviation: 13x larger without isolation</li>
-<li>Maximum: difference to median 63x larger without isolation</li>
-<li>Shape of the histogram: long tail at the right of the median</li>
-</ul>
-<p>It explains why CPU isolation helps to make benchmarks more stable.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Running a benchmark on isolated CPUs ...</p>
+                <a class="readmore" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>

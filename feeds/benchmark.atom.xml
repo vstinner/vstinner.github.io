@@ -1,5 +1,359 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-06-16T13:30:00+02:00</updated><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-07-15T12:00:00+02:00</updated><entry><title>Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</title><link href="https://haypo.github.io/intel-cpus.html" rel="alternate"></link><published>2016-07-15T12:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-07-15:intel-cpus.html</id><summary type="html">&lt;p&gt;Ten years ago, most computers were desktop computers designed for best
+performances and their CPU frequency was fixed. Nowadays, most devices are
+embedded and use &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Low-power_electronics"&gt;low power consumption&lt;/a&gt; processors like ARM
+CPUs. The power consumption now matters more than performance peaks.&lt;/p&gt;
+&lt;p&gt;Intel CPUs evolved from a single core to multiple physical cores in the same
+&lt;a class="reference external" href="https://en.wikipedia.org/wiki/CPU_socket"&gt;package&lt;/a&gt; and got new features:
+&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Hyper-threading"&gt;Hyper-threading&lt;/a&gt; to run two
+threads on the same physical core and &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost"&gt;Turbo Boost&lt;/a&gt; to maximum performances.
+CPU cores can be completely turned off (CPU HALT, frequency of 0) temporary to
+reduce the power consumption, and the frequency of cores changes regulary
+depending on many factors like the workload and temperature. The power
+consumption is now an important part in the design of modern CPUs.&lt;/p&gt;
+&lt;p&gt;Warning! This article is a summary of what I learnt last weeks from random
+articles. It may be full of mistakes, don't hesitate to report them, so I can
+enhance the article! It's hard to find simple articles explaining performances
+of modern Intel CPUs, so I tried to write mine.&lt;/p&gt;
+&lt;div class="section" id="tools-used-in-this-article"&gt;
+&lt;h2&gt;Tools used in this article&lt;/h2&gt;
+&lt;p&gt;This article mentions various tools. Commands to install them on Fedora 24:&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;dnf install &lt;span class="pre"&gt;-y&lt;/span&gt; &lt;span class="pre"&gt;util-linux&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;lscpu&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;dnf install &lt;span class="pre"&gt;-y&lt;/span&gt; &lt;span class="pre"&gt;kernel-tools&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;cpupower&lt;/li&gt;
+&lt;li&gt;turbostat&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;sudo dnf install &lt;span class="pre"&gt;-y&lt;/span&gt; &lt;span class="pre"&gt;msr-tools&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;rdmsr&lt;/li&gt;
+&lt;li&gt;wrmsr&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Other interesting tools, not used in this article: i7z (sadly no more
+maintained), lshw, dmidecode, sensors.&lt;/p&gt;
+&lt;p&gt;The sensors tool is supposed to report the current CPU voltage, but it doesn't
+provide this information on my computers. At least, it gives the temperature of
+different components, but also the speed of fans.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="example-of-intel-cpus"&gt;
+&lt;h2&gt;Example of Intel CPUs&lt;/h2&gt;
+&lt;div class="section" id="my-laptop-cpu-proc-cpuinfo"&gt;
+&lt;h3&gt;My laptop CPU: /proc/cpuinfo&lt;/h3&gt;
+&lt;p&gt;On Linux, the most common way to retrieve information on the CPU is to read
+&lt;tt class="docutils literal"&gt;/proc/cpuinfo&lt;/tt&gt;. Example on my laptop:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ cat /proc/cpuinfo
+processor  : 0
+vendor_id  : GenuineIntel
+model name : Intel(R) Core(TM) i7-3520M CPU &amp;#64; 2.90GHz
+cpu MHz    : 1200.214
+...
+
+processor  : 1
+vendor_id  : GenuineIntel
+model name : Intel(R) Core(TM) i7-3520M CPU &amp;#64; 2.90GHz
+cpu MHz    : 3299.882
+...
+&lt;/pre&gt;
+&lt;p&gt;&amp;quot;i7-3520M&amp;quot; CPU is a model designed for Mobile Platforms (see the &amp;quot;M&amp;quot; suffix).
+It was built in 2012 and is the third generation of the Intel i7
+microarchitecture: &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Ivy_Bridge_(microarchitecture)"&gt;Ivy Bridge&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The CPU has two physical cores, I disabled HyperThreading in the BIOS.&lt;/p&gt;
+&lt;p&gt;The first strange thing is that the CPU announces &amp;quot;2.90 GHz&amp;quot; but Linux reports
+1.2 GHz on the first core, and 3.3 GHz on the second core. 3.3 GHz is greater
+than 2.9 GHz!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="my-desktop-cpu-cpu-topology-with-lscpu"&gt;
+&lt;h3&gt;My desktop CPU: CPU topology with lscpu&lt;/h3&gt;
+&lt;p&gt;cpuinfo:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+smithers$ cat /proc/cpuinfo
+processor   : 0
+physical id : 0
+core id     : 0
+...
+model name  : Intel(R) Core(TM) i7-2600 CPU &amp;#64; 3.40GHz
+cpu cores   : 4
+...
+
+processor   : 1
+physical id : 0
+core id     : 1
+...
+
+(...)
+
+processor   : 7
+physical id : 0
+core id     : 3
+...
+&lt;/pre&gt;
+&lt;p&gt;The CPU i7-2600 is the 2nd generation: &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Sandy_Bridge"&gt;Sandy Bridge microarchitecture&lt;/a&gt;. There are 8 logical cores and 4
+physical cores (so with Hyper-threading).&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;lscpu&lt;/tt&gt; renders a short table which helps to understand the CPU topology:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+smithers$ lscpu -a -e
+CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE MAXMHZ    MINMHZ
+0   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
+1   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
+2   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
+3   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
+4   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
+5   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
+6   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
+7   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
+&lt;/pre&gt;
+&lt;p&gt;There are 8 logical CPUs (&lt;tt class="docutils literal"&gt;CPU &lt;span class="pre"&gt;0..7&lt;/span&gt;&lt;/tt&gt;), all on the same node (&lt;tt class="docutils literal"&gt;NODE 0&lt;/tt&gt;) and
+the same socket (&lt;tt class="docutils literal"&gt;SOCKET 0&lt;/tt&gt;).  There are only 4 physical cores (&lt;tt class="docutils literal"&gt;CORE
+&lt;span class="pre"&gt;0..3&lt;/span&gt;&lt;/tt&gt;). For example, the physical core &lt;tt class="docutils literal"&gt;2&lt;/tt&gt; is made of the two logical CPUs:
+&lt;tt class="docutils literal"&gt;2&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;6&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Using the &lt;tt class="docutils literal"&gt;L1d:L1i:L2:L3&lt;/tt&gt; column, we can see that each pair of two logical
+cores share the same physical core caches for levels 1 (L1 data, L1
+instruction) and 2 (L2).  All physical cores share the same cache level 3 (L3).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="p-states"&gt;
+&lt;h2&gt;P-states&lt;/h2&gt;
+&lt;p&gt;A new CPU driver &lt;tt class="docutils literal"&gt;intel_pstate&lt;/tt&gt; was added to the Linux kernel 3.9 (April
+2009). First, it only supported SandyBridge CPUs (2nd generation), Linux 3.10
+extended it to Ivybridge generation CPUs (3rd gen), and so on and so forth.&lt;/p&gt;
+&lt;p&gt;This driver supports recent features and thermal control of modern Intel CPUs.
+Its name comes from P-states.&lt;/p&gt;
+&lt;p&gt;The processor P-state is the capability of running the processor at different
+voltage and/or frequency levels. Generally, P0 is the highest state resulting
+in maximum performance, while P1, P2, and so on, will save power but at some
+penalty to CPU performance.&lt;/p&gt;
+&lt;p&gt;It is possible to force the legacy CPU driver (&lt;tt class="docutils literal"&gt;acpi_cpufreq&lt;/tt&gt;) using
+&lt;tt class="docutils literal"&gt;intel_pstate=disable&lt;/tt&gt; option in the kernel command line.&lt;/p&gt;
+&lt;p&gt;See also:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://plus.google.com/+ArjanvandeVen/posts/dLn9T4ehywL"&gt;Some basics on CPU P states on Intel processors&lt;/a&gt; (2013) by Arjan
+van de Ven (Intel)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf"&gt;Balancing Power and Performance in the Linux Kernel&lt;/a&gt;
+talk at LinuxCon Europe 2015 by Kristen Accardi (Intel)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://software.intel.com/en-us/blogs/2008/05/29/what-exactly-is-a-p-state-pt-1"&gt;What exactly is a P-state? (Pt. 1)&lt;/a&gt;
+(2008) by Taylor K. (Intel)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="idle-states-c-states"&gt;
+&lt;h2&gt;Idle states: C-states&lt;/h2&gt;
+&lt;p&gt;C-states are idle power saving states, in contrast to P-states, which are
+execution power saving states.&lt;/p&gt;
+&lt;p&gt;During a P-state, the processor is still executing instructions, whereas during
+a C-state (other than C0), the processor is idle, meaning that nothing is
+executing.&lt;/p&gt;
+&lt;p&gt;C-states:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;C0 is the operational state, meaning that the CPU is doing useful work&lt;/li&gt;
+&lt;li&gt;C1 is the first idle state&lt;/li&gt;
+&lt;li&gt;C2 is the second idle state: The external I/O Controller Hub blocks
+interrupts to the processor.&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When a logical processor is idle (C-state except of C0), its frequency is
+typically 0 (HALT).&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;cpupower &lt;span class="pre"&gt;idle-info&lt;/span&gt;&lt;/tt&gt; command lists supported C-states:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ cpupower idle-info
+CPUidle driver: intel_idle
+CPUidle governor: menu
+analyzing CPU 0:
+
+Number of idle states: 6
+Available idle states: POLL C1-IVB C1E-IVB C3-IVB C6-IVB C7-IVB
+...
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;cpupower monitor&lt;/tt&gt; shows statistics on C-states:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+smithers$ sudo cpupower monitor -m Idle_Stats
+    |Idle_Stats
+CPU | POLL | C1-S | C1E- | C3-S | C6-S
+   0|  0,00|  0,19|  0,09|  0,58| 96,23
+   4|  0,00|  0,00|  0,00|  0,00| 99,90
+   1|  0,00|  2,34|  0,00|  0,00| 97,63
+   5|  0,00|  0,00|  0,17|  0,00| 98,02
+   2|  0,00|  0,00|  0,00|  0,00|  0,00
+   6|  0,00|  0,00|  0,00|  0,00|  0,00
+   3|  0,00|  0,00|  0,00|  0,00|  0,00
+   7|  0,00|  0,00|  0,00|  0,00| 49,97
+&lt;/pre&gt;
+&lt;p&gt;See also: &lt;a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states"&gt;Power Management States: P-States, C-States, and Package C-States&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="id1"&gt;
+&lt;h2&gt;Turbo Boost&lt;/h2&gt;
+&lt;p&gt;In 2005, Intel introduced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep"&gt;SpeedStep&lt;/a&gt;, a serie of dynamic frequency
+scaling technologies to reduce the power consumption of laptop CPUs. Turbo
+Boost is an enhancement of these technologies, now also used on desktop and
+server CPUs.&lt;/p&gt;
+&lt;p&gt;Turbo Boost allows to run one or many CPU cores to higher P-states than usual.
+The maximum P-state depends on the workload, the temperature of CPUs, the
+number of active cores, etc. Example on my laptop:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ cat /proc/cpuinfo
+model name : Intel(R) Core(TM) i7-3520M CPU &amp;#64; 2.90GHz
+...
+
+selma$ sudo cpupower frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  boost state support:
+    Supported: yes
+    Active: yes
+    3400 MHz max turbo 4 active cores
+    3400 MHz max turbo 3 active cores
+    3400 MHz max turbo 2 active cores
+    3600 MHz max turbo 1 active cores
+&lt;/pre&gt;
+&lt;p&gt;The CPU base frequency is 2.9 GHz. If more than one physical cores is &amp;quot;active&amp;quot;
+(busy), their frequency can be increased up to 3.4 GHz. If only 1 physical core
+is active, its frequency can be increased up to 3.6 GHz.&lt;/p&gt;
+&lt;p&gt;In this example, Turbo Boost is supported and active.&lt;/p&gt;
+&lt;div class="section" id="turbo-boost-msr"&gt;
+&lt;h3&gt;Turbo Boost MSR&lt;/h3&gt;
+&lt;p&gt;The bit 38 of the &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Model-specific_register"&gt;Model-specific register
+(MSR)&lt;/a&gt; &lt;tt class="docutils literal"&gt;0x1a0&lt;/tt&gt; can
+be used to check if the Turbo Boost is enabled:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ sudo rdmsr -f 38:38 0x1a0
+0
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;0&lt;/tt&gt; means that Turbo Boost is enabled, whereas &lt;tt class="docutils literal"&gt;1&lt;/tt&gt; means disabled (no
+turbo). (The &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-f&lt;/span&gt; 38:38&lt;/tt&gt; option asks to only display the bit 38.)&lt;/p&gt;
+&lt;p&gt;If the command doesn't work, you may have to load the &lt;tt class="docutils literal"&gt;msr&lt;/tt&gt; kernel module:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo modprobe msr
+&lt;/pre&gt;
+&lt;p&gt;Note: I'm not sure that all Intel CPU uses the same MSR.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="intel-state-no-turbo"&gt;
+&lt;h3&gt;intel_state/no_turbo&lt;/h3&gt;
+&lt;p&gt;Turbo Boost can also be disabled at runtime in the &lt;tt class="docutils literal"&gt;intel_pstate&lt;/tt&gt; driver.&lt;/p&gt;
+&lt;p&gt;Check if Turbo Boost is enabled:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
+0
+&lt;/pre&gt;
+&lt;p&gt;where &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; means that Turbo Boost is enabled. Disable Turbo Boost:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ echo 1|sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cpu-flag-ida"&gt;
+&lt;h3&gt;CPU flag &amp;quot;ida&amp;quot;&lt;/h3&gt;
+&lt;p&gt;It looks like the Turbo Boost status (supported or not) can also be read by the
+CPUID(6): &amp;quot;Thermal/Power Management&amp;quot;. It gives access to the flag &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Dynamic_Acceleration"&gt;Intel
+Dynamic Acceleration (IDA)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;ida&lt;/tt&gt; flag can also be seen in CPU flags of &lt;tt class="docutils literal"&gt;/proc/cpuinfo&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="read-the-cpu-frequency"&gt;
+&lt;h2&gt;Read the CPU frequency&lt;/h2&gt;
+&lt;p&gt;General information using &lt;tt class="docutils literal"&gt;cpupower &lt;span class="pre"&gt;frequency-info&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ cpupower -c 0 frequency-info
+analyzing CPU 0:
+  driver: intel_pstate
+  ...
+  hardware limits: 1.20 GHz - 3.60 GHz
+  ...
+&lt;/pre&gt;
+&lt;p&gt;The frequency of CPUs is between 1.2 GHz and 3.6 GHz (the base frequency is
+2.9 GHz on this CPU).&lt;/p&gt;
+&lt;div class="section" id="get-the-frequency-of-cpus-turbostat"&gt;
+&lt;h3&gt;Get the frequency of CPUs: turbostat&lt;/h3&gt;
+&lt;p&gt;It looks like the most reliable way to get a relialistic estimation of the CPUs
+frequency is to use the tool &lt;tt class="docutils literal"&gt;turbostat&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ sudo turbostat
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+       -     224    7.80    2878    2893
+       0     448   15.59    2878    2893
+       1       0    0.01    2762    2893
+     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+       -     139    5.65    2469    2893
+       0     278   11.29    2469    2893
+       1       0    0.01    2686    2893
+    ...
+&lt;/pre&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Avg_MHz&lt;/tt&gt;: average frequency, based on APERF&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Busy%&lt;/tt&gt;: CPU usage in percent&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Bzy_MHz&lt;/tt&gt;: busy frequency, based on MPERF&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;TSC_MHz&lt;/tt&gt;: fixed frequency, TSC stands for &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Time_Stamp_Counter"&gt;Time Stamp Counter&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;APERF (average) and MPERF (maximum) are MSR registers that can provide feedback
+on current CPU frequency.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="other-tools-to-get-the-cpu-frequency"&gt;
+&lt;h3&gt;Other tools to get the CPU frequency&lt;/h3&gt;
+&lt;p&gt;It looks like the following tools are less reliable to estimate the CPU
+frequency.&lt;/p&gt;
+&lt;p&gt;cpuinfo:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ grep MHz /proc/cpuinfo
+cpu MHz : 1372.289
+cpu MHz : 3401.042
+&lt;/pre&gt;
+&lt;p&gt;In April 2016, Len Brown proposed a patch modifying cpuinfo to use APERF and
+MPERF MSR to estimate the CPU frequency: &lt;a class="reference external" href="https://lkml.org/lkml/2016/4/1/7"&gt;x86: Calculate MHz using APERF/MPERF
+for cpuinfo and scaling_cur_freq&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;tsc&lt;/tt&gt; clock source logs the CPU frequency in kernel logs:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ dmesg|grep 'MHz processor'
+[    0.000000] tsc: Detected 2893.331 MHz processor
+&lt;/pre&gt;
+&lt;p&gt;cpupower frequency-info:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ for core in $(seq 0 1); do sudo cpupower -c $core frequency-info|grep 'current CPU'; done
+  current CPU frequency: 3.48 GHz (asserted by call to hardware)
+  current CPU frequency: 3.40 GHz (asserted by call to hardware)
+&lt;/pre&gt;
+&lt;p&gt;cpupower monitor:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+selma$ sudo cpupower monitor -m 'Mperf'
+    |Mperf
+CPU | C0   | Cx   | Freq
+   0|  4.77| 95.23|  1924
+   1|  0.01| 99.99|  1751
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Modern Intel CPUs use various technologies to provide best performances without
+killing the power consumption. It became harder to monitor and understand CPU
+performances, than with older CPUs, since the performance now depends on much
+more factors.&lt;/p&gt;
+&lt;p&gt;It also becomes common to get an integrated graphics processor (IGP) in the
+same package, which makes the exact performance even more complex to predict,
+since the IGP produces heat and so has an impact on the CPU P-state.&lt;/p&gt;
+&lt;p&gt;I should also explain that P-state are &amp;quot;voted&amp;quot; between CPU cores, but I didn't
+understand this part. I'm not sure that understanding the exact algorithm
+matters much. I tried to not give too much information.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="annex-amt-and-the-me-power-management-coprocessor"&gt;
+&lt;h2&gt;Annex: AMT and the ME (power management coprocessor)&lt;/h2&gt;
+&lt;p&gt;Computers with Intel vPro technology includes &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology"&gt;Intel Active Management
+Technology (AMT)&lt;/a&gt;: &amp;quot;hardware
+and firmware technology for remote out-of-band management of personal
+computers&amp;quot;. AMT has many features which includes power management.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology#Hardware"&gt;Management Engine (ME)&lt;/a&gt;
+is the hardware part: an isolated and protected coprocessor, embedded as a
+non-optional part in all current (as of 2015) Intel chipsets. The coprocessor
+is a special 32-bit ARC microprocessor (RISC architecture) that's physically
+located inside the PCH chipset (or MCH on older chipsets). The coprocessor can
+for example be found on Intel MCH chipsets Q35 and Q45.&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://boingboing.net/2016/06/15/intel-x86-processors-ship-with.html"&gt;Intel x86s hide another CPU that can take over your machine (you can't
+audit it)&lt;/a&gt; for
+more information on the coprocessor.&lt;/p&gt;
+&lt;p&gt;More recently, the Intel Xeon Phi CPU (2016) also includes a coprocessor for
+power management. I didn't understand if it is the same coprocessor or not.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
 stable benchmarks, give fine control on benchmark parameters and compute
 statistics on results. With such tool, it becomes simple to &lt;em&gt;visualize&lt;/em&gt;
 sources of noise. The CPU isolation will be used to visualize the system noise.
