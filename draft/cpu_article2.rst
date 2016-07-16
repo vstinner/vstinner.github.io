@@ -34,8 +34,8 @@ pybench: Median +- std dev: 15.1 ns +- 0.2 ns
 Compare
 -------
 
-* Turbo Boost 1 active core => Turbo Boost 2 active cores: 3% slower (12.5 ns => 12.9 ns)
-* Turbo Boost 1 active core => no Turbo Boost: 21% slower (12.5 ns => 15.1 ns)
+* Turbo Boost 1 active core (3.6 GHz) => Turbo Boost 2 active cores (3.4 GHz): 3% slower (12.5 ns => 12.9 ns)
+* Turbo Boost 1 active core (3.6 GHz) => no Turbo Boost (2.9 GHz): 21% slower (12.5 ns => 15.1 ns)
 
 
 Burn CPU to disable Turbo Mode: fail
