@@ -21,7 +21,7 @@ Intel CPUs evolved from a single core to multiple physical cores in the same
 `Hyper-threading <https://en.wikipedia.org/wiki/Hyper-threading>`_ to run two
 threads on the same physical core and `Turbo Boost
 <https://en.wikipedia.org/wiki/Intel_Turbo_Boost>`_ to maximum performances.
-CPU cores can be completely turned off (CPU HALT, frequency of 0) temporary to
+CPU cores can be completely turned off (CPU HALT, frequency of 0) temporarily to
 reduce the power consumption, and the frequency of cores changes regulary
 depending on many factors like the workload and temperature. The power
 consumption is now an important part in the design of modern CPUs.
