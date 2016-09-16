@@ -65,6 +65,25 @@ PGO compilation pinned on isolated CPUs, (make without -j), 5 compilations::
     Median +- std dev: 18.8 ms +- 0.5 ms
 
 
+Try 4
+=====
+
+1200 samples (400 runs x 3 samples)::
+
+    ./python bm_call_simple.py -p 100 --inherit-environ=PYTHONPATH -o pgo_many_$run.json
+    ./python bm_call_simple.py -p 100 --inherit-environ=PYTHONPATH --append pgo_many_$run.json
+    ./python bm_call_simple.py -p 100 --inherit-environ=PYTHONPATH --append pgo_many_$run.json
+    ./python bm_call_simple.py -p 100 --inherit-environ=PYTHONPATH --append pgo_many_$run.json
+
+Result of 5 compilations::
+
+    Median +- std dev: 18.2 ms +- 0.8 ms
+    Median +- std dev: 18.7 ms +- 0.5 ms
+    Median +- std dev: 18.9 ms +- 0.8 ms
+    Median +- std dev: 18.5 ms +- 0.7 ms
+    Median +- std dev: 18.8 ms +- 0.5 ms
+
+
 Single compilation, multiple runs
 =================================
 
