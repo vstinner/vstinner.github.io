@@ -83,6 +83,22 @@ Result of 5 compilations::
     Median +- std dev: 18.5 ms +- 0.7 ms
     Median +- std dev: 18.8 ms +- 0.5 ms
 
+Try 5: LTO
+==========
+
+Compilation using::
+
+    ./configure --with-lto
+    taskset_isolated.py make profile-opt
+
+Result of 5 compilations::
+
+    Median +- std dev: 19.3 ms +- 0.1 ms
+    Median +- std dev: 19.5 ms +- 0.1 ms
+    Median +- std dev: 18.8 ms +- 0.1 ms
+    Median +- std dev: 18.7 ms +- 0.1 ms
+    Median +- std dev: 19.0 ms +- 0.1 ms
+
 
 Single compilation, multiple runs
 =================================
