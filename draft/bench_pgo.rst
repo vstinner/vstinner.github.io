@@ -83,7 +83,19 @@ Result of 5 compilations::
     Median +- std dev: 18.5 ms +- 0.7 ms
     Median +- std dev: 18.8 ms +- 0.5 ms
 
-Try 5: LTO
+Try 5: PYTHONSEED
+=================
+
+Result of 5 compilations::
+
+    Median +- std dev: 20.6 ms +- 0.1 ms
+    Median +- std dev: 20.5 ms +- 0.1 ms
+    Median +- std dev: 19.9 ms +- 0.1 ms
+    Median +- std dev: 20.4 ms +- 0.1 ms
+    Median +- std dev: 11.0 ms +- 4.1 ms   <=== BUG!
+
+
+Try 6: LTO
 ==========
 
 Compilation using::
