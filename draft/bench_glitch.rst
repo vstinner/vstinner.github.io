@@ -2,6 +2,26 @@
 Benchmark glitches
 ++++++++++++++++++
 
+JSON
+====
+
+* CPU speed: 2.7 GHz => 3.4 GHz
+
+Start date: 2016-09-15T22:34:39
+*   cpu_freq: 1=3400 MHz, 2=2226 MHz, 3=2740 MHz, 5=2440 MHz, 6=2221 MHz, 7=2549 MHz
+
+CPU speed changed at 2016-09-16T16:28:57
+
+*  cpu_freq: 1-3,5=3400 MHz, 6=3365 MHz, 7=3360 MHz
+
+Bug seen at 2016-09-16T22:03:38
+
+* CPU 2: fast, 11.0 ms
+  cpu_freq: 2=3400 MHz
+* CPU 3: slow, 20.3 ms
+  cpu_freq: 3=3400 MHz
+
+
 Glitch 1
 ========
 
