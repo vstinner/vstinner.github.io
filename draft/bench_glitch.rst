@@ -22,6 +22,17 @@ Bug seen at 2016-09-16T22:03:38
   cpu_freq: 3=3400 MHz
 
 
+Temperature
+===========
+
+pgo_1.json .. xx: between 69°C and 72°C
+pgo_seed_5.json:
+  Run 1..105: between 69°C and 72°C
+  Run 106..400: 69°C => 58°C
+
+Cpu bug: ~54°C
+
+
 Glitch 1
 ========
 
