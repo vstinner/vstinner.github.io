@@ -1,3 +1,7 @@
++++++++++++++++++++++++
+Impact of CPU frequency
++++++++++++++++++++++++
+
 Desktop.
 
 - cpu_model_name: Intel(R) Core(TM) i7-2600 CPU @ 3.40GHz

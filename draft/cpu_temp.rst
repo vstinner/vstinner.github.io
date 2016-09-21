@@ -66,3 +66,51 @@ Snapshot::
            6    3412  100.00    3400    3412
            3    3411  100.00    3400    3411
            7       1    0.02    3400    3411
+
+Laptop
+======
+
+Using a tissue, I closed the hole used by the CPU fan. The CPU temperature
+increased up to 102°C, but the CPU frequency was only decreased from 3.4 GHz
+(Turbo Mode with 4 active logical CPUs) to 3.1 GHz.
+
+When the CPU temperature ("Physical id 0" sensor) switched from 100°C to 101°C,
+the CPU frequency started slowly to decrease from 3391 MHz to 3077 MHz with
+steps of 10 MHz
+
+Beginning of the test::
+
+    $ sensors
+    coretemp-isa-0000
+    Adapter: ISA adapter
+    Physical id 0:  +83.0°C  (high = +87.0°C, crit = +105.0°C)
+    Core 0:         +78.0°C  (high = +87.0°C, crit = +105.0°C)
+    Core 1:         +83.0°C  (high = +87.0°C, crit = +105.0°C)
+
+    $ sudo turbostat sleep 3
+    3.001621 sec
+         CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+           -    3393  100.00    3400    2894
+           0    3394  100.00    3400    2895
+           1    3394  100.00    3400    2895
+           2    3393  100.00    3400    2894
+           3    3392  100.00    3400    2893
+
+Hotest::
+
+    $ sensors
+    coretemp-isa-0000
+    Adapter: ISA adapter
+    Physical id 0: +102.0°C  (high = +87.0°C, crit = +105.0°C)
+    Core 0:         +97.0°C  (high = +87.0°C, crit = +105.0°C)
+    Core 1:        +102.0°C  (high = +87.0°C, crit = +105.0°C)
+
+    $ sudo turbostat sleep 3
+    3.002816 sec
+         CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
+           -    3160   99.92    3169    2894
+           0    3160   99.92    3169    2894
+           1    3160   99.92    3169    2894
+           2    3160   99.92    3169    2894
+           3    3159   99.92    3169    2893
+
