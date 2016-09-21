@@ -4,6 +4,10 @@ TODO
 * Explain direct link between CPU frequency and performance: set manually the
   CPU frequency
 
+Impact of Temperature on Intel CPU Performance
+https://www.pugetsystems.com/labs/articles/Impact-of-Temperature-on-Intel-CPU-Performance-606/
+copy: http://www.techspot.com/article/927-temperature-impact-cpu-performance/
+
 Burning the CPU
 ===============
 
