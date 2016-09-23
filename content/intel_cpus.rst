@@ -3,7 +3,7 @@ Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2016-07-15 12:00
-:tags: optimization, benchmark
+:tags: optimization, benchmark, cpu
 :category: benchmark
 :slug: intel-cpus
 :authors: Victor Stinner
