@@ -22,224 +22,57 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/intel-cpus.html">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a></h1>
 <footer class="post-info">
-        <abbr class="published" title="2016-07-15T12:00:00+02:00">
-                Published: ven. 15 juillet 2016
+        <abbr class="published" title="2016-09-23T23:00:00+02:00">
+                Published: ven. 23 septembre 2016
         </abbr>
 
         <address class="vcard author">
                 By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><p>Ten years ago, most computers were desktop computers designed for best
-performances and their CPU frequency was fixed. Nowadays, most devices are
-embedded and use <a class="reference external" href="https://en.wikipedia.org/wiki/Low-power_electronics">low power consumption</a> processors like ARM
-CPUs. The power consumption now matters more than performance peaks.</p>
-<p>Intel CPUs evolved from a single core to multiple physical cores in the same
-<a class="reference external" href="https://en.wikipedia.org/wiki/CPU_socket">package</a> and got new features:
-<a class="reference external" href="https://en.wikipedia.org/wiki/Hyper-threading">Hyper-threading</a> to run two
-threads on the same physical core and <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Turbo_Boost">Turbo Boost</a> to maximum performances.
-CPU cores can be completely turned off (CPU HALT, frequency of 0) temporarily to
-reduce the power consumption, and the frequency of cores changes regulary
-depending on many factors like the workload and temperature. The power
-consumption is now an important part in the design of modern CPUs.</p>
-<p>Warning! This article is a summary of what I learnt last weeks from random
-articles. It may be full of mistakes, don't hesitate to report them, so I can
-enhance the article! It's hard to find simple articles explaining performances
-of modern Intel CPUs, so I tried to write mine.</p>
-<div class="section" id="tools-used-in-this-article">
-<h2>Tools used in this article</h2>
-<p>This article mentions various tools. Commands to install them on Fedora 24:</p>
-<p><tt class="docutils literal">dnf install <span class="pre">-y</span> <span class="pre">util-linux</span></tt>:</p>
-<ul class="simple">
-<li>lscpu</li>
-</ul>
-<p><tt class="docutils literal">dnf install <span class="pre">-y</span> <span class="pre">kernel-tools</span></tt>:</p>
-<ul class="simple">
-<li><a class="reference external" href="http://linux.die.net/man/1/cpupower">cpupower</a></li>
-<li>turbostat</li>
-</ul>
-<p><tt class="docutils literal">sudo dnf install <span class="pre">-y</span> <span class="pre">msr-tools</span></tt>:</p>
-<ul class="simple">
-<li>rdmsr</li>
-<li>wrmsr</li>
-</ul>
-<p>Other interesting tools, not used in this article: i7z (sadly no more
-maintained), lshw, dmidecode, sensors.</p>
-<p>The sensors tool is supposed to report the current CPU voltage, but it doesn't
-provide this information on my computers. At least, it gives the temperature of
-different components, but also the speed of fans.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> <a href="https://haypo.github.io/tag/cpu.html">cpu</a> </p>
+</footer><!-- /.post-info --><p>My first article <a class="reference external" href="https://haypo.github.io/intel-cpus.html">Intel CPUs</a> is a general
+introduction on modern CPU technologies having an impact on benchmarks.</p>
+<p>This second article is much more concrete with numbers and a concrete bug
+having a major impact on benchmarks: a benchmark suddenly becomes 2x faster!</p>
+<p>I will tell you how I first noticed the bug, which tests I ran to analyze the
+issue, how I found commands to reproduce the bug, and finally how I identified
+the bug.</p>
+<div class="section" id="glitch-in-benchmarks">
+<h2>&quot;Glitch&quot; in benchmarks</h2>
+<p>Last week I ran a benchmark to check if enabling Profile Guided Optimization
+(PGO) when compiling Python makes benchmark results less stable. I recompiled
+Python 5 times, and after each compilation I ran a benchmark. I tested
+different commands and options to compile Python. Everything was fine until
+the last benchmark of the last compilation. <strong>The benchmark suddenly became 2
+times faster.</strong></p>
+<p>Hopefully, my perf module collects a lot of metadata. I was able to analyze
+in depth what happened.</p>
+<p>The &quot;glitch&quot; occurred in a benchmark having 400 runs (benchmark run in 400
+different processes), between the run 105 (20.3 ms) and the run 106
+(11.0 ms).</p>
+<p>I noticed that the CPU temperature was between 69°C and 72°C until the run 105,
+and then decreased to from 69°C to 58°C.</p>
+<p>The system load slowly increased from 1.25 up to 1.62 around the run 108 and
+then slowly decreased to 1.00.</p>
+<p>The system was not idle while the benchmark was running. I was working on the
+PC too! But according to timestamps, it seems like the glitch was close to when
+I stopped working. When I stopped working, I closed all applications (except of
+the benchmark running in background) and turned of my two monitors.</p>
+<p>Well, at this point, it's hard to correlate for sure an event with the major
+performance change.</p>
+<p>So I started to analyze different factors affecting CPUs and benchmarks: Turbo
+Boost, CPU temperature and CPU frequency.</p>
 </div>
-<div class="section" id="example-of-intel-cpus">
-<h2>Example of Intel CPUs</h2>
-<div class="section" id="my-laptop-cpu-proc-cpuinfo">
-<h3>My laptop CPU: /proc/cpuinfo</h3>
-<p>On Linux, the most common way to retrieve information on the CPU is to read
-<tt class="docutils literal">/proc/cpuinfo</tt>. Example on my laptop:</p>
+<div class="section" id="impact-of-turbo-boost-on-benchmarks">
+<h2>Impact of Turbo Boost on benchmarks</h2>
+<p>Without Turbo Boost, the maximum frequency of the &quot;Intel(R) Core(TM) i7-3520M
+CPU &#64; 2.90GHz&quot; of my laptop is 2.9 GHz. With Turbo Boost, the maximum
+frequency is 3.6 GHz if only one core is active, or 3.4 GHz otherwise:</p>
 <pre class="literal-block">
-selma$ cat /proc/cpuinfo
-processor  : 0
-vendor_id  : GenuineIntel
-model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
-cpu MHz    : 1200.214
-...
-
-processor  : 1
-vendor_id  : GenuineIntel
-model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
-cpu MHz    : 3299.882
-...
-</pre>
-<p>&quot;i7-3520M&quot; CPU is a model designed for Mobile Platforms (see the &quot;M&quot; suffix).
-It was built in 2012 and is the third generation of the Intel i7
-microarchitecture: <a class="reference external" href="https://en.wikipedia.org/wiki/Ivy_Bridge_(microarchitecture)">Ivy Bridge</a>.</p>
-<p>The CPU has two physical cores, I disabled HyperThreading in the BIOS.</p>
-<p>The first strange thing is that the CPU announces &quot;2.90 GHz&quot; but Linux reports
-1.2 GHz on the first core, and 3.3 GHz on the second core. 3.3 GHz is greater
-than 2.9 GHz!</p>
-</div>
-<div class="section" id="my-desktop-cpu-cpu-topology-with-lscpu">
-<h3>My desktop CPU: CPU topology with lscpu</h3>
-<p>cpuinfo:</p>
-<pre class="literal-block">
-smithers$ cat /proc/cpuinfo
-processor   : 0
-physical id : 0
-core id     : 0
-...
-model name  : Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz
-cpu cores   : 4
-...
-
-processor   : 1
-physical id : 0
-core id     : 1
-...
-
-(...)
-
-processor   : 7
-physical id : 0
-core id     : 3
-...
-</pre>
-<p>The CPU i7-2600 is the 2nd generation: <a class="reference external" href="https://en.wikipedia.org/wiki/Sandy_Bridge">Sandy Bridge microarchitecture</a>. There are 8 logical cores and 4
-physical cores (so with Hyper-threading).</p>
-<p>The <tt class="docutils literal">lscpu</tt> renders a short table which helps to understand the CPU topology:</p>
-<pre class="literal-block">
-smithers$ lscpu -a -e
-CPU NODE SOCKET CORE L1d:L1i:L2:L3 ONLINE MAXMHZ    MINMHZ
-0   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
-1   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
-2   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
-3   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
-4   0    0      0    0:0:0:0       yes    3800.0000 1600.0000
-5   0    0      1    1:1:1:0       yes    3800.0000 1600.0000
-6   0    0      2    2:2:2:0       yes    3800.0000 1600.0000
-7   0    0      3    3:3:3:0       yes    3800.0000 1600.0000
-</pre>
-<p>There are 8 logical CPUs (<tt class="docutils literal">CPU <span class="pre">0..7</span></tt>), all on the same node (<tt class="docutils literal">NODE 0</tt>) and
-the same socket (<tt class="docutils literal">SOCKET 0</tt>).  There are only 4 physical cores (<tt class="docutils literal">CORE
-<span class="pre">0..3</span></tt>). For example, the physical core <tt class="docutils literal">2</tt> is made of the two logical CPUs:
-<tt class="docutils literal">2</tt> and <tt class="docutils literal">6</tt>.</p>
-<p>Using the <tt class="docutils literal">L1d:L1i:L2:L3</tt> column, we can see that each pair of two logical
-cores share the same physical core caches for levels 1 (L1 data, L1
-instruction) and 2 (L2).  All physical cores share the same cache level 3 (L3).</p>
-</div>
-</div>
-<div class="section" id="p-states">
-<h2>P-states</h2>
-<p>A new CPU driver <tt class="docutils literal">intel_pstate</tt> was added to the Linux kernel 3.9 (April
-2009). First, it only supported SandyBridge CPUs (2nd generation), Linux 3.10
-extended it to Ivybridge generation CPUs (3rd gen), and so on and so forth.</p>
-<p>This driver supports recent features and thermal control of modern Intel CPUs.
-Its name comes from P-states.</p>
-<p>The processor P-state is the capability of running the processor at different
-voltage and/or frequency levels. Generally, P0 is the highest state resulting
-in maximum performance, while P1, P2, and so on, will save power but at some
-penalty to CPU performance.</p>
-<p>It is possible to force the legacy CPU driver (<tt class="docutils literal">acpi_cpufreq</tt>) using
-<tt class="docutils literal">intel_pstate=disable</tt> option in the kernel command line.</p>
-<p>See also:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/intel-pstate.txt">Documentation of the intel-pstate driver</a></li>
-<li><a class="reference external" href="https://plus.google.com/+ArjanvandeVen/posts/dLn9T4ehywL">Some basics on CPU P states on Intel processors</a> (2013) by Arjan
-van de Ven (Intel)</li>
-<li><a class="reference external" href="https://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf">Balancing Power and Performance in the Linux Kernel</a>
-talk at LinuxCon Europe 2015 by Kristen Accardi (Intel)</li>
-<li><a class="reference external" href="https://software.intel.com/en-us/blogs/2008/05/29/what-exactly-is-a-p-state-pt-1">What exactly is a P-state? (Pt. 1)</a>
-(2008) by Taylor K. (Intel)</li>
-</ul>
-</div>
-<div class="section" id="idle-states-c-states">
-<h2>Idle states: C-states</h2>
-<p>C-states are idle power saving states, in contrast to P-states, which are
-execution power saving states.</p>
-<p>During a P-state, the processor is still executing instructions, whereas during
-a C-state (other than C0), the processor is idle, meaning that nothing is
-executing.</p>
-<p>C-states:</p>
-<ul class="simple">
-<li>C0 is the operational state, meaning that the CPU is doing useful work</li>
-<li>C1 is the first idle state</li>
-<li>C2 is the second idle state: The external I/O Controller Hub blocks
-interrupts to the processor.</li>
-<li>etc.</li>
-</ul>
-<p>When a logical processor is idle (C-state except of C0), its frequency is
-typically 0 (HALT).</p>
-<p>The <tt class="docutils literal">cpupower <span class="pre">idle-info</span></tt> command lists supported C-states:</p>
-<pre class="literal-block">
-selma$ cpupower idle-info
-CPUidle driver: intel_idle
-CPUidle governor: menu
-analyzing CPU 0:
-
-Number of idle states: 6
-Available idle states: POLL C1-IVB C1E-IVB C3-IVB C6-IVB C7-IVB
-...
-</pre>
-<p>The <tt class="docutils literal">cpupower monitor</tt> shows statistics on C-states:</p>
-<pre class="literal-block">
-smithers$ sudo cpupower monitor -m Idle_Stats
-    |Idle_Stats
-CPU | POLL | C1-S | C1E- | C3-S | C6-S
-   0|  0,00|  0,19|  0,09|  0,58| 96,23
-   4|  0,00|  0,00|  0,00|  0,00| 99,90
-   1|  0,00|  2,34|  0,00|  0,00| 97,63
-   5|  0,00|  0,00|  0,17|  0,00| 98,02
-   2|  0,00|  0,00|  0,00|  0,00|  0,00
-   6|  0,00|  0,00|  0,00|  0,00|  0,00
-   3|  0,00|  0,00|  0,00|  0,00|  0,00
-   7|  0,00|  0,00|  0,00|  0,00| 49,97
-</pre>
-<p>See also: <a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states">Power Management States: P-States, C-States, and Package C-States</a>.</p>
-</div>
-<div class="section" id="id1">
-<h2>Turbo Boost</h2>
-<p>In 2005, Intel introduced <a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep">SpeedStep</a>, a serie of dynamic frequency
-scaling technologies to reduce the power consumption of laptop CPUs. Turbo
-Boost is an enhancement of these technologies, now also used on desktop and
-server CPUs.</p>
-<p>Turbo Boost allows to run one or many CPU cores to higher P-states than usual.
-The maximum P-state is constrained by the following factors:</p>
-<ul class="simple">
-<li>The number of active cores (in C0 or C1 state)</li>
-<li>The estimated current consumption of the processor (Imax)</li>
-<li>The estimated power consumption (TDP - Thermal Design Power) of processor</li>
-<li>The temperature of the processor</li>
-</ul>
-<p>Example on my laptop:</p>
-<pre class="literal-block">
-selma$ cat /proc/cpuinfo
-model name : Intel(R) Core(TM) i7-3520M CPU &#64; 2.90GHz
-...
-
-selma$ sudo cpupower frequency-info
-analyzing CPU 0:
-  driver: intel_pstate
+$ sudo cpupower frequency-info
   ...
   boost state support:
     Supported: yes
@@ -249,151 +82,133 @@ analyzing CPU 0:
     3400 MHz max turbo 2 active cores
     3600 MHz max turbo 1 active cores
 </pre>
-<p>The CPU base frequency is 2.9 GHz. If more than one physical cores is &quot;active&quot;
-(busy), their frequency can be increased up to 3.4 GHz. If only 1 physical core
-is active, its frequency can be increased up to 3.6 GHz.</p>
-<p>In this example, Turbo Boost is supported and active.</p>
-<p>See also the <a class="reference external" href="https://www.kernel.org/doc/Documentation/cpu-freq/boost.txt">Linux cpu-freq documentation on CPU boost</a>.</p>
-<div class="section" id="turbo-boost-msr">
-<h3>Turbo Boost MSR</h3>
-<p>The bit 38 of the <a class="reference external" href="https://en.wikipedia.org/wiki/Model-specific_register">Model-specific register
-(MSR)</a> <tt class="docutils literal">0x1a0</tt> can
-be used to check if the Turbo Boost is enabled:</p>
-<pre class="literal-block">
-selma$ sudo rdmsr -f 38:38 0x1a0
-0
-</pre>
-<p><tt class="docutils literal">0</tt> means that Turbo Boost is enabled, whereas <tt class="docutils literal">1</tt> means disabled (no
-turbo). (The <tt class="docutils literal"><span class="pre">-f</span> 38:38</tt> option asks to only display the bit 38.)</p>
-<p>If the command doesn't work, you may have to load the <tt class="docutils literal">msr</tt> kernel module:</p>
-<pre class="literal-block">
-sudo modprobe msr
-</pre>
-<p>Note: I'm not sure that all Intel CPU uses the same MSR.</p>
+<p>I ran the bm_call_simple.py microbenchmark (CPU-bound) of performance 0.2.2.</p>
+<p>Turbo Boost disabled:</p>
+<ul class="simple">
+<li>1 physical CPU active: 2.9 GHz, Median +- std dev: 14.6 ms +- 0.3 ms</li>
+<li>2 physical CPU active: 2.9 GHz, Median +- std dev: 14.7 ms +- 0.5 ms</li>
+</ul>
+<p>Turbo Boost enabled:</p>
+<ul class="simple">
+<li>1 physical CPU active: 3.6 GHz, Median +- std dev: 11.8 ms +- 0.3 ms</li>
+<li>2 physical CPU active: 3.4 GHz, Median +- std dev: 12.4 ms +- 0.1 ms</li>
+</ul>
+<p><strong>The maximum performance boost is 19% faster</strong> (14.6 ms =&gt; 11.8 ms), the
+minimum boost if 15% faster (14.6 ms =&gt; 12.4 ms).</p>
+<p>Hum, I don't think that Turbo Boost can explain the bug.</p>
 </div>
-<div class="section" id="intel-state-no-turbo">
-<h3>intel_state/no_turbo</h3>
-<p>Turbo Boost can also be disabled at runtime in the <tt class="docutils literal">intel_pstate</tt> driver.</p>
-<p>Check if Turbo Boost is enabled:</p>
-<pre class="literal-block">
-selma$ cat /sys/devices/system/cpu/intel_pstate/no_turbo
-0
-</pre>
-<p>where <tt class="docutils literal">0</tt> means that Turbo Boost is enabled. Disable Turbo Boost:</p>
-<pre class="literal-block">
-selma$ echo 1|sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo
-</pre>
+<div class="section" id="impact-of-the-cpu-temperature-on-benchmarks">
+<h2>Impact of the CPU temperature on benchmarks</h2>
+<p>The CPU temperature is mentionned in Intel Turbo Boost documentation as a
+factor used to decide which P-state will be used. I always wanted to check how
+the CPU temperature impacts its performance.</p>
+<div class="section" id="burn-the-cpu-of-my-desktop-pc">
+<h3>Burn the CPU of my desktop PC</h3>
+<p>I used my <a class="reference external" href="https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py">system_load.py script</a> to generate a
+system load higher than 10.</p>
+<p>When the fan is cooling correctly the CPU, all CPU run at 3.4 GHz (Turbo Boost
+was disabled) and the CPU temperature is 66°C.</p>
+<p>I used a simple sheet of paper to block the fan of my CPU. Yeah, I really
+wanted to <a class="reference external" href="https://www.youtube.com/watch?v=Xf0VuRG7MN4">burn my CPU</a>! More
+seriously, I checked the CPU temperature every second using the <tt class="docutils literal">sensors</tt>
+command and was prepared to unblock the fan if sometimes gone wrong.</p>
+<img alt="Sheet of paper blocking the CPU fan" src="https://haypo.github.io/images/paper_blocks_cpu_fan.jpg" />
+<p>After one minute, the CPU reached 97°C. I expected a system crash, smoke or
+something worse, but I was disappointed. <strong>At 97°C, I was still able to use my
+computer as everything was fine. The CPU was slowly down automatically to the
+minimum CPU frequency: 1533 MHz</strong> according to turbostat (the minimum frequency
+of this CPU is 1.6 GHz).</p>
+<p>When I unblocked the fan, the temperature decreased quickly to go back to its
+previous state (62°C) and the CPU frequency quickly increased to 3.4 GHz as
+well.</p>
+<p>My Intel CPU is really impressive! I didn't expect such very efficient
+protection against overheating!</p>
 </div>
-<div class="section" id="cpu-flag-ida">
-<h3>CPU flag &quot;ida&quot;</h3>
-<p>It looks like the Turbo Boost status (supported or not) can also be read by the
-CPUID(6): &quot;Thermal/Power Management&quot;. It gives access to the flag <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Dynamic_Acceleration">Intel
-Dynamic Acceleration (IDA)</a>.</p>
-<p>The <tt class="docutils literal">ida</tt> flag can also be seen in CPU flags of <tt class="docutils literal">/proc/cpuinfo</tt>.</p>
+<div class="section" id="burn-my-laptop-cpu">
+<h3>Burn my laptop CPU</h3>
+<p>I used my system_load.py script to get a system load over 200. I also opened 4
+tabs in Firefox playing Youtube videos to stress also the GPU which is
+integrated into the CPU (IGP) on such laptop.</p>
+<img alt="Stress test playing Youtube videos in Firefox, CPU at 102°" src="https://haypo.github.io/images/burn_cpu_firefox.jpg" />
+<p>With such crazy stress test, the CPU temperature was &quot;only&quot; 83°C.</p>
+<p>Using a simple tissue, I closed the air hole used by the CPU fan. <strong>When the
+CPU temperature increased from 100°C to 101°C, the CPU frequency started slowly
+to decrease from 3391 MHz to 3077 MHz</strong> (with steps between 10 MHz and 50 MHz
+every second, or something like that).</p>
+<p>When pushing hard the tissue and waiting longer than 5 minutes, the CPU
+temperature increased up to 102°C, but the CPU frequency was only decreased
+from 3.4 GHz (Turbo Mode with 4 active logical CPUs) to 3.1 GHz.</p>
+<p>The maximum frequency is 2.9 GHz. Frequencies higher than 2.9 GHz means that
+the Turbo Mode was enabled! It means that <strong>even with overheating, the CPU is
+still fine and able to &quot;overclock&quot; itself!</strong></p>
+<p>Again, I was disapointed. With a CPU at 102°C, my laptop was still super fast
+and reactive.  It seems like mobile CPUs handle even better overheating than
+desktop CPUs (which is not something suprising at all).</p>
 </div>
 </div>
-<div class="section" id="read-the-cpu-frequency">
-<h2>Read the CPU frequency</h2>
-<p>General information using <tt class="docutils literal">cpupower <span class="pre">frequency-info</span></tt>:</p>
+<div class="section" id="impact-of-the-cpu-frequency-on-benchmarks">
+<h2>Impact of the CPU frequency on benchmarks</h2>
+<p>I ran the bm_call_simple.py microbenchmark (CPU-bound) of performance 0.2.2
+on my desktop PC.</p>
+<p>Command to set the frequency of CPU 0 to the minimum frequency (1.6 GHz):</p>
 <pre class="literal-block">
-selma$ cpupower -c 0 frequency-info
-analyzing CPU 0:
-  driver: intel_pstate
-  ...
-  hardware limits: 1.20 GHz - 3.60 GHz
-  ...
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq|sudo tee  /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+1600000
 </pre>
-<p>The frequency of CPUs is between 1.2 GHz and 3.6 GHz (the base frequency is
-2.9 GHz on this CPU).</p>
-<div class="section" id="get-the-frequency-of-cpus-turbostat">
-<h3>Get the frequency of CPUs: turbostat</h3>
-<p>It looks like the most reliable way to get a relialistic estimation of the CPUs
-frequency is to use the tool <tt class="docutils literal">turbostat</tt>:</p>
+<p>Command to set the frequency of CPU 0 to the maximum frequency (3.4 GHz):</p>
 <pre class="literal-block">
-selma$ sudo turbostat
-     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
-       -     224    7.80    2878    2893
-       0     448   15.59    2878    2893
-       1       0    0.01    2762    2893
-     CPU Avg_MHz   Busy% Bzy_MHz TSC_MHz
-       -     139    5.65    2469    2893
-       0     278   11.29    2469    2893
-       1       0    0.01    2686    2893
-    ...
+$ cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq|sudo tee  /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+3400000
 </pre>
 <ul class="simple">
-<li><tt class="docutils literal">Avg_MHz</tt>: average frequency, based on APERF</li>
-<li><tt class="docutils literal">Busy%</tt>: CPU usage in percent</li>
-<li><tt class="docutils literal">Bzy_MHz</tt>: busy frequency, based on MPERF</li>
-<li><tt class="docutils literal">TSC_MHz</tt>: fixed frequency, TSC stands for <a class="reference external" href="https://en.wikipedia.org/wiki/Time_Stamp_Counter">Time Stamp Counter</a></li>
+<li>CPU running at 1.6 GHz (min freq): Median +- std dev: 27.7 ms +- 0.7 ms</li>
+<li>CPU running at 3.4 GHz (min freq): Median +- std dev: 12.9 ms +- 0.2 ms</li>
 </ul>
-<p>APERF (average) and MPERF (maximum) are MSR registers that can provide feedback
-on current CPU frequency.</p>
+<p>The impact of the CPU frequency is quite obvious: <strong>when the CPU frequency is
+doubled, the performance is also doubled</strong>. The benchmark is 53% faster (27.7
+ms =&gt; 12.9 ms).</p>
 </div>
-<div class="section" id="other-tools-to-get-the-cpu-frequency">
-<h3>Other tools to get the CPU frequency</h3>
-<p>It looks like the following tools are less reliable to estimate the CPU
-frequency.</p>
-<p>cpuinfo:</p>
-<pre class="literal-block">
-selma$ grep MHz /proc/cpuinfo
-cpu MHz : 1372.289
-cpu MHz : 3401.042
-</pre>
-<p>In April 2016, Len Brown proposed a patch modifying cpuinfo to use APERF and
-MPERF MSR to estimate the CPU frequency: <a class="reference external" href="https://lkml.org/lkml/2016/4/1/7">x86: Calculate MHz using APERF/MPERF
-for cpuinfo and scaling_cur_freq</a>.</p>
-<p>The <tt class="docutils literal">tsc</tt> clock source logs the CPU frequency in kernel logs:</p>
-<pre class="literal-block">
-selma$ dmesg|grep 'MHz processor'
-[    0.000000] tsc: Detected 2893.331 MHz processor
-</pre>
-<p>cpupower frequency-info:</p>
-<pre class="literal-block">
-selma$ for core in $(seq 0 1); do sudo cpupower -c $core frequency-info|grep 'current CPU'; done
-  current CPU frequency: 3.48 GHz (asserted by call to hardware)
-  current CPU frequency: 3.40 GHz (asserted by call to hardware)
-</pre>
-<p>cpupower monitor:</p>
-<pre class="literal-block">
-selma$ sudo cpupower monitor -m 'Mperf'
-    |Mperf
-CPU | C0   | Cx   | Freq
-   0|  4.77| 95.23|  1924
-   1|  0.01| 99.99|  1751
-</pre>
-</div>
+<div class="section" id="bug-reproduced-and-then-identified-in-the-linux-cpu-driver">
+<h2>Bug reproduced and then identified in the Linux CPU driver</h2>
+<p>Two days ago, I ran a very simple &quot;timeit&quot; microbenchmark to try to bisect a
+performance regression in Python 3.6 on <tt class="docutils literal">functools.partial</tt>. Again, suddenly,
+the microbenchmark became 2x faster!</p>
+<p>But this time, I found something: I noticed that running or stopping <tt class="docutils literal">cpupower
+monitor</tt> and/or <tt class="docutils literal">turbostat</tt> can &quot;enable&quot; or &quot;disable&quot; the bug.</p>
+<p>After a lot of tests, I understood that running the benchmark with turbostat
+&quot;disables&quot; the bug, whereas running &quot;cpupower monitor&quot; while running a
+benchmark enables the bug.</p>
+<p>I reported the bug in the Fedora bug tracker, on the component kernel:
+<a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1378529">intel_pstate C0 bug on isolated CPUs with the performance governor and
+NOHZ_FULL</a>.</p>
+<p>It seems like the bug is related to CPU isolation and NOHZ_FULL. The NOHZ_FULL
+option is able to fully disable the scheduler clock interruption  on isolated
+CPUs. I understood the the <tt class="docutils literal">intel_pstate</tt> driver uses a callback on the
+scheduler to update the Pstate of the CPU. According to an Intel engineer, the
+<tt class="docutils literal">intel_pstate</tt> driver was never tested with CPU isolation.</p>
+<p>The issue is not fully analyzed yet, but at least I succeeded to write a list
+of commands to reproduce it with a success rate of 100% :-) Moreover, the Intel
+engineer suggested to add an extra parameter to the Linux kernel command
+(<tt class="docutils literal">rcu_nocbs=3,7</tt>) line which works around the issue.</p>
 </div>
 <div class="section" id="conclusion">
 <h2>Conclusion</h2>
-<p>Modern Intel CPUs use various technologies to provide best performances without
-killing the power consumption. It became harder to monitor and understand CPU
-performances, than with older CPUs, since the performance now depends on much
-more factors.</p>
-<p>It also becomes common to get an integrated graphics processor (IGP) in the
-same package, which makes the exact performance even more complex to predict,
-since the IGP produces heat and so has an impact on the CPU P-state.</p>
-<p>I should also explain that P-state are &quot;voted&quot; between CPU cores, but I didn't
-understand this part. I'm not sure that understanding the exact algorithm
-matters much. I tried to not give too much information.</p>
-</div>
-<div class="section" id="annex-amt-and-the-me-power-management-coprocessor">
-<h2>Annex: AMT and the ME (power management coprocessor)</h2>
-<p>Computers with Intel vPro technology includes <a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology">Intel Active Management
-Technology (AMT)</a>: &quot;hardware
-and firmware technology for remote out-of-band management of personal
-computers&quot;. AMT has many features which includes power management.</p>
-<p><a class="reference external" href="https://en.wikipedia.org/wiki/Intel_Active_Management_Technology#Hardware">Management Engine (ME)</a>
-is the hardware part: an isolated and protected coprocessor, embedded as a
-non-optional part in all current (as of 2015) Intel chipsets. The coprocessor
-is a special 32-bit ARC microprocessor (RISC architecture) that's physically
-located inside the PCH chipset (or MCH on older chipsets). The coprocessor can
-for example be found on Intel MCH chipsets Q35 and Q45.</p>
-<p>See <a class="reference external" href="https://boingboing.net/2016/06/15/intel-x86-processors-ship-with.html">Intel x86s hide another CPU that can take over your machine (you can't
-audit it)</a> for
-more information on the coprocessor.</p>
-<p>More recently, the Intel Xeon Phi CPU (2016) also includes a coprocessor for
-power management. I didn't understand if it is the same coprocessor or not.</p>
+<p>This article describes how I found and then identified a bug in the Linux
+driver of my CPU.</p>
+<p>Summary:</p>
+<ul class="simple">
+<li>The maximum speedup of Turbo Boost is 20%</li>
+<li>Overheating on a dekstop PC can decrease the CPU frequency to its minimum
+(half of the maximum in my case) which imply a slowdown of 50%</li>
+<li>A bug in the Linux CPU driver changes suddenly the CPU frequency from its
+minimum to maximum (or the opposite) which means a speedup of 50%
+(or slowdown of 50%)</li>
+</ul>
+<p><strong>To get stable benchmarks, the safest fix for all these issues is probably to
+set the CPU frequency of the CPUs used by benchmarks to the minimum.</strong>
+It seems like nothing can reduce the frequency of a CPU below its minimum.</p>
+<p><strong>When running benchmarks, raw timings and CPU performance don't matter. Only
+comparisons between benchmark results and stable performances matter.</strong></p>
 </div>
                 </article>
             </aside><!-- /#featured -->
@@ -401,6 +216,29 @@ power management. I didn't understand if it is the same coprocessor or not.</p>
                     <h1>Other articles</h1>
                     <hr />
                     <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/intel-cpus.html" rel="bookmark"
+                           title="Permalink to Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2016-07-15T12:00:00+02:00">
+                Published: ven. 15 juillet 2016
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> <a href="https://haypo.github.io/tag/cpu.html">cpu</a> </p>
+</footer><!-- /.post-info -->                <p class="first last">Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.</p>
+
+                <a class="readmore" href="https://haypo.github.io/intel-cpus.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
