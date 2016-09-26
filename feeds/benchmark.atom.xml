@@ -70,6 +70,7 @@ factor used to decide which P-state will be used. I always wanted to check how
 the CPU temperature impacts its performance.&lt;/p&gt;
 &lt;div class="section" id="burn-the-cpu-of-my-desktop-pc"&gt;
 &lt;h3&gt;Burn the CPU of my desktop PC&lt;/h3&gt;
+&lt;p&gt;CPU of my desktop PC: &amp;quot;Intel(R) Core(TM) i7-2600 CPU &amp;#64; 3.40GHz&amp;quot;.&lt;/p&gt;
 &lt;p&gt;I used my &lt;a class="reference external" href="https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py"&gt;system_load.py script&lt;/a&gt; to generate a
 system load higher than 10.&lt;/p&gt;
 &lt;p&gt;When the fan is cooling correctly the CPU, all CPU run at 3.4 GHz (Turbo Boost
