@@ -100,6 +100,8 @@ the CPU temperature impacts its performance.
 Burn the CPU of my desktop PC
 -----------------------------
 
+CPU of my desktop PC: "Intel(R) Core(TM) i7-2600 CPU @ 3.40GHz".
+
 I used my `system_load.py script
 <https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py>`_ to generate a
 system load higher than 10.
