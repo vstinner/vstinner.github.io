@@ -36,6 +36,11 @@ using HyperThreading are "stuck" in the C0 ("POLL") state. On such case,
 the performance of a single logical core is 2x slower than the nominal
 performance.
 
+Moreover, this bug can be trigger without NOHZ_FULL if the intel_idle driver
+is tuned to stay in C0:
+
+* Example: as root, write 0 into /dev/cpu_dma_latency and keep the device open
+
 Example with the Linux cmdline ``... nohz_full=3,7``:
 
 * Run a benchmark::
