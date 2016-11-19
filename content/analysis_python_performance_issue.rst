@@ -31,7 +31,7 @@ which is the 32 nm shrink of the Nehalem microarchitecture.
 Reproduce results
 =================
 
-Being going too far, the first step is to validate that results are
+Before going too far, the first step is to validate that results are
 reproductible: reboot the computer, recompile Python, run again the benchmark.
 
 Instead of running the full benchmark suite, install Python, ..., we will run
