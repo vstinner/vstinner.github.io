@@ -2,7 +2,7 @@
 Analysis of a Python performance issue
 ++++++++++++++++++++++++++++++++++++++
 
-:date: 2016-10-19 00:30
+:date: 2016-11-19 00:30
 :tags: optimization, benchmark
 :category: benchmark
 :slug: analysis-python-performance-issue
