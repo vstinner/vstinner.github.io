@@ -21,6 +21,12 @@ The graphic shows the performance of the ``call_method`` microbenchmark between
 Feb 29, 2016 and November 17, 2016 on the ``default`` branch of CPython. The average
 is around 17.2 ms, whereas the peak is at 29.0 ms: **68% slower**!
 
+The server has two "Intel(R) Xeon(R) CPU X5680  @ 3.33GHz" CPUs, total: 24
+logical cores (12 physical cores with HyperThreading). This CPU was launched in
+2010 and based on the `Westmere-EP microarchitecture
+<https://en.wikipedia.org/wiki/Gulftown>`_. Westmere-EP is based on Westmere,
+which is the 32 nm shrink of the Nehalem microarchitecture.
+
 
 Reproduce results
 =================
