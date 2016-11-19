@@ -7,6 +7,10 @@ benchmark at October 19th:&lt;/p&gt;
 &lt;p&gt;The graphic shows the performance of the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt; microbenchmark between
 Feb 29, 2016 and November 17, 2016 on the &lt;tt class="docutils literal"&gt;default&lt;/tt&gt; branch of CPython. The average
 is around 17.2 ms, whereas the peak is at 29.0 ms: &lt;strong&gt;68% slower&lt;/strong&gt;!&lt;/p&gt;
+&lt;p&gt;The server has two &amp;quot;Intel(R) Xeon(R) CPU X5680  &amp;#64; 3.33GHz&amp;quot; CPUs, total: 24
+logical cores (12 physical cores with HyperThreading). This CPU was launched in
+2010 and based on the &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Gulftown"&gt;Westmere-EP microarchitecture&lt;/a&gt;. Westmere-EP is based on Westmere,
+which is the 32 nm shrink of the Nehalem microarchitecture.&lt;/p&gt;
 &lt;div class="section" id="reproduce-results"&gt;
 &lt;h2&gt;Reproduce results&lt;/h2&gt;
 &lt;p&gt;Being going too far, the first step is to validate that results are
