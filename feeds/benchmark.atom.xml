@@ -5,7 +5,7 @@ analying results, I noticed a temporary peak on the &lt;tt class="docutils liter
 benchmark at October 19th:&lt;/p&gt;
 &lt;img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" /&gt;
 &lt;p&gt;The graphic shows the performance of the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt; microbenchmark between
-March 2016 and December 2016 on the &lt;tt class="docutils literal"&gt;default&lt;/tt&gt; branch of CPython. The average
+Feb 29, 2016 and November 17, 2016 on the &lt;tt class="docutils literal"&gt;default&lt;/tt&gt; branch of CPython. The average
 is around 17.2 ms, whereas the peak is at 29.0 ms: &lt;strong&gt;68% slower&lt;/strong&gt;!&lt;/p&gt;
 &lt;div class="section" id="reproduce-results"&gt;
 &lt;h2&gt;Reproduce results&lt;/h2&gt;
