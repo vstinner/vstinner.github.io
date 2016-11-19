@@ -18,7 +18,7 @@ benchmark at October 19th:
    :alt: call_method microbenchmark
 
 The graphic shows the performance of the ``call_method`` microbenchmark between
-March 2016 and December 2016 on the ``default`` branch of CPython. The average
+Feb 29, 2016 and November 17, 2016 on the ``default`` branch of CPython. The average
 is around 17.2 ms, whereas the peak is at 29.0 ms: **68% slower**!
 
 
