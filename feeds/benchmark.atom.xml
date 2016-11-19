@@ -1,5 +1,334 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-09-23T23:00:00+02:00</updated><entry><title>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</title><link href="https://haypo.github.io/intel-cpus-part2.html" rel="alternate"></link><published>2016-09-23T23:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-09-23:intel-cpus-part2.html</id><summary type="html">&lt;p&gt;My first article &lt;a class="reference external" href="https://haypo.github.io/intel-cpus.html"&gt;Intel CPUs&lt;/a&gt; is a general
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2016-10-19T00:30:00+02:00</updated><entry><title>Analysis of a Python performance issue</title><link href="https://haypo.github.io/analysis-python-performance-issue.html" rel="alternate"></link><published>2016-10-19T00:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-10-19:analysis-python-performance-issue.html</id><summary type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
+upload results to &lt;a class="reference external" href="http://speed.python.org/"&gt;speed.python.org&lt;/a&gt;. While
+analying results, I noticed a temporary peak on the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt;
+benchmark at October 19th:&lt;/p&gt;
+&lt;img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" /&gt;
+&lt;p&gt;The graphic shows the performance of the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt; microbenchmark between
+March 2016 and December 2016 on the &lt;tt class="docutils literal"&gt;default&lt;/tt&gt; branch of CPython. The average
+is around 17.2 ms, whereas the peak is at 29.0 ms: &lt;strong&gt;68% slower&lt;/strong&gt;!&lt;/p&gt;
+&lt;div class="section" id="reproduce-results"&gt;
+&lt;h2&gt;Reproduce results&lt;/h2&gt;
+&lt;p&gt;Being going too far, the first step is to validate that results are
+reproductible: reboot the computer, recompile Python, run again the benchmark.&lt;/p&gt;
+&lt;p&gt;Instead of running the full benchmark suite, install Python, ..., we will run
+directly the benchmark manually using the Python freshly built in its source
+code directory.&lt;/p&gt;
+&lt;p&gt;Interesting dots on the graphic (can be seen at speed.python.org, not on the
+screenshot):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;678fe178da0d, Oct 09, 17.0 ms: &amp;quot;Fast&amp;quot;&lt;/li&gt;
+&lt;li&gt;1ce50f7027c1, Oct 19, 28.9 ms: &amp;quot;Slow&amp;quot;&lt;/li&gt;
+&lt;li&gt;36af3566b67a, Nov 3, 16.9 ms: Fast again&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I use the following directories:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;~/perf: GitHub haypo/perf project&lt;/li&gt;
+&lt;li&gt;~/performance: GitHub python/performance project&lt;/li&gt;
+&lt;li&gt;~/cpython: Mercurial CPython repository&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Tune the system for benchmarks:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo python3 -m perf system tune
+&lt;/pre&gt;
+&lt;p&gt;Note: all &lt;tt class="docutils literal"&gt;system&lt;/tt&gt; commands in this article are optional. They help to reduce
+the operating system jitter (make benchmarks more reliablee).&lt;/p&gt;
+&lt;p&gt;Fast:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg up -C -r 678fe178da0d
+$ ./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+$ mv python python-fast
+$ PYTHONPATH=~/perf ./python-fast ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
+call_method: Median +- std dev: 17.0 ms +- 0.1 ms
+&lt;/pre&gt;
+&lt;p&gt;Slow:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg up -C -r 1ce50f7027c1
+$ ./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+$ mv python python-slow
+$ PYTHONPATH=~/perf ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
+call_method: Median +- std dev: 29.3 ms +- 0.9 ms
+&lt;/pre&gt;
+&lt;p&gt;We reproduced the significant benchmark result: 17 ms =&amp;gt; 29 ms.&lt;/p&gt;
+&lt;p&gt;I use &lt;tt class="docutils literal"&gt;./configure&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;make clean&lt;/tt&gt; instead of incremental compilation,
+&lt;tt class="docutils literal"&gt;make&lt;/tt&gt; command, to avoid compilation errors, and to avoid potential side
+effects only caused by the incremental compilation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="analysis-with-the-linux-perf-tool"&gt;
+&lt;h2&gt;Analysis with the Linux perf tool&lt;/h2&gt;
+&lt;p&gt;To collect perf events, we will run the benchmark with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--worker&lt;/span&gt;&lt;/tt&gt; to run a
+single process and with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-w0&lt;/span&gt; &lt;span class="pre"&gt;-n100&lt;/span&gt;&lt;/tt&gt; to run the benchmark long enough: 100
+samples means at least 10 seconds (a single sample takes at least 100 ms).&lt;/p&gt;
+&lt;p&gt;First, reset the system configuration to reset the Linux perf configuration:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo python3 -m perf system reset
+&lt;/pre&gt;
+&lt;p&gt;Note: &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-m&lt;/span&gt; perf system tune&lt;/tt&gt; reduces the sampling rate of Linux perf
+to reduce operating system jitter.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="perf-stat"&gt;
+&lt;h2&gt;perf stat&lt;/h2&gt;
+&lt;p&gt;Command to get general statistics on the benchmark:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ perf stat ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -v -w0 -n100
+&lt;/pre&gt;
+&lt;p&gt;&amp;quot;Fast&amp;quot; results:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Performance counter stats for ./python-fast:
+
+      3773.585194 task-clock (msec)         #    0.998 CPUs utilized
+              369 context-switches          #    0.098 K/sec
+                0 cpu-migrations            #    0.000 K/sec
+            8,300 page-faults               #    0.002 M/sec
+   12,981,234,867 cycles                    #    3.440 GHz                     [83.27%]
+    1,460,980,720 stalled-cycles-frontend   #   11.25% frontend cycles idle    [83.36%]
+      435,806,788 stalled-cycles-backend    #    3.36% backend  cycles idle    [66.72%]
+   29,982,530,201 instructions              #    2.31  insns per cycle
+                                            #    0.05  stalled cycles per insn [83.40%]
+    5,613,631,616 branches                  # 1487.612 M/sec                   [83.40%]
+       16,006,564 branch-misses             #    0.29% of all branches         [83.27%]
+
+      3.780064486 seconds time elapsed
+&lt;/pre&gt;
+&lt;p&gt;&amp;quot;Slow&amp;quot; results:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Performance counter stats for ./python-slow:
+
+      5906.239860 task-clock (msec)         #    0.998 CPUs utilized
+              556 context-switches          #    0.094 K/sec
+                0 cpu-migrations            #    0.000 K/sec
+            8,393 page-faults               #    0.001 M/sec
+   20,651,474,102 cycles                    #    3.497 GHz                     [83.36%]
+    8,480,803,345 stalled-cycles-frontend   #   41.07% frontend cycles idle    [83.37%]
+    4,247,826,420 stalled-cycles-backend    #   20.57% backend  cycles idle    [66.64%]
+   30,011,465,614 instructions              #    1.45  insns per cycle
+                                            #    0.28  stalled cycles per insn [83.32%]
+    5,612,485,730 branches                  #  950.264 M/sec                   [83.36%]
+       13,584,136 branch-misses             #    0.24% of all branches         [83.29%]
+
+      5.915402403 seconds time elapsed
+&lt;/pre&gt;
+&lt;p&gt;Significant differences, Fast =&amp;gt; Slow:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Instruction per cycle: 2.31 =&amp;gt; 1.45&lt;/li&gt;
+&lt;li&gt;stalled-cycles-frontend: &lt;strong&gt;11.25% =&amp;gt; 41.07%&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;stalled-cycles-backend: &lt;strong&gt;3.36% =&amp;gt; 20.57%&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The increase of stalled cycles is interesting. Since the code is supposed to be
+identical, it probably means that fetching instructions is slower. It sounds
+like an issue with CPU caches.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="statistics-on-the-cpu-l1-instruction-cache"&gt;
+&lt;h2&gt;Statistics on the CPU L1 instruction cache&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;perf list&lt;/tt&gt; command can be used to get the name of events collecting
+statistics on the CPU L1 instruction cache:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ perf list | grep L1
+  L1-icache-loads                                    [Hardware cache event]
+  L1-icache-load-misses                              [Hardware cache event]
+  (...)
+&lt;/pre&gt;
+&lt;p&gt;Collect statistics on the CPU L1 instruction cache:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PYTHONPATH=~/perf perf stat -e L1-icache-loads,L1-icache-load-misses ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -w0 -n10
+&lt;/pre&gt;
+&lt;p&gt;&amp;quot;Fast&amp;quot; statistics:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Performance counter stats for './python-fast (...)':
+
+   10,134,106,571 L1-icache-loads
+       10,917,606 L1-icache-load-misses     #    0.11% of all L1-icache hits
+
+      3.775067668 seconds time elapsed
+&lt;/pre&gt;
+&lt;p&gt;&amp;quot;Slow&amp;quot; statistics:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Performance counter stats for './python-slow (...)':
+
+   10,753,371,258 L1-icache-loads
+      848,511,308 L1-icache-load-misses     #    7.89% of all L1-icache hits
+
+      6.020490449 seconds time elapsed
+&lt;/pre&gt;
+&lt;p&gt;Cache misses on the L1 cache: &lt;strong&gt;0.1%&lt;/strong&gt; (Fast) =&amp;gt; &lt;strong&gt;8.0%&lt;/strong&gt; (Slow).&lt;/p&gt;
+&lt;p&gt;The slow Python has &lt;strong&gt;71.7x more L1 cache misses&lt;/strong&gt; than the fast Python! It can
+explain the significant performance drop.&lt;/p&gt;
+&lt;div class="section" id="perf-report"&gt;
+&lt;h3&gt;perf report&lt;/h3&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;perf record&lt;/tt&gt; command can be used to collect statistics on the functions
+where the benchmark spends most of its time. Commands:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PYTHONPATH=~/perf perf record ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -v -w0 -n100
+perf report
+&lt;/pre&gt;
+&lt;p&gt;Output:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+40.27%  python  python              [.] _PyEval_EvalFrameDefault
+10.30%  python  python              [.] call_function
+10.21%  python  python              [.] PyFrame_New
+ 8.56%  python  python              [.] frame_dealloc
+ 5.51%  python  python              [.] PyObject_GenericGetAttr
+ (...)
+&lt;/pre&gt;
+&lt;p&gt;More than 64% of the time is spent in these 5 functions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="system-tune"&gt;
+&lt;h3&gt;system tune&lt;/h3&gt;
+&lt;p&gt;To run benchmark, tune again the system for benchmarks:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo python3 -m perf system tune
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="hg-bisect"&gt;
+&lt;h2&gt;hg bisect&lt;/h2&gt;
+&lt;p&gt;To find the revision which introduces the performance slowdown, we use a
+shell script to automate the bisection of the Mercurial history.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;cmd.sh&lt;/tt&gt; script checking if a revision is fast or slow:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+set -e -x
+./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+rm -f json
+PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -o json -v
+PYTHONPATH=~/perf python3 cmd.py json
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;cmd.sh&lt;/tt&gt; uses the following &lt;tt class="docutils literal"&gt;cmd.py&lt;/tt&gt; script which checks if the benchmark
+is slow: if it takes longer than 23 ms (average between 17 ans 29 ms):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+import perf, sys
+bench = perf.Benchmark.load('json')
+bad = (29 + 17) / 2.0
+ms = bench.median() * 1e3
+if ms &amp;gt;= bad:
+    print(&amp;quot;BAD! %.1f ms &amp;gt;= %.1f ms&amp;quot; % (ms, bad))
+    sys.exit(1)
+else:
+    print(&amp;quot;good: %.1f ms &amp;lt; %.1f ms&amp;quot; % (ms, bad))
+&lt;/pre&gt;
+&lt;p&gt;In the bisection, &amp;quot;good&amp;quot; means &amp;quot;fast&amp;quot; (17 ms), whereas &amp;quot;bad&amp;quot; means &amp;quot;slow&amp;quot; (29
+ms).  The peak, revision 1ce50f7027c1, is used as the first &amp;quot;bad&amp;quot; revision. The
+previous fast revision before the peak is 678fe178da0d, our first &amp;quot;good&amp;quot;
+revision.&lt;/p&gt;
+&lt;p&gt;Commands to identify the first revision which introduced the slowdown:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg bisect --reset
+hg bisect -b 1ce50f7027c1
+hg bisect -g 678fe178da0d
+time hg bisect -c ./cmd.sh
+&lt;/pre&gt;
+&lt;p&gt;3 min 52 sec later:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+The first bad revision is:
+changeset:   104531:83877018ef97
+parent:      104528:ce85a1f129e3
+parent:      104530:2d352bf2b228
+user:        Serhiy Storchaka &amp;lt;storchaka&amp;#64;gmail.com&amp;gt;
+date:        Tue Oct 18 13:27:54 2016 +0300
+files:       Misc/NEWS
+description:
+Issue #23782: Fixed possible memory leak in _PyTraceback_Add() and exception
+loss in PyTraceBack_Here().
+&lt;/pre&gt;
+&lt;p&gt;Thank you &lt;tt class="docutils literal"&gt;hg bisect&lt;/tt&gt;! I love this tool.&lt;/p&gt;
+&lt;p&gt;Even if I trust &lt;tt class="docutils literal"&gt;hg bisect&lt;/tt&gt;, I don't trust benchmarks, so I recheck manually:&lt;/p&gt;
+&lt;p&gt;Slow:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg up -C -r 83877018ef97
+$ ./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
+call_method: Median +- std dev: 29.4 ms +- 1.8 ms
+&lt;/pre&gt;
+&lt;p&gt;Use &lt;tt class="docutils literal"&gt;hg parents&lt;/tt&gt; to get the latest fast revision:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg parents -r 83877018ef97
+changeset:   104528:ce85a1f129e3
+(...)
+
+changeset:   104530:2d352bf2b228
+branch:      3.6
+(...)
+&lt;/pre&gt;
+&lt;p&gt;Check the parent:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg up -C -r ce85a1f129e3
+$ ./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
+call_method: Median +- std dev: 17.1 ms +- 0.1 ms
+&lt;/pre&gt;
+&lt;p&gt;The revision ce85a1f129e3 is fast and the following revision 83877018ef97 is
+slow. &lt;strong&gt;The revision 83877018ef97 introduced the slowdown&lt;/strong&gt;.  We found it!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="analysis-of-the-revision-introducing-the-slowdown"&gt;
+&lt;h2&gt;Analysis of the revision introducing the slowdown&lt;/h2&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://hg.python.org/cpython/rev/83877018ef97/"&gt;revision 83877018ef97&lt;/a&gt;
+changes two files: Misc/NEWS and Python/traceback.c. The NEWS file is only
+documentation and so must not impact performances.  Python/traceback.c is part
+of the C code and so is more interesting.&lt;/p&gt;
+&lt;p&gt;The commit only changes two C functions: &lt;tt class="docutils literal"&gt;PyTraceBack_Here()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;_PyTraceback_Add()&lt;/tt&gt;, but &lt;tt class="docutils literal"&gt;perf report&lt;/tt&gt; didn't show these functions as &amp;quot;hot&amp;quot;.
+In fact, these functions are never called by the benchmark.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The commit doesn't touch the C code used in the benchmark.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Unrelated C change impacting performances reminds me my previous &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html"&gt;deadcode
+horror story&lt;/a&gt;. The performance
+difference is probably caused by &lt;strong&gt;&amp;quot;code placement&amp;quot;&lt;/strong&gt;: &lt;tt class="docutils literal"&gt;perf stat&lt;/tt&gt; showed a
+significant increase of the cache miss rate on the L1 instruction cache.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="use-gcc-attribute-hot"&gt;
+&lt;h2&gt;Use GCC __attribute__((hot))&lt;/h2&gt;
+&lt;p&gt;Using PGO compilation was the solution for deadcode, but PGO doesn't work on
+Ubuntu 14.04 (the OS used by the benchmark server, speed-python) and PGO seems
+to make benchmarks less reliable.&lt;/p&gt;
+&lt;p&gt;I wanted to try something else: mark hot functions using the GCC
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;__attribute__((hot))&lt;/span&gt;&lt;/tt&gt; attribute. PGO compilation does this automatically.&lt;/p&gt;
+&lt;p&gt;This attribute only has an impact on the code placement: where functions are
+loaded in memory. The flag declares functions in the &lt;tt class="docutils literal"&gt;.text.hot&lt;/tt&gt; ELF section
+rather than the &lt;tt class="docutils literal"&gt;.text&lt;/tt&gt; ELF section. Grouping hot functions in the same
+functions helps to reduce the distance between functions and so enhance the
+usage of CPU caches.&lt;/p&gt;
+&lt;p&gt;I wrote and then pushed a patch in the &lt;a class="reference external" href="http://bugs.python.org/issue28618"&gt;issue #28618&lt;/a&gt;: &amp;quot;Decorate hot functions using
+__attribute__((hot)) to optimize Python&amp;quot;.&lt;/p&gt;
+&lt;p&gt;The patch marks 6 functions as hot:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyEval_EvalFrameDefault()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;call_function()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyFunction_FastCall()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyFrame_New()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;frame_dealloc()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyErr_Occurred()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Let's try the patch:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg up -C -r 83877018ef97
+$ wget https://hg.python.org/cpython/raw-rev/59b91b4e9506 -O patch
+$ patch -p1 &amp;lt; patch
+$ ./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
+call_method: Median +- std dev: 16.7 ms +- 0.3 ms
+&lt;/pre&gt;
+&lt;p&gt;It's easy to make mistakes and benchmarks are always suprising, so let's retry
+without the patch:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ hg up -C -r 83877018ef97
+$ ./configure --with-lto -C &amp;amp;&amp;amp; make clean &amp;amp;&amp;amp; make
+$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
+call_method: Median +- std dev: 29.3 ms +- 0.6 ms
+&lt;/pre&gt;
+&lt;p&gt;The check confirms that the GCC attribute fixed the issue!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;On modern Intel CPUs, the code placement can have a major impact on the
+performance of microbenchmarks.&lt;/p&gt;
+&lt;p&gt;The GCC &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;__attribute__((hot))&lt;/span&gt;&lt;/tt&gt; attribute can be used manually to make &amp;quot;hot
+functions&amp;quot; close in memory to enhance the usage of CPU caches.&lt;/p&gt;
+&lt;p&gt;To know more about the impact of code placement, see the very good talk of Zia
+Ansari (Intel) at the LLVM Developers' Meeting 2016: &lt;a class="reference external" href="https://llvmdevelopersmeetingbay2016.sched.org/event/8YzY/causes-of-performance-instability-due-to-code-placement-in-x86"&gt;Causes of Performance
+Swings Due to Code Placement in IA&lt;/a&gt;.
+He describes well &amp;quot;performance swings&amp;quot; like the one described in this article
+and explains how CPUs work internally and how code placement impacts CPU
+performances.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</title><link href="https://haypo.github.io/intel-cpus-part2.html" rel="alternate"></link><published>2016-09-23T23:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-09-23:intel-cpus-part2.html</id><summary type="html">&lt;p&gt;My first article &lt;a class="reference external" href="https://haypo.github.io/intel-cpus.html"&gt;Intel CPUs&lt;/a&gt; is a general
 introduction on modern CPU technologies having an impact on benchmarks.&lt;/p&gt;
 &lt;p&gt;This second article is much more concrete with numbers and a concrete bug
 having a major impact on benchmarks: a benchmark suddenly becomes 2x faster!&lt;/p&gt;
