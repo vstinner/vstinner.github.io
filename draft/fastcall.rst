@@ -1,0 +1,274 @@
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Fast call: A new calling convention for the Python C API
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+property get
+============
+
+`property_descr_get reuse argument tuple <http://bugs.python.org/issue23910>`_,
+Date: 2015-04-10 20:10.
+
+2015-05-24: `Correct reuse argument tuple in property descriptor
+<http://bugs.python.org/issue24276>`_. Bug found while working on the C
+implementation of functools.lru_cache. First fix.
+
+2016-04-21: `Crash when iterating on gc.get_objects()
+<http://bugs.python.org/issue26811>`_. Second fix.
+
+
+Related issues
+==============
+
+Related issue: issue #23507, "Tuple creation is too slow".
+http://bugs.python.org/issue23507
+
+Proof of Concept (PoC)
+======================
+
+First API::
+
+   PyObject* _PyObject_CallStack(PyObject *func,
+                                 PyObject **stack,
+                                 int na, int nk);
+
+* [WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments
+  http://bugs.python.org/issue26814
+  Date: 2016-04-21 08:57
+* Date: 2016-04-21 10:42: getting an attribute of namedtuple becomes 31% faster
+  and function calls become 2x as fast!
+
+Larry Hastings mentions a private experiment project modifying Argument Clinic
+to use a new calling convention.
+http://bugs.python.org/issue26814#msg263920
+
+Date: 2016-04-22 11:40
+
+Python 3.6 FASTCALL compared to Python 3.6:
+http://bugs.python.org/issue26814#msg263999
+
++===================================+==============+================+
+| Tests                             | /tmp/default |  /tmp/fastcall |
++===================================+==============+================+
+| filter                            |   241 us (*) |  166 us (-31%) |
++-----------------------------------+--------------+----------------+
+| map                               |   205 us (*) |  168 us (-18%) |
++-----------------------------------+--------------+----------------+
+| sorted(list, key=lambda x: x)     |   242 us (*) |  162 us (-33%) |
++-----------------------------------+--------------+----------------+
+| sorted(list)                      |  27.7 us (*) |        27.8 us |
++-----------------------------------+--------------+----------------+
+| b=MyBytes(); bytes(b)             |   549 ns (*) |         533 ns |
++-----------------------------------+--------------+----------------+
+| namedtuple.attr                   |  2.03 us (*) | 1.56 us (-23%) |
++-----------------------------------+--------------+----------------+
+| object.__setattr__(obj, "x", 1)   |   347 ns (*) |  218 ns (-37%) |
++-----------------------------------+--------------+----------------+
+| object.__getattribute__(obj, "x") |   331 ns (*) |  200 ns (-40%) |
++-----------------------------------+--------------+----------------+
+| getattr(1, "real")                |   267 ns (*) |  150 ns (-44%) |
++-----------------------------------+--------------+----------------+
+| bounded_pymethod(1, 2)            |   193 ns (*) |         190 ns |
++-----------------------------------+--------------+----------------+
+| unbound_pymethod(obj, 1, 2        |   195 ns (*) |         192 ns |
++-----------------------------------+--------------+----------------+
+| Total                             |   719 us (*) |  526 us (-27%) |
++-----------------------------------+--------------+----------------+
+
+Python 3.4 / 3.6 / 3.6 FASTCALL compared to Python 2.7:
+http://bugs.python.org/issue26814#msg264003
+
++====================================+=============+================+================+================+
+|  Tests                             |        py27 |           py34 |           py36 |           fast |
++====================================+=============+================+================+================+
+|  filter                            |  165 us (*) |  318 us (+93%) |  237 us (+43%) |         165 us |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  map                               |  209 us (*) |  258 us (+24%) |         202 us |  171 us (-18%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  sorted(list, key=lambda x: x)     |  272 us (*) |  348 us (+28%) |  237 us (-13%) |  163 us (-40%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+| 2sorted(list)                      | 33.7 us (*) | 47.8 us (+42%) | 27.3 us (-19%) | 27.7 us (-18%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  b=MyBytes(); bytes(b)             | 3.31 us (*) |  835 ns (-75%) |  510 ns (-85%) |  561 ns (-83%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+| 1namedtuple.attr                   | 4.63 us (*) |        4.51 us | 1.98 us (-57%) | 1.57 us (-66%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  object.__setattr__(obj, "x", 1)   |  463 ns (*) |         440 ns |  343 ns (-26%) |  222 ns (-52%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  object.__getattribute__(obj, "x") |  323 ns (*) |  396 ns (+23%) |         316 ns |  196 ns (-39%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  getattr(1, "real")                |  218 ns (*) |   237 ns (+8%) |  264 ns (+21%) |  147 ns (-33%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  bounded_pymethod(1, 2)            |  213 ns (*) |  244 ns (+14%) |   194 ns (-9%) |  188 ns (-12%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  unbound_pymethod(obj, 1, 2)       |  345 ns (*) |  247 ns (-29%) |  196 ns (-43%) |  191 ns (-45%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  func()                            |  161 ns (*) |  211 ns (+31%) |         161 ns |         157 ns |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  func(1, 2, 3)                     |  219 ns (*) |  247 ns (+13%) |  196 ns (-10%) |  190 ns (-13%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+|  Total                             |  689 us (*) |  980 us (+42%) |         707 us |  531 us (-23%) |
++------------------------------------+-------------+----------------+----------------+----------------+
+
+
+Benchmarks
+==========
+
+2016-04-29.
+
+Then I started to run the Grand Unified Python Benchmark Suite.
+
+
+Serhiy Storchaka: "Could you repeat benchmarks on different computer? Better with different CPU or compiler."
+
+Serhiy: "Results look as a noise. Some tests become slower, others become faster. If
+results on different machine will show the same sets of slowing down and
+speeding up tests, this likely is not a noise."
+
+2016-05-19. "I removed tp_fastnew, tp_fastinit and tp_fastnew fields from
+PyTypeObject to replace them with new type flags (ex: Py_TPFLAGS_FASTNEW) to
+avoid code duplication and reduce the memory footprint.  Before, each function
+was simply duplicated. This change introduces a backward incompatibility change"
+http://bugs.python.org/issue26814#msg265856
+
+"I spent a lot of ot time on the CPython benchmark suite to check for
+performance regression. In fact, I spent most of my time to try to understand
+why most benchmarks looked completly unstable. I now tuned correctly my system
+and patched perf.py to get reliable benchmarks."
+
+Date: 2016-05-19 13:38
+
+* Add METH_FASTCALL calling convention to C functions, similar
+  to METH_VARARGS|METH_KEYWORDS
+* Argument Clinic uses METH_FASTCALL when possible (it may use METH_FASTCALL
+  for all cases in the future)
+* Add new type flags changing the calling conventions of tp_new, tp_init and
+  tp_call:
+
+  - Py_TPFLAGS_FASTNEW
+  - Py_TPFLAGS_FASTINIT
+  - Py_TPFLAGS_FASTCALL
+
+Date: 2016-05-25 14:05
+http://bugs.python.org/issue26814#msg266359
+
+"I fixed even more issues with my setup to run benchmark. Results should be
+even more reliable. Moreover, I fixed multiple reference leaks in the code
+which introduced performance regressions. I started to write articles to
+explain how to run stable benchmarks:"
+
+Simpler patch
+=============
+
+2016-05-26: `Add _PyObject_FastCall() <http://bugs.python.org/issue27128>`_.
+
+First benchmark: "everything is slower".
+
+Black hole: fix benchmarks to make them stable
+==============================================
+
+* isolcpus
+* write perf module
+* fork benchmarks project, renamed to performance, moved to GitHub
+* use multiple processes
+* use average (median) rather than the minimum
+* system tuning
+* builtin feature: warmup samples
+* drop all benchmark results from speed.python.org, upload again to
+  speed.python.org
+
+
+Back on simpler patch
+=====================
+
+2016-08-08: "I spent the last 3 months on making the CPython benchmark suite
+more stable and enhance my procedure to run benchmarks to ensure that
+benchmarks are more stable."
+
+2016-08-19: First commit: `Add _PyObject_FastCall()
+<https://hg.python.org/cpython/rev/a1a29d20f52d>`_::
+
+     PyAPI_FUNC(PyObject *) _PyObject_FastCall(PyObject *func,
+                                               PyObject **args, int nargs,
+                                               PyObject *kwargs);
+
+Next
+====
+
+_PyFunction_FastCallDict()
+--------------------------
+
+2016-08-20: Add _PyFunction_FastCallDict(): fast call with keyword arguments as a dict
+http://bugs.python.org/issue27809
+
+Add::
+
+    _PyObject_FastCallDict(PyObject **args, int nargs, PyObject *kwargs)
+
+where *kwargs* is a Python dictionary. Changes:
+
+* Rename _PyObject_FastCall() to _PyObject_FastCallDict()
+* Add _PyObject_FastCall(func, args, nargs) macro
+* Add _PyObject_CallArg1(func, arg) macro
+* Add _PyObject_CallNoArg(func) macro
+
+tp_new, tp_init and tp_call slots expect a Python dictionary for keyword
+arguments. Many C functions pass keyword arguments (Python dict) unchanged
+to another function: see http://bugs.python.org/msg273370.
+
+
+METH_FASTCALL
+-------------
+
+2016-08-20: Add METH_FASTCALL: new calling convention for C functions
+http://bugs.python.org/issue27810
+
+
+_PyObject_FastCallKeywords()
+----------------------------
+
+2016-08-22: Add _PyObject_FastCallKeywords(): avoid the creation of a temporary
+dictionary for keyword arguments
+http://bugs.python.org/issue27830
+
+
+
+Annex: API to call objects
+==========================
+
+Python 3.5: the main function is PyObject_Call().
+
+* Arguments tuple and Keyword arguments dict:
+
+  - PyObject_Call(func, args: tuple, kwargs: dict)
+  - PyEval_CallObjectWithKeywords(func, args: tuple, kwargs: dict)
+
+* Arguments as a tuple
+
+  - PyObject_CallObject(func, args: tuple)
+  - PyEval_CallObject(func, args: tuple): *macro*
+
+* Format string:
+
+  - PyObject_CallFunction(func, format: char*, ...)
+  - PyObject_CallMethod(func, method: char*, format: char*, ...)
+  - _PyObject_CallMethodId(func, method: _Py_Identifier, format: char*, ...)
+  - PyEval_CallFunction(func, format, ...)
+  - PyEval_CallMethod(func, method: char*, format: char*, ...)
+
+
+* Arguments as ``...``:
+
+  - PyObject_CallFunctionObjArgs(func, ...)
+  - PyObject_CallMethodObjArgs(obj, attr: str, ...)
+  - _PyObject_CallMethodIdObjArgs(obj, attr: _Py_Identifier, ...)
+
+Python 3.6 has new functions. The main fastcall function is
+_PyObject_FastCallKeywords():
+
+* _PyObject_FastCallKeywords(func, args: C array, nargs: Py_ssize_t, kwnames: Tuple[str])
+* _PyObject_CallNoArg(func): *macro*
+* _PyObject_CallArg1(func, arg): *macro*
+* _PyObject_FastCall(func, args: C array, nargs: Py_ssize_t): *macro*
+* _PyObject_FastCallDict(func, args: C array, nargs: Py_ssize_t, kwargs: dict)
+* _PyObject_Call_Prepend(func, arg0, args, kwargs)
