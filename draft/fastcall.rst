@@ -231,6 +231,17 @@ _PyObject_FastCallKeywords()
 dictionary for keyword arguments
 http://bugs.python.org/issue27830
 
+(XXXXXXXXXXXXXXXXXXXXX ... XXXXXXXXXXXX)
+
+December 2016
+-------------
+
+Python 3.7.
+
+http://bugs.python.org/issue28915
+
+__getitem__ slot becomes 1.23x faster
+
 
 
 Annex: API to call objects
