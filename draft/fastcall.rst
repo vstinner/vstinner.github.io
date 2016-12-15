@@ -2,6 +2,24 @@
 Fast call: A new calling convention for the Python C API
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+:date: 2016-12-15 16:00
+:tags: optimization, python
+:category: python
+:slug: python-fast-call
+:authors: Victor Stinner
+
+
+Pycon US 2014
+=============
+
+In 2014 during a lunch at Pycon, Larry Hasting told me that he would like to
+get rid of temporary tuples to call functions in Python. In Python, positional
+arguments are passed as a tuple to C functions: ``PyObject *args``.
+
+Larry wrote `Argument Clinic <https://docs.python.org/dev/howto/clinic.html>`_
+which gives more control on how C functions are called. But I guess that Larry
+didn't have time to finish his implementation, since he didn't publish a patch.
+
 
 property get
 ============
@@ -44,10 +62,10 @@ http://bugs.python.org/issue26814#msg263920
 
 Date: 2016-04-22 11:40
 
-Python 3.6 FASTCALL compared to Python 3.6:
-http://bugs.python.org/issue26814#msg263999
+`Python 3.6 FASTCALL compared to Python 3.6
+<http://bugs.python.org/issue26814#msg263999>`_:
 
-+===================================+==============+================+
++-----------------------------------+--------------+----------------+
 | Tests                             | /tmp/default |  /tmp/fastcall |
 +===================================+==============+================+
 | filter                            |   241 us (*) |  166 us (-31%) |
@@ -78,7 +96,7 @@ http://bugs.python.org/issue26814#msg263999
 Python 3.4 / 3.6 / 3.6 FASTCALL compared to Python 2.7:
 http://bugs.python.org/issue26814#msg264003
 
-+====================================+=============+================+================+================+
++------------------------------------+-------------+----------------+----------------+----------------+
 |  Tests                             |        py27 |           py34 |           py36 |           fast |
 +====================================+=============+================+================+================+
 |  filter                            |  165 us (*) |  318 us (+93%) |  237 us (+43%) |         165 us |
@@ -178,19 +196,26 @@ Black hole: fix benchmarks to make them stable
   speed.python.org
 
 
-Back on simpler patch
-=====================
+August 2016: Back on simpler patch
+==================================
+
+`Python-Dev: New calling convention to avoid temporarily tuples when calling
+functions
+<https://mail.python.org/pipermail/python-dev/2016-August/145793.html>`_.
 
 2016-08-08: "I spent the last 3 months on making the CPython benchmark suite
 more stable and enhance my procedure to run benchmarks to ensure that
 benchmarks are more stable."
 
-2016-08-19: First commit: `Add _PyObject_FastCall()
+2016-08-19: `First commit: Add _PyObject_FastCall()
 <https://hg.python.org/cpython/rev/a1a29d20f52d>`_::
 
      PyAPI_FUNC(PyObject *) _PyObject_FastCall(PyObject *func,
                                                PyObject **args, int nargs,
                                                PyObject *kwargs);
+
+The *kwargs* parameter is unused and must be ``NULL``.
+
 
 Next
 ====
@@ -233,14 +258,106 @@ http://bugs.python.org/issue27830
 
 (XXXXXXXXXXXXXXXXXXXXX ... XXXXXXXXXXXX)
 
+Cleanup
+-------
+
+Inefficient 1::
+
+    -    res = _PyObject_CallMethodId(fut->fut_loop, &PyId_get_debug, "()", NULL);
+    +    res = _PyObject_CallMethodId(fut->fut_loop, &PyId_get_debug, NULL);
+
+Issue #28799: Remove CALL_PROFILE special build,
+
+* PyObject_CallFunctionObjArgs(func, NULL) => _PyObject_CallNoArg(func)
+* PyObject_CallFunctionObjArgs(func, arg, NULL) => _PyObject_CallArg1(func, arg)
+
+Replace
+    PyObject_CallFunction(func, "O", arg)
+and
+    PyObject_CallFunction(func, "O", arg, NULL)
+with
+    _PyObject_CallArg1(func, arg)
+
+Replace
+    PyObject_CallFunction(func, NULL)
+with
+    _PyObject_CallNoArg(func)
+
+Replace:
+    PyObject_CallObject(callable, NULL)
+with:
+    _PyObject_CallNoArg(callable)
+
+Replace:
+    PyObject_CallFunctionObjArgs(callable, NULL)
+with:
+    _PyObject_CallNoArg(callable)
+
+* PyObject_CallFunctionObjArgs(func, NULL) => _PyObject_CallNoArg(func)
+* PyObject_CallFunctionObjArgs(func, arg, NULL) => _PyObject_CallArg1(func, arg)
+
+=> Issue #28858: stack usage.
+
+Issue #28858: Remove _PyObject_CallArg1() macro
+
+Issue #28915: Replace _PyObject_CallMethodId() with
+_PyObject_CallMethodIdObjArgs() when the format string only use the format 'O'
+for objects, like "(O)".
+
+Issue #28915: Avoid calling _PyObject_CallMethodId() with "(...)" format to
+avoid the creation of a temporary tuple: use Py_BuildValue() with
+_PyObject_CallMethodIdObjArgs().
+
+Replace PyObject_CallFunction(func, NULL) with _PyObject_CallNoArg(func).
+
+Issue #28915: Replace _PyObject_CallMethodId() with
+_PyObject_CallMethodIdObjArgs() in unpickle()
+
+Issue #28915: Replace _PyObject_CallMethodId() with
+_PyObject_CallMethodIdObjArgs() in various modules when the format string was
+only made of "O" formats, PyObject* arguments.
+
+
+Argument Clinic
+---------------
+
+change::
+
+    changeset:   105559:c62352ec21bc
+    user:        Victor Stinner <victor.stinner@gmail.com>
+    date:        Fri Dec 09 18:08:18 2016 +0100
+    files:       Python/_warnings.c Python/clinic/_warnings.c.h
+    description:
+    Issue #20185: Convert _warnings.warn() to Argument Clinic
+
+    Fix warn_explicit(): interpret source=None as source=NULL.
+
+
+
+
+
+Stack
+-----
+
+Issue #28915: Add _PyObject_FastCallVa() helper to factorize code of functions:
+Issue #28915: Add _PyObject_CallFunctionVa() helper to factorize code of
+functions:
+Add _Py_VaBuildStack() function
+_PyObject_CallFunctionVa() uses fast call
+
+
+
+
 December 2016
 -------------
 
 Python 3.7.
 
 http://bugs.python.org/issue28915
-
 __getitem__ slot becomes 1.23x faster
+
+Reduce stack consumption of PyObject_CallFunctionObjArgs() and like
+http://bugs.python.org/issue28870
 
 
 
