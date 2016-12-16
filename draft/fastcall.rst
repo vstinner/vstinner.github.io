@@ -21,11 +21,73 @@ which gives more control on how C functions are called. But I guess that Larry
 didn't have time to finish his implementation, since he didn't publish a patch.
 
 
-property get
-============
+Tuple creation is slow
+======================
 
-`property_descr_get reuse argument tuple <http://bugs.python.org/issue23910>`_,
-Date: 2015-04-10 20:10.
+Creating temporary tuples is known to be slow, at least by a few developers.
+
+itertools (2003)
+----------------
+
+In Python 2.3.0 (released in 2003), Raymond Hettinger added a new new itertools
+module. The implementation of the module used a cached tuple for the
+itertools.izip() generator. The optimization was also added to the enumerate()
+generator.
+
+When the itertools module was merged into Python 2.3, in the development
+branch, it used a cached tuple for itertools.imap() generator, but the cache
+was removed before 2.3.0 in the `commit 59ae41e04ffb
+<https://hg.python.org/cpython/rev/59ae41e04ffb>`_: "Eliminated tuple re-use in
+imap(). Doing it correctly made the code too hard to read."
+
+In Python 2.7, the itertools uses a cached tuple for the following generators:
+
+* itertools.combinations()
+* itertools.combinations_with_replacement()
+* itertools.izip()
+* itertools.permutations()
+* itertools.product()
+
+
+Changes in 2015
+===============
+
+Tuple creation is too slow
+---------------------------
+
+At 2015-02-24, Serhiy Storchaka opened the `issue #23507: Tuple creation is too
+slow <http://bugs.python.org/issue23507>`_. He proposed changes to filter(),
+map() and list.sort() to reuse a tuple in a loop or cache a tuple in a C
+structure.
+
+His patch checks the reference counter to decide if it is ok to keep the cached
+tuple or not: if there is more than 1 reference to the tuple, the cache is
+invalidated.
+
+
+property get
+------------
+
+At the end of 2014, Joe Jevnik created the `cnamedtuple
+<https://pypi.python.org/pypi/cnamedtuple>`_ project: collections.namedtuple
+implemented in C. At 2015-04-10, he opened the issue `C implementation of
+namedtuple (WIP) <http://bugs.python.org/issue23910>`_ to propose to merge his
+C code into the stdlib.
+
+Raymond Hettinger moved the discussion to the performance of getting an
+attribute from a namedtuple. The discussion moved to optimizing
+property_descr_get(), and then it became even more specific about the tuple
+used to pass arguments to PyObject_CallFunctionObjArgs().
+
+Raymond proposed to cache a tuple of one element before calls to avoid the cost
+of the tuple creation (and then destruction).
+
+Raymond suggested to ensure that the reference counter is 1.
+
+At 2015-04-10, Joe Jevnik proposed to optimize property_descr_get() by caching
+the tuple of 1 item in a static C variable: issue: `property_descr_get reuse
+argument tuple <http://bugs.python.org/issue23910>`_, `commit 661cdbd617b8
+<https://hg.python.org/cpython/rev/661cdbd617b8>`_.
 
 2015-05-24: `Correct reuse argument tuple in property descriptor
 <http://bugs.python.org/issue24276>`_. Bug found while working on the C
@@ -34,12 +96,6 @@ implementation of functools.lru_cache. First fix.
 2016-04-21: `Crash when iterating on gc.get_objects()
 <http://bugs.python.org/issue26811>`_. Second fix.
 
-
-Related issues
-==============
-
-Related issue: issue #23507, "Tuple creation is too slow".
-http://bugs.python.org/issue23507
 
 Proof of Concept (PoC)
 ======================
