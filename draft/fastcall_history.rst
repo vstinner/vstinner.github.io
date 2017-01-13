@@ -109,14 +109,6 @@ was removed before 2.3.0 in the `commit 59ae41e04ffb
 <https://hg.python.org/cpython/rev/59ae41e04ffb>`_: "Eliminated tuple re-use in
 imap(). Doing it correctly made the code too hard to read."
 
-In Python 2.7, the itertools uses a cached tuple for the following generators:
-
-* itertools.combinations()
-* itertools.combinations_with_replacement()
-* itertools.izip()
-* itertools.permutations()
-* itertools.product()
-
 
 Pycon US 2014
 =============
