@@ -414,7 +414,6 @@ _PyObject_FastCallKeywords():
 
 * _PyObject_FastCallKeywords(func, args: C array, nargs: Py_ssize_t, kwnames: Tuple[str])
 * _PyObject_CallNoArg(func): *macro*
-* _PyObject_CallArg1(func, arg): *macro*
 * _PyObject_FastCall(func, args: C array, nargs: Py_ssize_t): *macro*
 * _PyObject_FastCallDict(func, args: C array, nargs: Py_ssize_t, kwargs: dict)
 * _PyObject_Call_Prepend(func, arg0, args, kwargs)
