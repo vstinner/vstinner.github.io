@@ -15,4 +15,9 @@ Not significant!
 Median +- std dev: [2.7] 97.8 us +- 20.1 us -> [3.5] 113 us +- 0 us: 1.16x slower (+16%)
 Median +- std dev: [2.7] 97.8 us +- 20.1 us -> [3.7] 88.1 us +- 0.3 us: 1.11x faster (-10%)
 
+__getitem__()
+=============
 
+Use FASTCALL in call_method() to avoid temporary tuple
+http://bugs.python.org/issue29507
+Median +- std dev: [ref] 121 ns +- 5 ns -> [patch] 82.8 ns +- 1.0 ns: 1.46x faster (-31%)
