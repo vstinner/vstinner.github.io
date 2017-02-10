@@ -38,19 +38,12 @@ Interesting bug
   thread B. The tracemalloc is imported in a thread A. Importing the module
   calls tracemalloc_init(). tracemalloc.start() is called in a thread B.
 
-Contributions
-=============
+faulthandler
+============
 
-* Issue #25907: Use {% trans %} tags in HTML templates to ease the translation
-  of the documentation. The tag comes from Jinja templating system, used by
-  Sphinx. Patch written by Julien Palard.
-* Issue #26248: Enhance os.scandir() doc, patch written by Ben Hoyt:
-* Fix error message in asyncio.selector_events. Patch written by Carlo
-  Beccarini.
-* Issue #16851: Fix inspect.ismethod() doc, return also True if object is an
-  unbound method. Patch written by Anna Koroliuk.
-* Issue #26574: Optimize bytes.replace(b'', b'.') and bytearray.replace(b'', b'.'):
-  up to 80% faster. Patch written by Josh Snider.
+* Issue #23848: On Windows, faulthandler.enable() now also installs an
+  exception handler to dump the traceback of all Python threads on fatal
+  Windows exceptions, not only on UNIX signals (SIGSEGV, SIGFPE, SIGABRT).
 
 FAT Python
 ==========
@@ -100,8 +93,6 @@ Enhancements
   importing packages.
 * Issue #26564, #26516, #26563: Enhance documentation on memory allocator debug
   hooks.
-* Issue #26568: add new  _showwarnmsg() and _formatwarnmsg() functions to the
-  warnings module.
 * doctest now supports packages. Issue #26641: doctest.DocFileTest and
   doctest.testfile() now support packages (module splitted into multiple
   directories) for the package parameter.
@@ -109,6 +100,8 @@ Enhancements
 ResourceWarning
 ===============
 
+* Issue #26568: add new  _showwarnmsg() and _formatwarnmsg() functions to the
+  warnings module.
 * Issue #26567: On ResourceWarning, log traceback where the object was
   allocated. Add a source attribute to warnings.WarningMessage. Add
   warnings._showwarnmsg() which uses tracemalloc to get the traceback where
@@ -161,6 +154,18 @@ tracemalloc
 Memory
 ======
 
+"use small object allocator for dict key storage" showed speedup for the dict
+type by replacing PyMem_Malloc() with PyObject_Malloc() in dictobject.c.
+http://bugs.python.org/issue23601
+
+When I worked on the PEP 445, it was discussed to use the Python fast memory
+allocator for small memory allocations (<= 512 bytes), but I think that nobody
+tested on benchmark.
+
+[Python-Dev] Modify PyMem_Malloc to use pymalloc for performance
+https://mail.python.org/pipermail/python-dev/2016-February/143084.html
+
+* Issue #26563: faulthandler now works in non-Python threads
 * Issue #26563: Fail if PyMem_Malloc() is called without holding the GIL. Debug
   hooks on Python memory allocators now raise a fatal error if functions of the
   PyMem_Malloc() family are called without holding the GIL.
@@ -171,14 +176,6 @@ Memory
   PyMem_Malloc() with PyMem_RawFree() since PostToQueueCallback() calls
   PyMem_RawFree() (previously PyMem_Free()) in a new C thread which doesn't
   hold the GIL.
-
-faulthandler
-============
-
-* Issue #26563: faulthandler now works in non-Python threads
-* Issue #23848: On Windows, faulthandler.enable() now also installs an
-  exception handler to dump the traceback of all Python threads on fatal
-  Windows exceptions, not only on UNIX signals (SIGSEGV, SIGFPE, SIGABRT).
 
 Changes
 =======
@@ -323,6 +320,9 @@ Tons of tiny changes to make the code simpler and safer in subtle ways.
 Python 8
 ========
 
+[Python-Dev] The next major Python version will be Python 8
+https://mail.python.org/pipermail/python-dev/2016-March/143603.html
+
 ::
 
     changeset:   100818:9aedec2dbc01
@@ -331,3 +331,18 @@ Python 8
     files:       Include/patchlevel.h Lib/pep8.py Lib/site.py
     description:
     Python 8: no pep8, no chocolate!
+
+Contributions
+=============
+
+* Issue #25907: Use {% trans %} tags in HTML templates to ease the translation
+  of the documentation. The tag comes from Jinja templating system, used by
+  Sphinx. Patch written by Julien Palard.
+* Issue #26248: Enhance os.scandir() doc, patch written by Ben Hoyt:
+* Fix error message in asyncio.selector_events. Patch written by Carlo
+  Beccarini.
+* Issue #16851: Fix inspect.ismethod() doc, return also True if object is an
+  unbound method. Patch written by Anna Koroliuk.
+* Issue #26574: Optimize bytes.replace(b'', b'.') and bytearray.replace(b'', b'.'):
+  up to 80% faster. Patch written by Josh Snider.
+
