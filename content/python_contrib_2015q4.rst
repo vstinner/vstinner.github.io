@@ -28,6 +28,10 @@ I pushed my first change related to `FAT Python
 fill lineno and col_offset of "arg" node when compiling AST from Python
 objects.
 
+Previous report: `My contributions to CPython during 2015 Q3
+<{filename}/python_contrib_2015q3.rst>`_.
+
+
 
 Recursion error
 ===============
