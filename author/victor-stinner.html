@@ -22,7 +22,555 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-09T17:00:00+01:00">
+                Published: jeu. 09 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q1
+(january, februrary, march):</p>
+<pre class="literal-block">
+hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merges -u Stinner
+</pre>
+<p>Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>.</p>
+<div class="section" id="summary">
+<h2>Summary</h2>
+<p>Since this report is much longer than I expected, here are the highlights:</p>
+<ul class="simple">
+<li>Python 8: no pep8, no chocolate!</li>
+<li>AST enhancements coming from FAT Python</li>
+<li>faulthandler now catchs Windows fatal exceptions</li>
+<li>New PYTHONMALLOC environment variable</li>
+<li>tracemalloc: new C API and support multiple address spaces</li>
+<li>ResourceWarning warnings now come with a traceback</li>
+<li>PyMem_Malloc() now fails if the GIL is not held</li>
+<li>Interesting bug: reentrant flag in tracemalloc</li>
+</ul>
+</div>
+<div class="section" id="python-8-no-pep8-no-chocolate">
+<h2>Python 8: no pep8, no chocolate!</h2>
+<p>I prepared an April Fool: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-March/143603.html">[Python-Dev] The next major Python version will be
+Python 8</a> :-)</p>
+<p>I increased Python version to 8, added the <tt class="docutils literal">pep8</tt> module and modified
+<tt class="docutils literal">importlib</tt> to raise an <tt class="docutils literal">ImportError</tt> if a module is not PEP8-compliant!</p>
+</div>
+<div class="section" id="ast-enhancements-coming-from-fat-python">
+<h2>AST enhancements coming from FAT Python</h2>
+<p>Changes coming from my <a class="reference external" href="http://faster-cpython.readthedocs.io/fat_python.html">FAT Python</a> (AST optimizer, run
+ahead of time):</p>
+<p>The compiler now ignores constant statements like <tt class="docutils literal">b'bytes'</tt> (issue #26204).
+I had to replace constant statement with expressions to prepare the change (ex:
+replace <tt class="docutils literal">b'bytes'</tt> with <tt class="docutils literal">x = b'bytes'</tt>). First, the compiler emited a
+<tt class="docutils literal">SyntaxWarning</tt>, but it was quickly decided to let linters to emit such
+warnings to not annoy users: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-February/143163.html">read the thread on python-dev</a>.</p>
+<p>Example, Python 3.5:</p>
+<pre class="literal-block">
+&gt;&gt;&gt; def f():
+...  b'bytes'
+...
+&gt;&gt;&gt; import dis; dis.dis(f)
+  2           0 LOAD_CONST               1 (b'bytes')
+              3 POP_TOP
+              4 LOAD_CONST               0 (None)
+              7 RETURN_VALUE
+</pre>
+<p>Python 3.6:</p>
+<pre class="literal-block">
+&gt;&gt;&gt; def f():
+...  b'bytes'
+...
+&gt;&gt;&gt; import dis; dis.dis(f)
+  1           0 LOAD_CONST               0 (None)
+              2 RETURN_VALUE
+</pre>
+<p>Other changes:</p>
+<ul class="simple">
+<li>Issue #26107: The format of the co_lnotab attribute of code objects changes
+to support negative line number delta. It allows AST optimizers to move
+instructions without breaking Python tracebacks. Change needed by the loop
+unrolling optimization of FAT Python.</li>
+<li>Issue #26146: Add a new kind of AST node: <tt class="docutils literal">ast.Constant</tt>. It can be used by
+external AST optimizers like FAT Python, but the compiler does not emit
+directly such node. Update code to accept ast.Constant instead of ast.Num
+and/or ast.Str.</li>
+<li>Issue #26146: <tt class="docutils literal">marshal.loads()</tt> now uses the empty frozenset singleton. It
+fixes a test failure in FAT Python and reduces the memory footprint.</li>
+</ul>
+</div>
+<div class="section" id="faulthandler-now-catchs-windows-fatal-exceptions">
+<h2>faulthandler now catchs Windows fatal exceptions</h2>
+<p>I enhanced the faulthandler.enable() function on Windows to set a
+handler for Windows fatal exceptions using <tt class="docutils literal">AddVectoredExceptionHandler()</tt>
+(issue #23848).</p>
+<p>Windows exceptions are the native way to handle fatal errors on Windows,
+whereas UNIX signals SIGSEGV, SIGFPE and SIGABRT are &quot;emulated&quot; on top of that.</p>
+</div>
+<div class="section" id="new-pythonmalloc-environment-variable">
+<h2>New PYTHONMALLOC environment variable</h2>
+<p>I added a new <tt class="docutils literal">PYTHONMALLOC</tt> environment variable (issue #26516) to set the
+Python memory allocators.</p>
+<p><tt class="docutils literal">PYTHONMALLOC=debug</tt> enables debug hooks on a Python compiled in release
+mode, whereas Python 3.5 requires to recompile Python in debug mode. These
+hooks implements various checks:</p>
+<ul class="simple">
+<li>Detect <strong>buffer underflow</strong>: write before the start of the buffer</li>
+<li>Detect <strong>buffer overflow</strong>: write after the end of the buffer</li>
+<li>Detect API violations, ex: <tt class="docutils literal">PyObject_Free()</tt> called on a buffer
+allocated by <tt class="docutils literal">PyMem_Malloc()</tt></li>
+<li>Check if the GIL is held when allocator functions of PYMEM_DOMAIN_OBJ (ex:
+<tt class="docutils literal">PyObject_Malloc()</tt>) and PYMEM_DOMAIN_MEM (ex: <tt class="docutils literal">PyMem_Malloc()</tt>) domains
+are called</li>
+</ul>
+<p>Moreover, logging a fatal memory error now uses the tracemalloc module to get
+the traceback where a memory block was allocated. Example of a buffer overflow
+using <tt class="docutils literal">python3.6 <span class="pre">-X</span> tracemalloc=5</tt> (store 5 frames in traces):</p>
+<pre class="literal-block">
+Debug memory block at address p=0x7fbcd41666f8: API 'o'
+    4 bytes originally requested
+    The 7 pad bytes at p-7 are FORBIDDENBYTE, as expected.
+    The 8 pad bytes at tail=0x7fbcd41666fc are not all FORBIDDENBYTE (0xfb):
+        at tail+0: 0x02 *** OUCH
+        at tail+1: 0xfb
+        at tail+2: 0xfb
+        ...
+    The block was made by call #1233329 to debug malloc/realloc.
+    Data at p: 1a 2b 30 00
+
+Memory block allocated at (most recent call first):
+  File &quot;test/test_bytes.py&quot;, line 323
+  File &quot;unittest/case.py&quot;, line 600
+  ...
+
+Fatal Python error: bad trailing pad byte
+
+Current thread 0x00007fbcdbd32700 (most recent call first):
+  File &quot;test/test_bytes.py&quot;, line 323 in test_hex
+  File &quot;unittest/case.py&quot;, line 600 in run
+  ...
+</pre>
+<p><tt class="docutils literal">PYTHONMALLOC=malloc</tt> forces the usage of the system <tt class="docutils literal">malloc()</tt> allocator.
+This option can be used with Valgrind. Without this option, Valgrind emits tons
+of false alarms in the Python <tt class="docutils literal">pymalloc</tt> memory allocator.</p>
+</div>
+<div class="section" id="tracemalloc-new-c-api-and-support-multiple-address-spaces">
+<h2>tracemalloc: new C API and support multiple address spaces</h2>
+<p>Antoine Pitrou and Nathaniel Smith asked me to enhance the tracemalloc module:</p>
+<ul class="simple">
+<li>Add a C API to be able to manually track/untrack memory blocks, to track
+the memory allocated by custom memory allocators. For example, numpy uses
+allocators with a specific memory alignment for SIMD instructions.</li>
+<li>Support tracking memory of different address spaces. For example, central
+(CPU) memory and GPU memory for numpy.</li>
+</ul>
+<div class="section" id="support-multiple-address-spaces">
+<h3>Support multiple address spaces</h3>
+<p>I made deep changes in the <tt class="docutils literal">hashtable.c</tt> code (simple C implementation of an
+hash table used by <tt class="docutils literal">_tracemalloc</tt>) to support keys of a variable size (issue
+#26588), instead of using an hardcoded <tt class="docutils literal">void *</tt> size. It allows to support
+keys larger than <tt class="docutils literal">sizeof(void*)</tt>, but also to use <em>less</em> memory for keys
+smaller than <tt class="docutils literal">sizeof(void*)</tt> (ex: <tt class="docutils literal">int</tt> keys).</p>
+<p>Then I extended the C <tt class="docutils literal">_tracemalloc</tt> module and the Python <tt class="docutils literal">tracemalloc</tt> to
+add a new <tt class="docutils literal">domain</tt> attribute to traces: add <tt class="docutils literal">Trace.domain</tt> attribute and
+<tt class="docutils literal">tracemalloc.DomainFilter</tt> class.</p>
+<p>The final step was to optimize the memory footprint of _tracemalloc. Start with
+compact keys (<tt class="docutils literal">Py_uintptr_t</tt> type) and only switch to <tt class="docutils literal">pointer_t</tt> keys when
+the first memory block with a non-zero domain is tracked (when one more one
+address space is used). So the <tt class="docutils literal">_tracemalloc</tt> memory usage doesn't change by
+default in Python 3.6!</p>
+</div>
+<div class="section" id="c-api">
+<h3>C API</h3>
+<p>I added a private C API (issue #26530):</p>
+<pre class="literal-block">
+int _PyTraceMalloc_Track(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr, size_t size);
+int _PyTraceMalloc_Untrack(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr);
+</pre>
+<p>I waited for Antoine and Nathaniel feedback on this API, but the API remains
+private in Python 3.6 since none reviewed it.</p>
+</div>
+</div>
+<div class="section" id="resourcewarning-warnings-now-come-with-a-traceback">
+<h2>ResourceWarning warnings now come with a traceback</h2>
+<div class="section" id="final-result">
+<h3>Final result</h3>
+<p>Before going to explain the long development of the feature, let's see an
+example of the final result! Example with the script <tt class="docutils literal">example.py</tt>:</p>
+<pre class="literal-block">
+import warnings
+
+def func():
+    return open(__file__)
+
+f = func()
+f = None
+</pre>
+<p>Output of the command <tt class="docutils literal">python3.6 <span class="pre">-Wd</span> <span class="pre">-X</span> tracemalloc=5 example.py</tt>:</p>
+<pre class="literal-block">
+example.py:7: ResourceWarning: unclosed file &lt;_io.TextIOWrapper name='example.py' mode='r' encoding='UTF-8'&gt;
+  f = None
+Object allocated at (most recent call first):
+  File &quot;example.py&quot;, lineno 4
+    return open(__file__)
+  File &quot;example.py&quot;, lineno 6
+    f = func()
+</pre>
+<p>The <tt class="docutils literal">Object allocated at <span class="pre">(...)</span></tt> part is the new feature ;-)</p>
+</div>
+<div class="section" id="add-source-parameter-to-warnings">
+<h3>Add source parameter to warnings</h3>
+<p>Python 3 logs <tt class="docutils literal">ResourceWarning</tt> warnings when a resource is not closed
+properly to help developers to handle resources correctly. The problem is that
+the warning is only logged when the object is destroy, which can occur far from
+the object creation and can occur on a line unrelated to the object because of
+the garbage collector.</p>
+<p>I added a new <tt class="docutils literal">tracemalloc</tt> module to Python 3.4 which has an interesting
+<tt class="docutils literal">tracemalloc.get_object_traceback()</tt> function. If tracemalloc traced the
+allocation of an object, it is able to provide later the traceback where the
+object was allocated.</p>
+<p>I wanted to modify the <tt class="docutils literal">warnings</tt> module to call
+<tt class="docutils literal">get_object_traceback()</tt>, but I noticed that it wasn't possible
+to easily extend the <tt class="docutils literal">warnings</tt> API because this module allows to override
+<tt class="docutils literal">showwarning()</tt> and <tt class="docutils literal">formatwarning()</tt> functions and these
+functions have a fixed number of parameters. Example:</p>
+<pre class="literal-block">
+def showwarning(message, category, filename, lineno, file=None, line=None):
+    ...
+</pre>
+<p>With the issue #26568, I added new  <tt class="docutils literal">_showwarnmsg()</tt> and <tt class="docutils literal">_formatwarnmsg()</tt>
+functions to the warnings module which get a <tt class="docutils literal">warnings.WarningMessage</tt> object
+instead of a list of parameters:</p>
+<pre class="literal-block">
+def _showwarnmsg(msg):
+    ...
+</pre>
+<p>I added a <tt class="docutils literal">source</tt> attribute to <tt class="docutils literal">warnings.WarningMessage</tt> (issue #26567)
+and a new optional <tt class="docutils literal">source</tt> parameter to <tt class="docutils literal">warnings.warn()</tt> (issue #26604):
+the leaked resource object. I modified <tt class="docutils literal">_formatwarnmsg()</tt> to log the
+traceback where resource was allocated, if available.</p>
+<p>The tricky part was to fix corner cases when the following functions of the
+<tt class="docutils literal">warnings</tt> module are overriden:</p>
+<ul class="simple">
+<li><tt class="docutils literal">formatwarning()</tt>, <tt class="docutils literal">showwarning()</tt></li>
+<li><tt class="docutils literal">_formatwarnmsg()</tt>, <tt class="docutils literal">_showwarnmsg()</tt></li>
+</ul>
+</div>
+<div class="section" id="set-the-source-parameter">
+<h3>Set the source parameter</h3>
+<p>I started to modify modules to set the source parameter when logging
+<tt class="docutils literal">ResourceWarning</tt> warnings.</p>
+<p>The easy part was to modify <tt class="docutils literal">asyncore</tt>, <tt class="docutils literal">asyncio</tt> and <tt class="docutils literal">_pyio</tt> modules to
+set the <tt class="docutils literal">source</tt> parameter. These modules are implemented in Python, the
+change was just to add <tt class="docutils literal">source=self</tt>. Example of <tt class="docutils literal">asyncio</tt> destructor:</p>
+<pre class="literal-block">
+def __del__(self):
+    if not self.is_closed():
+        warnings.warn(&quot;unclosed event loop %r&quot; % self, ResourceWarning,
+                      source=self)
+        if not self.is_running():
+            self.close()
+</pre>
+<p>Note: The warning is logged before the resource is closed to provide more
+information in <tt class="docutils literal">repr()</tt>. Many objects clear most information in their
+<tt class="docutils literal">close()</tt> method.</p>
+<p>Modifying C modules was more tricky than expected. I had to implement
+&quot;finalizers&quot; (<a class="reference external" href="https://www.python.org/dev/peps/pep-0442/">PEP 432: Safe object finalization</a>) for the <tt class="docutils literal">_socket.socket</tt> type
+(issue #26590) and for the <tt class="docutils literal">os.scandir()</tt> iterator (issue #26603).</p>
+</div>
+<div class="section" id="more-reliable-warnings">
+<h3>More reliable warnings</h3>
+<p>The Python shutdown process is complex, and some Python functions are broken
+during the shutdown. I enhanced the warnings module to handle nicely these
+failures and try to log warnings anyway.</p>
+<p>I modified <tt class="docutils literal">warnings.formatwarning()</tt> to catch <tt class="docutils literal">linecache.getline()</tt>
+failures on formatting the traceback.</p>
+<p>Logging the resource traceback is complex, so I only implemented it in Python.
+Python tries to use the Python <tt class="docutils literal">warnings</tt> module if it was imported, or falls
+back on the C <tt class="docutils literal">_warnings</tt> module. To get the resource traceback at Python
+shutdown, I modified the C module to try to import the Python warning:
+<tt class="docutils literal">_warnings.warn_explicit()</tt> now tries to import the Python warnings module if
+the source parameter is set to be able to log the traceback where the source
+was allocated (issue #26592).</p>
+</div>
+<div class="section" id="fix-resourcewarning-warnings">
+<h3>Fix ResourceWarning warnings</h3>
+<p>Since it became easy to debug these warnings, I fixed some of them in the
+Python test suite:</p>
+<ul class="simple">
+<li>Issue #26620: Fix ResourceWarning in test_urllib2_localnet. Use context
+manager on urllib objects and use self.addCleanup() to cleanup resources even
+if a test is interrupted with CTRL+c</li>
+<li>Issue #25654: multiprocessing: open file with <tt class="docutils literal">closefd=False</tt> to avoid
+ResourceWarning. _test_multiprocessing: open file with <tt class="docutils literal">O_EXCL</tt> to detect
+bugs in tests (if a previous test forgot to remove TESTFN).
+<tt class="docutils literal">test_sys_exit()</tt>: remove TESTFN after each loop iteration</li>
+<li>Fix <tt class="docutils literal">ResourceWarning</tt> in test_unittest when interrupted</li>
+</ul>
+</div>
+</div>
+<div class="section" id="pymem-malloc-now-fails-if-the-gil-is-not-held">
+<h2>PyMem_Malloc() now fails if the GIL is not held</h2>
+<p>Since using the mall object allocator (<tt class="docutils literal">pymalloc)</tt>) for dictionary key
+storage showed speedup for the dict type (issue #23601), I proposed to
+generalize the change, use <tt class="docutils literal">pymalloc</tt> for <tt class="docutils literal">PyMem_Malloc()</tt>: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-February/143084.html">[Python-Dev]
+Modify PyMem_Malloc to use pymalloc for performance</a>.</p>
+<p>The main issue was that the change means that <tt class="docutils literal">PyMem_Malloc()</tt> now requires
+to hold the GIL, whereas it didn't before since it called directly
+<tt class="docutils literal">malloc()</tt>.</p>
+<div class="section" id="check-if-the-gil-is-held">
+<h3>Check if the GIL is held</h3>
+<p>CPython has a <tt class="docutils literal">PyGILState_Check()</tt> function to check if the GIL is held.
+Problem: the function doesn't work with subinterpreters: see issues #10915 and
+#15751.</p>
+<p>I added an internal flag to <tt class="docutils literal">PyGILState_Check()</tt> (issue #26558) to skip the
+test. The flag value is false at startup, set to true once the GIL is fully
+initialized (Python initialization), set to false again when the GIL is
+destroyed (Python finalization). The flag is also set to false when the first
+subinterpreter is created.</p>
+<p>This hack works around <tt class="docutils literal">PyGILState_Check()</tt> limitations allowing to call
+<cite>PyGILState_Check()`</cite> anytime to debug more bugs earlier.</p>
+<p><tt class="docutils literal">_Py_dup()</tt>, <tt class="docutils literal">_Py_fstat()</tt>, <tt class="docutils literal">_Py_read()</tt> and <tt class="docutils literal">_Py_write()</tt> are
+low-level helper functions for system functions, but these functions require
+the GIL to be held.  Thanks to the <tt class="docutils literal">PyGILState_Check()</tt> enhancement, it
+became possible to check the GIL using an assertion.</p>
+</div>
+<div class="section" id="pymem-malloc-and-gil">
+<h3>PyMem_Malloc() and GIL</h3>
+<p>Issue #26563: Debug hooks on Python memory allocators now raise a fatal error
+if memory allocator functions like PyMem_Malloc() and PyMem_Malloc() are called
+without holding the GIL.</p>
+<p>The change spotted two bugs which I fixed:</p>
+<ul class="simple">
+<li>Issue #26563: Replace PyMem_Malloc() with PyMem_RawMalloc() in the Windows
+implementation of os.stat(), the code is called without holding the
+GIL.</li>
+<li>Issue #26563: Fix usage of PyMem_Malloc() in overlapped.c. Replace
+PyMem_Malloc() with PyMem_RawFree() since PostToQueueCallback() calls
+PyMem_Free() in a new C thread which doesn't hold the GIL.</li>
+</ul>
+<p>I wasn't able to switch <tt class="docutils literal">PyMem_Malloc()</tt> to <tt class="docutils literal">pymalloc</tt> in this quarter,
+since it took more a lot of time to implement requested checks and test third
+party modules.</p>
+</div>
+<div class="section" id="fatal-error-and-faulthandler">
+<h3>Fatal error and faulthandler</h3>
+<p>I enhanced the faulthandler module to work in non-Python threads (issue
+#26563). I fixed <tt class="docutils literal">Py_FatalError()</tt> if called without holding the GIL: don't
+try to print the current exception, nor try to flush stdout and stderr: only
+dump the traceback of Python threads.</p>
+</div>
+</div>
+<div class="section" id="interesting-bug-reentrant-flag-in-tracemalloc">
+<h2>Interesting bug: reentrant flag in tracemalloc</h2>
+<p>A bug annoyed me a lot: a random assertion error related to a reentrant flag in
+the _tracemalloc module.</p>
+<p>Story starting in the <a class="reference external" href="http://bugs.python.org/issue26588#msg262125">middle of the issue #26588 (2016-03-21)</a>. While working on issue #26588,
+&quot;_tracemalloc: add support for multiple address spaces (domains)&quot;, I noticed an
+assertion failure in set_reentrant(), a helper function to set a <em>Thread Local
+Storage</em> (TLS), on a buildbot:</p>
+<pre class="literal-block">
+python: ./Modules/_tracemalloc.c:195: set_reentrant:
+    Assertion `PyThread_get_key_value(tracemalloc_reentrant_key) == ((PyObject *) &amp;_Py_TrueStruct)' failed.
+</pre>
+<p>I was unable to reproduce the bug on my Fedora 23 (AMD64). After changes on my
+patch, I pushed it the day after, but the assertion failed again. I added
+assertions and debug informations. More failures, an interesting one on Windows
+which uses a single process.</p>
+<p>I added an assertion in tracemalloc_init() to ensure that the reeentrant flag
+is set at the end of the function. The reentrant flag was no more set at
+tracemalloc_start() entry for an unknown reason. I changed the module
+initialization to no call tracemalloc_init() anymore, it's only called on
+tracemalloc.start().</p>
+<p>&quot;The bug was seen on 5 buildbots yet: PPC Fedora, AMD64 Debian, s390x RHEL,
+AMD64 Windows, x86 Ubuntu.&quot;</p>
+<p>I finally understood and fixed the bug with the <a class="reference external" href="https://hg.python.org/cpython/rev/af1c1149784a">change af1c1149784a</a>: tracemalloc_start() and
+tracemalloc_stop() don't clear/set the reentrant flag anymore.</p>
+<p>The problem was that I expected that tracemalloc_init() and tracemalloc_start()
+functions would always be called in the same thread, whereas it occurred that
+tracemalloc_init() was called in thread A when the tracemalloc module is
+imported, whereas tracemalloc_start() was called in thread B.</p>
+</div>
+<div class="section" id="other-commits">
+<h2>Other commits</h2>
+<div class="section" id="enhancements">
+<h3>Enhancements</h3>
+<p>The developers of the <tt class="docutils literal">vmprof</tt> profiler asked me to expose the atomic
+variable <tt class="docutils literal">_PyThreadState_Current</tt>. The private variable was removed from
+Python 3.5.1 API because the implementation of atomic variables depends on the
+compiler, compiler options, etc. and so caused compilation issues. I added a
+new private <tt class="docutils literal">_PyThreadState_UncheckedGet()</tt> function (issue #26154) which
+gets the value of the variable without exposing its implementation.</p>
+<p>Other enhancements:</p>
+<ul class="simple">
+<li>Issue #26099: The site module now writes an error into stderr if
+sitecustomize module can be imported but executing the module raise an
+ImportError. Same change for usercustomize.</li>
+<li>Issue #26516: Enhance Python memory allocators documentation. Add link to
+PYTHONMALLOCSTATS environment variable. Add parameters to PyMem macros like
+PyMem_MALLOC().</li>
+<li>Issue #26569: Fix pyclbr.readmodule() and pyclbr.readmodule_ex() to support
+importing packages.</li>
+<li>Issue #26564, #26516, #26563: Enhance documentation on memory allocator debug
+hooks.</li>
+<li>doctest now supports packages. Issue #26641: doctest.DocFileTest and
+doctest.testfile() now support packages (module splitted into multiple
+directories) for the package parameter.</li>
+</ul>
+</div>
+<div class="section" id="bugfixes">
+<h3>Bugfixes</h3>
+<p>Issue #25843: When compiling code, don't merge constants if they are equal but
+have a different types. For example, <tt class="docutils literal">f1, f2 = lambda: 1, lambda: 1.0</tt> is now
+correctly compiled to two different functions: <tt class="docutils literal">f1()</tt> returns <tt class="docutils literal">1</tt> (int) and
+<tt class="docutils literal">f2()</tt> returns <tt class="docutils literal">1.0</tt> (int), even if 1 and 1.0 are equal.</p>
+<p>Other fixes:</p>
+<ul class="simple">
+<li>Issue #26101: Fix test_compilepath() of test_compileall. Exclude Lib/test/
+from sys.path in test_compilepath(). The directory contains invalid Python
+files like Lib/test/badsyntax_pep3120.py, whereas the test ensures that all
+files can be compiled.</li>
+<li>Issue #24520: Replace fpgetmask() with fedisableexcept(). On FreeBSD,
+fpgetmask() was deprecated long time ago.  fedisableexcept() is now
+preferred.</li>
+<li>Issue #26161: Use Py_uintptr_t instead of void* for atomic pointers in
+pyatomic.h. Use atomic_uintptr_t when &lt;stdatomic.h&gt; is used. Using void*
+causes compilation warnings depending on which implementation of atomic types
+is used.</li>
+<li>Issue #26637: The importlib module now emits an ImportError rather than a
+TypeError if __import__() is tried during the Python shutdown process but
+sys.path is already cleared (set to None).</li>
+<li>doctest: fix _module_relative_path() error message. Write the module name
+rather than &lt;module&gt; in the error message, if module has no __file__
+attribute (ex: package).</li>
+</ul>
+</div>
+<div class="section" id="fix-type-downcasts-on-windows-64-bit">
+<h3>Fix type downcasts on Windows 64-bit</h3>
+<p>In my spare time, I'm trying to fix a few compiler warnings on Windows 64-bit
+where the C <tt class="docutils literal">long</tt> type is only 32-bit, whereas pointers are <tt class="docutils literal"><span class="pre">64-bit</span></tt> long:</p>
+<ul class="simple">
+<li>posix_getcwd(): limit to INT_MAX on Windows. It's more to fix a compiler
+warning during compilation, I don't think that Windows support current
+working directories larger than 2 GB :-)</li>
+<li>_pickle: Fix load_counted_tuple(), use Py_ssize_t for size. Fix a warning on
+Windows 64-bit.</li>
+<li>getpathp.c: fix compiler warning, wcsnlen_s() result type is size_t.</li>
+<li>compiler.c: fix compiler warnings on Windows</li>
+<li>_msi.c: try to fix compiler warnings</li>
+<li>longobject.c: fix compilation warning on Windows 64-bit. We know that
+Py_SIZE(b) is -1 or 1 an so fits into the sdigit type.</li>
+<li>On Windows, socket.setsockopt() now raises an OverflowError if the socket
+option is larger than INT_MAX bytes.</li>
+</ul>
+</div>
+<div class="section" id="unicode-bugfixes">
+<h3>Unicode bugfixes</h3>
+<ul class="simple">
+<li>Issue #26227: On Windows, getnameinfo(), gethostbyaddr() and
+gethostbyname_ex() functions of the socket module now decode the hostname
+from the ANSI code page rather than UTF-8.</li>
+<li>Issue #26217: Unicode resize_compact() must set wstr_length to 0 after
+freeing the wstr string. Otherwise, an assertion fails in
+_PyUnicode_CheckConsistency().</li>
+<li>Issue #26464: Fix str.translate() when string is ASCII and first replacements
+removes characters, but next replacements use a non-ASCII character or a
+string longer than 1 character. Regression introduced in Python 3.5.0.</li>
+</ul>
+</div>
+<div class="section" id="buildbot-tests">
+<h3>Buildbot, tests</h3>
+<p>Just to give you an idea of the work required to keep a working CI, here is the
+list of changes I maded in a single quarter to make tests and Python buildbots
+more reliable.</p>
+<ul class="simple">
+<li>Issue #26610: Skip test_venv.test_with_pip() if ctypes miss</li>
+<li>test_asyncio: fix test_timeout_time(). Accept time delta up to 0.12 second,
+instead of 0.11, for the &quot;AMD64 FreeBSD 9.x&quot; buildbot slave.</li>
+<li>Issue #13305: Always test datetime.datetime.strftime(&quot;%4Y&quot;) for years &lt; 1900.
+Change quickly reverted, strftime(&quot;%4Y&quot;) fails on most platforms.</li>
+<li>Issue #17758: Skip test_site if site.USER_SITE directory doesn't exist and
+cannot be created.</li>
+<li>Fix test_venv on FreeBSD buildbot. Ignore pip warning in
+test_venv.test_with_venv().</li>
+<li>Issue #26566: Rewrite test_signal.InterProcessSignalTests. Don't use
+os.fork() with a subprocess to not inherit existing signal handlers or
+threads: start from a fresh process. Use a timeout of 10 seconds to wait for
+the signal instead of 1 second</li>
+<li>Issue #26538: regrtest: Fix module.__path__. libregrtest: Fix setup_tests()
+to keep module.__path__ type (_NamespacePath), don't convert to a list.
+Add _NamespacePath.__setitem__() method to importlib._bootstrap_external.</li>
+<li>regrtest: add time to output. Timestamps should help to debug slow buildbots,
+and timeout and hang on buildbots.</li>
+<li>regrtest: add timeout to main process when using -jN. libregrtest: add a
+watchdog to run_tests_multiprocess() using faulthandler.dump_traceback_later().</li>
+<li>Makefile: change default value of TESTTIMEOUT from 1 hour to 15 min.
+The whole test suite takes 6 minutes on my laptop. It takes less than 30
+minutes on most buildbots. The TESTTIMEOUT is the timeout for a single test
+file.</li>
+<li>Buildbots: change also Windows timeout from 1 hour to 15 min</li>
+<li>regrtest: display test duration in sequential mode. Only display duration if
+a test takes more than 30 seconds.</li>
+<li>Issue #18787: Try to fix test_spwd on OpenIndiana. Try to get the &quot;root&quot;
+entry which should exist on all UNIX instead of &quot;bin&quot; which doesn't exist on
+OpenIndiana.</li>
+<li>regrtest: fix --fromfile feature. Update code for the name regrtest output
+format. Enhance also test_regrtest test on --fromfile</li>
+<li>regrtest: mention if tests run sequentially or in parallel</li>
+<li>regrtest: when parallel tests are interrupted, display progress</li>
+<li>support.temp_dir(): call support.rmtree() instead of shutil.rmtree(). Try
+harder to remove directories on Windows.</li>
+<li>rt.bat: use -m test instead of Libtestregrtest.py</li>
+<li>Refactor regrtest.</li>
+<li>Fix test_warnings.test_improper_option(). test_warnings: only run
+test_improper_option() and test_warnings_bootstrap() once. The unit test
+doesn't depend on self.module.</li>
+<li>Fix test_os.test_symlink(): remove created symlink.</li>
+<li>Issue #26643: Add missing shutil resources to regrtest.py</li>
+<li>test_urllibnet: set timeout on test_fileno(). Use the default timeout of 30
+seconds to avoid blocking forever.</li>
+<li>Issue #26295: When using &quot;python3 -m test --testdir=TESTDIR&quot;, regrtest
+doesn't add &quot;test.&quot; prefix to test module names. regrtest also prepends
+testdir to sys.path.</li>
+<li>Issue #26295: test_regrtest now uses a temporary directory</li>
+</ul>
+</div>
+<div class="section" id="contributions">
+<h3>Contributions</h3>
+<p>I also pushed a few changes written by other contributors:</p>
+<ul class="simple">
+<li>Issue #25907: Use {% trans %} tags in HTML templates to ease the translation
+of the documentation. The tag comes from Jinja templating system, used by
+Sphinx. Patch written by Julien Palard.</li>
+<li>Issue #26248: Enhance os.scandir() doc, patch written by Ben Hoyt:</li>
+<li>Fix error message in asyncio.selector_events. Patch written by Carlo
+Beccarini.</li>
+<li>Issue #16851: Fix inspect.ismethod() doc, return also True if object is an
+unbound method. Patch written by Anna Koroliuk.</li>
+<li>Issue #26574: Optimize bytes.replace(b'', b'.') and bytearray.replace(b'', b'.'):
+up to 80% faster. Patch written by Josh Snider.</li>
+</ul>
+</div>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/analysis-python-performance-issue.html" rel="bookmark"
+                           title="Permalink to Analysis of a Python performance issue">Analysis of a Python performance issue</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-11-19T00:30:00+01:00">
                 Published: sam. 19 novembre 2016
@@ -33,345 +581,16 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><p>I am working on the CPython benchmark suite (<a class="reference external" href="https://github.com/python/performance">performance</a>) and I run the benchmark suite to
+</footer><!-- /.post-info -->                <p>I am working on the CPython benchmark suite (<a class="reference external" href="https://github.com/python/performance">performance</a>) and I run the benchmark suite to
 upload results to <a class="reference external" href="http://speed.python.org/">speed.python.org</a>. While
 analying results, I noticed a temporary peak on the <tt class="docutils literal">call_method</tt>
 benchmark at October 19th:</p>
 <img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" />
 <p>The graphic shows the performance of the <tt class="docutils literal">call_method</tt> microbenchmark between
-Feb 29, 2016 and November 17, 2016 on the <tt class="docutils literal">default</tt> branch of CPython. The average
-is around 17.2 ms, whereas the peak is at 29.0 ms: <strong>68% slower</strong>!</p>
-<p>The server has two &quot;Intel(R) Xeon(R) CPU X5680  &#64; 3.33GHz&quot; CPUs, total: 24
-logical cores (12 physical cores with HyperThreading). This CPU was launched in
-2010 and based on the <a class="reference external" href="https://en.wikipedia.org/wiki/Gulftown">Westmere-EP microarchitecture</a>. Westmere-EP is based on Westmere,
-which is the 32 nm shrink of the Nehalem microarchitecture.</p>
-<div class="section" id="reproduce-results">
-<h2>Reproduce results</h2>
-<p>Before going too far, the first step is to validate that results are
-reproductible: reboot the computer, recompile Python, run again the benchmark.</p>
-<p>Instead of running the full benchmark suite, install Python, ..., we will run
-directly the benchmark manually using the Python freshly built in its source
-code directory.</p>
-<p>Interesting dots on the graphic (can be seen at speed.python.org, not on the
-screenshot):</p>
-<ul class="simple">
-<li>678fe178da0d, Oct 09, 17.0 ms: &quot;Fast&quot;</li>
-<li>1ce50f7027c1, Oct 19, 28.9 ms: &quot;Slow&quot;</li>
-<li>36af3566b67a, Nov 3, 16.9 ms: Fast again</li>
-</ul>
-<p>I use the following directories:</p>
-<ul class="simple">
-<li>~/perf: GitHub haypo/perf project</li>
-<li>~/performance: GitHub python/performance project</li>
-<li>~/cpython: Mercurial CPython repository</li>
-</ul>
-<p>Tune the system for benchmarks:</p>
-<pre class="literal-block">
-sudo python3 -m perf system tune
-</pre>
-<p>Note: all <tt class="docutils literal">system</tt> commands in this article are optional. They help to reduce
-the operating system jitter (make benchmarks more reliablee).</p>
-<p>Fast:</p>
-<pre class="literal-block">
-$ hg up -C -r 678fe178da0d
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ mv python python-fast
-$ PYTHONPATH=~/perf ./python-fast ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 17.0 ms +- 0.1 ms
-</pre>
-<p>Slow:</p>
-<pre class="literal-block">
-$ hg up -C -r 1ce50f7027c1
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ mv python python-slow
-$ PYTHONPATH=~/perf ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 29.3 ms +- 0.9 ms
-</pre>
-<p>We reproduced the significant benchmark result: 17 ms =&gt; 29 ms.</p>
-<p>I use <tt class="docutils literal">./configure</tt> and <tt class="docutils literal">make clean</tt> instead of incremental compilation,
-<tt class="docutils literal">make</tt> command, to avoid compilation errors, and to avoid potential side
-effects only caused by the incremental compilation.</p>
-</div>
-<div class="section" id="analysis-with-the-linux-perf-tool">
-<h2>Analysis with the Linux perf tool</h2>
-<p>To collect perf events, we will run the benchmark with <tt class="docutils literal"><span class="pre">--worker</span></tt> to run a
-single process and with <tt class="docutils literal"><span class="pre">-w0</span> <span class="pre">-n100</span></tt> to run the benchmark long enough: 100
-samples means at least 10 seconds (a single sample takes at least 100 ms).</p>
-<p>First, reset the system configuration to reset the Linux perf configuration:</p>
-<pre class="literal-block">
-sudo python3 -m perf system reset
-</pre>
-<p>Note: <tt class="docutils literal">python3 <span class="pre">-m</span> perf system tune</tt> reduces the sampling rate of Linux perf
-to reduce operating system jitter.</p>
-</div>
-<div class="section" id="perf-stat">
-<h2>perf stat</h2>
-<p>Command to get general statistics on the benchmark:</p>
-<pre class="literal-block">
-$ perf stat ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -v -w0 -n100
-</pre>
-<p>&quot;Fast&quot; results:</p>
-<pre class="literal-block">
-Performance counter stats for ./python-fast:
-
-      3773.585194 task-clock (msec)         #    0.998 CPUs utilized
-              369 context-switches          #    0.098 K/sec
-                0 cpu-migrations            #    0.000 K/sec
-            8,300 page-faults               #    0.002 M/sec
-   12,981,234,867 cycles                    #    3.440 GHz                     [83.27%]
-    1,460,980,720 stalled-cycles-frontend   #   11.25% frontend cycles idle    [83.36%]
-      435,806,788 stalled-cycles-backend    #    3.36% backend  cycles idle    [66.72%]
-   29,982,530,201 instructions              #    2.31  insns per cycle
-                                            #    0.05  stalled cycles per insn [83.40%]
-    5,613,631,616 branches                  # 1487.612 M/sec                   [83.40%]
-       16,006,564 branch-misses             #    0.29% of all branches         [83.27%]
-
-      3.780064486 seconds time elapsed
-</pre>
-<p>&quot;Slow&quot; results:</p>
-<pre class="literal-block">
-Performance counter stats for ./python-slow:
-
-      5906.239860 task-clock (msec)         #    0.998 CPUs utilized
-              556 context-switches          #    0.094 K/sec
-                0 cpu-migrations            #    0.000 K/sec
-            8,393 page-faults               #    0.001 M/sec
-   20,651,474,102 cycles                    #    3.497 GHz                     [83.36%]
-    8,480,803,345 stalled-cycles-frontend   #   41.07% frontend cycles idle    [83.37%]
-    4,247,826,420 stalled-cycles-backend    #   20.57% backend  cycles idle    [66.64%]
-   30,011,465,614 instructions              #    1.45  insns per cycle
-                                            #    0.28  stalled cycles per insn [83.32%]
-    5,612,485,730 branches                  #  950.264 M/sec                   [83.36%]
-       13,584,136 branch-misses             #    0.24% of all branches         [83.29%]
-
-      5.915402403 seconds time elapsed
-</pre>
-<p>Significant differences, Fast =&gt; Slow:</p>
-<ul class="simple">
-<li>Instruction per cycle: 2.31 =&gt; 1.45</li>
-<li>stalled-cycles-frontend: <strong>11.25% =&gt; 41.07%</strong></li>
-<li>stalled-cycles-backend: <strong>3.36% =&gt; 20.57%</strong></li>
-</ul>
-<p>The increase of stalled cycles is interesting. Since the code is supposed to be
-identical, it probably means that fetching instructions is slower. It sounds
-like an issue with CPU caches.</p>
-</div>
-<div class="section" id="statistics-on-the-cpu-l1-instruction-cache">
-<h2>Statistics on the CPU L1 instruction cache</h2>
-<p>The <tt class="docutils literal">perf list</tt> command can be used to get the name of events collecting
-statistics on the CPU L1 instruction cache:</p>
-<pre class="literal-block">
-$ perf list | grep L1
-  L1-icache-loads                                    [Hardware cache event]
-  L1-icache-load-misses                              [Hardware cache event]
-  (...)
-</pre>
-<p>Collect statistics on the CPU L1 instruction cache:</p>
-<pre class="literal-block">
-PYTHONPATH=~/perf perf stat -e L1-icache-loads,L1-icache-load-misses ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -w0 -n10
-</pre>
-<p>&quot;Fast&quot; statistics:</p>
-<pre class="literal-block">
-Performance counter stats for './python-fast (...)':
-
-   10,134,106,571 L1-icache-loads
-       10,917,606 L1-icache-load-misses     #    0.11% of all L1-icache hits
-
-      3.775067668 seconds time elapsed
-</pre>
-<p>&quot;Slow&quot; statistics:</p>
-<pre class="literal-block">
-Performance counter stats for './python-slow (...)':
-
-   10,753,371,258 L1-icache-loads
-      848,511,308 L1-icache-load-misses     #    7.89% of all L1-icache hits
-
-      6.020490449 seconds time elapsed
-</pre>
-<p>Cache misses on the L1 cache: <strong>0.1%</strong> (Fast) =&gt; <strong>8.0%</strong> (Slow).</p>
-<p>The slow Python has <strong>71.7x more L1 cache misses</strong> than the fast Python! It can
-explain the significant performance drop.</p>
-<div class="section" id="perf-report">
-<h3>perf report</h3>
-<p>The <tt class="docutils literal">perf record</tt> command can be used to collect statistics on the functions
-where the benchmark spends most of its time. Commands:</p>
-<pre class="literal-block">
-PYTHONPATH=~/perf perf record ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -v -w0 -n100
-perf report
-</pre>
-<p>Output:</p>
-<pre class="literal-block">
-40.27%  python  python              [.] _PyEval_EvalFrameDefault
-10.30%  python  python              [.] call_function
-10.21%  python  python              [.] PyFrame_New
- 8.56%  python  python              [.] frame_dealloc
- 5.51%  python  python              [.] PyObject_GenericGetAttr
- (...)
-</pre>
-<p>More than 64% of the time is spent in these 5 functions.</p>
-</div>
-<div class="section" id="system-tune">
-<h3>system tune</h3>
-<p>To run benchmark, tune again the system for benchmarks:</p>
-<pre class="literal-block">
-sudo python3 -m perf system tune
-</pre>
-</div>
-</div>
-<div class="section" id="hg-bisect">
-<h2>hg bisect</h2>
-<p>To find the revision which introduces the performance slowdown, we use a
-shell script to automate the bisection of the Mercurial history.</p>
-<p><tt class="docutils literal">cmd.sh</tt> script checking if a revision is fast or slow:</p>
-<pre class="literal-block">
-set -e -x
-./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-rm -f json
-PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -o json -v
-PYTHONPATH=~/perf python3 cmd.py json
-</pre>
-<p><tt class="docutils literal">cmd.sh</tt> uses the following <tt class="docutils literal">cmd.py</tt> script which checks if the benchmark
-is slow: if it takes longer than 23 ms (average between 17 ans 29 ms):</p>
-<pre class="literal-block">
-import perf, sys
-bench = perf.Benchmark.load('json')
-bad = (29 + 17) / 2.0
-ms = bench.median() * 1e3
-if ms &gt;= bad:
-    print(&quot;BAD! %.1f ms &gt;= %.1f ms&quot; % (ms, bad))
-    sys.exit(1)
-else:
-    print(&quot;good: %.1f ms &lt; %.1f ms&quot; % (ms, bad))
-</pre>
-<p>In the bisection, &quot;good&quot; means &quot;fast&quot; (17 ms), whereas &quot;bad&quot; means &quot;slow&quot; (29
-ms).  The peak, revision 1ce50f7027c1, is used as the first &quot;bad&quot; revision. The
-previous fast revision before the peak is 678fe178da0d, our first &quot;good&quot;
-revision.</p>
-<p>Commands to identify the first revision which introduced the slowdown:</p>
-<pre class="literal-block">
-hg bisect --reset
-hg bisect -b 1ce50f7027c1
-hg bisect -g 678fe178da0d
-time hg bisect -c ./cmd.sh
-</pre>
-<p>3 min 52 sec later:</p>
-<pre class="literal-block">
-The first bad revision is:
-changeset:   104531:83877018ef97
-parent:      104528:ce85a1f129e3
-parent:      104530:2d352bf2b228
-user:        Serhiy Storchaka &lt;storchaka&#64;gmail.com&gt;
-date:        Tue Oct 18 13:27:54 2016 +0300
-files:       Misc/NEWS
-description:
-Issue #23782: Fixed possible memory leak in _PyTraceback_Add() and exception
-loss in PyTraceBack_Here().
-</pre>
-<p>Thank you <tt class="docutils literal">hg bisect</tt>! I love this tool.</p>
-<p>Even if I trust <tt class="docutils literal">hg bisect</tt>, I don't trust benchmarks, so I recheck manually:</p>
-<p>Slow:</p>
-<pre class="literal-block">
-$ hg up -C -r 83877018ef97
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 29.4 ms +- 1.8 ms
-</pre>
-<p>Use <tt class="docutils literal">hg parents</tt> to get the latest fast revision:</p>
-<pre class="literal-block">
-$ hg parents -r 83877018ef97
-changeset:   104528:ce85a1f129e3
-(...)
-
-changeset:   104530:2d352bf2b228
-branch:      3.6
-(...)
-</pre>
-<p>Check the parent:</p>
-<pre class="literal-block">
-$ hg up -C -r ce85a1f129e3
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 17.1 ms +- 0.1 ms
-</pre>
-<p>The revision ce85a1f129e3 is fast and the following revision 83877018ef97 is
-slow. <strong>The revision 83877018ef97 introduced the slowdown</strong>.  We found it!</p>
-</div>
-<div class="section" id="analysis-of-the-revision-introducing-the-slowdown">
-<h2>Analysis of the revision introducing the slowdown</h2>
-<p>The <a class="reference external" href="https://hg.python.org/cpython/rev/83877018ef97/">revision 83877018ef97</a>
-changes two files: Misc/NEWS and Python/traceback.c. The NEWS file is only
-documentation and so must not impact performances.  Python/traceback.c is part
-of the C code and so is more interesting.</p>
-<p>The commit only changes two C functions: <tt class="docutils literal">PyTraceBack_Here()</tt> and
-<tt class="docutils literal">_PyTraceback_Add()</tt>, but <tt class="docutils literal">perf report</tt> didn't show these functions as &quot;hot&quot;.
-In fact, these functions are never called by the benchmark.</p>
-<p><strong>The commit doesn't touch the C code used in the benchmark.</strong></p>
-<p>Unrelated C change impacting performances reminds me my previous <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">deadcode
-horror story</a>. The performance
-difference is probably caused by <strong>&quot;code placement&quot;</strong>: <tt class="docutils literal">perf stat</tt> showed a
-significant increase of the cache miss rate on the L1 instruction cache.</p>
-</div>
-<div class="section" id="use-gcc-attribute-hot">
-<h2>Use GCC __attribute__((hot))</h2>
-<p>Using PGO compilation was the solution for deadcode, but PGO doesn't work on
-Ubuntu 14.04 (the OS used by the benchmark server, speed-python) and PGO seems
-to make benchmarks less reliable.</p>
-<p>I wanted to try something else: mark hot functions using the GCC
-<tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> attribute. PGO compilation does this automatically.</p>
-<p>This attribute only has an impact on the code placement: where functions are
-loaded in memory. The flag declares functions in the <tt class="docutils literal">.text.hot</tt> ELF section
-rather than the <tt class="docutils literal">.text</tt> ELF section. Grouping hot functions in the same
-functions helps to reduce the distance between functions and so enhance the
-usage of CPU caches.</p>
-<p>I wrote and then pushed a patch in the <a class="reference external" href="http://bugs.python.org/issue28618">issue #28618</a>: &quot;Decorate hot functions using
-__attribute__((hot)) to optimize Python&quot;.</p>
-<p>The patch marks 6 functions as hot:</p>
-<ul class="simple">
-<li><tt class="docutils literal">_PyEval_EvalFrameDefault()</tt></li>
-<li><tt class="docutils literal">call_function()</tt></li>
-<li><tt class="docutils literal">_PyFunction_FastCall()</tt></li>
-<li><tt class="docutils literal">PyFrame_New()</tt></li>
-<li><tt class="docutils literal">frame_dealloc()</tt></li>
-<li><tt class="docutils literal">PyErr_Occurred()</tt></li>
-</ul>
-<p>Let's try the patch:</p>
-<pre class="literal-block">
-$ hg up -C -r 83877018ef97
-$ wget https://hg.python.org/cpython/raw-rev/59b91b4e9506 -O patch
-$ patch -p1 &lt; patch
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 16.7 ms +- 0.3 ms
-</pre>
-<p>It's easy to make mistakes and benchmarks are always suprising, so let's retry
-without the patch:</p>
-<pre class="literal-block">
-$ hg up -C -r 83877018ef97
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 29.3 ms +- 0.6 ms
-</pre>
-<p>The check confirms that the GCC attribute fixed the issue!</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>On modern Intel CPUs, the code placement can have a major impact on the
-performance of microbenchmarks.</p>
-<p>The GCC <tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> attribute can be used manually to make &quot;hot
-functions&quot; close in memory to enhance the usage of CPU caches.</p>
-<p>To know more about the impact of code placement, see the very good talk of Zia
-Ansari (Intel) at the LLVM Developers' Meeting 2016: <a class="reference external" href="https://llvmdevelopersmeetingbay2016.sched.org/event/8YzY/causes-of-performance-instability-due-to-code-placement-in-x86">Causes of Performance
-Swings Due to Code Placement in IA</a>.
-He describes well &quot;performance swings&quot; like the one described in this article
-and explains how CPUs work internally and how code placement impacts CPU
-performances.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Feb 29, 2016 ...</p>
+                <a class="readmore" href="https://haypo.github.io/analysis-python-performance-issue.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -557,29 +776,6 @@ Running a benchmark on isolated CPUs ...</p>
 </footer><!-- /.post-info -->                <p class="first last">_PyBytesWriter API</p>
 
                 <a class="readmore" href="https://haypo.github.io/pybyteswriter.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2015 Q4">My contributions to CPython during 2015 Q4</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-03-01T15:00:00+01:00">
-                Published: mar. 01 mars 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">My contributions to CPython during 2015 Q4</p>
-
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2015q4.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
