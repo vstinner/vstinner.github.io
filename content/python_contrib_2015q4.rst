@@ -9,7 +9,12 @@ My contributions to CPython during 2015 Q4
 :authors: Victor Stinner
 :summary: My contributions to CPython during 2015 Q4
 
-My contributions to CPython during 2015 Q4 (october, november, december).
+My contributions to `CPython <https://www.python.org/>`_ during 2015 Q4
+(october, november, december)::
+
+    hg log -r 'date("2015-10-01"):date("2015-12-31")' --no-merges -u Stinner
+
+Statistics: 100 non-merge commits + 25 merge commits (total: 125 commits).
 
 As usual, I pushed changes of various contributors and helped them to polish
 their change.

@@ -14,6 +14,13 @@ perfect, there are no more bugs, right?". The article list most of my
 contributions to CPython during 2015 Q3 (july, august, september). It gives an
 idea of which areas of Python are not perfect yet :-)
 
+My contributions to `CPython <https://www.python.org/>`_ during 2015 Q3
+(july, august, september)::
+
+    hg log -r 'date("2015-07-01"):date("2015-09-30")' --no-merges -u Stinner
+
+Statistics: 153 non-merge commits + 75 merge commits (total: 228 commits).
+
 The major event in Python of this quarter was the release of Python 3.5.0.
 
 As usual, I helped various contributors to refine their changes and I pushed
