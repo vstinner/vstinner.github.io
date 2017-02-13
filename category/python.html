@@ -22,7 +22,184 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2016q2.html">My contributions to CPython during 2016 Q2</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-12T18:00:00+01:00">
+                Published: dim. 12 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q2
+(april, may, june):</p>
+<pre class="literal-block">
+hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merges -u Stinner
+</pre>
+<p>Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>.</p>
+<div class="section" id="start-of-my-work-on-optimization">
+<h2>Start of my work on optimization</h2>
+<p>During 2016 Q2, I started to spend more time on optimizing CPython.</p>
+<p>I experimented a change on CPython: a new FASTCALL calling convention to avoid
+the creation of a temporary tuple to pass positional argulments: <a class="reference external" href="http://bugs.python.org/issue26814">issue26814</a>. Early results were really good: calling
+builtin functions became between 20% and 50% faster!</p>
+<p>Quickly, my optimization work was blocked by unreliable benchmarks. I spent the
+rest of the year 2016 analyzing benchmarks and making benchmarks more stable.</p>
+</div>
+<div class="section" id="subprocess-now-emits-resourcewarning">
+<h2>subprocess now emits ResourceWarning</h2>
+<p>subprocess.Popen destructor now emits a ResourceWarning warning if the child
+process is still running (issue #26741). The warning helps to track and fix
+zombi processes. I updated asyncio to prevent a false ResourceWarning (warning
+whereas the child process completed): asyncio now copies the child process exit
+status to the internal Popen object.</p>
+<p>I also fixed the POSIX implementation of subprocess.Popen._execute_child(): it
+now sets the returncode attribute from the child process exit status when exec
+failed.</p>
+</div>
+<div class="section" id="security-fix-potential-shell-injections-in-ctypes-util">
+<h2>Security: fix potential shell injections in ctypes.util</h2>
+<p>I rewrote methods of the ctypes.util module using <tt class="docutils literal">os.popen()</tt>. I replaced
+<tt class="docutils literal">os.popen()</tt> with <tt class="docutils literal">subprocess.Popen</tt> without shell (issue #22636) to fix a
+class of security vulneratiblity, &quot;shell injection&quot; (inject arbitrary shell
+commands to take the control of a computer).</p>
+<p>The <tt class="docutils literal">os.popen()</tt> function uses a shell, so there is a risk if the command
+line arguments are not properly escaped for shell. Using <tt class="docutils literal">subproces.Popen</tt>
+without shell fixes completely the risk.</p>
+<p>Note: the <tt class="docutils literal">ctypes</tt> is generally not considered as &quot;safe&quot;, but it doesn't harm
+to make it more secure ;-)</p>
+</div>
+<div class="section" id="optimization-pymem-malloc-now-uses-pymalloc">
+<h2>Optimization: PyMem_Malloc() now uses pymalloc</h2>
+<p>PyMem_Malloc() now uses the fast Python &quot;pymalloc&quot; memory allocator which is
+optimized for small objects with a short lifetime (issue #26249). The change
+makes some benchmarks up to 4% faster.</p>
+<p>This change was possible thanks to the whole preparation work I did in the 2016
+Q1, especially the new GIL check in memory allocator debug hooks and the new
+<tt class="docutils literal">PYTHONMALLOC=debug</tt> environment variable enabling these hooks on a Python
+compiled in released mode.</p>
+<p>I tested lxml, Pillow, cryptography and numpy before pushing the change,
+as asked by Marc-Andre Lemburg. All these projects work with the change, except
+of numpy. I wrote a fix for numpy: <a class="reference external" href="https://github.com/numpy/numpy/pull/7404">Use PyMem_RawMalloc on Python 3.4 and newer</a>, merged one month later (my first
+contribution to numy!).</p>
+<p>The change indirectly helped to identify and fix a memory leak in the
+<tt class="docutils literal">formatfloat()</tt> function used to format bytes strings: <tt class="docutils literal"><span class="pre">b&quot;%f&quot;</span> % 1.2</tt> (issue
+#25349, #26249).</p>
+</div>
+<div class="section" id="optimization">
+<h2>Optimization</h2>
+<p>Issue #27056: Optimize pickle.load() and pickle.loads(), up to 10% faster to
+deserialize a lot of small objects. I found this optimization using Linux perf
+on Python compiled with PGO. My change implements manually the optimization if
+Python is not compiled with PGO.</p>
+<p>Issue #26770: When <tt class="docutils literal">set_inheritable()</tt> is implemented with <tt class="docutils literal">fcntl()</tt>, don't
+call <tt class="docutils literal">fcntl()</tt> twice if the <tt class="docutils literal">FD_CLOEXEC</tt> flag is already set to the
+requested value. Linux uses <tt class="docutils literal">ioctl()</tt> and so always only need a single
+syscall.</p>
+</div>
+<div class="section" id="changes">
+<h2>Changes</h2>
+<ul>
+<li><p class="first">Issue #26716: Replace IOError with OSError in fcntl documentation, IOError is
+a deprecated alias to OSError since Python 3.3.</p>
+</li>
+<li><p class="first">Issue #26639: Replace the deprecated <tt class="docutils literal">imp</tt> module with the <tt class="docutils literal">importlib</tt>
+module in <tt class="docutils literal">Tools/i18n/pygettext.py</tt>. Remove <tt class="docutils literal">_get_modpkg_path()</tt>,
+replaced with <tt class="docutils literal">importlib.util.find_spec()</tt>.</p>
+</li>
+<li><p class="first">Issue #26735: Fix os.urandom() on Solaris 11.3 and newer when reading more
+than 1024 bytes: call getrandom() multiple times with a limit of 1024 bytes
+per call.</p>
+</li>
+<li><p class="first">configure: fix <tt class="docutils literal">HAVE_GETRANDOM_SYSCALL</tt> check, syscall() function requires
+<tt class="docutils literal">#include &lt;unistd.h&gt;</tt>.</p>
+</li>
+<li><p class="first">Issue #26766: Fix _PyBytesWriter_Finish(). Return a bytearray object when
+bytearray is requested and when the small buffer is used. Fix also
+test_bytes: bytearray%args must return a bytearray type.</p>
+</li>
+<li><p class="first">Issue #26777: Fix random failure of test_asyncio.test_timeout_disable() on
+the &quot;AMD64 FreeBSD 9.x 3.5&quot; buildbot:</p>
+<pre class="literal-block">
+File &quot;.../Lib/test/test_asyncio/test_tasks.py&quot;, line 2398, in go
+  self.assertTrue(0.09 &lt; dt &lt; 0.11, dt)
+AssertionError: False is not true : 0.11902812402695417
+</pre>
+<p>Replace <tt class="docutils literal">&lt; 0.11</tt> with <tt class="docutils literal">&lt; 0.15</tt>.</p>
+</li>
+<li><p class="first">Backport test_gdb fix for s390x buildbots to Python 3.5.</p>
+</li>
+<li><p class="first">Cleanup import.c: replace <tt class="docutils literal">PyUnicode_RPartition()</tt> with
+<tt class="docutils literal">PyUnicode_FindChar()</tt> and <tt class="docutils literal">PyUnicode_Substring()</tt> to avoid the creation
+of a temporary tuple. Use <tt class="docutils literal">PyUnicode_FromFormat()</tt> to build a string and
+avoid the single_dot ('.') singleton.</p>
+</li>
+<li><p class="first">regrtest now uses subprocesses when the <tt class="docutils literal"><span class="pre">-j1</span></tt> command line option is used:
+each test file runs in a fresh child process. Before, the -j1 option was
+ignored. <tt class="docutils literal">Tools/buildbot/test.bat</tt> script now uses -j1 by default to run
+each test file in fresh child process.</p>
+</li>
+<li><p class="first">regrtest: display test result (passed, failed, ...) after each test
+completion. In multiprocessing mode: always display the result. In sequential
+mode: only display the result if the test did not pass</p>
+</li>
+<li><p class="first">Issue #27278: Fix <tt class="docutils literal">os.urandom()</tt> implementation using <tt class="docutils literal">getrandom()</tt> on
+Linux. Truncate size to <tt class="docutils literal">INT_MAX</tt> and loop until we collected enough random
+bytes, instead of casting a directly <tt class="docutils literal">Py_ssize_t</tt> to <tt class="docutils literal">int</tt>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="contributions">
+<h2>Contributions</h2>
+<p>I also pushed a few changes written by other contributors.</p>
+<p>Issue #26839: <tt class="docutils literal">os.urandom()</tt> doesn't block on Linux anymore. On Linux,
+<tt class="docutils literal">os.urandom()</tt> now calls getrandom() with <tt class="docutils literal">GRND_NONBLOCK</tt> to fall back on
+reading <tt class="docutils literal">/dev/urandom</tt> if the urandom entropy pool is not initialized yet.
+Patch written by Colm Buckley. This issue started a huge annoying discussion
+around random number generation on the bug tracker and the python-dev mailing
+list.  I later wrote the <a class="reference external" href="https://www.python.org/dev/peps/pep-0524/">PEP 524: Make os.urandom() blocking on Linux</a> to fix the issue!</p>
+<p>Other changes:</p>
+<ul class="simple">
+<li>Issue #26647: Cleanup opcode: simplify code to build <tt class="docutils literal">opcode.opname</tt>. Patch
+written by Demur Rumed.</li>
+<li>Issue #26647: Cleanup modulefinder: use <tt class="docutils literal">dis.opmap[name]</tt> rather than
+<tt class="docutils literal">dis.opname.index(name)</tt>. Patch written by Demur Rumed.</li>
+<li>Issue #26801: Fix error handling in <tt class="docutils literal">shutil.get_terminal_size()</tt>: catch
+AttributeError instead of NameError. Skip the functional test of test_shutil
+using the <tt class="docutils literal">stty size</tt> command if the <tt class="docutils literal">os.get_terminal_size()</tt> function is
+missing. Patch written by Emanuel Barry.</li>
+<li>Issue #26802: Optimize function calls only using unpacking like
+<tt class="docutils literal"><span class="pre">func(*tuple)</span></tt> (no other positional argument, no keyword argument): avoid
+copying the tuple. Patch written by Joe Jevnik.</li>
+<li>Issue #21668: Add missing libm dependency in setup.py: link audioop,
+_datetime, _ctypes_test modules to libm, except on Mac OS X. Patch written by
+Chi Hsuan Yen.</li>
+<li>Issue #26799: Fix python-gdb.py: don't get C types at startup, only on
+demand. The C types can change if python-gdb.py is loaded before loading the
+Python executable in gdb. Patch written by Thomas Ilsche.</li>
+<li>Issue #27057: Fix os.set_inheritable() on Android, ioctl() is blocked by
+SELinux and fails with EACCESS. The function now falls back to fcntl(). Patch
+written by Michał Bednarski.</li>
+<li>Issue #26647: Fix typo in test_grammar. Patch written by Demur Rumed.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q1.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2016 Q1">My contributions to CPython during 2016 Q1</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-09T17:00:00+01:00">
                 Published: jeu. 09 février 2017
@@ -33,7 +210,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q1
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q1
 (january, februrary, march):</p>
 <pre class="literal-block">
 hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merges -u Stinner
@@ -42,527 +219,10 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>.</p>
 <div class="section" id="summary">
 <h2>Summary</h2>
-<p>Since this report is much longer than I expected, here are the highlights:</p>
-<ul class="simple">
-<li>Python 8: no pep8, no chocolate!</li>
-<li>AST enhancements coming from FAT Python</li>
-<li>faulthandler now catchs Windows fatal exceptions</li>
-<li>New PYTHONMALLOC environment variable</li>
-<li>tracemalloc: new C API and support multiple address spaces</li>
-<li>ResourceWarning warnings now come with a traceback</li>
-<li>PyMem_Malloc() now fails if the GIL is not held</li>
-<li>Interesting bug: reentrant flag in tracemalloc</li>
-</ul>
-</div>
-<div class="section" id="python-8-no-pep8-no-chocolate">
-<h2>Python 8: no pep8, no chocolate!</h2>
-<p>I prepared an April Fool: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-March/143603.html">[Python-Dev] The next major Python version will be
-Python 8</a> :-)</p>
-<p>I increased Python version to 8, added the <tt class="docutils literal">pep8</tt> module and modified
-<tt class="docutils literal">importlib</tt> to raise an <tt class="docutils literal">ImportError</tt> if a module is not PEP8-compliant!</p>
-</div>
-<div class="section" id="ast-enhancements-coming-from-fat-python">
-<h2>AST enhancements coming from FAT Python</h2>
-<p>Changes coming from my <a class="reference external" href="http://faster-cpython.readthedocs.io/fat_python.html">FAT Python</a> (AST optimizer, run
-ahead of time):</p>
-<p>The compiler now ignores constant statements like <tt class="docutils literal">b'bytes'</tt> (issue #26204).
-I had to replace constant statement with expressions to prepare the change (ex:
-replace <tt class="docutils literal">b'bytes'</tt> with <tt class="docutils literal">x = b'bytes'</tt>). First, the compiler emited a
-<tt class="docutils literal">SyntaxWarning</tt>, but it was quickly decided to let linters to emit such
-warnings to not annoy users: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-February/143163.html">read the thread on python-dev</a>.</p>
-<p>Example, Python 3.5:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; def f():
-...  b'bytes'
-...
-&gt;&gt;&gt; import dis; dis.dis(f)
-  2           0 LOAD_CONST               1 (b'bytes')
-              3 POP_TOP
-              4 LOAD_CONST               0 (None)
-              7 RETURN_VALUE
-</pre>
-<p>Python 3.6:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; def f():
-...  b'bytes'
-...
-&gt;&gt;&gt; import dis; dis.dis(f)
-  1           0 LOAD_CONST               0 (None)
-              2 RETURN_VALUE
-</pre>
-<p>Other changes:</p>
-<ul class="simple">
-<li>Issue #26107: The format of the co_lnotab attribute of code objects changes
-to support negative line number delta. It allows AST optimizers to move
-instructions without breaking Python tracebacks. Change needed by the loop
-unrolling optimization of FAT Python.</li>
-<li>Issue #26146: Add a new kind of AST node: <tt class="docutils literal">ast.Constant</tt>. It can be used by
-external AST optimizers like FAT Python, but the compiler does not emit
-directly such node. Update code to accept ast.Constant instead of ast.Num
-and/or ast.Str.</li>
-<li>Issue #26146: <tt class="docutils literal">marshal.loads()</tt> now uses the empty frozenset singleton. It
-fixes a test failure in FAT Python and reduces the memory footprint.</li>
-</ul>
-</div>
-<div class="section" id="faulthandler-now-catchs-windows-fatal-exceptions">
-<h2>faulthandler now catchs Windows fatal exceptions</h2>
-<p>I enhanced the faulthandler.enable() function on Windows to set a
-handler for Windows fatal exceptions using <tt class="docutils literal">AddVectoredExceptionHandler()</tt>
-(issue #23848).</p>
-<p>Windows exceptions are the native way to handle fatal errors on Windows,
-whereas UNIX signals SIGSEGV, SIGFPE and SIGABRT are &quot;emulated&quot; on top of that.</p>
-</div>
-<div class="section" id="new-pythonmalloc-environment-variable">
-<h2>New PYTHONMALLOC environment variable</h2>
-<p>I added a new <tt class="docutils literal">PYTHONMALLOC</tt> environment variable (issue #26516) to set the
-Python memory allocators.</p>
-<p><tt class="docutils literal">PYTHONMALLOC=debug</tt> enables debug hooks on a Python compiled in release
-mode, whereas Python 3.5 requires to recompile Python in debug mode. These
-hooks implements various checks:</p>
-<ul class="simple">
-<li>Detect <strong>buffer underflow</strong>: write before the start of the buffer</li>
-<li>Detect <strong>buffer overflow</strong>: write after the end of the buffer</li>
-<li>Detect API violations, ex: <tt class="docutils literal">PyObject_Free()</tt> called on a buffer
-allocated by <tt class="docutils literal">PyMem_Malloc()</tt></li>
-<li>Check if the GIL is held when allocator functions of PYMEM_DOMAIN_OBJ (ex:
-<tt class="docutils literal">PyObject_Malloc()</tt>) and PYMEM_DOMAIN_MEM (ex: <tt class="docutils literal">PyMem_Malloc()</tt>) domains
-are called</li>
-</ul>
-<p>Moreover, logging a fatal memory error now uses the tracemalloc module to get
-the traceback where a memory block was allocated. Example of a buffer overflow
-using <tt class="docutils literal">python3.6 <span class="pre">-X</span> tracemalloc=5</tt> (store 5 frames in traces):</p>
-<pre class="literal-block">
-Debug memory block at address p=0x7fbcd41666f8: API 'o'
-    4 bytes originally requested
-    The 7 pad bytes at p-7 are FORBIDDENBYTE, as expected.
-    The 8 pad bytes at tail=0x7fbcd41666fc are not all FORBIDDENBYTE (0xfb):
-        at tail+0: 0x02 *** OUCH
-        at tail+1: 0xfb
-        at tail+2: 0xfb
-        ...
-    The block was made by call #1233329 to debug malloc/realloc.
-    Data at p: 1a 2b 30 00
-
-Memory block allocated at (most recent call first):
-  File &quot;test/test_bytes.py&quot;, line 323
-  File &quot;unittest/case.py&quot;, line 600
-  ...
-
-Fatal Python error: bad trailing pad byte
-
-Current thread 0x00007fbcdbd32700 (most recent call first):
-  File &quot;test/test_bytes.py&quot;, line 323 in test_hex
-  File &quot;unittest/case.py&quot;, line 600 in run
-  ...
-</pre>
-<p><tt class="docutils literal">PYTHONMALLOC=malloc</tt> forces the usage of the system <tt class="docutils literal">malloc()</tt> allocator.
-This option can be used with Valgrind. Without this option, Valgrind emits tons
-of false alarms in the Python <tt class="docutils literal">pymalloc</tt> memory allocator.</p>
-</div>
-<div class="section" id="tracemalloc-new-c-api-and-support-multiple-address-spaces">
-<h2>tracemalloc: new C API and support multiple address spaces</h2>
-<p>Antoine Pitrou and Nathaniel Smith asked me to enhance the tracemalloc module:</p>
-<ul class="simple">
-<li>Add a C API to be able to manually track/untrack memory blocks, to track
-the memory allocated by custom memory allocators. For example, numpy uses
-allocators with a specific memory alignment for SIMD instructions.</li>
-<li>Support tracking memory of different address spaces. For example, central
-(CPU) memory and GPU memory for numpy.</li>
-</ul>
-<div class="section" id="support-multiple-address-spaces">
-<h3>Support multiple address spaces</h3>
-<p>I made deep changes in the <tt class="docutils literal">hashtable.c</tt> code (simple C implementation of an
-hash table used by <tt class="docutils literal">_tracemalloc</tt>) to support keys of a variable size (issue
-#26588), instead of using an hardcoded <tt class="docutils literal">void *</tt> size. It allows to support
-keys larger than <tt class="docutils literal">sizeof(void*)</tt>, but also to use <em>less</em> memory for keys
-smaller than <tt class="docutils literal">sizeof(void*)</tt> (ex: <tt class="docutils literal">int</tt> keys).</p>
-<p>Then I extended the C <tt class="docutils literal">_tracemalloc</tt> module and the Python <tt class="docutils literal">tracemalloc</tt> to
-add a new <tt class="docutils literal">domain</tt> attribute to traces: add <tt class="docutils literal">Trace.domain</tt> attribute and
-<tt class="docutils literal">tracemalloc.DomainFilter</tt> class.</p>
-<p>The final step was to optimize the memory footprint of _tracemalloc. Start with
-compact keys (<tt class="docutils literal">Py_uintptr_t</tt> type) and only switch to <tt class="docutils literal">pointer_t</tt> keys when
-the first memory block with a non-zero domain is tracked (when one more one
-address space is used). So the <tt class="docutils literal">_tracemalloc</tt> memory usage doesn't change by
-default in Python 3.6!</p>
-</div>
-<div class="section" id="c-api">
-<h3>C API</h3>
-<p>I added a private C API (issue #26530):</p>
-<pre class="literal-block">
-int _PyTraceMalloc_Track(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr, size_t size);
-int _PyTraceMalloc_Untrack(_PyTraceMalloc_domain_t domain, Py_uintptr_t ptr);
-</pre>
-<p>I waited for Antoine and Nathaniel feedback on this API, but the API remains
-private in Python 3.6 since none reviewed it.</p>
-</div>
-</div>
-<div class="section" id="resourcewarning-warnings-now-come-with-a-traceback">
-<h2>ResourceWarning warnings now come with a traceback</h2>
-<div class="section" id="final-result">
-<h3>Final result</h3>
-<p>Before going to explain the long development of the feature, let's see an
-example of the final result! Example with the script <tt class="docutils literal">example.py</tt>:</p>
-<pre class="literal-block">
-import warnings
-
-def func():
-    return open(__file__)
-
-f = func()
-f = None
-</pre>
-<p>Output of the command <tt class="docutils literal">python3.6 <span class="pre">-Wd</span> <span class="pre">-X</span> tracemalloc=5 example.py</tt>:</p>
-<pre class="literal-block">
-example.py:7: ResourceWarning: unclosed file &lt;_io.TextIOWrapper name='example.py' mode='r' encoding='UTF-8'&gt;
-  f = None
-Object allocated at (most recent call first):
-  File &quot;example.py&quot;, lineno 4
-    return open(__file__)
-  File &quot;example.py&quot;, lineno 6
-    f = func()
-</pre>
-<p>The <tt class="docutils literal">Object allocated at <span class="pre">(...)</span></tt> part is the new feature ;-)</p>
-</div>
-<div class="section" id="add-source-parameter-to-warnings">
-<h3>Add source parameter to warnings</h3>
-<p>Python 3 logs <tt class="docutils literal">ResourceWarning</tt> warnings when a resource is not closed
-properly to help developers to handle resources correctly. The problem is that
-the warning is only logged when the object is destroy, which can occur far from
-the object creation and can occur on a line unrelated to the object because of
-the garbage collector.</p>
-<p>I added a new <tt class="docutils literal">tracemalloc</tt> module to Python 3.4 which has an interesting
-<tt class="docutils literal">tracemalloc.get_object_traceback()</tt> function. If tracemalloc traced the
-allocation of an object, it is able to provide later the traceback where the
-object was allocated.</p>
-<p>I wanted to modify the <tt class="docutils literal">warnings</tt> module to call
-<tt class="docutils literal">get_object_traceback()</tt>, but I noticed that it wasn't possible
-to easily extend the <tt class="docutils literal">warnings</tt> API because this module allows to override
-<tt class="docutils literal">showwarning()</tt> and <tt class="docutils literal">formatwarning()</tt> functions and these
-functions have a fixed number of parameters. Example:</p>
-<pre class="literal-block">
-def showwarning(message, category, filename, lineno, file=None, line=None):
-    ...
-</pre>
-<p>With the issue #26568, I added new  <tt class="docutils literal">_showwarnmsg()</tt> and <tt class="docutils literal">_formatwarnmsg()</tt>
-functions to the warnings module which get a <tt class="docutils literal">warnings.WarningMessage</tt> object
-instead of a list of parameters:</p>
-<pre class="literal-block">
-def _showwarnmsg(msg):
-    ...
-</pre>
-<p>I added a <tt class="docutils literal">source</tt> attribute to <tt class="docutils literal">warnings.WarningMessage</tt> (issue #26567)
-and a new optional <tt class="docutils literal">source</tt> parameter to <tt class="docutils literal">warnings.warn()</tt> (issue #26604):
-the leaked resource object. I modified <tt class="docutils literal">_formatwarnmsg()</tt> to log the
-traceback where resource was allocated, if available.</p>
-<p>The tricky part was to fix corner cases when the following functions of the
-<tt class="docutils literal">warnings</tt> module are overriden:</p>
-<ul class="simple">
-<li><tt class="docutils literal">formatwarning()</tt>, <tt class="docutils literal">showwarning()</tt></li>
-<li><tt class="docutils literal">_formatwarnmsg()</tt>, <tt class="docutils literal">_showwarnmsg()</tt></li>
-</ul>
-</div>
-<div class="section" id="set-the-source-parameter">
-<h3>Set the source parameter</h3>
-<p>I started to modify modules to set the source parameter when logging
-<tt class="docutils literal">ResourceWarning</tt> warnings.</p>
-<p>The easy part was to modify <tt class="docutils literal">asyncore</tt>, <tt class="docutils literal">asyncio</tt> and <tt class="docutils literal">_pyio</tt> modules to
-set the <tt class="docutils literal">source</tt> parameter. These modules are implemented in Python, the
-change was just to add <tt class="docutils literal">source=self</tt>. Example of <tt class="docutils literal">asyncio</tt> destructor:</p>
-<pre class="literal-block">
-def __del__(self):
-    if not self.is_closed():
-        warnings.warn(&quot;unclosed event loop %r&quot; % self, ResourceWarning,
-                      source=self)
-        if not self.is_running():
-            self.close()
-</pre>
-<p>Note: The warning is logged before the resource is closed to provide more
-information in <tt class="docutils literal">repr()</tt>. Many objects clear most information in their
-<tt class="docutils literal">close()</tt> method.</p>
-<p>Modifying C modules was more tricky than expected. I had to implement
-&quot;finalizers&quot; (<a class="reference external" href="https://www.python.org/dev/peps/pep-0442/">PEP 432: Safe object finalization</a>) for the <tt class="docutils literal">_socket.socket</tt> type
-(issue #26590) and for the <tt class="docutils literal">os.scandir()</tt> iterator (issue #26603).</p>
-</div>
-<div class="section" id="more-reliable-warnings">
-<h3>More reliable warnings</h3>
-<p>The Python shutdown process is complex, and some Python functions are broken
-during the shutdown. I enhanced the warnings module to handle nicely these
-failures and try to log warnings anyway.</p>
-<p>I modified <tt class="docutils literal">warnings.formatwarning()</tt> to catch <tt class="docutils literal">linecache.getline()</tt>
-failures on formatting the traceback.</p>
-<p>Logging the resource traceback is complex, so I only implemented it in Python.
-Python tries to use the Python <tt class="docutils literal">warnings</tt> module if it was imported, or falls
-back on the C <tt class="docutils literal">_warnings</tt> module. To get the resource traceback at Python
-shutdown, I modified the C module to try to import the Python warning:
-<tt class="docutils literal">_warnings.warn_explicit()</tt> now tries to import the Python warnings module if
-the source parameter is set to be able to log the traceback where the source
-was allocated (issue #26592).</p>
-</div>
-<div class="section" id="fix-resourcewarning-warnings">
-<h3>Fix ResourceWarning warnings</h3>
-<p>Since it became easy to debug these warnings, I fixed some of them in the
-Python test suite:</p>
-<ul class="simple">
-<li>Issue #26620: Fix ResourceWarning in test_urllib2_localnet. Use context
-manager on urllib objects and use self.addCleanup() to cleanup resources even
-if a test is interrupted with CTRL+c</li>
-<li>Issue #25654: multiprocessing: open file with <tt class="docutils literal">closefd=False</tt> to avoid
-ResourceWarning. _test_multiprocessing: open file with <tt class="docutils literal">O_EXCL</tt> to detect
-bugs in tests (if a previous test forgot to remove TESTFN).
-<tt class="docutils literal">test_sys_exit()</tt>: remove TESTFN after each loop iteration</li>
-<li>Fix <tt class="docutils literal">ResourceWarning</tt> in test_unittest when interrupted</li>
-</ul>
-</div>
-</div>
-<div class="section" id="pymem-malloc-now-fails-if-the-gil-is-not-held">
-<h2>PyMem_Malloc() now fails if the GIL is not held</h2>
-<p>Since using the mall object allocator (<tt class="docutils literal">pymalloc)</tt>) for dictionary key
-storage showed speedup for the dict type (issue #23601), I proposed to
-generalize the change, use <tt class="docutils literal">pymalloc</tt> for <tt class="docutils literal">PyMem_Malloc()</tt>: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-February/143084.html">[Python-Dev]
-Modify PyMem_Malloc to use pymalloc for performance</a>.</p>
-<p>The main issue was that the change means that <tt class="docutils literal">PyMem_Malloc()</tt> now requires
-to hold the GIL, whereas it didn't before since it called directly
-<tt class="docutils literal">malloc()</tt>.</p>
-<div class="section" id="check-if-the-gil-is-held">
-<h3>Check if the GIL is held</h3>
-<p>CPython has a <tt class="docutils literal">PyGILState_Check()</tt> function to check if the GIL is held.
-Problem: the function doesn't work with subinterpreters: see issues #10915 and
-#15751.</p>
-<p>I added an internal flag to <tt class="docutils literal">PyGILState_Check()</tt> (issue #26558) to skip the
-test. The flag value is false at startup, set to true once the GIL is fully
-initialized (Python initialization), set to false again when the GIL is
-destroyed (Python finalization). The flag is also set to false when the first
-subinterpreter is created.</p>
-<p>This hack works around <tt class="docutils literal">PyGILState_Check()</tt> limitations allowing to call
-<cite>PyGILState_Check()`</cite> anytime to debug more bugs earlier.</p>
-<p><tt class="docutils literal">_Py_dup()</tt>, <tt class="docutils literal">_Py_fstat()</tt>, <tt class="docutils literal">_Py_read()</tt> and <tt class="docutils literal">_Py_write()</tt> are
-low-level helper functions for system functions, but these functions require
-the GIL to be held.  Thanks to the <tt class="docutils literal">PyGILState_Check()</tt> enhancement, it
-became possible to check the GIL using an assertion.</p>
-</div>
-<div class="section" id="pymem-malloc-and-gil">
-<h3>PyMem_Malloc() and GIL</h3>
-<p>Issue #26563: Debug hooks on Python memory allocators now raise a fatal error
-if memory allocator functions like PyMem_Malloc() and PyMem_Malloc() are called
-without holding the GIL.</p>
-<p>The change spotted two bugs which I fixed:</p>
-<ul class="simple">
-<li>Issue #26563: Replace PyMem_Malloc() with PyMem_RawMalloc() in the Windows
-implementation of os.stat(), the code is called without holding the
-GIL.</li>
-<li>Issue #26563: Fix usage of PyMem_Malloc() in overlapped.c. Replace
-PyMem_Malloc() with PyMem_RawFree() since PostToQueueCallback() calls
-PyMem_Free() in a new C thread which doesn't hold the GIL.</li>
-</ul>
-<p>I wasn't able to switch <tt class="docutils literal">PyMem_Malloc()</tt> to <tt class="docutils literal">pymalloc</tt> in this quarter,
-since it took more a lot of time to implement requested checks and test third
-party modules.</p>
-</div>
-<div class="section" id="fatal-error-and-faulthandler">
-<h3>Fatal error and faulthandler</h3>
-<p>I enhanced the faulthandler module to work in non-Python threads (issue
-#26563). I fixed <tt class="docutils literal">Py_FatalError()</tt> if called without holding the GIL: don't
-try to print the current exception, nor try to flush stdout and stderr: only
-dump the traceback of Python threads.</p>
-</div>
-</div>
-<div class="section" id="interesting-bug-reentrant-flag-in-tracemalloc">
-<h2>Interesting bug: reentrant flag in tracemalloc</h2>
-<p>A bug annoyed me a lot: a random assertion error related to a reentrant flag in
-the _tracemalloc module.</p>
-<p>Story starting in the <a class="reference external" href="http://bugs.python.org/issue26588#msg262125">middle of the issue #26588 (2016-03-21)</a>. While working on issue #26588,
-&quot;_tracemalloc: add support for multiple address spaces (domains)&quot;, I noticed an
-assertion failure in set_reentrant(), a helper function to set a <em>Thread Local
-Storage</em> (TLS), on a buildbot:</p>
-<pre class="literal-block">
-python: ./Modules/_tracemalloc.c:195: set_reentrant:
-    Assertion `PyThread_get_key_value(tracemalloc_reentrant_key) == ((PyObject *) &amp;_Py_TrueStruct)' failed.
-</pre>
-<p>I was unable to reproduce the bug on my Fedora 23 (AMD64). After changes on my
-patch, I pushed it the day after, but the assertion failed again. I added
-assertions and debug informations. More failures, an interesting one on Windows
-which uses a single process.</p>
-<p>I added an assertion in tracemalloc_init() to ensure that the reeentrant flag
-is set at the end of the function. The reentrant flag was no more set at
-tracemalloc_start() entry for an unknown reason. I changed the module
-initialization to no call tracemalloc_init() anymore, it's only called on
-tracemalloc.start().</p>
-<p>&quot;The bug was seen on 5 buildbots yet: PPC Fedora, AMD64 Debian, s390x RHEL,
-AMD64 Windows, x86 Ubuntu.&quot;</p>
-<p>I finally understood and fixed the bug with the <a class="reference external" href="https://hg.python.org/cpython/rev/af1c1149784a">change af1c1149784a</a>: tracemalloc_start() and
-tracemalloc_stop() don't clear/set the reentrant flag anymore.</p>
-<p>The problem was that I expected that tracemalloc_init() and tracemalloc_start()
-functions would always be called in the same thread, whereas it occurred that
-tracemalloc_init() was called in thread A when the tracemalloc module is
-imported, whereas tracemalloc_start() was called in thread B.</p>
-</div>
-<div class="section" id="other-commits">
-<h2>Other commits</h2>
-<div class="section" id="enhancements">
-<h3>Enhancements</h3>
-<p>The developers of the <tt class="docutils literal">vmprof</tt> profiler asked me to expose the atomic
-variable <tt class="docutils literal">_PyThreadState_Current</tt>. The private variable was removed from
-Python 3.5.1 API because the implementation of atomic variables depends on the
-compiler, compiler options, etc. and so caused compilation issues. I added a
-new private <tt class="docutils literal">_PyThreadState_UncheckedGet()</tt> function (issue #26154) which
-gets the value of the variable without exposing its implementation.</p>
-<p>Other enhancements:</p>
-<ul class="simple">
-<li>Issue #26099: The site module now writes an error into stderr if
-sitecustomize module can be imported but executing the module raise an
-ImportError. Same change for usercustomize.</li>
-<li>Issue #26516: Enhance Python memory allocators documentation. Add link to
-PYTHONMALLOCSTATS environment variable. Add parameters to PyMem macros like
-PyMem_MALLOC().</li>
-<li>Issue #26569: Fix pyclbr.readmodule() and pyclbr.readmodule_ex() to support
-importing packages.</li>
-<li>Issue #26564, #26516, #26563: Enhance documentation on memory allocator debug
-hooks.</li>
-<li>doctest now supports packages. Issue #26641: doctest.DocFileTest and
-doctest.testfile() now support packages (module splitted into multiple
-directories) for the package parameter.</li>
-</ul>
-</div>
-<div class="section" id="bugfixes">
-<h3>Bugfixes</h3>
-<p>Issue #25843: When compiling code, don't merge constants if they are equal but
-have a different types. For example, <tt class="docutils literal">f1, f2 = lambda: 1, lambda: 1.0</tt> is now
-correctly compiled to two different functions: <tt class="docutils literal">f1()</tt> returns <tt class="docutils literal">1</tt> (int) and
-<tt class="docutils literal">f2()</tt> returns <tt class="docutils literal">1.0</tt> (int), even if 1 and 1.0 are equal.</p>
-<p>Other fixes:</p>
-<ul class="simple">
-<li>Issue #26101: Fix test_compilepath() of test_compileall. Exclude Lib/test/
-from sys.path in test_compilepath(). The directory contains invalid Python
-files like Lib/test/badsyntax_pep3120.py, whereas the test ensures that all
-files can be compiled.</li>
-<li>Issue #24520: Replace fpgetmask() with fedisableexcept(). On FreeBSD,
-fpgetmask() was deprecated long time ago.  fedisableexcept() is now
-preferred.</li>
-<li>Issue #26161: Use Py_uintptr_t instead of void* for atomic pointers in
-pyatomic.h. Use atomic_uintptr_t when &lt;stdatomic.h&gt; is used. Using void*
-causes compilation warnings depending on which implementation of atomic types
-is used.</li>
-<li>Issue #26637: The importlib module now emits an ImportError rather than a
-TypeError if __import__() is tried during the Python shutdown process but
-sys.path is already cleared (set to None).</li>
-<li>doctest: fix _module_relative_path() error message. Write the module name
-rather than &lt;module&gt; in the error message, if module has no __file__
-attribute (ex: package).</li>
-</ul>
-</div>
-<div class="section" id="fix-type-downcasts-on-windows-64-bit">
-<h3>Fix type downcasts on Windows 64-bit</h3>
-<p>In my spare time, I'm trying to fix a few compiler warnings on Windows 64-bit
-where the C <tt class="docutils literal">long</tt> type is only 32-bit, whereas pointers are <tt class="docutils literal"><span class="pre">64-bit</span></tt> long:</p>
-<ul class="simple">
-<li>posix_getcwd(): limit to INT_MAX on Windows. It's more to fix a compiler
-warning during compilation, I don't think that Windows support current
-working directories larger than 2 GB :-)</li>
-<li>_pickle: Fix load_counted_tuple(), use Py_ssize_t for size. Fix a warning on
-Windows 64-bit.</li>
-<li>getpathp.c: fix compiler warning, wcsnlen_s() result type is size_t.</li>
-<li>compiler.c: fix compiler warnings on Windows</li>
-<li>_msi.c: try to fix compiler warnings</li>
-<li>longobject.c: fix compilation warning on Windows 64-bit. We know that
-Py_SIZE(b) is -1 or 1 an so fits into the sdigit type.</li>
-<li>On Windows, socket.setsockopt() now raises an OverflowError if the socket
-option is larger than INT_MAX bytes.</li>
-</ul>
-</div>
-<div class="section" id="unicode-bugfixes">
-<h3>Unicode bugfixes</h3>
-<ul class="simple">
-<li>Issue #26227: On Windows, getnameinfo(), gethostbyaddr() and
-gethostbyname_ex() functions of the socket module now decode the hostname
-from the ANSI code page rather than UTF-8.</li>
-<li>Issue #26217: Unicode resize_compact() must set wstr_length to 0 after
-freeing the wstr string. Otherwise, an assertion fails in
-_PyUnicode_CheckConsistency().</li>
-<li>Issue #26464: Fix str.translate() when string is ASCII and first replacements
-removes characters, but next replacements use a non-ASCII character or a
-string longer than 1 character. Regression introduced in Python 3.5.0.</li>
-</ul>
-</div>
-<div class="section" id="buildbot-tests">
-<h3>Buildbot, tests</h3>
-<p>Just to give you an idea of the work required to keep a working CI, here is the
-list of changes I maded in a single quarter to make tests and Python buildbots
-more reliable.</p>
-<ul class="simple">
-<li>Issue #26610: Skip test_venv.test_with_pip() if ctypes miss</li>
-<li>test_asyncio: fix test_timeout_time(). Accept time delta up to 0.12 second,
-instead of 0.11, for the &quot;AMD64 FreeBSD 9.x&quot; buildbot slave.</li>
-<li>Issue #13305: Always test datetime.datetime.strftime(&quot;%4Y&quot;) for years &lt; 1900.
-Change quickly reverted, strftime(&quot;%4Y&quot;) fails on most platforms.</li>
-<li>Issue #17758: Skip test_site if site.USER_SITE directory doesn't exist and
-cannot be created.</li>
-<li>Fix test_venv on FreeBSD buildbot. Ignore pip warning in
-test_venv.test_with_venv().</li>
-<li>Issue #26566: Rewrite test_signal.InterProcessSignalTests. Don't use
-os.fork() with a subprocess to not inherit existing signal handlers or
-threads: start from a fresh process. Use a timeout of 10 seconds to wait for
-the signal instead of 1 second</li>
-<li>Issue #26538: regrtest: Fix module.__path__. libregrtest: Fix setup_tests()
-to keep module.__path__ type (_NamespacePath), don't convert to a list.
-Add _NamespacePath.__setitem__() method to importlib._bootstrap_external.</li>
-<li>regrtest: add time to output. Timestamps should help to debug slow buildbots,
-and timeout and hang on buildbots.</li>
-<li>regrtest: add timeout to main process when using -jN. libregrtest: add a
-watchdog to run_tests_multiprocess() using faulthandler.dump_traceback_later().</li>
-<li>Makefile: change default value of TESTTIMEOUT from 1 hour to 15 min.
-The whole test suite takes 6 minutes on my laptop. It takes less than 30
-minutes on most buildbots. The TESTTIMEOUT is the timeout for a single test
-file.</li>
-<li>Buildbots: change also Windows timeout from 1 hour to 15 min</li>
-<li>regrtest: display test duration in sequential mode. Only display duration if
-a test takes more than 30 seconds.</li>
-<li>Issue #18787: Try to fix test_spwd on OpenIndiana. Try to get the &quot;root&quot;
-entry which should exist on all UNIX instead of &quot;bin&quot; which doesn't exist on
-OpenIndiana.</li>
-<li>regrtest: fix --fromfile feature. Update code for the name regrtest output
-format. Enhance also test_regrtest test on --fromfile</li>
-<li>regrtest: mention if tests run sequentially or in parallel</li>
-<li>regrtest: when parallel tests are interrupted, display progress</li>
-<li>support.temp_dir(): call support.rmtree() instead of shutil.rmtree(). Try
-harder to remove directories on Windows.</li>
-<li>rt.bat: use -m test instead of Libtestregrtest.py</li>
-<li>Refactor regrtest.</li>
-<li>Fix test_warnings.test_improper_option(). test_warnings: only run
-test_improper_option() and test_warnings_bootstrap() once. The unit test
-doesn't depend on self.module.</li>
-<li>Fix test_os.test_symlink(): remove created symlink.</li>
-<li>Issue #26643: Add missing shutil resources to regrtest.py</li>
-<li>test_urllibnet: set timeout on test_fileno(). Use the default timeout of 30
-seconds to avoid blocking forever.</li>
-<li>Issue #26295: When using &quot;python3 -m test --testdir=TESTDIR&quot;, regrtest
-doesn't add &quot;test.&quot; prefix to test module names. regrtest also prepends
-testdir to sys.path.</li>
-<li>Issue #26295: test_regrtest now uses a temporary directory</li>
-</ul>
-</div>
-<div class="section" id="contributions">
-<h3>Contributions</h3>
-<p>I also pushed a few changes written by other contributors:</p>
-<ul class="simple">
-<li>Issue #25907: Use {% trans %} tags in HTML templates to ease the translation
-of the documentation. The tag comes from Jinja templating system, used by
-Sphinx. Patch written by Julien Palard.</li>
-<li>Issue #26248: Enhance os.scandir() doc, patch written by Ben Hoyt:</li>
-<li>Fix error message in asyncio.selector_events. Patch written by Carlo
-Beccarini.</li>
-<li>Issue #16851: Fix inspect.ismethod() doc, return also True if object is an
-unbound method. Patch written by Anna Koroliuk.</li>
-<li>Issue #26574: Optimize bytes.replace(b'', b'.') and bytearray.replace(b'', b'.'):
-up to 80% faster. Patch written by Josh Snider.</li>
-</ul>
-</div>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p>Since this report is much longer than I expected, here ...</p></div>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q1.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>

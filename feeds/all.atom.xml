@@ -1,5 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-09T17:00:00+01:00</updated><entry><title>My contributions to CPython during 2016 Q1</title><link href="https://haypo.github.io/contrib-cpython-2016q1.html" rel="alternate"></link><published>2017-02-09T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-09:contrib-cpython-2016q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-12T18:00:00+01:00</updated><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-12:contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
+(april, may, june):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to CPython during 2016 Q1&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="start-of-my-work-on-optimization"&gt;
+&lt;h2&gt;Start of my work on optimization&lt;/h2&gt;
+&lt;p&gt;During 2016 Q2, I started to spend more time on optimizing CPython.&lt;/p&gt;
+&lt;p&gt;I experimented a change on CPython: a new FASTCALL calling convention to avoid
+the creation of a temporary tuple to pass positional argulments: &lt;a class="reference external" href="http://bugs.python.org/issue26814"&gt;issue26814&lt;/a&gt;. Early results were really good: calling
+builtin functions became between 20% and 50% faster!&lt;/p&gt;
+&lt;p&gt;Quickly, my optimization work was blocked by unreliable benchmarks. I spent the
+rest of the year 2016 analyzing benchmarks and making benchmarks more stable.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="subprocess-now-emits-resourcewarning"&gt;
+&lt;h2&gt;subprocess now emits ResourceWarning&lt;/h2&gt;
+&lt;p&gt;subprocess.Popen destructor now emits a ResourceWarning warning if the child
+process is still running (issue #26741). The warning helps to track and fix
+zombi processes. I updated asyncio to prevent a false ResourceWarning (warning
+whereas the child process completed): asyncio now copies the child process exit
+status to the internal Popen object.&lt;/p&gt;
+&lt;p&gt;I also fixed the POSIX implementation of subprocess.Popen._execute_child(): it
+now sets the returncode attribute from the child process exit status when exec
+failed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="security-fix-potential-shell-injections-in-ctypes-util"&gt;
+&lt;h2&gt;Security: fix potential shell injections in ctypes.util&lt;/h2&gt;
+&lt;p&gt;I rewrote methods of the ctypes.util module using &lt;tt class="docutils literal"&gt;os.popen()&lt;/tt&gt;. I replaced
+&lt;tt class="docutils literal"&gt;os.popen()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;subprocess.Popen&lt;/tt&gt; without shell (issue #22636) to fix a
+class of security vulneratiblity, &amp;quot;shell injection&amp;quot; (inject arbitrary shell
+commands to take the control of a computer).&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;os.popen()&lt;/tt&gt; function uses a shell, so there is a risk if the command
+line arguments are not properly escaped for shell. Using &lt;tt class="docutils literal"&gt;subproces.Popen&lt;/tt&gt;
+without shell fixes completely the risk.&lt;/p&gt;
+&lt;p&gt;Note: the &lt;tt class="docutils literal"&gt;ctypes&lt;/tt&gt; is generally not considered as &amp;quot;safe&amp;quot;, but it doesn't harm
+to make it more secure ;-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="optimization-pymem-malloc-now-uses-pymalloc"&gt;
+&lt;h2&gt;Optimization: PyMem_Malloc() now uses pymalloc&lt;/h2&gt;
+&lt;p&gt;PyMem_Malloc() now uses the fast Python &amp;quot;pymalloc&amp;quot; memory allocator which is
+optimized for small objects with a short lifetime (issue #26249). The change
+makes some benchmarks up to 4% faster.&lt;/p&gt;
+&lt;p&gt;This change was possible thanks to the whole preparation work I did in the 2016
+Q1, especially the new GIL check in memory allocator debug hooks and the new
+&lt;tt class="docutils literal"&gt;PYTHONMALLOC=debug&lt;/tt&gt; environment variable enabling these hooks on a Python
+compiled in released mode.&lt;/p&gt;
+&lt;p&gt;I tested lxml, Pillow, cryptography and numpy before pushing the change,
+as asked by Marc-Andre Lemburg. All these projects work with the change, except
+of numpy. I wrote a fix for numpy: &lt;a class="reference external" href="https://github.com/numpy/numpy/pull/7404"&gt;Use PyMem_RawMalloc on Python 3.4 and newer&lt;/a&gt;, merged one month later (my first
+contribution to numy!).&lt;/p&gt;
+&lt;p&gt;The change indirectly helped to identify and fix a memory leak in the
+&lt;tt class="docutils literal"&gt;formatfloat()&lt;/tt&gt; function used to format bytes strings: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;b&amp;quot;%f&amp;quot;&lt;/span&gt; % 1.2&lt;/tt&gt; (issue
+#25349, #26249).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="optimization"&gt;
+&lt;h2&gt;Optimization&lt;/h2&gt;
+&lt;p&gt;Issue #27056: Optimize pickle.load() and pickle.loads(), up to 10% faster to
+deserialize a lot of small objects. I found this optimization using Linux perf
+on Python compiled with PGO. My change implements manually the optimization if
+Python is not compiled with PGO.&lt;/p&gt;
+&lt;p&gt;Issue #26770: When &lt;tt class="docutils literal"&gt;set_inheritable()&lt;/tt&gt; is implemented with &lt;tt class="docutils literal"&gt;fcntl()&lt;/tt&gt;, don't
+call &lt;tt class="docutils literal"&gt;fcntl()&lt;/tt&gt; twice if the &lt;tt class="docutils literal"&gt;FD_CLOEXEC&lt;/tt&gt; flag is already set to the
+requested value. Linux uses &lt;tt class="docutils literal"&gt;ioctl()&lt;/tt&gt; and so always only need a single
+syscall.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="changes"&gt;
+&lt;h2&gt;Changes&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #26716: Replace IOError with OSError in fcntl documentation, IOError is
+a deprecated alias to OSError since Python 3.3.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #26639: Replace the deprecated &lt;tt class="docutils literal"&gt;imp&lt;/tt&gt; module with the &lt;tt class="docutils literal"&gt;importlib&lt;/tt&gt;
+module in &lt;tt class="docutils literal"&gt;Tools/i18n/pygettext.py&lt;/tt&gt;. Remove &lt;tt class="docutils literal"&gt;_get_modpkg_path()&lt;/tt&gt;,
+replaced with &lt;tt class="docutils literal"&gt;importlib.util.find_spec()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #26735: Fix os.urandom() on Solaris 11.3 and newer when reading more
+than 1024 bytes: call getrandom() multiple times with a limit of 1024 bytes
+per call.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;configure: fix &lt;tt class="docutils literal"&gt;HAVE_GETRANDOM_SYSCALL&lt;/tt&gt; check, syscall() function requires
+&lt;tt class="docutils literal"&gt;#include &amp;lt;unistd.h&amp;gt;&lt;/tt&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #26766: Fix _PyBytesWriter_Finish(). Return a bytearray object when
+bytearray is requested and when the small buffer is used. Fix also
+test_bytes: bytearray%args must return a bytearray type.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #26777: Fix random failure of test_asyncio.test_timeout_disable() on
+the &amp;quot;AMD64 FreeBSD 9.x 3.5&amp;quot; buildbot:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+File &amp;quot;.../Lib/test/test_asyncio/test_tasks.py&amp;quot;, line 2398, in go
+  self.assertTrue(0.09 &amp;lt; dt &amp;lt; 0.11, dt)
+AssertionError: False is not true : 0.11902812402695417
+&lt;/pre&gt;
+&lt;p&gt;Replace &lt;tt class="docutils literal"&gt;&amp;lt; 0.11&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;&amp;lt; 0.15&lt;/tt&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Backport test_gdb fix for s390x buildbots to Python 3.5.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Cleanup import.c: replace &lt;tt class="docutils literal"&gt;PyUnicode_RPartition()&lt;/tt&gt; with
+&lt;tt class="docutils literal"&gt;PyUnicode_FindChar()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyUnicode_Substring()&lt;/tt&gt; to avoid the creation
+of a temporary tuple. Use &lt;tt class="docutils literal"&gt;PyUnicode_FromFormat()&lt;/tt&gt; to build a string and
+avoid the single_dot ('.') singleton.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;regrtest now uses subprocesses when the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-j1&lt;/span&gt;&lt;/tt&gt; command line option is used:
+each test file runs in a fresh child process. Before, the -j1 option was
+ignored. &lt;tt class="docutils literal"&gt;Tools/buildbot/test.bat&lt;/tt&gt; script now uses -j1 by default to run
+each test file in fresh child process.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;regrtest: display test result (passed, failed, ...) after each test
+completion. In multiprocessing mode: always display the result. In sequential
+mode: only display the result if the test did not pass&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #27278: Fix &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; implementation using &lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; on
+Linux. Truncate size to &lt;tt class="docutils literal"&gt;INT_MAX&lt;/tt&gt; and loop until we collected enough random
+bytes, instead of casting a directly &lt;tt class="docutils literal"&gt;Py_ssize_t&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;int&lt;/tt&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="contributions"&gt;
+&lt;h2&gt;Contributions&lt;/h2&gt;
+&lt;p&gt;I also pushed a few changes written by other contributors.&lt;/p&gt;
+&lt;p&gt;Issue #26839: &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; doesn't block on Linux anymore. On Linux,
+&lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; now calls getrandom() with &lt;tt class="docutils literal"&gt;GRND_NONBLOCK&lt;/tt&gt; to fall back on
+reading &lt;tt class="docutils literal"&gt;/dev/urandom&lt;/tt&gt; if the urandom entropy pool is not initialized yet.
+Patch written by Colm Buckley. This issue started a huge annoying discussion
+around random number generation on the bug tracker and the python-dev mailing
+list.  I later wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0524/"&gt;PEP 524: Make os.urandom() blocking on Linux&lt;/a&gt; to fix the issue!&lt;/p&gt;
+&lt;p&gt;Other changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Issue #26647: Cleanup opcode: simplify code to build &lt;tt class="docutils literal"&gt;opcode.opname&lt;/tt&gt;. Patch
+written by Demur Rumed.&lt;/li&gt;
+&lt;li&gt;Issue #26647: Cleanup modulefinder: use &lt;tt class="docutils literal"&gt;dis.opmap[name]&lt;/tt&gt; rather than
+&lt;tt class="docutils literal"&gt;dis.opname.index(name)&lt;/tt&gt;. Patch written by Demur Rumed.&lt;/li&gt;
+&lt;li&gt;Issue #26801: Fix error handling in &lt;tt class="docutils literal"&gt;shutil.get_terminal_size()&lt;/tt&gt;: catch
+AttributeError instead of NameError. Skip the functional test of test_shutil
+using the &lt;tt class="docutils literal"&gt;stty size&lt;/tt&gt; command if the &lt;tt class="docutils literal"&gt;os.get_terminal_size()&lt;/tt&gt; function is
+missing. Patch written by Emanuel Barry.&lt;/li&gt;
+&lt;li&gt;Issue #26802: Optimize function calls only using unpacking like
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;func(*tuple)&lt;/span&gt;&lt;/tt&gt; (no other positional argument, no keyword argument): avoid
+copying the tuple. Patch written by Joe Jevnik.&lt;/li&gt;
+&lt;li&gt;Issue #21668: Add missing libm dependency in setup.py: link audioop,
+_datetime, _ctypes_test modules to libm, except on Mac OS X. Patch written by
+Chi Hsuan Yen.&lt;/li&gt;
+&lt;li&gt;Issue #26799: Fix python-gdb.py: don't get C types at startup, only on
+demand. The C types can change if python-gdb.py is loaded before loading the
+Python executable in gdb. Patch written by Thomas Ilsche.&lt;/li&gt;
+&lt;li&gt;Issue #27057: Fix os.set_inheritable() on Android, ioctl() is blocked by
+SELinux and fails with EACCESS. The function now falls back to fcntl(). Patch
+written by Michał Bednarski.&lt;/li&gt;
+&lt;li&gt;Issue #26647: Fix typo in test_grammar. Patch written by Demur Rumed.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q1</title><link href="https://haypo.github.io/contrib-cpython-2016q1.html" rel="alternate"></link><published>2017-02-09T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-09:contrib-cpython-2016q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-01-01&amp;quot;):date(&amp;quot;2016-03-31&amp;quot;)' --no-merges -u Stinner
@@ -2309,7 +2462,12 @@ faster on a microbenchmark.&lt;/p&gt;
 &lt;p&gt;Later, I replaced &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; type with &lt;tt class="docutils literal"&gt;void*&lt;/tt&gt; to avoid compiler warnings
 in functions using &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;unsigned char*&lt;/tt&gt;, unsigned types.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to CPython during 2015 Q4 (october, november, december).&lt;/p&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2015 Q4
+(october, november, december):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2015-10-01&amp;quot;):date(&amp;quot;2015-12-31&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 100 non-merge commits + 25 merge commits (total: 125 commits).&lt;/p&gt;
 &lt;p&gt;As usual, I pushed changes of various contributors and helped them to polish
 their change.&lt;/p&gt;
 &lt;p&gt;I fighted against a recursion error, a regression introduced by my recent work
@@ -2452,6 +2610,12 @@ to FAT Python ;-)&lt;/li&gt;
 perfect, there are no more bugs, right?&amp;quot;. The article list most of my
 contributions to CPython during 2015 Q3 (july, august, september). It gives an
 idea of which areas of Python are not perfect yet :-)&lt;/p&gt;
+&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2015 Q3
+(july, august, september):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2015-07-01&amp;quot;):date(&amp;quot;2015-09-30&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 153 non-merge commits + 75 merge commits (total: 228 commits).&lt;/p&gt;
 &lt;p&gt;The major event in Python of this quarter was the release of Python 3.5.0.&lt;/p&gt;
 &lt;p&gt;As usual, I helped various contributors to refine their changes and I pushed
 their final changes.&lt;/p&gt;
