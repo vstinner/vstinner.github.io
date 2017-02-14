@@ -23,17 +23,25 @@ Previous report: `My contributions to CPython during 2016 Q2
 CPython sprint
 ==============
 
-.. image:: {filename}/images/cpython_sprint_2016.jpg
+*Where is Victor?*
+
+.. image:: {filename}/images/cpython_sprint_2016_photo.jpg
    :alt: CPython developers at the Facebook sprint
    :target: http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html
 
 I was invited at my first CPython sprint in September! Five days, September
-5-9, at Instagram office in California, USA. It was sponsored by Instagram,
-Microsoft, and the PSF.
+5-9, at Instagram office in California, USA. The sprint was sponsored by
+Instagram, Microsoft, and the PSF.
 
 IMHO it was the most productice CPython week ever :-) Having Guido van Rossum
 in a room helped to get many PEPs accepted. Having reviewers in the same room
-helped to get PEP implementation merged super quickly.
+helped to get PEP implementation merged super quickly. Little game, try to spot
+the sprint on the CPython commit statistics of the last 12 months (Feb,
+2016-Feb, 2016) ;-)
+
+.. image:: {filename}/images/cpython_sprint_2016_commits.png
+   :alt: CPython commits statistics
+   :target: https://github.com/python/cpython/graphs/commit-activity
 
 My PEP 509, private dictionary version, was accepted and merged. Yury Selivanov
 got two PEPs approved and merged for asynchronous programming (in short, for
@@ -47,10 +55,8 @@ Read the report: `Python Core Development Sprint 2016: 3.6 and beyond!
 PEP 524: os.urandom() now blocks on Linux
 =========================================
 
-Read my other article: `My contributions to CPython during 2016 Q2
-<{filename}/python_contrib_2016q2.rst>`_.
-
-XXX see the dedicated article
+Read my previous blog post: `PEP 524: os.urandom() now blocks on Linux
+<{filename}/pep_524_os_urandom_blocking.rst>`_.
 
 
 PEP 509: private dictionary version
@@ -61,8 +67,9 @@ Another enhancement from my `FAT Python
 Add a private version to dict <https://www.python.org/dev/peps/pep-0509/>`_ was
 approved at the CPython sprint by Guido.
 
-The version is used in FAT Python to check quickly if a key was modified in a
-Python namespace. Technically, a Python namespace is a regular dictionary.
+The dictionary version is used by FAT Python to check quickly if a variable was
+modified in a Python namespace. Technically, a Python namespace is a regular
+dictionary.
 
 While my experimental FAT Python didn't convince Guido, Yury Selivanov wrote
 yet another cache for global variables using the dictionary version: `Implement
@@ -70,19 +77,23 @@ LOAD_GLOBAL opcode cache <http://bugs.python.org/issue28158>`_.
 
 After I published the first version of my PEP, I made changes:
 
-* Always use 64-bit unsigned integer: "A risk of an integer overflow every 584
-  years is acceptable." Using 32-bit, an overflow occurs every 4 seconds.
+* Use 64-bit unsigned integer on 32-bit system: "A risk of an integer overflow
+  every 584 years is acceptable." Using 32-bit, an overflow occurs every 4
+  seconds.
 * Don't expose the version at Python level to prevent users writing
-  optimizations based on it: reading the dictionary version in Python is as
-  slow as a regular dictionary lookup.
+  optimizations based on it. Reading the dictionary version in Python is as
+  slow as a dictionary lookup, wheras the version is usually used to avoid a
+  "slow" dictionary lookup.
 
 I added the private version to the builtin dict type with the ussue #26058. The
-version is incremented at each dictionary creation and at each dictionary
-change.
+global dictionary version is incremented at each dictionary creation and at
+each dictionary change.
 
 
 FASTCALL
 ========
+
+Thanks to my work on marking Python benchmarks more stable.
 
 * Issue #27128: Add _PyObject_FastCall(), a new calling convention avoiding a
   temporary tuple to pass positional parameters in most cases, but create a
