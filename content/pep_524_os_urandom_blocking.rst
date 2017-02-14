@@ -3,7 +3,7 @@ PEP 524: os.urandom() now blocks on Linux
 +++++++++++++++++++++++++++++++++++++++++
 
 :date: 2017-02-14 12:00
-:tags: cpython
+:tags: cpython, security
 :category: python
 :slug: pep-524-os-urandom-blocking
 :authors: Victor Stinner
