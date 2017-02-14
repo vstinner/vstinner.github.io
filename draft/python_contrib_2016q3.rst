@@ -2,7 +2,7 @@
 My contributions to CPython during 2016 Q3
 ++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2017-02-13 12:00
+:date: 2017-02-14 13:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2016q3
@@ -18,6 +18,67 @@ Statistics: 161 non-merge commits + 29 merge commits (total: 190 commits).
 
 Previous report: `My contributions to CPython during 2016 Q2
 <{filename}/python_contrib_2016q2.rst>`_.
+
+
+CPython sprint
+==============
+
+.. image:: {filename}/images/cpython_sprint_2016.jpg
+   :alt: CPython developers at the Facebook sprint
+   :target: http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html
+
+I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. It was sponsored by Instagram,
+Microsoft, and the PSF.
+
+IMHO it was the most productice CPython week ever :-) Having Guido van Rossum
+in a room helped to get many PEPs accepted. Having reviewers in the same room
+helped to get PEP implementation merged super quickly.
+
+My PEP 509, private dictionary version, was accepted and merged. Yury Selivanov
+got two PEPs approved and merged for asynchronous programming (in short, for
+asyncio). Raymond Hettinger asked me to review INADA Naoki's implementation of
+compact dict, I merged the code.
+
+Read the report: `Python Core Development Sprint 2016: 3.6 and beyond!
+<http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html>`_.
+
+
+PEP 524: os.urandom() now blocks on Linux
+=========================================
+
+Read my other article: `My contributions to CPython during 2016 Q2
+<{filename}/python_contrib_2016q2.rst>`_.
+
+XXX see the dedicated article
+
+
+PEP 509: private dictionary version
+===================================
+
+Another enhancement from my `FAT Python
+<http://faster-cpython.readthedocs.io/fat_python.html>`_ project, my `PEP 509:
+Add a private version to dict <https://www.python.org/dev/peps/pep-0509/>`_ was
+approved at the CPython sprint by Guido.
+
+The version is used in FAT Python to check quickly if a key was modified in a
+Python namespace. Technically, a Python namespace is a regular dictionary.
+
+While my experimental FAT Python didn't convince Guido, Yury Selivanov wrote
+yet another cache for global variables using the dictionary version: `Implement
+LOAD_GLOBAL opcode cache <http://bugs.python.org/issue28158>`_.
+
+After I published the first version of my PEP, I made changes:
+
+* Always use 64-bit unsigned integer: "A risk of an integer overflow every 584
+  years is acceptable." Using 32-bit, an overflow occurs every 4 seconds.
+* Don't expose the version at Python level to prevent users writing
+  optimizations based on it: reading the dictionary version in Python is as
+  slow as a regular dictionary lookup.
+
+I added the private version to the builtin dict type with the ussue #26058. The
+version is incremented at each dictionary creation and at each dictionary
+change.
 
 
 FASTCALL
@@ -104,21 +165,6 @@ keyword arguments. kwnames can be NULL.
 Issue #27810: Emit METH_FASTCALL code in Argument Clinic
 
 Issue #27810: Exclude METH_FASTCALL from the stable API.
-
-
-Enhancements
-============
-
-Issue #27778: Add os.getrandom(). Expose the Linux getrandom() syscall as a new
-os.getrandom() function. This change is part of the PEP 524.
-
-Issue #27776: os.urandom() now blocks on Linux. The os.urandom() function does
-now block on Linux 3.17 and newer until the system urandom entropy pool is
-initialized to increase the security. This change is part of the PEP 524.
-
-Issue #26058: Add a new private version to the builtin dict type, incremented
-at each dictionary creation and at each dictionary change. Implementation of
-the PEP 509.
 
 
 CALL_FUNCTION
