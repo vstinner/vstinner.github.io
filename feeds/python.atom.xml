@@ -1,5 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-12T18:00:00+01:00</updated><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-12:contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-14T12:00:00+01:00</updated><entry><title>PEP 524: os.urandom() now blocks on Linux</title><link href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
+&lt;h2&gt;getrandom() avoids file descriptors&lt;/h2&gt;
+&lt;p&gt;Last years, I'm making sometimes enhancements in the Python code used to
+generate random numbers, the C implementation of &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;. My main two
+changes were to use the new &lt;tt class="docutils literal"&gt;getentropy()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; functions when
+available on Linux, Solaris, OpenBSD, etc.&lt;/p&gt;
+&lt;p&gt;In 2013, &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; opened a file descriptor to read from
+&lt;tt class="docutils literal"&gt;/dev/urandom&lt;/tt&gt; and then closed it. It was decided to use a single private
+file descriptor and keep it open to prevent &lt;tt class="docutils literal"&gt;EMFILE&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;ENFILE&lt;/tt&gt; errors
+(too many open files) under high system loads with many threads: see the issue
+#18756.&lt;/p&gt;
+&lt;p&gt;The private file descriptor introduced a backward incompatible change in badly
+written programs. The code was modified to call &lt;tt class="docutils literal"&gt;fstat()&lt;/tt&gt; to check if the
+file descriptor was closed and then replaced with a different file descriptor
+(but same number): check if &lt;tt class="docutils literal"&gt;st_dev&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;st_ino&lt;/tt&gt; attributes changed.&lt;/p&gt;
+&lt;p&gt;In 2014, the new Linux kernel 3.17 added a new &lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; syscall which
+gives access to random bytes without having to handle a file descriptor. I
+modified &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; to call &lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; to avoid file descriptors,
+but a different issue appeared.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="getrandom-hangs-at-system-startup"&gt;
+&lt;h2&gt;getrandom() hangs at system startup&lt;/h2&gt;
+&lt;p&gt;On embedded devices and virtual machines, Python 3.5 started to hang at
+startup.&lt;/p&gt;
+&lt;p&gt;On Debian, a systemd script used Python to compute a MD5 checksum, but Python
+was blocked during its initialization. Other users reported that Python blocked
+on importing the &lt;tt class="docutils literal"&gt;random&lt;/tt&gt; module, sometimes imported indirectly by a
+different module.&lt;/p&gt;
+&lt;p&gt;Python was blocked on the &lt;tt class="docutils literal"&gt;getrandom(0)&lt;/tt&gt; syscall, waiting until the system
+collected enough entropy to initialize the urandom pool. It took longer than 90
+seconds, so systemd killed the service with a timeout. As a consequence, the
+system boot takes longer than 90 seconds or can even fail!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-python-startup"&gt;
+&lt;h2&gt;Fix Python startup&lt;/h2&gt;
+&lt;p&gt;The fix was obvious: call &lt;tt class="docutils literal"&gt;getrandom(GRND_NONBLOCK)&lt;/tt&gt; which fails immediately
+if the call would block, and fall back on reading from &lt;tt class="docutils literal"&gt;/dev/urandom&lt;/tt&gt; which
+doesn't block even if the entropy pool is not initialized yet.&lt;/p&gt;
+&lt;p&gt;Quickly, our security experts complained that falling back on &lt;tt class="docutils literal"&gt;/dev/urandom&lt;/tt&gt;
+makes Python less secure. When the fall back path is taken, &lt;tt class="docutils literal"&gt;/dev/urandom&lt;/tt&gt;
+returns random number not suitable for security purpose (initialized with low
+entropy), wheras &lt;a class="reference external" href="https://docs.python.org/dev/library/os.html#os.urandom"&gt;os.urandom() documenation&lt;/a&gt; says: &amp;quot;The returned
+data should be unpredictable enough for cryptographic applications&amp;quot; (and
+&amp;quot;though its exact quality depends on the OS implementation.&amp;quot;).&lt;/p&gt;
+&lt;p&gt;Calling &lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; in blocking mode for &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; makes Python more
+secure, but it doesn't fix the startup bug.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="discussion-storm"&gt;
+&lt;h2&gt;Discussion storm&lt;/h2&gt;
+&lt;p&gt;The proposed change started a huge rain of messages. More than 200 messages,
+maybe even more than 500 messages, on the bug tracker and python-dev mailing
+list. Everyone became a security expert and wanted to give his/her very
+important opinion, without listening to other arguments.&lt;/p&gt;
+&lt;p&gt;Two Python security experts left the discussion.&lt;/p&gt;
+&lt;p&gt;I also ignored new messages. I simply had not enough time to read all of them,
+and the discussion tone made me angry.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-mailing-list-and-two-new-peps"&gt;
+&lt;h2&gt;New mailing list and two new PEPs&lt;/h2&gt;
+&lt;p&gt;A new &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;security-sig&lt;/span&gt;&lt;/tt&gt; mailing list, subtitled &amp;quot;os.urandom rehab clinic&amp;quot;, was
+created just to take a decision on &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;!&lt;/p&gt;
+&lt;p&gt;Nick Coghlan wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0522/"&gt;PEP 522: Allow BlockingIOError in security sensitive
+APIs&lt;/a&gt;. Basically: he considers
+that there is no good default behaviour when &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; would block, so
+raise an exception to let users decide.&lt;/p&gt;
+&lt;p&gt;I wrote  &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0524/"&gt;PEP 524: Make os.urandom() blocking on Linux&lt;/a&gt;. My PEP proposes to make
+&lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; blocking, &lt;em&gt;but&lt;/em&gt; also modify Python startup to fall back on
+non-blocking RNG to initialize the secret hash seed and the &lt;tt class="docutils literal"&gt;random&lt;/tt&gt; module
+(which is &lt;em&gt;not&lt;/em&gt; sensitive for security, except of &lt;tt class="docutils literal"&gt;random.SystemRandom&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;Nick's PEP describes an important use case: be able to check if
+&lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; would block. Instead of adding a flag to &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;,
+I chose to expose the low-level C
+&lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; function as a new Python &lt;tt class="docutils literal"&gt;os.getrandom()&lt;/tt&gt; function. Calling
+&lt;tt class="docutils literal"&gt;os.getrandom(1, os.GRND_NONBLOCK)&lt;/tt&gt; raises a &lt;tt class="docutils literal"&gt;BlockingIOError&lt;/tt&gt; exception,
+as Nick proposed for &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;, so it's possible to decide what to do in
+this case.&lt;/p&gt;
+&lt;p&gt;While both PEPs are valid, IMHO my PEP was &lt;em&gt;less&lt;/em&gt; backward incompatible,
+simpler and maybe closer to what users &lt;em&gt;expect&lt;/em&gt;. The &amp;quot;os.urandom() would block&amp;quot;
+case is a special case with my PEP, but my PEP allows to decide what to do in
+that case (thanks to &lt;tt class="docutils literal"&gt;os.getrandom()&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;Guido van Rossum approved my PEP and rejected Nick's PEP. I worked with Nick to
+implement my PEP.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-6-changes"&gt;
+&lt;h2&gt;Python 3.6 changes&lt;/h2&gt;
+&lt;p&gt;I added a new &lt;tt class="docutils literal"&gt;os.getrandom()&lt;/tt&gt; function: expose the Linux
+&lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; syscall (issue #27778). I also added the two getrandom() flags:
+&lt;tt class="docutils literal"&gt;os.GRND_NONBLOCK&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;os.GRND_RANDOM&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I modified &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; to block on Linux: call &lt;tt class="docutils literal"&gt;getrandom(0)&lt;/tt&gt;
+instead of &lt;tt class="docutils literal"&gt;getrandom(GRND_NONBLOCK)&lt;/tt&gt; (issue #27776).&lt;/p&gt;
+&lt;p&gt;I also added a private &lt;tt class="docutils literal"&gt;_PyOS_URandomNonblock()&lt;/tt&gt; function used to initialize
+the hash secret and used by &lt;tt class="docutils literal"&gt;random.Random.seed()&lt;/tt&gt; (used to initialize the
+&lt;tt class="docutils literal"&gt;random&lt;/tt&gt; module).&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; function now blocks in Python 3.6 on Linux 3.17 and newer
+until the system urandom entropy pool is initialized to increase the security.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="read-also-lwn-articles"&gt;
+&lt;h2&gt;Read also LWN articles&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://lwn.net/Articles/606141/"&gt;A system call for random numbers: getrandom()&lt;/a&gt; (July 2014)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://lwn.net/Articles/693189/"&gt;Python's os.urandom() in the absence of entropy&lt;/a&gt; (July 2016) -- this story&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://lwn.net/Articles/711013/"&gt;The long road to getrandom() in glibc&lt;/a&gt; (January 2017)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-12:contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
 (april, may, june):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner

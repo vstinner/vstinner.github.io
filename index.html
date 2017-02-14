@@ -22,7 +22,135 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2016q2.html">My contributions to CPython during 2016 Q2</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-14T12:00:00+01:00">
+                Published: mar. 14 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><div class="section" id="getrandom-avoids-file-descriptors">
+<h2>getrandom() avoids file descriptors</h2>
+<p>Last years, I'm making sometimes enhancements in the Python code used to
+generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
+changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
+available on Linux, Solaris, OpenBSD, etc.</p>
+<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened a file descriptor to read from
+<tt class="docutils literal">/dev/urandom</tt> and then closed it. It was decided to use a single private
+file descriptor and keep it open to prevent <tt class="docutils literal">EMFILE</tt> or <tt class="docutils literal">ENFILE</tt> errors
+(too many open files) under high system loads with many threads: see the issue
+#18756.</p>
+<p>The private file descriptor introduced a backward incompatible change in badly
+written programs. The code was modified to call <tt class="docutils literal">fstat()</tt> to check if the
+file descriptor was closed and then replaced with a different file descriptor
+(but same number): check if <tt class="docutils literal">st_dev</tt> or <tt class="docutils literal">st_ino</tt> attributes changed.</p>
+<p>In 2014, the new Linux kernel 3.17 added a new <tt class="docutils literal">getrandom()</tt> syscall which
+gives access to random bytes without having to handle a file descriptor. I
+modified <tt class="docutils literal">os.urandom()</tt> to call <tt class="docutils literal">getrandom()</tt> to avoid file descriptors,
+but a different issue appeared.</p>
+</div>
+<div class="section" id="getrandom-hangs-at-system-startup">
+<h2>getrandom() hangs at system startup</h2>
+<p>On embedded devices and virtual machines, Python 3.5 started to hang at
+startup.</p>
+<p>On Debian, a systemd script used Python to compute a MD5 checksum, but Python
+was blocked during its initialization. Other users reported that Python blocked
+on importing the <tt class="docutils literal">random</tt> module, sometimes imported indirectly by a
+different module.</p>
+<p>Python was blocked on the <tt class="docutils literal">getrandom(0)</tt> syscall, waiting until the system
+collected enough entropy to initialize the urandom pool. It took longer than 90
+seconds, so systemd killed the service with a timeout. As a consequence, the
+system boot takes longer than 90 seconds or can even fail!</p>
+</div>
+<div class="section" id="fix-python-startup">
+<h2>Fix Python startup</h2>
+<p>The fix was obvious: call <tt class="docutils literal">getrandom(GRND_NONBLOCK)</tt> which fails immediately
+if the call would block, and fall back on reading from <tt class="docutils literal">/dev/urandom</tt> which
+doesn't block even if the entropy pool is not initialized yet.</p>
+<p>Quickly, our security experts complained that falling back on <tt class="docutils literal">/dev/urandom</tt>
+makes Python less secure. When the fall back path is taken, <tt class="docutils literal">/dev/urandom</tt>
+returns random number not suitable for security purpose (initialized with low
+entropy), wheras <a class="reference external" href="https://docs.python.org/dev/library/os.html#os.urandom">os.urandom() documenation</a> says: &quot;The returned
+data should be unpredictable enough for cryptographic applications&quot; (and
+&quot;though its exact quality depends on the OS implementation.&quot;).</p>
+<p>Calling <tt class="docutils literal">getrandom()</tt> in blocking mode for <tt class="docutils literal">os.urandom()</tt> makes Python more
+secure, but it doesn't fix the startup bug.</p>
+</div>
+<div class="section" id="discussion-storm">
+<h2>Discussion storm</h2>
+<p>The proposed change started a huge rain of messages. More than 200 messages,
+maybe even more than 500 messages, on the bug tracker and python-dev mailing
+list. Everyone became a security expert and wanted to give his/her very
+important opinion, without listening to other arguments.</p>
+<p>Two Python security experts left the discussion.</p>
+<p>I also ignored new messages. I simply had not enough time to read all of them,
+and the discussion tone made me angry.</p>
+</div>
+<div class="section" id="new-mailing-list-and-two-new-peps">
+<h2>New mailing list and two new PEPs</h2>
+<p>A new <tt class="docutils literal"><span class="pre">security-sig</span></tt> mailing list, subtitled &quot;os.urandom rehab clinic&quot;, was
+created just to take a decision on <tt class="docutils literal">os.urandom()</tt>!</p>
+<p>Nick Coghlan wrote the <a class="reference external" href="https://www.python.org/dev/peps/pep-0522/">PEP 522: Allow BlockingIOError in security sensitive
+APIs</a>. Basically: he considers
+that there is no good default behaviour when <tt class="docutils literal">os.urandom()</tt> would block, so
+raise an exception to let users decide.</p>
+<p>I wrote  <a class="reference external" href="https://www.python.org/dev/peps/pep-0524/">PEP 524: Make os.urandom() blocking on Linux</a>. My PEP proposes to make
+<tt class="docutils literal">os.urandom()</tt> blocking, <em>but</em> also modify Python startup to fall back on
+non-blocking RNG to initialize the secret hash seed and the <tt class="docutils literal">random</tt> module
+(which is <em>not</em> sensitive for security, except of <tt class="docutils literal">random.SystemRandom</tt>).</p>
+<p>Nick's PEP describes an important use case: be able to check if
+<tt class="docutils literal">os.urandom()</tt> would block. Instead of adding a flag to <tt class="docutils literal">os.urandom()</tt>,
+I chose to expose the low-level C
+<tt class="docutils literal">getrandom()</tt> function as a new Python <tt class="docutils literal">os.getrandom()</tt> function. Calling
+<tt class="docutils literal">os.getrandom(1, os.GRND_NONBLOCK)</tt> raises a <tt class="docutils literal">BlockingIOError</tt> exception,
+as Nick proposed for <tt class="docutils literal">os.urandom()</tt>, so it's possible to decide what to do in
+this case.</p>
+<p>While both PEPs are valid, IMHO my PEP was <em>less</em> backward incompatible,
+simpler and maybe closer to what users <em>expect</em>. The &quot;os.urandom() would block&quot;
+case is a special case with my PEP, but my PEP allows to decide what to do in
+that case (thanks to <tt class="docutils literal">os.getrandom()</tt>).</p>
+<p>Guido van Rossum approved my PEP and rejected Nick's PEP. I worked with Nick to
+implement my PEP.</p>
+</div>
+<div class="section" id="python-3-6-changes">
+<h2>Python 3.6 changes</h2>
+<p>I added a new <tt class="docutils literal">os.getrandom()</tt> function: expose the Linux
+<tt class="docutils literal">getrandom()</tt> syscall (issue #27778). I also added the two getrandom() flags:
+<tt class="docutils literal">os.GRND_NONBLOCK</tt> and <tt class="docutils literal">os.GRND_RANDOM</tt>.</p>
+<p>I modified <tt class="docutils literal">os.urandom()</tt> to block on Linux: call <tt class="docutils literal">getrandom(0)</tt>
+instead of <tt class="docutils literal">getrandom(GRND_NONBLOCK)</tt> (issue #27776).</p>
+<p>I also added a private <tt class="docutils literal">_PyOS_URandomNonblock()</tt> function used to initialize
+the hash secret and used by <tt class="docutils literal">random.Random.seed()</tt> (used to initialize the
+<tt class="docutils literal">random</tt> module).</p>
+<p>The <tt class="docutils literal">os.urandom()</tt> function now blocks in Python 3.6 on Linux 3.17 and newer
+until the system urandom entropy pool is initialized to increase the security.</p>
+</div>
+<div class="section" id="read-also-lwn-articles">
+<h2>Read also LWN articles</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://lwn.net/Articles/606141/">A system call for random numbers: getrandom()</a> (July 2014)</li>
+<li><a class="reference external" href="https://lwn.net/Articles/693189/">Python's os.urandom() in the absence of entropy</a> (July 2016) -- this story</li>
+<li><a class="reference external" href="https://lwn.net/Articles/711013/">The long road to getrandom() in glibc</a> (January 2017)</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2016 Q2">My contributions to CPython during 2016 Q2</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-12T18:00:00+01:00">
                 Published: dim. 12 février 2017
@@ -33,7 +161,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q2
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q2
 (april, may, june):</p>
 <pre class="literal-block">
 hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merges -u Stinner
@@ -42,156 +170,10 @@ hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merge
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>.</p>
 <div class="section" id="start-of-my-work-on-optimization">
 <h2>Start of my work on optimization</h2>
-<p>During 2016 Q2, I started to spend more time on optimizing CPython.</p>
-<p>I experimented a change on CPython: a new FASTCALL calling convention to avoid
-the creation of a temporary tuple to pass positional argulments: <a class="reference external" href="http://bugs.python.org/issue26814">issue26814</a>. Early results were really good: calling
-builtin functions became between 20% and 50% faster!</p>
-<p>Quickly, my optimization work was blocked by unreliable benchmarks. I spent the
-rest of the year 2016 analyzing benchmarks and making benchmarks more stable.</p>
-</div>
-<div class="section" id="subprocess-now-emits-resourcewarning">
-<h2>subprocess now emits ResourceWarning</h2>
-<p>subprocess.Popen destructor now emits a ResourceWarning warning if the child
-process is still running (issue #26741). The warning helps to track and fix
-zombi processes. I updated asyncio to prevent a false ResourceWarning (warning
-whereas the child process completed): asyncio now copies the child process exit
-status to the internal Popen object.</p>
-<p>I also fixed the POSIX implementation of subprocess.Popen._execute_child(): it
-now sets the returncode attribute from the child process exit status when exec
-failed.</p>
-</div>
-<div class="section" id="security-fix-potential-shell-injections-in-ctypes-util">
-<h2>Security: fix potential shell injections in ctypes.util</h2>
-<p>I rewrote methods of the ctypes.util module using <tt class="docutils literal">os.popen()</tt>. I replaced
-<tt class="docutils literal">os.popen()</tt> with <tt class="docutils literal">subprocess.Popen</tt> without shell (issue #22636) to fix a
-class of security vulneratiblity, &quot;shell injection&quot; (inject arbitrary shell
-commands to take the control of a computer).</p>
-<p>The <tt class="docutils literal">os.popen()</tt> function uses a shell, so there is a risk if the command
-line arguments are not properly escaped for shell. Using <tt class="docutils literal">subproces.Popen</tt>
-without shell fixes completely the risk.</p>
-<p>Note: the <tt class="docutils literal">ctypes</tt> is generally not considered as &quot;safe&quot;, but it doesn't harm
-to make it more secure ;-)</p>
-</div>
-<div class="section" id="optimization-pymem-malloc-now-uses-pymalloc">
-<h2>Optimization: PyMem_Malloc() now uses pymalloc</h2>
-<p>PyMem_Malloc() now uses the fast Python &quot;pymalloc&quot; memory allocator which is
-optimized for small objects with a short lifetime (issue #26249). The change
-makes some benchmarks up to 4% faster.</p>
-<p>This change was possible thanks to the whole preparation work I did in the 2016
-Q1, especially the new GIL check in memory allocator debug hooks and the new
-<tt class="docutils literal">PYTHONMALLOC=debug</tt> environment variable enabling these hooks on a Python
-compiled in released mode.</p>
-<p>I tested lxml, Pillow, cryptography and numpy before pushing the change,
-as asked by Marc-Andre Lemburg. All these projects work with the change, except
-of numpy. I wrote a fix for numpy: <a class="reference external" href="https://github.com/numpy/numpy/pull/7404">Use PyMem_RawMalloc on Python 3.4 and newer</a>, merged one month later (my first
-contribution to numy!).</p>
-<p>The change indirectly helped to identify and fix a memory leak in the
-<tt class="docutils literal">formatfloat()</tt> function used to format bytes strings: <tt class="docutils literal"><span class="pre">b&quot;%f&quot;</span> % 1.2</tt> (issue
-#25349, #26249).</p>
-</div>
-<div class="section" id="optimization">
-<h2>Optimization</h2>
-<p>Issue #27056: Optimize pickle.load() and pickle.loads(), up to 10% faster to
-deserialize a lot of small objects. I found this optimization using Linux perf
-on Python compiled with PGO. My change implements manually the optimization if
-Python is not compiled with PGO.</p>
-<p>Issue #26770: When <tt class="docutils literal">set_inheritable()</tt> is implemented with <tt class="docutils literal">fcntl()</tt>, don't
-call <tt class="docutils literal">fcntl()</tt> twice if the <tt class="docutils literal">FD_CLOEXEC</tt> flag is already set to the
-requested value. Linux uses <tt class="docutils literal">ioctl()</tt> and so always only need a single
-syscall.</p>
-</div>
-<div class="section" id="changes">
-<h2>Changes</h2>
-<ul>
-<li><p class="first">Issue #26716: Replace IOError with OSError in fcntl documentation, IOError is
-a deprecated alias to OSError since Python 3.3.</p>
-</li>
-<li><p class="first">Issue #26639: Replace the deprecated <tt class="docutils literal">imp</tt> module with the <tt class="docutils literal">importlib</tt>
-module in <tt class="docutils literal">Tools/i18n/pygettext.py</tt>. Remove <tt class="docutils literal">_get_modpkg_path()</tt>,
-replaced with <tt class="docutils literal">importlib.util.find_spec()</tt>.</p>
-</li>
-<li><p class="first">Issue #26735: Fix os.urandom() on Solaris 11.3 and newer when reading more
-than 1024 bytes: call getrandom() multiple times with a limit of 1024 bytes
-per call.</p>
-</li>
-<li><p class="first">configure: fix <tt class="docutils literal">HAVE_GETRANDOM_SYSCALL</tt> check, syscall() function requires
-<tt class="docutils literal">#include &lt;unistd.h&gt;</tt>.</p>
-</li>
-<li><p class="first">Issue #26766: Fix _PyBytesWriter_Finish(). Return a bytearray object when
-bytearray is requested and when the small buffer is used. Fix also
-test_bytes: bytearray%args must return a bytearray type.</p>
-</li>
-<li><p class="first">Issue #26777: Fix random failure of test_asyncio.test_timeout_disable() on
-the &quot;AMD64 FreeBSD 9.x 3.5&quot; buildbot:</p>
-<pre class="literal-block">
-File &quot;.../Lib/test/test_asyncio/test_tasks.py&quot;, line 2398, in go
-  self.assertTrue(0.09 &lt; dt &lt; 0.11, dt)
-AssertionError: False is not true : 0.11902812402695417
-</pre>
-<p>Replace <tt class="docutils literal">&lt; 0.11</tt> with <tt class="docutils literal">&lt; 0.15</tt>.</p>
-</li>
-<li><p class="first">Backport test_gdb fix for s390x buildbots to Python 3.5.</p>
-</li>
-<li><p class="first">Cleanup import.c: replace <tt class="docutils literal">PyUnicode_RPartition()</tt> with
-<tt class="docutils literal">PyUnicode_FindChar()</tt> and <tt class="docutils literal">PyUnicode_Substring()</tt> to avoid the creation
-of a temporary tuple. Use <tt class="docutils literal">PyUnicode_FromFormat()</tt> to build a string and
-avoid the single_dot ('.') singleton.</p>
-</li>
-<li><p class="first">regrtest now uses subprocesses when the <tt class="docutils literal"><span class="pre">-j1</span></tt> command line option is used:
-each test file runs in a fresh child process. Before, the -j1 option was
-ignored. <tt class="docutils literal">Tools/buildbot/test.bat</tt> script now uses -j1 by default to run
-each test file in fresh child process.</p>
-</li>
-<li><p class="first">regrtest: display test result (passed, failed, ...) after each test
-completion. In multiprocessing mode: always display the result. In sequential
-mode: only display the result if the test did not pass</p>
-</li>
-<li><p class="first">Issue #27278: Fix <tt class="docutils literal">os.urandom()</tt> implementation using <tt class="docutils literal">getrandom()</tt> on
-Linux. Truncate size to <tt class="docutils literal">INT_MAX</tt> and loop until we collected enough random
-bytes, instead of casting a directly <tt class="docutils literal">Py_ssize_t</tt> to <tt class="docutils literal">int</tt>.</p>
-</li>
-</ul>
-</div>
-<div class="section" id="contributions">
-<h2>Contributions</h2>
-<p>I also pushed a few changes written by other contributors.</p>
-<p>Issue #26839: <tt class="docutils literal">os.urandom()</tt> doesn't block on Linux anymore. On Linux,
-<tt class="docutils literal">os.urandom()</tt> now calls getrandom() with <tt class="docutils literal">GRND_NONBLOCK</tt> to fall back on
-reading <tt class="docutils literal">/dev/urandom</tt> if the urandom entropy pool is not initialized yet.
-Patch written by Colm Buckley. This issue started a huge annoying discussion
-around random number generation on the bug tracker and the python-dev mailing
-list.  I later wrote the <a class="reference external" href="https://www.python.org/dev/peps/pep-0524/">PEP 524: Make os.urandom() blocking on Linux</a> to fix the issue!</p>
-<p>Other changes:</p>
-<ul class="simple">
-<li>Issue #26647: Cleanup opcode: simplify code to build <tt class="docutils literal">opcode.opname</tt>. Patch
-written by Demur Rumed.</li>
-<li>Issue #26647: Cleanup modulefinder: use <tt class="docutils literal">dis.opmap[name]</tt> rather than
-<tt class="docutils literal">dis.opname.index(name)</tt>. Patch written by Demur Rumed.</li>
-<li>Issue #26801: Fix error handling in <tt class="docutils literal">shutil.get_terminal_size()</tt>: catch
-AttributeError instead of NameError. Skip the functional test of test_shutil
-using the <tt class="docutils literal">stty size</tt> command if the <tt class="docutils literal">os.get_terminal_size()</tt> function is
-missing. Patch written by Emanuel Barry.</li>
-<li>Issue #26802: Optimize function calls only using unpacking like
-<tt class="docutils literal"><span class="pre">func(*tuple)</span></tt> (no other positional argument, no keyword argument): avoid
-copying the tuple. Patch written by Joe Jevnik.</li>
-<li>Issue #21668: Add missing libm dependency in setup.py: link audioop,
-_datetime, _ctypes_test modules to libm, except on Mac OS X. Patch written by
-Chi Hsuan Yen.</li>
-<li>Issue #26799: Fix python-gdb.py: don't get C types at startup, only on
-demand. The C types can change if python-gdb.py is loaded before loading the
-Python executable in gdb. Patch written by Thomas Ilsche.</li>
-<li>Issue #27057: Fix os.set_inheritable() on Android, ioctl() is blocked by
-SELinux and fails with EACCESS. The function now falls back to fcntl(). Patch
-written by Michał Bednarski.</li>
-<li>Issue #26647: Fix typo in test_grammar. Patch written by Demur Rumed.</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p>During 2016 Q2, I started ...</p></div>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q2.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -390,29 +372,6 @@ Running a benchmark on isolated CPUs ...</p>
 </footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 1</p>
 
                 <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/openstack_mitaka_python3.html" rel="bookmark"
-                           title="Permalink to Status of Python 3 in OpenStack Mitaka">Status of Python 3 in OpenStack Mitaka</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-03-02T14:00:00+01:00">
-                Published: mer. 02 mars 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/openstack.html">openstack</a> <a href="https://haypo.github.io/tag/python3.html">python3</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">Status of Python 3 in OpenStack Mitaka</p>
-
-                <a class="readmore" href="https://haypo.github.io/openstack_mitaka_python3.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
