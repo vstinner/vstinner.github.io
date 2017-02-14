@@ -2,7 +2,7 @@
 My contributions to CPython during 2016 Q3
 ++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2017-02-14 13:00
+:date: 2017-02-14 19:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2016q3
@@ -23,33 +23,8 @@ Previous report: `My contributions to CPython during 2016 Q2
 CPython sprint
 ==============
 
-*Where is Victor?*
-
-.. image:: {filename}/images/cpython_sprint_2016_photo.jpg
-   :alt: CPython developers at the Facebook sprint
-   :target: http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html
-
-I was invited at my first CPython sprint in September! Five days, September
-5-9, at Instagram office in California, USA. The sprint was sponsored by
-Instagram, Microsoft, and the PSF.
-
-IMHO it was the most productice CPython week ever :-) Having Guido van Rossum
-in a room helped to get many PEPs accepted. Having reviewers in the same room
-helped to get PEP implementation merged super quickly. Little game, try to spot
-the sprint on the CPython commit statistics of the last 12 months (Feb,
-2016-Feb, 2016) ;-)
-
-.. image:: {filename}/images/cpython_sprint_2016_commits.png
-   :alt: CPython commits statistics
-   :target: https://github.com/python/cpython/graphs/commit-activity
-
-My PEP 509, private dictionary version, was accepted and merged. Yury Selivanov
-got two PEPs approved and merged for asynchronous programming (in short, for
-asyncio). Raymond Hettinger asked me to review INADA Naoki's implementation of
-compact dict, I merged the code.
-
-Read the report: `Python Core Development Sprint 2016: 3.6 and beyond!
-<http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html>`_.
+Read my previous blog post: `CPython sprint, september 2016
+<{filename}/cpython_sprint_2016.rst>`_.
 
 
 PEP 524: os.urandom() now blocks on Linux
