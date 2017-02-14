@@ -22,7 +22,111 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/cpython-sprint-2016.html">CPython sprint, september 2016</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-14T18:00:00+01:00">
+                Published: mar. 14 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. The sprint was sponsored by
+Instagram, Microsoft, and the PSF.</p>
+<p><strong>First little game:</strong> Many happy faces, but <em>Where is Victor?</em></p>
+<a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
+<p>IMHO it was the most productive CPython week ever :-) Having Guido van Rossum
+in a room helped to get many PEPs accepted. Having a lot of highly skilled
+reviewers in the same room helped to get many new features and many PEP
+implementations merged much faster than usual.</p>
+<p><strong>Second little game:</strong> try to spot the sprint on the CPython commit statistics of
+the last 12 months (Feb, 2016-Feb, 2017) ;-)</p>
+<a class="reference external image-reference" href="https://github.com/python/cpython/graphs/commit-activity"><img alt="CPython commits statistics" src="https://haypo.github.io/images/cpython_sprint_2016_commits.png" /></a>
+<div class="section" id="compact-dict">
+<h2>Compact dict</h2>
+<p>Issue #27350: I reviewed and pushed the &quot;compact dict&quot; implementation which
+makes Python dictionaries ordered (by insertion order) by default. It reduces
+the memory usage of dictionaries betwen 20% and 25%.</p>
+<p>The implementation was written by INADA Naoki, based on the PyPy
+implementation, with a design by Raymond Hettinger.</p>
+</div>
+<div class="section" id="fastcall">
+<h2>FASTCALL</h2>
+<p>&quot;Fast calls&quot;: Python 3.6 has a new private C API and a new METH_FASTCALL
+calling convention which avoids temporary tuple for positional arguments and
+avoids temporary dictionary for keyword arguments. Changes:</p>
+<ul class="simple">
+<li>Add a new C calling convention: METH_FASTCALL</li>
+<li>Add _PyArg_ParseStack() function</li>
+<li>Add _PyCFunction_FastCallKeywords() function: issue #27810</li>
+<li>Add _PyObject_FastCallKeywords() function: issue #27830</li>
+</ul>
+</div>
+<div class="section" id="more-efficient-call-function-bytecode">
+<h2>More efficient CALL_FUNCTION bytecode</h2>
+<p>I reviewed and pushed: &quot;Rework CALL_FUNCTION* opcodes to produce shorter and
+more efficient bytecode&quot; (issue #27213).</p>
+<p>Patch writen by Demur Rumed, design by Serhiy Storchaka, reviewed by Serhiy
+Storchaka and me.</p>
+</div>
+<div class="section" id="pep-509-add-a-private-version-to-dict">
+<h2>PEP 509: Add a private version to dict</h2>
+<p>Guido approved my PEP 509 &quot;Add a new private version to the builtin dict type&quot;.</p>
+<p>I pushed the implementation.</p>
+</div>
+<div class="section" id="pep-524-make-os-urandom-blocking-on-linux">
+<h2>PEP 524: Make os.urandom() blocking on Linux</h2>
+<p>I pushed the implementation of my PEP 524: &quot;Make os.urandom() blocking on
+Linux&quot;.</p>
+<p>Issue #27776: The os.urandom() function does now block on Linux 3.17 and newer
+until the system urandom entropy pool is initialized to increase the security.</p>
+<p>Read my previous blog post for the painful story behind the PEP:
+<a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux</a>.</p>
+</div>
+<div class="section" id="asynchronous-pep-525-and-530">
+<h2>Asynchronous PEP 525 and 530</h2>
+<p>Guido van Rossum approved two PEPs of Yury Selivanov:</p>
+<ul class="simple">
+<li>PEP 525: Asynchronous Generators</li>
+<li>PEP 530: Asynchronous Comprehensions</li>
+</ul>
+<p>I reviewed the huge C implementation with Yury on my side :-)</p>
+</div>
+<div class="section" id="unicode-escape-codec-optimization">
+<h2>unicode_escape codec optimization</h2>
+<p>I reviewed and pushed &quot;Optimize unicode_escape and raw_unicode_escape&quot; (the
+isue #16334), patch written by Serhiy Storchaka.</p>
+</div>
+<div class="section" id="python-3-6-bugfixes">
+<h2>Python 3.6 bugfixes</h2>
+<p>I happily found many issues including a major one: regular list-comprehension
+were completely broken :-)</p>
+<p>Another minor issue: SyntaxError didn't reported the correct line number in a
+specific case.</p>
+<p>Don't worry, Yury fixed both ;-)</p>
+</div>
+<div class="section" id="official-sprint-report">
+<h2>Official sprint report</h2>
+<p>Read also the official report: <a class="reference external" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html">Python Core Development Sprint 2016: 3.6 and
+beyond!</a>.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="bookmark"
+                           title="Permalink to PEP 524: os.urandom() now blocks on Linux in Python 3.6">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-14T12:00:00+01:00">
                 Published: mar. 14 février 2017
@@ -33,116 +137,16 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> <a href="https://haypo.github.io/tag/security.html">security</a> </p>
-</footer><!-- /.post-info --><div class="section" id="getrandom-avoids-file-descriptors">
+</footer><!-- /.post-info -->                <div class="section" id="getrandom-avoids-file-descriptors">
 <h2>getrandom() avoids file descriptors</h2>
 <p>Last years, I'm making sometimes enhancements in the Python code used to
 generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
 changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
 available on Linux, Solaris, OpenBSD, etc.</p>
-<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened a file descriptor to read from
-<tt class="docutils literal">/dev/urandom</tt> and then closed it. It was decided to use a single private
-file descriptor and keep it open to prevent <tt class="docutils literal">EMFILE</tt> or <tt class="docutils literal">ENFILE</tt> errors
-(too many open files) under high system loads with many threads: see the issue
-#18756.</p>
-<p>The private file descriptor introduced a backward incompatible change in badly
-written programs. The code was modified to call <tt class="docutils literal">fstat()</tt> to check if the
-file descriptor was closed and then replaced with a different file descriptor
-(but same number): check if <tt class="docutils literal">st_dev</tt> or <tt class="docutils literal">st_ino</tt> attributes changed.</p>
-<p>In 2014, the new Linux kernel 3.17 added a new <tt class="docutils literal">getrandom()</tt> syscall which
-gives access to random bytes without having to handle a file descriptor. I
-modified <tt class="docutils literal">os.urandom()</tt> to call <tt class="docutils literal">getrandom()</tt> to avoid file descriptors,
-but a different issue appeared.</p>
-</div>
-<div class="section" id="getrandom-hangs-at-system-startup">
-<h2>getrandom() hangs at system startup</h2>
-<p>On embedded devices and virtual machines, Python 3.5 started to hang at
-startup.</p>
-<p>On Debian, a systemd script used Python to compute a MD5 checksum, but Python
-was blocked during its initialization. Other users reported that Python blocked
-on importing the <tt class="docutils literal">random</tt> module, sometimes imported indirectly by a
-different module.</p>
-<p>Python was blocked on the <tt class="docutils literal">getrandom(0)</tt> syscall, waiting until the system
-collected enough entropy to initialize the urandom pool. It took longer than 90
-seconds, so systemd killed the service with a timeout. As a consequence, the
-system boot takes longer than 90 seconds or can even fail!</p>
-</div>
-<div class="section" id="fix-python-startup">
-<h2>Fix Python startup</h2>
-<p>The fix was obvious: call <tt class="docutils literal">getrandom(GRND_NONBLOCK)</tt> which fails immediately
-if the call would block, and fall back on reading from <tt class="docutils literal">/dev/urandom</tt> which
-doesn't block even if the entropy pool is not initialized yet.</p>
-<p>Quickly, our security experts complained that falling back on <tt class="docutils literal">/dev/urandom</tt>
-makes Python less secure. When the fall back path is taken, <tt class="docutils literal">/dev/urandom</tt>
-returns random number not suitable for security purpose (initialized with low
-entropy), wheras <a class="reference external" href="https://docs.python.org/dev/library/os.html#os.urandom">os.urandom() documenation</a> says: &quot;The returned
-data should be unpredictable enough for cryptographic applications&quot; (and
-&quot;though its exact quality depends on the OS implementation.&quot;).</p>
-<p>Calling <tt class="docutils literal">getrandom()</tt> in blocking mode for <tt class="docutils literal">os.urandom()</tt> makes Python more
-secure, but it doesn't fix the startup bug.</p>
-</div>
-<div class="section" id="discussion-storm">
-<h2>Discussion storm</h2>
-<p>The proposed change started a huge rain of messages. More than 200 messages,
-maybe even more than 500 messages, on the bug tracker and python-dev mailing
-list. Everyone became a security expert and wanted to give his/her very
-important opinion, without listening to other arguments.</p>
-<p>Two Python security experts left the discussion.</p>
-<p>I also ignored new messages. I simply had not enough time to read all of them,
-and the discussion tone made me angry.</p>
-</div>
-<div class="section" id="new-mailing-list-and-two-new-peps">
-<h2>New mailing list and two new PEPs</h2>
-<p>A new <tt class="docutils literal"><span class="pre">security-sig</span></tt> mailing list, subtitled &quot;os.urandom rehab clinic&quot;, was
-created just to take a decision on <tt class="docutils literal">os.urandom()</tt>!</p>
-<p>Nick Coghlan wrote the <a class="reference external" href="https://www.python.org/dev/peps/pep-0522/">PEP 522: Allow BlockingIOError in security sensitive
-APIs</a>. Basically: he considers
-that there is no good default behaviour when <tt class="docutils literal">os.urandom()</tt> would block, so
-raise an exception to let users decide.</p>
-<p>I wrote  <a class="reference external" href="https://www.python.org/dev/peps/pep-0524/">PEP 524: Make os.urandom() blocking on Linux</a>. My PEP proposes to make
-<tt class="docutils literal">os.urandom()</tt> blocking, <em>but</em> also modify Python startup to fall back on
-non-blocking RNG to initialize the secret hash seed and the <tt class="docutils literal">random</tt> module
-(which is <em>not</em> sensitive for security, except of <tt class="docutils literal">random.SystemRandom</tt>).</p>
-<p>Nick's PEP describes an important use case: be able to check if
-<tt class="docutils literal">os.urandom()</tt> would block. Instead of adding a flag to <tt class="docutils literal">os.urandom()</tt>,
-I chose to expose the low-level C
-<tt class="docutils literal">getrandom()</tt> function as a new Python <tt class="docutils literal">os.getrandom()</tt> function. Calling
-<tt class="docutils literal">os.getrandom(1, os.GRND_NONBLOCK)</tt> raises a <tt class="docutils literal">BlockingIOError</tt> exception,
-as Nick proposed for <tt class="docutils literal">os.urandom()</tt>, so it's possible to decide what to do in
-this case.</p>
-<p>While both PEPs are valid, IMHO my PEP was <em>less</em> backward incompatible,
-simpler and maybe closer to what users <em>expect</em>. The &quot;os.urandom() would block&quot;
-case is a special case with my PEP, but my PEP allows to decide what to do in
-that case (thanks to <tt class="docutils literal">os.getrandom()</tt>).</p>
-<p>Guido van Rossum approved my PEP and rejected Nick's PEP. I worked with Nick to
-implement my PEP.</p>
-</div>
-<div class="section" id="python-3-6-changes">
-<h2>Python 3.6 changes</h2>
-<p>I added a new <tt class="docutils literal">os.getrandom()</tt> function: expose the Linux
-<tt class="docutils literal">getrandom()</tt> syscall (issue #27778). I also added the two getrandom() flags:
-<tt class="docutils literal">os.GRND_NONBLOCK</tt> and <tt class="docutils literal">os.GRND_RANDOM</tt>.</p>
-<p>I modified <tt class="docutils literal">os.urandom()</tt> to block on Linux: call <tt class="docutils literal">getrandom(0)</tt>
-instead of <tt class="docutils literal">getrandom(GRND_NONBLOCK)</tt> (issue #27776).</p>
-<p>I also added a private <tt class="docutils literal">_PyOS_URandomNonblock()</tt> function used to initialize
-the hash secret and used by <tt class="docutils literal">random.Random.seed()</tt> (used to initialize the
-<tt class="docutils literal">random</tt> module).</p>
-<p>The <tt class="docutils literal">os.urandom()</tt> function now blocks in Python 3.6 on Linux 3.17 and newer
-until the system urandom entropy pool is initialized to increase the security.</p>
-</div>
-<div class="section" id="read-also-lwn-articles">
-<h2>Read also LWN articles</h2>
-<ul class="simple">
-<li><a class="reference external" href="https://lwn.net/Articles/606141/">A system call for random numbers: getrandom()</a> (July 2014)</li>
-<li><a class="reference external" href="https://lwn.net/Articles/693189/">Python's os.urandom() in the absence of entropy</a> (July 2016) -- this story</li>
-<li><a class="reference external" href="https://lwn.net/Articles/711013/">The long road to getrandom() in glibc</a> (January 2017)</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p>In 2013, <tt class="docutils literal">os.urandom ...</tt></p></div>
+                <a class="readmore" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>

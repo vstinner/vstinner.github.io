@@ -1,5 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-14T12:00:00+01:00</updated><entry><title>PEP 524: os.urandom() now blocks on Linux in Python 3.6</title><link href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-14T18:00:00+01:00</updated><entry><title>CPython sprint, september 2016</title><link href="https://haypo.github.io/cpython-sprint-2016.html" rel="alternate"></link><published>2017-02-14T18:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:cpython-sprint-2016.html</id><summary type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. The sprint was sponsored by
+Instagram, Microsoft, and the PSF.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;First little game:&lt;/strong&gt; Many happy faces, but &lt;em&gt;Where is Victor?&lt;/em&gt;&lt;/p&gt;
+&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;&lt;img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;IMHO it was the most productive CPython week ever :-) Having Guido van Rossum
+in a room helped to get many PEPs accepted. Having a lot of highly skilled
+reviewers in the same room helped to get many new features and many PEP
+implementations merged much faster than usual.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Second little game:&lt;/strong&gt; try to spot the sprint on the CPython commit statistics of
+the last 12 months (Feb, 2016-Feb, 2017) ;-)&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://github.com/python/cpython/graphs/commit-activity"&gt;&lt;img alt="CPython commits statistics" src="https://haypo.github.io/images/cpython_sprint_2016_commits.png" /&gt;&lt;/a&gt;
+&lt;div class="section" id="compact-dict"&gt;
+&lt;h2&gt;Compact dict&lt;/h2&gt;
+&lt;p&gt;Issue #27350: I reviewed and pushed the &amp;quot;compact dict&amp;quot; implementation which
+makes Python dictionaries ordered (by insertion order) by default. It reduces
+the memory usage of dictionaries betwen 20% and 25%.&lt;/p&gt;
+&lt;p&gt;The implementation was written by INADA Naoki, based on the PyPy
+implementation, with a design by Raymond Hettinger.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fastcall"&gt;
+&lt;h2&gt;FASTCALL&lt;/h2&gt;
+&lt;p&gt;&amp;quot;Fast calls&amp;quot;: Python 3.6 has a new private C API and a new METH_FASTCALL
+calling convention which avoids temporary tuple for positional arguments and
+avoids temporary dictionary for keyword arguments. Changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add a new C calling convention: METH_FASTCALL&lt;/li&gt;
+&lt;li&gt;Add _PyArg_ParseStack() function&lt;/li&gt;
+&lt;li&gt;Add _PyCFunction_FastCallKeywords() function: issue #27810&lt;/li&gt;
+&lt;li&gt;Add _PyObject_FastCallKeywords() function: issue #27830&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="more-efficient-call-function-bytecode"&gt;
+&lt;h2&gt;More efficient CALL_FUNCTION bytecode&lt;/h2&gt;
+&lt;p&gt;I reviewed and pushed: &amp;quot;Rework CALL_FUNCTION* opcodes to produce shorter and
+more efficient bytecode&amp;quot; (issue #27213).&lt;/p&gt;
+&lt;p&gt;Patch writen by Demur Rumed, design by Serhiy Storchaka, reviewed by Serhiy
+Storchaka and me.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-509-add-a-private-version-to-dict"&gt;
+&lt;h2&gt;PEP 509: Add a private version to dict&lt;/h2&gt;
+&lt;p&gt;Guido approved my PEP 509 &amp;quot;Add a new private version to the builtin dict type&amp;quot;.&lt;/p&gt;
+&lt;p&gt;I pushed the implementation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-524-make-os-urandom-blocking-on-linux"&gt;
+&lt;h2&gt;PEP 524: Make os.urandom() blocking on Linux&lt;/h2&gt;
+&lt;p&gt;I pushed the implementation of my PEP 524: &amp;quot;Make os.urandom() blocking on
+Linux&amp;quot;.&lt;/p&gt;
+&lt;p&gt;Issue #27776: The os.urandom() function does now block on Linux 3.17 and newer
+until the system urandom entropy pool is initialized to increase the security.&lt;/p&gt;
+&lt;p&gt;Read my previous blog post for the painful story behind the PEP:
+&lt;a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html"&gt;PEP 524: os.urandom() now blocks on Linux&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="asynchronous-pep-525-and-530"&gt;
+&lt;h2&gt;Asynchronous PEP 525 and 530&lt;/h2&gt;
+&lt;p&gt;Guido van Rossum approved two PEPs of Yury Selivanov:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;PEP 525: Asynchronous Generators&lt;/li&gt;
+&lt;li&gt;PEP 530: Asynchronous Comprehensions&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I reviewed the huge C implementation with Yury on my side :-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="unicode-escape-codec-optimization"&gt;
+&lt;h2&gt;unicode_escape codec optimization&lt;/h2&gt;
+&lt;p&gt;I reviewed and pushed &amp;quot;Optimize unicode_escape and raw_unicode_escape&amp;quot; (the
+isue #16334), patch written by Serhiy Storchaka.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-6-bugfixes"&gt;
+&lt;h2&gt;Python 3.6 bugfixes&lt;/h2&gt;
+&lt;p&gt;I happily found many issues including a major one: regular list-comprehension
+were completely broken :-)&lt;/p&gt;
+&lt;p&gt;Another minor issue: SyntaxError didn't reported the correct line number in a
+specific case.&lt;/p&gt;
+&lt;p&gt;Don't worry, Yury fixed both ;-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="official-sprint-report"&gt;
+&lt;h2&gt;Official sprint report&lt;/h2&gt;
+&lt;p&gt;Read also the official report: &lt;a class="reference external" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;Python Core Development Sprint 2016: 3.6 and
+beyond!&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>PEP 524: os.urandom() now blocks on Linux in Python 3.6</title><link href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
 &lt;h2&gt;getrandom() avoids file descriptors&lt;/h2&gt;
 &lt;p&gt;Last years, I'm making sometimes enhancements in the Python code used to
 generate random numbers, the C implementation of &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;. My main two

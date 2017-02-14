@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>CPython sprint, september 2016</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/cpython-sprint-2016.html" rel="bookmark"
+           title="Permalink to CPython sprint, september 2016">CPython sprint, september 2016</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-14T18:00:00+01:00">
+                Published: mar. 14 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. The sprint was sponsored by
+Instagram, Microsoft, and the PSF.</p>
+<p><strong>First little game:</strong> Many happy faces, but <em>Where is Victor?</em></p>
+<a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
+<p>IMHO it was the most productive CPython week ever :-) Having Guido van Rossum
+in a room helped to get many PEPs accepted. Having a lot of highly skilled
+reviewers in the same room helped to get many new features and many PEP
+implementations merged much faster than usual.</p>
+<p><strong>Second little game:</strong> try to spot the sprint on the CPython commit statistics of
+the last 12 months (Feb, 2016-Feb, 2017) ;-)</p>
+<a class="reference external image-reference" href="https://github.com/python/cpython/graphs/commit-activity"><img alt="CPython commits statistics" src="https://haypo.github.io/images/cpython_sprint_2016_commits.png" /></a>
+<div class="section" id="compact-dict">
+<h2>Compact dict</h2>
+<p>Issue #27350: I reviewed and pushed the &quot;compact dict&quot; implementation which
+makes Python dictionaries ordered (by insertion order) by default. It reduces
+the memory usage of dictionaries betwen 20% and 25%.</p>
+<p>The implementation was written by INADA Naoki, based on the PyPy
+implementation, with a design by Raymond Hettinger.</p>
+</div>
+<div class="section" id="fastcall">
+<h2>FASTCALL</h2>
+<p>&quot;Fast calls&quot;: Python 3.6 has a new private C API and a new METH_FASTCALL
+calling convention which avoids temporary tuple for positional arguments and
+avoids temporary dictionary for keyword arguments. Changes:</p>
+<ul class="simple">
+<li>Add a new C calling convention: METH_FASTCALL</li>
+<li>Add _PyArg_ParseStack() function</li>
+<li>Add _PyCFunction_FastCallKeywords() function: issue #27810</li>
+<li>Add _PyObject_FastCallKeywords() function: issue #27830</li>
+</ul>
+</div>
+<div class="section" id="more-efficient-call-function-bytecode">
+<h2>More efficient CALL_FUNCTION bytecode</h2>
+<p>I reviewed and pushed: &quot;Rework CALL_FUNCTION* opcodes to produce shorter and
+more efficient bytecode&quot; (issue #27213).</p>
+<p>Patch writen by Demur Rumed, design by Serhiy Storchaka, reviewed by Serhiy
+Storchaka and me.</p>
+</div>
+<div class="section" id="pep-509-add-a-private-version-to-dict">
+<h2>PEP 509: Add a private version to dict</h2>
+<p>Guido approved my PEP 509 &quot;Add a new private version to the builtin dict type&quot;.</p>
+<p>I pushed the implementation.</p>
+</div>
+<div class="section" id="pep-524-make-os-urandom-blocking-on-linux">
+<h2>PEP 524: Make os.urandom() blocking on Linux</h2>
+<p>I pushed the implementation of my PEP 524: &quot;Make os.urandom() blocking on
+Linux&quot;.</p>
+<p>Issue #27776: The os.urandom() function does now block on Linux 3.17 and newer
+until the system urandom entropy pool is initialized to increase the security.</p>
+<p>Read my previous blog post for the painful story behind the PEP:
+<a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux</a>.</p>
+</div>
+<div class="section" id="asynchronous-pep-525-and-530">
+<h2>Asynchronous PEP 525 and 530</h2>
+<p>Guido van Rossum approved two PEPs of Yury Selivanov:</p>
+<ul class="simple">
+<li>PEP 525: Asynchronous Generators</li>
+<li>PEP 530: Asynchronous Comprehensions</li>
+</ul>
+<p>I reviewed the huge C implementation with Yury on my side :-)</p>
+</div>
+<div class="section" id="unicode-escape-codec-optimization">
+<h2>unicode_escape codec optimization</h2>
+<p>I reviewed and pushed &quot;Optimize unicode_escape and raw_unicode_escape&quot; (the
+isue #16334), patch written by Serhiy Storchaka.</p>
+</div>
+<div class="section" id="python-3-6-bugfixes">
+<h2>Python 3.6 bugfixes</h2>
+<p>I happily found many issues including a major one: regular list-comprehension
+were completely broken :-)</p>
+<p>Another minor issue: SyntaxError didn't reported the correct line number in a
+specific case.</p>
+<p>Don't worry, Yury fixed both ;-)</p>
+</div>
+<div class="section" id="official-sprint-report">
+<h2>Official sprint report</h2>
+<p>Read also the official report: <a class="reference external" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html">Python Core Development Sprint 2016: 3.6 and
+beyond!</a>.</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>
