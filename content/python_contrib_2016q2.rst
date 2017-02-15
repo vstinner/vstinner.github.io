@@ -159,7 +159,7 @@ I also pushed a few changes written by other contributors.
 Issue #26839: ``os.urandom()`` doesn't block on Linux anymore. On Linux,
 ``os.urandom()`` now calls getrandom() with ``GRND_NONBLOCK`` to fall back on
 reading ``/dev/urandom`` if the urandom entropy pool is not initialized yet.
-Patch written by Colm Buckley. This issue started a huge annoying discussion
+Patch written by **Colm Buckley**. This issue started a huge annoying discussion
 around random number generation on the bug tracker and the python-dev mailing
 list.  I later wrote the `PEP 524: Make os.urandom() blocking on Linux
 <https://www.python.org/dev/peps/pep-0524/>`_ to fix the issue!
@@ -167,30 +167,30 @@ list.  I later wrote the `PEP 524: Make os.urandom() blocking on Linux
 Other changes:
 
 * Issue #26647: Cleanup opcode: simplify code to build ``opcode.opname``. Patch
-  written by Demur Rumed.
+  written by **Demur Rumed**.
 
 * Issue #26647: Cleanup modulefinder: use ``dis.opmap[name]`` rather than
-  ``dis.opname.index(name)``. Patch written by Demur Rumed.
+  ``dis.opname.index(name)``. Patch written by **Demur Rumed**.
 
 * Issue #26801: Fix error handling in ``shutil.get_terminal_size()``: catch
   AttributeError instead of NameError. Skip the functional test of test_shutil
   using the ``stty size`` command if the ``os.get_terminal_size()`` function is
-  missing. Patch written by Emanuel Barry.
+  missing. Patch written by **Emanuel Barry**.
 
 * Issue #26802: Optimize function calls only using unpacking like
   ``func(*tuple)`` (no other positional argument, no keyword argument): avoid
-  copying the tuple. Patch written by Joe Jevnik.
+  copying the tuple. Patch written by **Joe Jevnik**.
 
 * Issue #21668: Add missing libm dependency in setup.py: link audioop,
   _datetime, _ctypes_test modules to libm, except on Mac OS X. Patch written by
-  Chi Hsuan Yen.
+  **Chi Hsuan Yen**.
 
 * Issue #26799: Fix python-gdb.py: don't get C types at startup, only on
   demand. The C types can change if python-gdb.py is loaded before loading the
-  Python executable in gdb. Patch written by Thomas Ilsche.
+  Python executable in gdb. Patch written by **Thomas Ilsche**.
 
 * Issue #27057: Fix os.set_inheritable() on Android, ioctl() is blocked by
   SELinux and fails with EACCESS. The function now falls back to fcntl(). Patch
-  written by Michał Bednarski.
+  written by **Michał Bednarski**.
 
-* Issue #26647: Fix typo in test_grammar. Patch written by Demur Rumed.
+* Issue #26647: Fix typo in test_grammar. Patch written by **Demur Rumed**.

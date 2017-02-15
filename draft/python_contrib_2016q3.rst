@@ -20,17 +20,40 @@ Previous report: `My contributions to CPython during 2016 Q2
 <{filename}/python_contrib_2016q2.rst>`_.
 
 
+New core developers
+===================
+
+New core developers is the result of the productive third 2016 quarter.
+
+At september 25, 2016, Yury Selivanov proposed to give `commit privileges for
+INADA Naoki
+<https://mail.python.org/pipermail/python-committers/2016-September/004013.html>`_.
+Naoki became a core developer the day after!
+
+At november 14, 2016, I proposed to `promote Xiang Zhang as a core developer
+<https://mail.python.org/pipermail/python-committers/2016-November/004045.html>`_.
+One week later, he also became a core developer! I mentored him during one
+month, and later let him push directly changes.
+
+Most Python core developers are men coming from North America and Europe.
+INADA Naoki comes from Japan and Xiang Zhang comes from China: more core
+developers from Asia, we increased the diversity of Python core developers!
+
+
 CPython sprint
 ==============
 
-Read my previous blog post: `CPython sprint, september 2016
-<{filename}/cpython_sprint_2016.rst>`_.
+I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. I reviewed a lot of changes and
+pushed many new features! Read my previous blog post: `CPython sprint,
+september 2016 <{filename}/cpython_sprint_2016.rst>`_.
 
 
-PEP 524: os.urandom() now blocks on Linux
-=========================================
+PEP 524: Make os.urandom() blocking on Linux
+============================================
 
-Read my previous blog post: `PEP 524: os.urandom() now blocks on Linux
+I pushed the implementation my PEP 524: read my previous blog post: `PEP 524:
+os.urandom() now blocks on Linux in Python 3.6
 <{filename}/pep_524_os_urandom_blocking.rst>`_.
 
 
@@ -38,246 +61,252 @@ PEP 509: private dictionary version
 ===================================
 
 Another enhancement from my `FAT Python
-<http://faster-cpython.readthedocs.io/fat_python.html>`_ project, my `PEP 509:
+<http://faster-cpython.readthedocs.io/fat_python.html>`_ project: my `PEP 509:
 Add a private version to dict <https://www.python.org/dev/peps/pep-0509/>`_ was
-approved at the CPython sprint by Guido.
+approved at the CPython sprint by Guido van Rossum.
 
 The dictionary version is used by FAT Python to check quickly if a variable was
 modified in a Python namespace. Technically, a Python namespace is a regular
 dictionary.
 
-While my experimental FAT Python didn't convince Guido, Yury Selivanov wrote
-yet another cache for global variables using the dictionary version: `Implement
-LOAD_GLOBAL opcode cache <http://bugs.python.org/issue28158>`_.
+Using the feedback from the python-ideas mailing list on the first version of
+my PEP, I made further changes:
 
-After I published the first version of my PEP, I made changes:
-
-* Use 64-bit unsigned integer on 32-bit system: "A risk of an integer overflow
+* Use 64-bit unsigned integers on 32-bit system: "A risk of an integer overflow
   every 584 years is acceptable." Using 32-bit, an overflow occurs every 4
-  seconds.
+  seconds!
 * Don't expose the version at Python level to prevent users writing
-  optimizations based on it. Reading the dictionary version in Python is as
-  slow as a dictionary lookup, wheras the version is usually used to avoid a
-  "slow" dictionary lookup.
+  optimizations based on it in Python. Reading the dictionary version in Python
+  is as slow as a dictionary lookup, wheras the version is usually used to
+  avoid a "slow" dictionary lookup. The version is only accessible at the C
+  level.
 
-I added the private version to the builtin dict type with the ussue #26058. The
+While my experimental FAT Python static optimizer didn't convince Guido, Yury
+Selivanov wrote yet another cache for global variables using the dictionary
+version: `Implement LOAD_GLOBAL opcode cache
+<http://bugs.python.org/issue28158>`_ (sadly, not merged yet).
+
+I added the private version to the builtin dict type with the issue #26058. The
 global dictionary version is incremented at each dictionary creation and at
-each dictionary change.
+each dictionary change, and each dictionary has its own version as well.
 
 
-FASTCALL
-========
+FASTCALL: optimization avoiding temporary tuple to call functions
+=================================================================
 
-Thanks to my work on marking Python benchmarks more stable.
+Thanks to my work on making Python benchmarks more stable, I confirmed that my
+FASTCALL patches don't introduce performance regressions, and make Python
+faster in some specific cases.
 
-* Issue #27128: Add _PyObject_FastCall(), a new calling convention avoiding a
-  temporary tuple to pass positional parameters in most cases, but create a
-  temporary tuple if needed (ex: for the tp_call slot).
+I started to push FASTCALL changes. It will take me 6 months to push most
+changes to enable fully FASTCALL "everywhere" in the code base and to finish
+the implementation.
 
-  The API is prepared to support keyword parameters, but the full
-  implementation will come later (_PyFunction_FastCall() doesn't support
-  keyword parameters yet).
-
-  Add also:
-
-  - _PyStack_AsTuple() helper function: convert a "stack" of parameters to
-    a tuple.
-  - _PyCFunction_FastCall(): fast call implementation for C functions
-  - _PyFunction_FastCall(): fast call implementation for Python functions
-
-Following by a lot of changes to use FASTCALL "everywhere".
-
-Issue #27128. Fix a reference leak if creating the tuple to pass positional
-parameters fails.
-
-Issue #27128: _pickle uses fast call. Use _PyObject_FastCall() to avoid the
-creation of temporary tuple.
-
-Issue #27128. When a Python function is called with no arguments, but all
-parameters have a default value: use default values as arguments for the fast
-path.
-
-Issue #27809: Rename _PyObject_FastCall() to _PyObject_FastCallDict()
-
-Issue #27809: _PyFunction_FastCallDict() supports keyword args
-
-Issue #27809: PyEval_CallObjectWithKeywords() doesn't increment temporary the
-reference counter of the args tuple (positional arguments). The caller already
-holds a strong reference to it.
-
-Issue #27809: PyObject_CallMethodObjArgs() now uses fast call
-
-Backed out changeset 70f88b097f60 (map_next)
-Backed out changeset 0e4f26083bbb (PyObject_CallMethodObjArgs)
-
-Issue #27809: PyObject_CallMethodObjArgs() now uses fast call
-
-Issue #27848: use Py_ssize_t rather than C int for the number of function
-positional and keyword arguments.
-
-Issue #27830: Add _PyObject_FastCallKeywords(). Similar to
-_PyObject_FastCallDict(), but keyword arguments are also passed in the same C
-array than positional arguments, rather than being passed as a Python dict.
-
-_pickle: remove outdated comment. _Pickle_FastCall() is now fast again! The
-optimization was introduced in Python 3.2, removed in Python 3.4 and
-reintroduced in Python 3.6 (thanks to the new generic fastcall functions).
-
-Issue #27830: Revert, remove _PyFunction_FastCallKeywords()
-
-Avoid inefficient way to call functions without argument. Don't pass "()"
-format to PyObject_CallXXX() to call a function without argument: pass NULL as
-the format string instead. It avoids to have to parse a string to produce 0
-argument.
-
-Avoid calling functions with an empty string as format string. Directly pass
-NULL rather than an empty string.
-
-(...)
-
-Issue #27830: Add _PyObject_FastCallKeywords(): avoid the creation of a
-temporary dictionary for keyword arguments.
+Following blog posts will describe FASTCALL changes, its history and
+performance enhancements. Spoiler: Python 3.6 is fast!
 
 
-Issue #27810: Add a new METH_FASTCALL calling convention for C functions::
+More efficient CALL_FUNCTION bytecode
+=====================================
 
-    PyObject* func(PyObject *self, PyObject **args,
-                   Py_ssize_t nargs, PyObject *kwnames);
-
-Where args is a C array of positional arguments followed by values of keyword
-arguments. nargs is the number of positional arguments, kwnames are keys of
-keyword arguments. kwnames can be NULL.
-
-Issue #27810: Emit METH_FASTCALL code in Argument Clinic
-
-Issue #27810: Exclude METH_FASTCALL from the stable API.
-
-
-CALL_FUNCTION
-=============
-
-XXX wordcode?
+I reviewed and merged Demur Rumed's patch to make the CALL_FUNCTION opcodes
+more efficient. Demur implemented the design proposed by Serhiy Storchaka.
+Serhiy Storchaka also reviewied the implementation with me.
 
 Issue #27213: Rework CALL_FUNCTION* opcodes to produce shorter and more
 efficient bytecode:
 
-* CALL_FUNCTION now only accepts position arguments
-* CALL_FUNCTION_KW accepts position arguments and keyword arguments, but keys
-  of keyword arguments are packed into a constant tuple.
-* CALL_FUNCTION_EX is the most generic, it expects a tuple and a dict for
-  positional and keyword arguments.
+* ``CALL_FUNCTION`` now only accepts positional arguments
+* ``CALL_FUNCTION_KW`` accepts positional arguments and keyword arguments,
+  keys of keyword arguments are packed into a constant tuple.
+* ``CALL_FUNCTION_EX`` is the most generic opcode: it expects a tuple and a
+  dict for positional and keyword arguments.
 
-CALL_FUNCTION_VAR and CALL_FUNCTION_VAR_KW opcodes have been removed.
+``CALL_FUNCTION_VAR`` and ``CALL_FUNCTION_VAR_KW`` opcodes have been removed.
 
-2 tests of test_traceback are currently broken: skip test, the issue #28050 was
-created to track the issue.
+Demur Rumed also implemented "Wordcode", a new bytecode format using fixed
+units of 16-bit: 8-bit opcode with 8-bit argument. Wordcode was merged in May
+2016, see `issue #26647: ceval: use Wordcode, 16-bit bytecode
+<http://bugs.python.org/issue26647>`_.
 
-Patch by Demur Rumed, design by Serhiy Storchaka, reviewed by Serhiy Storchaka
-and Victor Stinner.
+All instructions have an argument: opcodes without argument use the argument
+``0``. It allowed to remove the following conditional code in the very hot code
+of ``Python/ceval.c``::
 
+    if (HAS_ARG(opcode))
+        oparg = NEXTARG();
 
-Interesting bug: hidden warnings
-================================
-
-* regrtest: add Python ``-u`` command line option to child processes to get
-  unbuffered stdout and stderr. It should help to get more information on
-  a crash.
-
-* Issue #27829: regrtest -W displays stderr if env changed. regrtest -W hides
-  output if a test pass, but also when env changed and so the env changed
-  warning is hidden. So it's hard to debug. With this change, stderr is now
-  always displayed when a test doesn't pass.
+The bytecode is now fetched using 16-bit words, instead of loading one or two
+8-bit words per instruction.
 
 
-Changes
-=======
+Work on optimization
+====================
 
-* Issue #22624: Python 3 requires clock() to build
+I continued with work on the `performance
+<https://github.com/python/performance>`_ Python benchmark suite. The suite
+works on CPython and PyPy, but it's maybe not fine tuned for PyPy yet.
+
+* Issue #27938: Add a fast-path for us-ascii encoding
+
+* Issue #15369: Remove the (old version of) pybench microbenchmark. Please use
+  the new "performance" benchmark suite which includes a more recent version of
+  pybench.
+
+* Issue #15369. Remove old and unreliable pystone microbenchmark. Please use
+  the new "performance" benchmark suite which is much more reliable.
 
 
-* socket: Fix internal_select(). Bug found by Pavel Belikov ("Fragment N1"):
-  http://www.viva64.com/en/b/0414/#ID0ECDAE
+Interesting bug: hidden resource warnings
+=========================================
+
+At 2016-08-22, I started to investigate why "Warning -- xxx was modfied by
+test_xxx" warnings were not logged on some buildbots (issue #27829).
+
+I modified the code logging the warning to flush immediatly stderr:
+``print(..., flush=True)``.
+
+19 days later, I tried to remove a quiet flag ``-q`` on the Windows build...
+but it was a mistake, this flag doesn't mean quiet in the modified batch script
+:-)
+
+13 days later, I finally understood that the ``-W`` option of regrtest was
+eating stderr if the test pass but the environment was modified.
+
+I fixed regrtest to log stderr in all cases, except if the test pass! It should
+now be easier to fix "environment changed" warnings emitted by regrtest.
+
+
+Contributions
+=============
+
+As usual, I reviewed and pushed changes written by other contributors:
+
+* Issue #27350: I reviewed and pushed the implementation of compact
+  dictionaries preserving insertion order. This resulted in dictionaries using
+  20% to 25% less memory when compared to Python 3.5. The implementation was
+  written by **INADA Naoki**, based on the PyPy implementation, with a design
+  by Raymond Hettinger.
+
+* "make tags": remove ``-t`` option of ``ctags``. The option was kept for
+  backward compatibility, but it was completly removed recently. Patch written
+  by **Stéphane Wirtel**.
+
+* Issue #27558: Fix a ``SystemError`` in the implementation of "raise" statement.
+  In a brand new thread, raise a RuntimeError since there is no active
+  exception to reraise. Patch written by **Xiang Zhang**.
+
+* Issue #28120: Fix ``dict.pop()`` for splitted dictionary when trying to remove a
+  "pending key": a key not yet inserted in split-table. Patch by **Xiang
+  Zhang**.
+
+
+Bugfixes
+========
+
+* socket: Fix ``internal_select()`` function. Bug found by **Pavel Belikov**
+  ("Fragment N1"): http://www.viva64.com/en/b/0414/#ID0ECDAE
 
 * socket: use INVALID_SOCKET.
 
-  - Replace "fd = -1" with "fd = INVALID_SOCKET"
-  - Replace "fd < 0" with "fd == INVALID_SOCKET": SOCKET_T is unsigned on Windows
+  - Replace ``fd = -1`` with ``fd = INVALID_SOCKET``
+  - Replace ``fd < 0`` with ``fd == INVALID_SOCKET``:
+    SOCKET_T is unsigned on Windows
 
-  Bug found by Pavel Belikov ("Fragment N1"): http://www.viva64.com/en/b/0414/#ID0ECDAE
+  Bug found by Pavel Belikov ("Fragment N1"):
+  http://www.viva64.com/en/b/0414/#ID0ECDAE
 
-* Issue #11048: ctypes, fix CThunkObject_new()
+* Issue #11048: ctypes, fix ``CThunkObject_new()``
 
   - Initialize restype and flags fields to fix a crash when Python runs on a
     read-only file system
-  - Use Py_ssize_t type rather than int for the "i" iterator variable
+  - Use ``Py_ssize_t`` type rather than ``int`` for the ``i`` iterator variable
   - Reorder assignements to be able to more easily check if all fields are
     initialized
 
-  Initial patch written by Marcin Bachry.
+  Initial patch written by **Marcin Bachry**.
 
-* Issue #27404: tag security related changes with [Security] prefix in the
-  changelog Misc/NEWS.
+* Issue #27744: socket: Fix memory leak in ``sendmsg()`` and
+  ``sendmsg_afalg()``.  Release ``msg.msg_iov`` memory block. Release memory
+  on ``PyMem_Malloc(controllen)`` failure
 
-* Issue #27776: dev_urandom(raise=0) now closes the file descriptor on error
+* Issue #27866: ssl: Fix refleak in ``cipher_to_dict()``.
 
-* Issue #27181: Skip test_statistics tests known to fail until a fix is found.
+* Issue #28077: Fix dict type, ``find_empty_slot()`` only supports combined
+  dictionaries.
 
-* Issue #27128, #18295: Use Py_ssize_t in _PyEval_EvalCodeWithName(). Replace
-  int type with Py_ssize_t for index variables used for positional arguments.
-  It should help to avoid integer overflow and help to emit better machine code
-  for "i++" (no trap needed for overflow). Make also the total_args variable
-  constant.
+* Issue #28200: Fix memory leak in ``path_converter()``. Replace
+  ``PyUnicode_AsWideCharString()`` ``with PyUnicode_AsUnicodeAndSize()``.
 
-* regrtest: rename --slow option to --slowest. Thanks to optparse, --slow
-  syntax still works ;-) Add --slowest option to buildbots. Display the top 10
-  slowest tests.
+* Issue #27955: Catch permission error (``EPERM``) in ``py_getrandom()``.
+  Fallback on reading from the ``/dev/urandom`` device when the ``getrandom()``
+  syscall fails with ``EPERM``, for example if blocked by SECCOMP.
+
+* Issue #27778: Fix a memory leak in ``os.getrandom()`` when the
+  ``getrandom()`` is interrupted by a signal and a signal handler raises a
+  Python exception.
+
+* Issue #28233: Fix ``PyUnicode_FromFormatV()`` error handling. Fix a memory
+  leak if the format string contains a non-ASCII character: destroy the unicode
+  writer.
+
+
+regrtest changes
+================
+
+* regrtest: rename ``--slow`` option to ``--slowest`` (to get same option name
+  than the ``testr`` tool). Thanks to optparse, --slow syntax still works ;-)
+  Add --slowest option to buildbots. Display the top 10 slowest tests.
 
 * regrtest: nicer output for durations. Use milliseconds and minutes units, not
   only seconds.
+
+* regrtest: Add a summary of the tests at the end of tests output:
+  "Tests result: xxx". It was sometimes hard to check quickly if tests
+  succeeded, failed or something bad happened.
+
+* regrtest: accept options after test names. For example, ``./python -m test
+  test_os -v`` runs ``test_os`` in verbose mode. Before, regrtest tried to run
+  a test called "-v"!
+
+* Issue #28195: Fix ``test_huntrleaks_fd_leak()`` of test_regrtest. Don't expect
+  the fd leak message to be on a specific line number, just make sure that the
+  line is present in the output.
+
+Example of a recent (2017-02-15) successful test run, truncated output::
+
+    ...
+    0:08:20 [403/404] test_codecs passed
+    0:08:21 [404/404] test_threading passed
+    391 tests OK.
+
+    10 slowest tests:
+    - test_multiprocessing_spawn: 1 min 24 sec
+    - test_concurrent_futures: 1 min 3 sec
+    - test_multiprocessing_forkserver: 60 sec
+    ...
+
+    13 tests skipped:
+        test_devpoll test_ioctl test_kqueue ...
+
+    Total duration: 8 min 22 sec
+    Tests result: SUCCESS
+
+
+Tests changes
+=============
 
 * script_helper: kill the subprocess on error. If Popen.communicate() raises an
   exception, kill the child process to not leave a running child process in
   background and maybe create a zombi process. This change fixes a
   ResourceWarning in Python 3.6 when unit tests are interrupted by CTRL+c.
 
-* Fix "make tags": set locale to C to call sort. vim expects that the tags file
-  is sorted using english collation, so it fails if the locale is french for
-  example. Use LC_ALL=C to force english sorting order. Issue #27726.
-
-* Issue #27698: Add socketpair to socket.__all__ on Windows
-
-* regrtest: Add a summary of the summary, "Tests result: xxx". It's sometimes hard to
-  check quickly if tests succeeded, failed or something bad happened. I added a
-  final "Result: xxx" line which summarizes all outputs into a single line,
-  written at the end (it should always be the last line of the output).
-
-* Issue #27786: Simplify x_sub(). The z variable is known to be a fresh number
-  which cannot be shared, Py_SIZE() can be used directly to negate the number.
-
-* Fix a clang warning in grammar.c. Clang is smarter than GCC and emits a
-  warning for dead code after a function declared with
-  __attribute__((__noreturn__)) (Py_FatalError).
-
-* Issue #27829: libregrtest.save_env: flush stderr. Use flush=True to try to
-  get a warning which is missing in buildbots. Use also f-string to make the
-  code shorter.
-
-* Issue #27938: Add a fast-path for us-ascii encoding
+* Issue #27181: Skip test_statistics tests known to fail until a fix is found.
 
 * Issue #18401: Fix test_pdb if $HOME is not set. HOME is not set on Windows
   for example.
 
-* test_eintr: Fix ResourceWarning warnings
-
-* regrtest: accept options after test names. For example, ``./python -m test
-  test_os -v`` runs ``test_os`` in verbose mode. Before, regrtest tried to run
-  a test called ``-v``...
-
-* Issue #27744: socket: Fix memory leak in sendmsg() and sendmsg_afalg().
-  Release msg.msg_iov memory block.
-  Release memory on PyMem_Malloc(controllen) failure
-
-* Issue #27866: ssl: Fix refleak in cipher_to_dict()
+* test_eintr: Fix ``ResourceWarning`` warnings
 
 * Buildbot: give 20 minute per test file. It seems like at least 2 buildbots
   need more than 15 minutes per test file.  Example with "AMD64 Snow Leop 3.x"::
@@ -288,85 +317,49 @@ Changes
     - test_datetime: 11 min 25 sec
     - ...
 
-* Issue #28077: Fix dict type, find_empty_slot() only supports combined
-  dictionaries.
-
-* Issue #27350: What's New in Python 3.6: Document compact dict memory usage
-
-* Issue #15369: Remove the (old version of) pybench microbenchmark. Please use
-  the new "performance" benchmark suite which includes a more recent version of
-  pybench.
-
-* Issue #15369. Remove old and unreliable pystone microbenchmark. Please use
-  the new "performance" benchmark suite which is much more reliable.
-
-* Issue #28114: Add unit tests on os.spawn*() to prepare to fix a crash
-  with bytes environment.
-
-* Issue #28127: Add _PyDict_CheckConsistency(), function checking that a
-  dictionary remains consistent after any change. By default, only basic
-  attributes are tested, table content is not checked because the impact on
-  Python performance is too important. Define ``DEBUG_PYDICT``
-  (ex: ``gcc -D DEBUG_PYDICT``) to check also dictionaries content.
-
-* Issue #28195: Fix test_huntrleaks_fd_leak() of test_regrtest. Don't expect
-  the fd leak message to be on a specific line number, just make sure that the
-  line is present in the output.
-
-* Issue #28200: Fix memory leak in ``path_converter()``. Replace
-  ``PyUnicode_AsWideCharString()`` ``with PyUnicode_AsUnicodeAndSize()``.
-
-* Issue #27955: Catch permission error (``EPERM``) in py_getrandom(). Fallback
-  on reading from the ``/dev/urandom`` device when the ``getrandom()`` syscall
-  fails with ``EPERM``, for example if blocked by SECCOMP.
-
-
-* Issue #27778: Fix a memory leak in os.getrandom() when the getrandom() is
-  interrupted by a signal and a signal handler raises a Python exception.
-
 * Issue #28176: test_asynico: fix test_sock_connect_sock_write_race(), increase
   the timeout from 10 seconds to 60 seconds.
 
-* Issue #28233: Fix PyUnicode_FromFormatV() error handling. Fix a memory leak
-  if the format string contains a non-ASCII character, destroy the unicode
-  writer.
 
-
-Contributions
+Other changes
 =============
 
-* Issue #27350: Implement compact dict. `dict` implementation is changed like
-  PyPy. It is more compact and preserves insertion order. _PyDict_Dummy()
-  function has been removed. Disable test_gdb: python-gdb.py is not updated yet
-  to the new structure of compact dictionaries (issue #28023). Patch written by
-  INADA Naoki.
+* Issue #22624: Python 3 now requires the ``clock()`` function to build to
+  simplify the C code.
 
-* "make tags": remove -t option of ctags. The option was kept for backward
-  compatibility, but it was completly removed recently. Patch written by
-  Stéphane Wirtel.
+* Issue #27404: tag security related changes with the "[Security]" prefix in
+  the changelog Misc/NEWS.
 
-* Issue #27558: Fix SystemError in "raise" statement. Fix a SystemError in the
-  implementation of "raise" statement.  In a brand new thread, raise a
-  RuntimeError since there is no active exception to reraise. Patch written by
-  Xiang Zhang.
+* Issue #27776: ``dev_urandom(raise=0)`` now closes the file descriptor on error
 
-* Issue #28120: Fix _PyDict_Pop() on pending key. Fix dict.pop() for splitted
-  dictionary when trying to remove a "pending key" (Not yet inserted in
-  split-table). Patch by Xiang Zhang.
+* Issue #27128, #18295: Use ``Py_ssize_t`` in ``_PyEval_EvalCodeWithName()``.
+  Replace ``int`` type with ``Py_ssize_t`` for index variables used for
+  positional arguments.  It should help to avoid integer overflow and help to
+  emit better machine code for ``i++`` (no trap needed for overflow). Make also
+  the ``total_args`` variable constant.
+
+* Fix "make tags": set locale to C to call sort. vim expects that the tags file
+  is sorted using english collation, so it fails if the locale is french for
+  example. Use LC_ALL=C to force english sorting order. Issue #27726.
+
+* Issue #27698: Add ``socketpair`` function to ``socket.__all__`` on Windows
+
+* Issue #27786: Simplify (optimize?) PyLongObject private function ``x_sub()``:
+  the ``z`` variable is known to be a new object which cannot be shared,
+  ``Py_SIZE()`` can be used directly to negate the number.
+
+* Fix a clang warning in grammar.c. Clang is smarter than GCC and emits a
+  warning for dead code on a function declared with
+  ``__attribute__((__noreturn__))`` (the ``Py_FatalError()`` function in this
+  case).
+
+* Issue #28114: Add unit tests on ``os.spawn*()`` to prepare to fix a crash
+  with bytes environment.
+
+* Issue #28127: Add ``_PyDict_CheckConsistency()``: function checking that a
+  dictionary remains consistent after any change. By default, only basic
+  attributes are tested, table content is not checked because the impact on
+  Python performance is too important. ``DEBUG_PYDICT`` must be defined (ex:
+  ``gcc -D DEBUG_PYDICT``) to check also dictionaries content.
 
 
-New core developers
-===================
-
-At september 25, 2016, Yury Selivanov proposed to give `commit privileges for
-INADA Naoki
-<https://mail.python.org/pipermail/python-committers/2016-September/004013.html>`_
-
-At november 14, 2016, I proposed to `promote Xiang Zhang as a core developer
-<https://mail.python.org/pipermail/python-committers/2016-November/004045.html>`_.
-At november 22, 2016, he became a new Python core developer! I mentored him
-during one month, and later let him push directly changes.
-
-Most Python core developers are men coming from North America and Europe.
-INADA Naoki comes from Japan and Xiang Zhang comes from China: more core
-developers from Asia! We increased the diversity of Python core developers!

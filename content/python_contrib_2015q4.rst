@@ -23,7 +23,7 @@ I fighted against a recursion error, a regression introduced by my recent work
 on the Python test suite.
 
 I focused on optimizing the bytes type during this quarter. It started with the
-issue #24870 opened by INADA Naoki who works on PyMySQL: decoding bytes
+issue #24870 opened by **INADA Naoki** who works on PyMySQL: decoding bytes
 using the surrogateescape error handler was the bottleneck of this benchmark.
 For me, it was an opportunity for a new attempt to implement a fast "bytes
 writer API".
@@ -113,7 +113,7 @@ Optimizations on the ``bytes`` type, ASCII, Latin1 and UTF-8 codecs:
   current character twice, we already know that it is not ASCII.
 * Issue #25267: The UTF-8 encoder is now up to 75 times as fast for error
   handlers: ``ignore``, ``replace``, ``surrogateescape``, ``surrogatepass``.
-  Patch co-written with Serhiy Storchaka.
+  Patch co-written with **Serhiy Storchaka**.
 * Issue #25301: The UTF-8 decoder is now up to 15 times as fast for error
   handlers: ``ignore``, ``replace`` and ``surrogateescape``.
 * Issue #25318: Optimize backslashreplace and xmlcharrefreplace error handlers
