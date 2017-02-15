@@ -19,9 +19,25 @@ Statistics: 161 non-merge commits + 29 merge commits (total: 190 commits).
 Previous report: `My contributions to CPython during 2016 Q2
 <{filename}/python_contrib_2016q2.rst>`_.
 
+Table of Contents:
 
-New core developers
-===================
+* Two new core developers
+* CPython sprint, September, in California
+* PEP 524: Make os.urandom() blocking on Linux
+* PEP 509: private dictionary version
+* FASTCALL: optimization avoiding temporary tuple to call functions
+* More efficient CALL_FUNCTION bytecode
+* Work on optimization
+* Interesting bug: hidden resource warnings
+* Contributions
+* Bugfixes
+* regrtest changes
+* Tests changes
+* Other changes
+
+
+Two new core developers
+=======================
 
 New core developers is the result of the productive third 2016 quarter.
 
@@ -40,8 +56,8 @@ INADA Naoki comes from Japan and Xiang Zhang comes from China: more core
 developers from Asia, we increased the diversity of Python core developers!
 
 
-CPython sprint
-==============
+CPython sprint, September, in California
+========================================
 
 I was invited at my first CPython sprint in September! Five days, September
 5-9, at Instagram office in California, USA. I reviewed a lot of changes and
