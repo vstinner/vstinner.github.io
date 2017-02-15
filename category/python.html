@@ -22,7 +22,344 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/cpython-sprint-2016.html">CPython sprint, september 2016</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-14T19:00:00+01:00">
+                Published: mar. 14 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q3
+(july, august, september):</p>
+<pre class="literal-block">
+hg log -r 'date(&quot;2016-07-01&quot;):date(&quot;2016-09-30&quot;)' --no-merges -u Stinner
+</pre>
+<p>Statistics: 161 non-merge commits + 29 merge commits (total: 190 commits).</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q2.html">My contributions to CPython during 2016 Q2</a>.</p>
+<p>Table of Contents:</p>
+<ul class="simple">
+<li>Two new core developers</li>
+<li>CPython sprint, September, in California</li>
+<li>PEP 524: Make os.urandom() blocking on Linux</li>
+<li>PEP 509: private dictionary version</li>
+<li>FASTCALL: optimization avoiding temporary tuple to call functions</li>
+<li>More efficient CALL_FUNCTION bytecode</li>
+<li>Work on optimization</li>
+<li>Interesting bug: hidden resource warnings</li>
+<li>Contributions</li>
+<li>Bugfixes</li>
+<li>regrtest changes</li>
+<li>Tests changes</li>
+<li>Other changes</li>
+</ul>
+<div class="section" id="two-new-core-developers">
+<h2>Two new core developers</h2>
+<p>New core developers is the result of the productive third 2016 quarter.</p>
+<p>At september 25, 2016, Yury Selivanov proposed to give <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2016-September/004013.html">commit privileges for
+INADA Naoki</a>.
+Naoki became a core developer the day after!</p>
+<p>At november 14, 2016, I proposed to <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2016-November/004045.html">promote Xiang Zhang as a core developer</a>.
+One week later, he also became a core developer! I mentored him during one
+month, and later let him push directly changes.</p>
+<p>Most Python core developers are men coming from North America and Europe.
+INADA Naoki comes from Japan and Xiang Zhang comes from China: more core
+developers from Asia, we increased the diversity of Python core developers!</p>
+</div>
+<div class="section" id="cpython-sprint-september-in-california">
+<h2>CPython sprint, September, in California</h2>
+<p>I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. I reviewed a lot of changes and
+pushed many new features! Read my previous blog post: <a class="reference external" href="https://haypo.github.io/cpython-sprint-2016.html">CPython sprint,
+september 2016</a>.</p>
+</div>
+<div class="section" id="pep-524-make-os-urandom-blocking-on-linux">
+<h2>PEP 524: Make os.urandom() blocking on Linux</h2>
+<p>I pushed the implementation my PEP 524: read my previous blog post: <a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524:
+os.urandom() now blocks on Linux in Python 3.6</a>.</p>
+</div>
+<div class="section" id="pep-509-private-dictionary-version">
+<h2>PEP 509: private dictionary version</h2>
+<p>Another enhancement from my <a class="reference external" href="http://faster-cpython.readthedocs.io/fat_python.html">FAT Python</a> project: my <a class="reference external" href="https://www.python.org/dev/peps/pep-0509/">PEP 509:
+Add a private version to dict</a> was
+approved at the CPython sprint by Guido van Rossum.</p>
+<p>The dictionary version is used by FAT Python to check quickly if a variable was
+modified in a Python namespace. Technically, a Python namespace is a regular
+dictionary.</p>
+<p>Using the feedback from the python-ideas mailing list on the first version of
+my PEP, I made further changes:</p>
+<ul class="simple">
+<li>Use 64-bit unsigned integers on 32-bit system: &quot;A risk of an integer overflow
+every 584 years is acceptable.&quot; Using 32-bit, an overflow occurs every 4
+seconds!</li>
+<li>Don't expose the version at Python level to prevent users writing
+optimizations based on it in Python. Reading the dictionary version in Python
+is as slow as a dictionary lookup, wheras the version is usually used to
+avoid a &quot;slow&quot; dictionary lookup. The version is only accessible at the C
+level.</li>
+</ul>
+<p>While my experimental FAT Python static optimizer didn't convince Guido, Yury
+Selivanov wrote yet another cache for global variables using the dictionary
+version: <a class="reference external" href="http://bugs.python.org/issue28158">Implement LOAD_GLOBAL opcode cache</a> (sadly, not merged yet).</p>
+<p>I added the private version to the builtin dict type with the issue #26058. The
+global dictionary version is incremented at each dictionary creation and at
+each dictionary change, and each dictionary has its own version as well.</p>
+</div>
+<div class="section" id="fastcall-optimization-avoiding-temporary-tuple-to-call-functions">
+<h2>FASTCALL: optimization avoiding temporary tuple to call functions</h2>
+<p>Thanks to my work on making Python benchmarks more stable, I confirmed that my
+FASTCALL patches don't introduce performance regressions, and make Python
+faster in some specific cases.</p>
+<p>I started to push FASTCALL changes. It will take me 6 months to push most
+changes to enable fully FASTCALL &quot;everywhere&quot; in the code base and to finish
+the implementation.</p>
+<p>Following blog posts will describe FASTCALL changes, its history and
+performance enhancements. Spoiler: Python 3.6 is fast!</p>
+</div>
+<div class="section" id="more-efficient-call-function-bytecode">
+<h2>More efficient CALL_FUNCTION bytecode</h2>
+<p>I reviewed and merged Demur Rumed's patch to make the CALL_FUNCTION opcodes
+more efficient. Demur implemented the design proposed by Serhiy Storchaka.
+Serhiy Storchaka also reviewied the implementation with me.</p>
+<p>Issue #27213: Rework CALL_FUNCTION* opcodes to produce shorter and more
+efficient bytecode:</p>
+<ul class="simple">
+<li><tt class="docutils literal">CALL_FUNCTION</tt> now only accepts positional arguments</li>
+<li><tt class="docutils literal">CALL_FUNCTION_KW</tt> accepts positional arguments and keyword arguments,
+keys of keyword arguments are packed into a constant tuple.</li>
+<li><tt class="docutils literal">CALL_FUNCTION_EX</tt> is the most generic opcode: it expects a tuple and a
+dict for positional and keyword arguments.</li>
+</ul>
+<p><tt class="docutils literal">CALL_FUNCTION_VAR</tt> and <tt class="docutils literal">CALL_FUNCTION_VAR_KW</tt> opcodes have been removed.</p>
+<p>Demur Rumed also implemented &quot;Wordcode&quot;, a new bytecode format using fixed
+units of 16-bit: 8-bit opcode with 8-bit argument. Wordcode was merged in May
+2016, see <a class="reference external" href="http://bugs.python.org/issue26647">issue #26647: ceval: use Wordcode, 16-bit bytecode</a>.</p>
+<p>All instructions have an argument: opcodes without argument use the argument
+<tt class="docutils literal">0</tt>. It allowed to remove the following conditional code in the very hot code
+of <tt class="docutils literal">Python/ceval.c</tt>:</p>
+<pre class="literal-block">
+if (HAS_ARG(opcode))
+    oparg = NEXTARG();
+</pre>
+<p>The bytecode is now fetched using 16-bit words, instead of loading one or two
+8-bit words per instruction.</p>
+</div>
+<div class="section" id="work-on-optimization">
+<h2>Work on optimization</h2>
+<p>I continued with work on the <a class="reference external" href="https://github.com/python/performance">performance</a> Python benchmark suite. The suite
+works on CPython and PyPy, but it's maybe not fine tuned for PyPy yet.</p>
+<ul class="simple">
+<li>Issue #27938: Add a fast-path for us-ascii encoding</li>
+<li>Issue #15369: Remove the (old version of) pybench microbenchmark. Please use
+the new &quot;performance&quot; benchmark suite which includes a more recent version of
+pybench.</li>
+<li>Issue #15369. Remove old and unreliable pystone microbenchmark. Please use
+the new &quot;performance&quot; benchmark suite which is much more reliable.</li>
+</ul>
+</div>
+<div class="section" id="interesting-bug-hidden-resource-warnings">
+<h2>Interesting bug: hidden resource warnings</h2>
+<p>At 2016-08-22, I started to investigate why &quot;Warning -- xxx was modfied by
+test_xxx&quot; warnings were not logged on some buildbots (issue #27829).</p>
+<p>I modified the code logging the warning to flush immediatly stderr:
+<tt class="docutils literal"><span class="pre">print(...,</span> flush=True)</tt>.</p>
+<p>19 days later, I tried to remove a quiet flag <tt class="docutils literal"><span class="pre">-q</span></tt> on the Windows build...
+but it was a mistake, this flag doesn't mean quiet in the modified batch script
+:-)</p>
+<p>13 days later, I finally understood that the <tt class="docutils literal"><span class="pre">-W</span></tt> option of regrtest was
+eating stderr if the test pass but the environment was modified.</p>
+<p>I fixed regrtest to log stderr in all cases, except if the test pass! It should
+now be easier to fix &quot;environment changed&quot; warnings emitted by regrtest.</p>
+</div>
+<div class="section" id="contributions">
+<h2>Contributions</h2>
+<p>As usual, I reviewed and pushed changes written by other contributors:</p>
+<ul class="simple">
+<li>Issue #27350: I reviewed and pushed the implementation of compact
+dictionaries preserving insertion order. This resulted in dictionaries using
+20% to 25% less memory when compared to Python 3.5. The implementation was
+written by <strong>INADA Naoki</strong>, based on the PyPy implementation, with a design
+by Raymond Hettinger.</li>
+<li>&quot;make tags&quot;: remove <tt class="docutils literal"><span class="pre">-t</span></tt> option of <tt class="docutils literal">ctags</tt>. The option was kept for
+backward compatibility, but it was completly removed recently. Patch written
+by <strong>Stéphane Wirtel</strong>.</li>
+<li>Issue #27558: Fix a <tt class="docutils literal">SystemError</tt> in the implementation of &quot;raise&quot; statement.
+In a brand new thread, raise a RuntimeError since there is no active
+exception to reraise. Patch written by <strong>Xiang Zhang</strong>.</li>
+<li>Issue #28120: Fix <tt class="docutils literal">dict.pop()</tt> for splitted dictionary when trying to remove a
+&quot;pending key&quot;: a key not yet inserted in split-table. Patch by <strong>Xiang
+Zhang</strong>.</li>
+</ul>
+</div>
+<div class="section" id="bugfixes">
+<h2>Bugfixes</h2>
+<ul>
+<li><p class="first">socket: Fix <tt class="docutils literal">internal_select()</tt> function. Bug found by <strong>Pavel Belikov</strong>
+(&quot;Fragment N1&quot;): <a class="reference external" href="http://www.viva64.com/en/b/0414/#ID0ECDAE">http://www.viva64.com/en/b/0414/#ID0ECDAE</a></p>
+</li>
+<li><p class="first">socket: use INVALID_SOCKET.</p>
+<ul class="simple">
+<li>Replace <tt class="docutils literal">fd = <span class="pre">-1</span></tt> with <tt class="docutils literal">fd = INVALID_SOCKET</tt></li>
+<li>Replace <tt class="docutils literal">fd &lt; 0</tt> with <tt class="docutils literal">fd == INVALID_SOCKET</tt>:
+SOCKET_T is unsigned on Windows</li>
+</ul>
+<p>Bug found by Pavel Belikov (&quot;Fragment N1&quot;):
+<a class="reference external" href="http://www.viva64.com/en/b/0414/#ID0ECDAE">http://www.viva64.com/en/b/0414/#ID0ECDAE</a></p>
+</li>
+<li><p class="first">Issue #11048: ctypes, fix <tt class="docutils literal">CThunkObject_new()</tt></p>
+<ul class="simple">
+<li>Initialize restype and flags fields to fix a crash when Python runs on a
+read-only file system</li>
+<li>Use <tt class="docutils literal">Py_ssize_t</tt> type rather than <tt class="docutils literal">int</tt> for the <tt class="docutils literal">i</tt> iterator variable</li>
+<li>Reorder assignements to be able to more easily check if all fields are
+initialized</li>
+</ul>
+<p>Initial patch written by <strong>Marcin Bachry</strong>.</p>
+</li>
+<li><p class="first">Issue #27744: socket: Fix memory leak in <tt class="docutils literal">sendmsg()</tt> and
+<tt class="docutils literal">sendmsg_afalg()</tt>.  Release <tt class="docutils literal">msg.msg_iov</tt> memory block. Release memory
+on <tt class="docutils literal">PyMem_Malloc(controllen)</tt> failure</p>
+</li>
+<li><p class="first">Issue #27866: ssl: Fix refleak in <tt class="docutils literal">cipher_to_dict()</tt>.</p>
+</li>
+<li><p class="first">Issue #28077: Fix dict type, <tt class="docutils literal">find_empty_slot()</tt> only supports combined
+dictionaries.</p>
+</li>
+<li><p class="first">Issue #28200: Fix memory leak in <tt class="docutils literal">path_converter()</tt>. Replace
+<tt class="docutils literal">PyUnicode_AsWideCharString()</tt> <tt class="docutils literal">with PyUnicode_AsUnicodeAndSize()</tt>.</p>
+</li>
+<li><p class="first">Issue #27955: Catch permission error (<tt class="docutils literal">EPERM</tt>) in <tt class="docutils literal">py_getrandom()</tt>.
+Fallback on reading from the <tt class="docutils literal">/dev/urandom</tt> device when the <tt class="docutils literal">getrandom()</tt>
+syscall fails with <tt class="docutils literal">EPERM</tt>, for example if blocked by SECCOMP.</p>
+</li>
+<li><p class="first">Issue #27778: Fix a memory leak in <tt class="docutils literal">os.getrandom()</tt> when the
+<tt class="docutils literal">getrandom()</tt> is interrupted by a signal and a signal handler raises a
+Python exception.</p>
+</li>
+<li><p class="first">Issue #28233: Fix <tt class="docutils literal">PyUnicode_FromFormatV()</tt> error handling. Fix a memory
+leak if the format string contains a non-ASCII character: destroy the unicode
+writer.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="regrtest-changes">
+<h2>regrtest changes</h2>
+<ul class="simple">
+<li>regrtest: rename <tt class="docutils literal"><span class="pre">--slow</span></tt> option to <tt class="docutils literal"><span class="pre">--slowest</span></tt> (to get same option name
+than the <tt class="docutils literal">testr</tt> tool). Thanks to optparse, --slow syntax still works ;-)
+Add --slowest option to buildbots. Display the top 10 slowest tests.</li>
+<li>regrtest: nicer output for durations. Use milliseconds and minutes units, not
+only seconds.</li>
+<li>regrtest: Add a summary of the tests at the end of tests output:
+&quot;Tests result: xxx&quot;. It was sometimes hard to check quickly if tests
+succeeded, failed or something bad happened.</li>
+<li>regrtest: accept options after test names. For example, <tt class="docutils literal">./python <span class="pre">-m</span> test
+test_os <span class="pre">-v</span></tt> runs <tt class="docutils literal">test_os</tt> in verbose mode. Before, regrtest tried to run
+a test called &quot;-v&quot;!</li>
+<li>Issue #28195: Fix <tt class="docutils literal">test_huntrleaks_fd_leak()</tt> of test_regrtest. Don't expect
+the fd leak message to be on a specific line number, just make sure that the
+line is present in the output.</li>
+</ul>
+<p>Example of a recent (2017-02-15) successful test run, truncated output:</p>
+<pre class="literal-block">
+...
+0:08:20 [403/404] test_codecs passed
+0:08:21 [404/404] test_threading passed
+391 tests OK.
+
+10 slowest tests:
+- test_multiprocessing_spawn: 1 min 24 sec
+- test_concurrent_futures: 1 min 3 sec
+- test_multiprocessing_forkserver: 60 sec
+...
+
+13 tests skipped:
+    test_devpoll test_ioctl test_kqueue ...
+
+Total duration: 8 min 22 sec
+Tests result: SUCCESS
+</pre>
+</div>
+<div class="section" id="tests-changes">
+<h2>Tests changes</h2>
+<ul>
+<li><p class="first">script_helper: kill the subprocess on error. If Popen.communicate() raises an
+exception, kill the child process to not leave a running child process in
+background and maybe create a zombi process. This change fixes a
+ResourceWarning in Python 3.6 when unit tests are interrupted by CTRL+c.</p>
+</li>
+<li><p class="first">Issue #27181: Skip test_statistics tests known to fail until a fix is found.</p>
+</li>
+<li><p class="first">Issue #18401: Fix test_pdb if $HOME is not set. HOME is not set on Windows
+for example.</p>
+</li>
+<li><p class="first">test_eintr: Fix <tt class="docutils literal">ResourceWarning</tt> warnings</p>
+</li>
+<li><p class="first">Buildbot: give 20 minute per test file. It seems like at least 2 buildbots
+need more than 15 minutes per test file.  Example with &quot;AMD64 Snow Leop 3.x&quot;:</p>
+<pre class="literal-block">
+10 slowest tests:
+- test_tools: 14 min 40 sec
+- test_tokenize: 11 min 57 sec
+- test_datetime: 11 min 25 sec
+- ...
+</pre>
+</li>
+<li><p class="first">Issue #28176: test_asynico: fix test_sock_connect_sock_write_race(), increase
+the timeout from 10 seconds to 60 seconds.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="other-changes">
+<h2>Other changes</h2>
+<ul class="simple">
+<li>Issue #22624: Python 3 now requires the <tt class="docutils literal">clock()</tt> function to build to
+simplify the C code.</li>
+<li>Issue #27404: tag security related changes with the &quot;[Security]&quot; prefix in
+the changelog Misc/NEWS.</li>
+<li>Issue #27776: <tt class="docutils literal">dev_urandom(raise=0)</tt> now closes the file descriptor on error</li>
+<li>Issue #27128, #18295: Use <tt class="docutils literal">Py_ssize_t</tt> in <tt class="docutils literal">_PyEval_EvalCodeWithName()</tt>.
+Replace <tt class="docutils literal">int</tt> type with <tt class="docutils literal">Py_ssize_t</tt> for index variables used for
+positional arguments.  It should help to avoid integer overflow and help to
+emit better machine code for <tt class="docutils literal">i++</tt> (no trap needed for overflow). Make also
+the <tt class="docutils literal">total_args</tt> variable constant.</li>
+<li>Fix &quot;make tags&quot;: set locale to C to call sort. vim expects that the tags file
+is sorted using english collation, so it fails if the locale is french for
+example. Use LC_ALL=C to force english sorting order. Issue #27726.</li>
+<li>Issue #27698: Add <tt class="docutils literal">socketpair</tt> function to <tt class="docutils literal">socket.__all__</tt> on Windows</li>
+<li>Issue #27786: Simplify (optimize?) PyLongObject private function <tt class="docutils literal">x_sub()</tt>:
+the <tt class="docutils literal">z</tt> variable is known to be a new object which cannot be shared,
+<tt class="docutils literal">Py_SIZE()</tt> can be used directly to negate the number.</li>
+<li>Fix a clang warning in grammar.c. Clang is smarter than GCC and emits a
+warning for dead code on a function declared with
+<tt class="docutils literal"><span class="pre">__attribute__((__noreturn__))</span></tt> (the <tt class="docutils literal">Py_FatalError()</tt> function in this
+case).</li>
+<li>Issue #28114: Add unit tests on <tt class="docutils literal"><span class="pre">os.spawn*()</span></tt> to prepare to fix a crash
+with bytes environment.</li>
+<li>Issue #28127: Add <tt class="docutils literal">_PyDict_CheckConsistency()</tt>: function checking that a
+dictionary remains consistent after any change. By default, only basic
+attributes are tested, table content is not checked because the impact on
+Python performance is too important. <tt class="docutils literal">DEBUG_PYDICT</tt> must be defined (ex:
+<tt class="docutils literal">gcc <span class="pre">-D</span> DEBUG_PYDICT</tt>) to check also dictionaries content.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/cpython-sprint-2016.html" rel="bookmark"
+                           title="Permalink to CPython sprint, september 2016">CPython sprint, september 2016</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-14T18:00:00+01:00">
                 Published: mar. 14 février 2017
@@ -33,92 +370,15 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>I was invited at my first CPython sprint in September! Five days, September
+</footer><!-- /.post-info -->                <p>I was invited at my first CPython sprint in September! Five days, September
 5-9, at Instagram office in California, USA. The sprint was sponsored by
 Instagram, Microsoft, and the PSF.</p>
 <p><strong>First little game:</strong> Many happy faces, but <em>Where is Victor?</em></p>
 <a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
-<p>IMHO it was the most productive CPython week ever :-) Having Guido van Rossum
-in a room helped to get many PEPs accepted. Having a lot of highly skilled
-reviewers in the same room helped to get many new features and many PEP
-implementations merged much faster than usual.</p>
-<p><strong>Second little game:</strong> try to spot the sprint on the CPython commit statistics of
-the last 12 months (Feb, 2016-Feb, 2017) ;-)</p>
-<a class="reference external image-reference" href="https://github.com/python/cpython/graphs/commit-activity"><img alt="CPython commits statistics" src="https://haypo.github.io/images/cpython_sprint_2016_commits.png" /></a>
-<div class="section" id="compact-dict">
-<h2>Compact dict</h2>
-<p>Issue #27350: I reviewed and pushed the &quot;compact dict&quot; implementation which
-makes Python dictionaries ordered (by insertion order) by default. It reduces
-the memory usage of dictionaries betwen 20% and 25%.</p>
-<p>The implementation was written by INADA Naoki, based on the PyPy
-implementation, with a design by Raymond Hettinger.</p>
-</div>
-<div class="section" id="fastcall">
-<h2>FASTCALL</h2>
-<p>&quot;Fast calls&quot;: Python 3.6 has a new private C API and a new METH_FASTCALL
-calling convention which avoids temporary tuple for positional arguments and
-avoids temporary dictionary for keyword arguments. Changes:</p>
-<ul class="simple">
-<li>Add a new C calling convention: METH_FASTCALL</li>
-<li>Add _PyArg_ParseStack() function</li>
-<li>Add _PyCFunction_FastCallKeywords() function: issue #27810</li>
-<li>Add _PyObject_FastCallKeywords() function: issue #27830</li>
-</ul>
-</div>
-<div class="section" id="more-efficient-call-function-bytecode">
-<h2>More efficient CALL_FUNCTION bytecode</h2>
-<p>I reviewed and pushed: &quot;Rework CALL_FUNCTION* opcodes to produce shorter and
-more efficient bytecode&quot; (issue #27213).</p>
-<p>Patch writen by Demur Rumed, design by Serhiy Storchaka, reviewed by Serhiy
-Storchaka and me.</p>
-</div>
-<div class="section" id="pep-509-add-a-private-version-to-dict">
-<h2>PEP 509: Add a private version to dict</h2>
-<p>Guido approved my PEP 509 &quot;Add a new private version to the builtin dict type&quot;.</p>
-<p>I pushed the implementation.</p>
-</div>
-<div class="section" id="pep-524-make-os-urandom-blocking-on-linux">
-<h2>PEP 524: Make os.urandom() blocking on Linux</h2>
-<p>I pushed the implementation of my PEP 524: &quot;Make os.urandom() blocking on
-Linux&quot;.</p>
-<p>Issue #27776: The os.urandom() function does now block on Linux 3.17 and newer
-until the system urandom entropy pool is initialized to increase the security.</p>
-<p>Read my previous blog post for the painful story behind the PEP:
-<a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux</a>.</p>
-</div>
-<div class="section" id="asynchronous-pep-525-and-530">
-<h2>Asynchronous PEP 525 and 530</h2>
-<p>Guido van Rossum approved two PEPs of Yury Selivanov:</p>
-<ul class="simple">
-<li>PEP 525: Asynchronous Generators</li>
-<li>PEP 530: Asynchronous Comprehensions</li>
-</ul>
-<p>I reviewed the huge C implementation with Yury on my side :-)</p>
-</div>
-<div class="section" id="unicode-escape-codec-optimization">
-<h2>unicode_escape codec optimization</h2>
-<p>I reviewed and pushed &quot;Optimize unicode_escape and raw_unicode_escape&quot; (the
-isue #16334), patch written by Serhiy Storchaka.</p>
-</div>
-<div class="section" id="python-3-6-bugfixes">
-<h2>Python 3.6 bugfixes</h2>
-<p>I happily found many issues including a major one: regular list-comprehension
-were completely broken :-)</p>
-<p>Another minor issue: SyntaxError didn't reported the correct line number in a
-specific case.</p>
-<p>Don't worry, Yury fixed both ;-)</p>
-</div>
-<div class="section" id="official-sprint-report">
-<h2>Official sprint report</h2>
-<p>Read also the official report: <a class="reference external" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html">Python Core Development Sprint 2016: 3.6 and
-beyond!</a>.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p>IMHO it was the most productive CPython week ever :-) Having ...</p>
+                <a class="readmore" href="https://haypo.github.io/cpython-sprint-2016.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -322,29 +582,6 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 </footer><!-- /.post-info -->                <p class="first last">History of the Python private C API _PyTime</p>
 
                 <a class="readmore" href="https://haypo.github.io/pytime.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="bookmark"
-                           title="Permalink to Status of the FAT Python project, January 12, 2016">Status of the FAT Python project, January 12, 2016</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-01-12T13:42:00+01:00">
-                Published: mar. 12 janvier 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/fatpython.html">fatpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, January 12, 2016</p>
-
-                <a class="readmore" href="https://haypo.github.io/fat-python-status-janv12-2016.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
