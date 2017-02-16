@@ -1,5 +1,346 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-14T19:00:00+01:00</updated><entry><title>My contributions to CPython during 2016 Q3</title><link href="https://haypo.github.io/contrib-cpython-2016q3.html" rel="alternate"></link><published>2017-02-14T19:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:contrib-cpython-2016q3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q3
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-16T11:00:00+01:00</updated><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
+(october, november, december):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to CPython during 2016 Q3&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Table of Contents:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Python startup performance regression&lt;/li&gt;
+&lt;li&gt;Optimizations&lt;/li&gt;
+&lt;li&gt;Code placement and __attribute__((hot))&lt;/li&gt;
+&lt;li&gt;Interesting bug: duplicated filters when tests reload the warnings module&lt;/li&gt;
+&lt;li&gt;Contributions&lt;/li&gt;
+&lt;li&gt;regrtest&lt;/li&gt;
+&lt;li&gt;Other changes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="python-startup-performance-regression"&gt;
+&lt;h2&gt;Python startup performance regression&lt;/h2&gt;
+&lt;div class="section" id="regresion"&gt;
+&lt;h3&gt;Regresion&lt;/h3&gt;
+&lt;p&gt;My work on tracking Python performances started to become useful :-) I
+identified a performance slowdown on the &lt;tt class="docutils literal"&gt;bm_python_startup&lt;/tt&gt; benchmark
+(average time to start Python).&lt;/p&gt;
+&lt;p&gt;Before September 2016, the start took around &lt;strong&gt;17.9 ms&lt;/strong&gt;. At September 15,
+after the  &lt;a class="reference external" href="https://haypo.github.io/cpython-sprint-2016.html"&gt;CPython sprint&lt;/a&gt;, it was
+better: &lt;strong&gt;13.4 ms&lt;/strong&gt;. But suddenly, at september 19, it became much worse:
+&lt;strong&gt;22.8 ms&lt;/strong&gt;. What happened?&lt;/p&gt;
+&lt;p&gt;Timeline of Python startup performance on speed.python.org:&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;amp;ben=python_startup&amp;amp;env=1&amp;amp;revs=50&amp;amp;equid=off&amp;amp;quarts=on&amp;amp;extr=on"&gt;&lt;img alt="Timeline of Python startup performance" src="https://haypo.github.io/images/python_startup_regression.png" /&gt;&lt;/a&gt;
+&lt;p&gt;I looked at commits between September 15 and September 19, and I quickly
+identified the commit of the &lt;a class="reference external" href="http://bugs.python.org/issue28082"&gt;convert re flags to (much
+friendlier) IntFlag constants (issue #28082)&lt;/a&gt;. The &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; module now imports the
+&lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; module to get a better representation for their flags.  Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python
+Python 3.7.0a0
+&amp;gt;&amp;gt;&amp;gt; import re; re.M
+&amp;lt;RegexFlag.MULTILINE: 8&amp;gt;
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="revert"&gt;
+&lt;h3&gt;Revert&lt;/h3&gt;
+&lt;p&gt;At November 7, I opened the issue #28637 to propose to revert the commit to get
+back better Python startup performance. The revert was approved by Guido van
+Rossum, so I pushed it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="better-fix"&gt;
+&lt;h3&gt;Better fix&lt;/h3&gt;
+&lt;p&gt;I also noticed that the &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; module is not imported by default if Python is
+installed or if Python is run from its source code directory. The &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; module
+is only imported by default if Python is installed in a virtual environment.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; proposed a change to not import &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; anymore in the
+&lt;tt class="docutils literal"&gt;site&lt;/tt&gt; module when Python runs into a virutal environment. Since the benefit
+was obvious (avoid an import at startup) and simple, it was quickly merged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="restore-reverted-enum-change"&gt;
+&lt;h3&gt;Restore reverted enum change&lt;/h3&gt;
+&lt;p&gt;Since using &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; has no more impact on Python startup
+performance by default, the &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; change was restored at November 14.&lt;/p&gt;
+&lt;p&gt;Sadly, the &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; change still have an impact on performance:
+&lt;tt class="docutils literal"&gt;re.compile()&lt;/tt&gt; became 1.2x slower (312 ms =&amp;gt; 376 ms: +20%).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;amp;ben=regex_compile&amp;amp;env=1&amp;amp;revs=50&amp;amp;equid=off&amp;amp;quarts=on&amp;amp;extr=on"&gt;&lt;img alt="Timeline of re.compile() performance" src="https://haypo.github.io/images/regex_compile_perf.png" /&gt;&lt;/a&gt;
+&lt;p&gt;I think that it's ok since it is very easy to use precompiled regular
+expressions in an application: store and reuse the result of &lt;tt class="docutils literal"&gt;re.compile()&lt;/tt&gt;,
+instead of calling directly &lt;tt class="docutils literal"&gt;re.match()&lt;/tt&gt; for example.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="optimizations"&gt;
+&lt;h2&gt;Optimizations&lt;/h2&gt;
+&lt;div class="section" id="fastcall"&gt;
+&lt;h3&gt;FASTCALL&lt;/h3&gt;
+&lt;p&gt;Same than 2016 Q3: I pushed a &lt;em&gt;lot&lt;/em&gt; of changes for FASTCALL optimizations, but
+I will write a dedicated article later.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="no-int-int-micro-optimization-thank-you"&gt;
+&lt;h3&gt;No int+int micro-optimization, thank you&lt;/h3&gt;
+&lt;p&gt;After 2 years of benchmarking and a huge effort of making Python benchmarks more
+reliable and stable, I decided to close the issue #21955 &amp;quot;ceval.c: implement
+fast path for integers with a single digit&amp;quot; as REJECTED. It became clear to me
+that such micro-optimization has no effect on non-trivial code, but only on
+specially crafted micro-benchmarks. I added a comment in the C code to prevent
+further optimizations attempts:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* NOTE(haypo): Please don't try to micro-optimize int+int on
+   CPython using bytecode, it is simply worthless.
+   See http://bugs.python.org/issue21955 and
+   http://bugs.python.org/issue10044 for the discussion. In short,
+   no patch shown any impact on a realistic benchmark, only a minor
+   speedup on microbenchmarks. */
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="timeit"&gt;
+&lt;h3&gt;timeit&lt;/h3&gt;
+&lt;p&gt;I enhanced the &lt;tt class="docutils literal"&gt;timeit&lt;/tt&gt; benchmark module to make it more reliable (issue
+#28240):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Autorange now starts with a single loop iteration instead of 10. For example,
+&lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-m&lt;/span&gt; timeit &lt;span class="pre"&gt;-s&lt;/span&gt; 'import time' 'time.sleep(1)'&lt;/tt&gt; now only takes 4
+seconds instead of 40 seconds.&lt;/li&gt;
+&lt;li&gt;Repeat the benchmarks 5 times by default, instead of only 3, to make
+benchmarks more reliable.&lt;/li&gt;
+&lt;li&gt;Remove &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-c/--clock&lt;/span&gt;&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-t/--time&lt;/span&gt;&lt;/tt&gt; command line options which were
+deprecated since Python 3.3.&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;nsec&lt;/tt&gt; (nanosecond) unit to format timings&lt;/li&gt;
+&lt;li&gt;Enhance formatting of raw timings in verbose mode. Add newlines to the output
+for readability.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="micro-optimizations"&gt;
+&lt;h3&gt;Micro-optimizations&lt;/h3&gt;
+&lt;p&gt;I also pushed two minor micro-optimizations:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Use &lt;tt class="docutils literal"&gt;PyThreadState_GET()&lt;/tt&gt; macro in performance critical code.
+&lt;tt class="docutils literal"&gt;_PyThreadState_UncheckedGet()&lt;/tt&gt; calls are not inlined as expected, even
+when using &lt;tt class="docutils literal"&gt;gcc &lt;span class="pre"&gt;-O3&lt;/span&gt;&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Modify &lt;tt class="docutils literal"&gt;type_setattro()&lt;/tt&gt; to call directly
+&lt;tt class="docutils literal"&gt;_PyObject_GenericSetAttrWithDict()&lt;/tt&gt; instead of
+&lt;tt class="docutils literal"&gt;PyObject_GenericSetAttr()&lt;/tt&gt;. &lt;tt class="docutils literal"&gt;PyObject_GenericSetAttr()&lt;/tt&gt; is a thin
+wrapper to &lt;tt class="docutils literal"&gt;_PyObject_GenericSetAttrWithDict()&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="code-placement-and-attribute-hot"&gt;
+&lt;h2&gt;Code placement and __attribute__((hot))&lt;/h2&gt;
+&lt;p&gt;On &lt;a class="reference external" href="https://speed.python.org/"&gt;speed.python.org&lt;/a&gt;, I still noticed random
+performance slowdowns on the evil &lt;tt class="docutils literal"&gt;call_simple&lt;/tt&gt; benchmark. This benchmark is
+a &lt;em&gt;micro&lt;/em&gt;-benchmark measuring the performance of a single Python function call,
+it is CPU-bound and very small and so impact by CPU caches. I was bitten again
+by significant performance slowdown only caused by code placement.&lt;/p&gt;
+&lt;p&gt;It wasn't possible to use &lt;em&gt;Profiled Guided Optimization&lt;/em&gt; (PGO) on the benchmark
+runner, since it used Ubuntu 14.04 and GCC crashed with an &amp;quot;internal error&amp;quot;.&lt;/p&gt;
+&lt;p&gt;So I tried something different: mark &amp;quot;hot functions&amp;quot; with
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;__attribute__((hot))&lt;/span&gt;&lt;/tt&gt;. It's a GCC and Clang attribute helping code
+placements: &amp;quot;hot functions&amp;quot; are moved to a dedicated ELF section and so are
+closer in memory, and the compiler tries to optimize these functions even more.&lt;/p&gt;
+&lt;p&gt;The following functions are considered as hot according to statistics collected
+by Linux &lt;tt class="docutils literal"&gt;perf record&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;perf report&lt;/tt&gt; commands:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;_PyEval_EvalFrameDefault()&lt;/li&gt;
+&lt;li&gt;call_function()&lt;/li&gt;
+&lt;li&gt;_PyFunction_FastCall()&lt;/li&gt;
+&lt;li&gt;PyFrame_New()&lt;/li&gt;
+&lt;li&gt;frame_dealloc()&lt;/li&gt;
+&lt;li&gt;PyErr_Occurred()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I added a &lt;tt class="docutils literal"&gt;_Py_HOT_FUNCTION&lt;/tt&gt; macro which uses &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;__attribute__((hot))&lt;/span&gt;&lt;/tt&gt; and
+used &lt;tt class="docutils literal"&gt;_Py_HOT_FUNCTION&lt;/tt&gt; on these functions (issue #28618).&lt;/p&gt;
+&lt;p&gt;Read also my previous blog article &lt;a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html"&gt;Analysis of a Python performance issue&lt;/a&gt; for a deeper analysis.&lt;/p&gt;
+&lt;p&gt;Sadly, after I wrote this blog post and after more analysis of &lt;tt class="docutils literal"&gt;call_simple&lt;/tt&gt;
+benchmark results, I saw that &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;__attribute__((hot))&lt;/span&gt;&lt;/tt&gt; wasn't enough. I still
+had random major performance slowdown.&lt;/p&gt;
+&lt;p&gt;I dediced to upgrade the performance runner to Ubuntu 16.04. It was dangerous
+because nobody has access to the physical server, so it may takes weeks to
+repair it if I did a mistake. Hopefully, the upgrade gone smoothly and I was
+able to run again all benchmarks using PGO. As expected, using PGO+LTO,
+benchmark results are more stable!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="interesting-bug-duplicated-filters-when-tests-reload-the-warnings-module"&gt;
+&lt;h2&gt;Interesting bug: duplicated filters when tests reload the warnings module&lt;/h2&gt;
+&lt;p&gt;Python test suite has an old bug: the issue #18383 opened in July 2013.
+Sometimes, the test suite emits the following warning:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+[247/375] test_warnings
+Warning -- warnings.filters was modified by test_warnings
+&lt;/pre&gt;
+&lt;p&gt;Since it's only a warning and it only occurs in the Python test suite, it was a
+low priority and took 3 years to be fixed! It also took time to find the right
+design to fix the root cause.&lt;/p&gt;
+&lt;div class="section" id="duplicated-filters"&gt;
+&lt;h3&gt;Duplicated filters&lt;/h3&gt;
+&lt;p&gt;test_warnings imports the &lt;tt class="docutils literal"&gt;warnings&lt;/tt&gt; module 3 times:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+import warnings as original_warnings   # Python
+py_warnings = support.import_fresh_module('warnings', blocked=['_warnings'])  # Python
+c_warnings = support.import_fresh_module('warnings', fresh=['_warnings'])   # C
+&lt;/pre&gt;
+&lt;p&gt;The Python &lt;tt class="docutils literal"&gt;warnings&lt;/tt&gt; module (&lt;tt class="docutils literal"&gt;Lib/warnings.py&lt;/tt&gt;) installs warning filters
+when the module is loaded:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+_processoptions(sys.warnoptions)
+&lt;/pre&gt;
+&lt;p&gt;where &lt;tt class="docutils literal"&gt;sys.warnoptions&lt;/tt&gt; contains the value of the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-W&lt;/span&gt;&lt;/tt&gt; command line option.&lt;/p&gt;
+&lt;p&gt;If the Python module is loaded more than once, filters are duplicated.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-fix-use-the-right-module"&gt;
+&lt;h3&gt;First fix: use the right module&lt;/h3&gt;
+&lt;p&gt;I pushed a first fix in september 2015.&lt;/p&gt;
+&lt;p&gt;Fix test_warnings: don't modify warnings.filters. BaseTest now ensures that
+unittest.TestCase.assertWarns() uses the same warnings module than
+warnings.catch_warnings(). Otherwise, warnings.catch_warnings() will be unable
+to remove the added filter.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="second-fix-don-t-add-duplicated-filters"&gt;
+&lt;h3&gt;Second fix: don't add duplicated filters&lt;/h3&gt;
+&lt;p&gt;Issue #18383: the first patch was proposed by &lt;strong&gt;Florent Xicluna&lt;/strong&gt; in 2013: save
+the length of filters, and remove newly added filters after &lt;tt class="docutils literal"&gt;warnings&lt;/tt&gt;
+modules are reloaded by &lt;tt class="docutils literal"&gt;test_warnings&lt;/tt&gt;. December 2014, &lt;strong&gt;Serhiy Storchaka&lt;/strong&gt;
+reviewed the patch: he didn't like this &lt;em&gt;workaround&lt;/em&gt;, he would like to fix the
+&lt;em&gt;root cause&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;March 2015, &lt;strong&gt;Alex Shkop&lt;/strong&gt; proposed a patch which avoids to add duplicated
+filters.&lt;/p&gt;
+&lt;p&gt;September 2015, &lt;strong&gt;Martin Panter&lt;/strong&gt; proposed to try to save/restore filters on
+the C warnings module. I proposed something similar in the issue #26742. But
+this solution has the same flaw that Florent's idea: it's only a workaround.&lt;/p&gt;
+&lt;p&gt;Martin also proposed add a private flag to say that filters were already set to
+not try to add again same filters.&lt;/p&gt;
+&lt;p&gt;Finally, in may 2016, Martin updated Alex's patch avoiding duplicated filters
+and pushed it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="third-fix"&gt;
+&lt;h3&gt;Third fix&lt;/h3&gt;
+&lt;p&gt;The filter comparisons wasn't perfect. A filter can be made of a precompiled
+regular expression, whereas these objects don't implement comparison.&lt;/p&gt;
+&lt;p&gt;November 2016, I opened the issue #28727 to propose to implement rich
+comparison for &lt;tt class="docutils literal"&gt;_sre.SRE_Pattern&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;My first patch didn't implement &lt;tt class="docutils literal"&gt;hash()&lt;/tt&gt; and had different bugs. It took me
+almost one week and 6 versions to write complete unit tests and handle all
+cases: support bytes and Unicode and handle regular expression flags.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; found bugs and helps me to write the implementation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="contributions"&gt;
+&lt;h2&gt;Contributions&lt;/h2&gt;
+&lt;p&gt;As usual, I reviewed and pushed changes written by other contributors:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #27896: Allow passing sphinx options to Doc/Makefile. Patch written by
+&lt;strong&gt;Julien Palard&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #28476: Reuse math.factorial() in test_random.
+Patch written by &lt;strong&gt;Francisco Couzo&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #28479: Fix reST syntax in windows.rst. Patch written by &lt;strong&gt;Julien Palard&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #26273: Add new constants: &lt;tt class="docutils literal"&gt;socket.TCP_CONGESTION&lt;/tt&gt; (Linux 2.6.13) and
+&lt;tt class="docutils literal"&gt;socket.TCP_USER_TIMEOUT&lt;/tt&gt; (Linux 2.6.37).
+Patch written by &lt;strong&gt;Omar Sandoval&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #28979: Fix What's New in Python 3.6: compact dict is not faster, but
+only more compact. Patch written by &lt;strong&gt;Brendan Donegan&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #28147: Fix a memory leak in split-table dictionaries: &lt;tt class="docutils literal"&gt;setattr()&lt;/tt&gt;
+must not convert combined table into split table.
+Patch written by &lt;strong&gt;INADA Naoki&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;Issue #29109: Enhance tracemalloc documentation:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Wrong parameter name, 'group_by' instead of 'key_type'&lt;/li&gt;
+&lt;li&gt;Don't round up numbers when explaining the examples. If they exactly match
+what can be read in the script output, it is to easier to understand
+(4.8 MiB vs 4855 KiB)&lt;/li&gt;
+&lt;li&gt;Fix incorrect method link that was pointing to another module&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Patch written by &lt;strong&gt;Loic Pefferkorn&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regrtest"&gt;
+&lt;h2&gt;regrtest&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;regrtest &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--fromfile&lt;/span&gt;&lt;/tt&gt; now accepts a list of filenames, not only a list of
+&lt;em&gt;test&lt;/em&gt; names.&lt;/li&gt;
+&lt;li&gt;Issue #28409: regrtest: fix the parser of command line arguments.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="other-changes"&gt;
+&lt;h2&gt;Other changes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Fix &lt;tt class="docutils literal"&gt;_Py_normalize_encoding()&lt;/tt&gt; function: It was not exactly the same than
+Python &lt;tt class="docutils literal"&gt;encodings.normalize_encoding()&lt;/tt&gt;: the C function now also converts
+to lowercase.&lt;/li&gt;
+&lt;li&gt;Issue #28256: Cleanup &lt;tt class="docutils literal"&gt;_math.c&lt;/tt&gt;: only define fallback implementations when
+needed. It avoids producing deadcode when the system provides required math
+functions, and so enhance the code coverage.&lt;/li&gt;
+&lt;li&gt;_csv: use &lt;tt class="docutils literal"&gt;_PyLong_AsInt()&lt;/tt&gt; to simplify the code, the function checks for
+the limits of the C &lt;tt class="docutils literal"&gt;int&lt;/tt&gt; type.&lt;/li&gt;
+&lt;li&gt;Issue #28544: Fix &lt;tt class="docutils literal"&gt;_asynciomodule.c&lt;/tt&gt; on Windows. &lt;tt class="docutils literal"&gt;PyType_Ready()&lt;/tt&gt; sets
+the reference to &lt;tt class="docutils literal"&gt;&amp;amp;PyType_Type&lt;/tt&gt;. &lt;tt class="docutils literal"&gt;&amp;amp;PyType_Type&lt;/tt&gt; address cannot be
+resolved at compilation time (not on Windows?).&lt;/li&gt;
+&lt;li&gt;Issue #28082: Add basic unit tests on the new &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; enums.&lt;/li&gt;
+&lt;li&gt;Issue #28691: Fix &lt;tt class="docutils literal"&gt;warn_invalid_escape_sequence()&lt;/tt&gt;: handle correctly
+&lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; raised as an exception. First clear the current
+exception to replace the &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; exception with a
+&lt;tt class="docutils literal"&gt;SyntaxError&lt;/tt&gt; exception. Unit test written by &lt;strong&gt;Serhiy Storchaka&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;Issue #28023: Fix python-gdb.py on old GDB versions. Replace
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;int(value.address)+offset&lt;/span&gt;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;value.cast(unsigned &lt;span class="pre"&gt;char*)+offset&lt;/span&gt;&lt;/tt&gt;.
+It seems like &lt;tt class="docutils literal"&gt;int(value.address)&lt;/tt&gt; fails on old GDB versions.&lt;/li&gt;
+&lt;li&gt;Issue #28765: &lt;tt class="docutils literal"&gt;_sre.compile()&lt;/tt&gt; now checks the type of &lt;tt class="docutils literal"&gt;groupindex&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;indexgroup&lt;/tt&gt; arguments. &lt;tt class="docutils literal"&gt;groupindex&lt;/tt&gt; must a dictionary and &lt;tt class="docutils literal"&gt;indexgroup&lt;/tt&gt;
+must be a tuple.  Previously, &lt;tt class="docutils literal"&gt;indexgroup&lt;/tt&gt; was a list. Use a tuple to
+reduce the memory usage.&lt;/li&gt;
+&lt;li&gt;Issue #28782: Fix a bug in the implementation &lt;tt class="docutils literal"&gt;yield from&lt;/tt&gt;
+(fix &lt;tt class="docutils literal"&gt;_PyGen_yf()&lt;/tt&gt; function). Fix the test checking if the next instruction
+is &lt;tt class="docutils literal"&gt;YIELD_FROM&lt;/tt&gt;.  Regression introduced by the new &amp;quot;WordCode&amp;quot; bytecode
+(issue #26647). Fix reviewed by &lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; and &lt;strong&gt;Yury Selivanov&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;Issue #28792: Remove aliases from &lt;tt class="docutils literal"&gt;_bisect&lt;/tt&gt;. Remove aliases from the C
+module.  Always implement &lt;tt class="docutils literal"&gt;bisect()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;insort()&lt;/tt&gt; aliases in
+&lt;tt class="docutils literal"&gt;bisect.py&lt;/tt&gt;.  Remove also the &lt;tt class="docutils literal"&gt;# backward compatibility&lt;/tt&gt; comment: there
+is no plan to deprecate nor remove these aliases. When keys are equal, it
+makes sense to use &lt;tt class="docutils literal"&gt;bisect.bisect()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;bisect.insort()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Fix a &lt;tt class="docutils literal"&gt;ResourceWarning&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;generate_opcode_h.py&lt;/tt&gt;. Use a context manager
+to close the Python file. Replace also &lt;tt class="docutils literal"&gt;open()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;tokenize.open()&lt;/tt&gt; to
+handle coding cookie of &lt;tt class="docutils literal"&gt;Lib/opcode.py&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Issue #28740: Add &lt;tt class="docutils literal"&gt;sys.getandroidapilevel()&lt;/tt&gt; function: return the build
+time API version of Android as an integer. Function only available on
+Android. The availability of this function can be tested to check if Python
+is running on Android.&lt;/li&gt;
+&lt;li&gt;Issue #28152: Fix &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-Wunreachable-code&lt;/span&gt;&lt;/tt&gt; warnings on Clang.&lt;ul&gt;
+&lt;li&gt;Don't declare dead code when the code is compiled with Clang.&lt;/li&gt;
+&lt;li&gt;Replace C &lt;tt class="docutils literal"&gt;if()&lt;/tt&gt; with precompiler &lt;tt class="docutils literal"&gt;#if&lt;/tt&gt; to fix a warning on dead code
+when using Clang.&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;(0)&lt;/tt&gt; to ignore a compiler warning about dead code on
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;((int)(SEM_VALUE_MAX)&lt;/span&gt; &amp;lt; 0)&lt;/tt&gt;: &lt;tt class="docutils literal"&gt;SEM_VALUE_MAX&lt;/tt&gt; is not negative on Linux.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Issue #28835: Fix a regression introduced in &lt;tt class="docutils literal"&gt;warnings.catch_warnings()&lt;/tt&gt;:
+call &lt;tt class="docutils literal"&gt;warnings.showwarning()&lt;/tt&gt; if it was overriden inside the context
+manager.&lt;/li&gt;
+&lt;li&gt;Issue #28915: Replace &lt;tt class="docutils literal"&gt;int&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_ssize_t&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;modsupport&lt;/tt&gt;.
+&lt;tt class="docutils literal"&gt;Py_ssize_t&lt;/tt&gt; type is better for indexes. The compiler might emit more
+efficient code for &lt;tt class="docutils literal"&gt;i++&lt;/tt&gt;. &lt;tt class="docutils literal"&gt;Py_ssize_t&lt;/tt&gt; is the type of a PyTuple index for
+example. Replace also &lt;tt class="docutils literal"&gt;int endchar&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;char endchar&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Initialize variables to fix compiler warnings. Warnings seen on the &amp;quot;AMD64
+Debian PGO 3.x&amp;quot; buildbot. Warnings are false positive, but variable
+initialization should not harm performances.&lt;/li&gt;
+&lt;li&gt;Remove useless variable initialization. Don't initialize variables which are
+not used before they are assigned.&lt;/li&gt;
+&lt;li&gt;Issue #28838: Cleanup &lt;tt class="docutils literal"&gt;abstract.h&lt;/tt&gt;. Rewrite all comments to use the same style
+than other Python header files: comment functions &lt;em&gt;before&lt;/em&gt; their declaration,
+no newline between the comment and the declaration. Reformat some comments,
+add newlines, to make them easier to read. Quote argument like 'arg' to
+mention an argument in a comment.&lt;/li&gt;
+&lt;li&gt;Issue #28838: &lt;tt class="docutils literal"&gt;abstract.h&lt;/tt&gt;: remove long outdated comment. The documentation
+of the Python C API is more complete and more up to date than this old
+comment. Removal suggested by &lt;strong&gt;Antoine Pitrou&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;python-gdb.py: catch &lt;tt class="docutils literal"&gt;gdb.error&lt;/tt&gt; on &lt;tt class="docutils literal"&gt;gdb.selected_frame()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Issue #28383: &lt;tt class="docutils literal"&gt;__hash__&lt;/tt&gt; documentation recommends naive XOR to combine, but
+this is suboptimal. Update the documentation to suggest to reuse the
+&lt;tt class="docutils literal"&gt;hash()&lt;/tt&gt; function on a tuple, with an example.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q3</title><link href="https://haypo.github.io/contrib-cpython-2016q3.html" rel="alternate"></link><published>2017-02-14T19:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:contrib-cpython-2016q3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q3
 (july, august, september):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-07-01&amp;quot;):date(&amp;quot;2016-09-30&amp;quot;)' --no-merges -u Stinner
