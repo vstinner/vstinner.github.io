@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>The start of the FASTCALL project</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/start-fastcall-project.html" rel="bookmark"
+           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-16T17:00:00+01:00">
+                Published: jeu. 16 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <div class="section" id="false-start">
+<h2>False start</h2>
+<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
+functions. Builtin functions were between 20 and 50% faster!</p>
+<p>Sadly, some benchmarks were randomy slower. It will take me four months to
+understand why!</p>
+</div>
+<div class="section" id="work-on-benchmarks">
+<h2>Work on benchmarks</h2>
+<p>During four months, I worked on making benchmarks more stable. See my previous
+blog posts:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">My journey to stable benchmark, part 1 (system)</a> (May 21, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">My journey to stable benchmark, part 2 (deadcode)</a> (May 22, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a> (May 23, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">Visualize the system noise using perf and CPU isolation</a> (June 16, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/intel-cpus.html">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a> (July 15, 2015)</li>
+<li><a class="reference external" href="https://haypo.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a>
+(September 23, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a>
+(November 19, 2016)</li>
+<li>...</li>
+</ul>
+<p>See my talk <a class="reference external" href="https://fosdem.org/2017/schedule/event/python_stable_benchmark/">How to run a stable benchmark</a> that I gave
+at FOSDEM 2017 (Brussels, Belgium): slides + video. I listed all the issues
+that I had to get reliable benchmarks.</p>
+</div>
+<div class="section" id="ask-for-permission">
+<h2>Ask for permission</h2>
+<p>August 2016, I
+confirmed that my change didn't introduce any slowndown. So I asked for the
+permission on the python-dev mailing list to start pushing changes: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-August/145793.html">New
+calling convention to avoid temporarily tuples when calling functions</a>.</p>
+<p>Guido van Rossum asked me for benchmark results:</p>
+<blockquote>
+But is there a performance improvement?</blockquote>
+</div>
+<div class="section" id="benchmark-results">
+<h2>Benchmark results</h2>
+<p>On micro-benchmarks, FASTCALL is much faster:</p>
+<ul class="simple">
+<li><tt class="docutils literal">getattr(1, &quot;real&quot;)</tt> becomes <strong>44%</strong> faster</li>
+<li><tt class="docutils literal">list(filter(lambda x: x, <span class="pre">list(range(1000))))</span></tt> becomes <strong>31%</strong> faster</li>
+<li><tt class="docutils literal">namedtuple.attr</tt> (read the attribute) becomes <strong>23%</strong> faster</li>
+<li>...</li>
+</ul>
+<p>Full results:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue26814#msg263999">FASTCALL compared to Python 3.6 (default branch)</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue26814#msg264003">2.7 / 3.4 / 3.5 / 3.6 / 3.6 FASTCALL comparison</a></li>
+</ul>
+<p>On the <a class="reference external" href="https://bugs.python.org/issue26814#msg266359">CPython benchmark suite</a>, I also saw many faster
+benchmarks:</p>
+<ul class="simple">
+<li>pickle_list: <strong>1.29x faster</strong></li>
+<li>etree_generate: <strong>1.22x faster</strong></li>
+<li>pickle_dict: <strong>1.19x faster</strong></li>
+<li>etree_process: <strong>1.16x faster</strong></li>
+<li>mako_v2: <strong>1.13x faster</strong></li>
+<li>telco: <strong>1.09x faster</strong></li>
+<li>...</li>
+</ul>
+</div>
+<div class="section" id="replies-to-my-email">
+<h2>Replies to my email</h2>
+<p>I got two very positive replies, so I understood that it was ok.</p>
+<p>Brett Canon:</p>
+<blockquote>
+I just wanted to say I'm excited about this and I'm glad someone is taking
+advantage of what Argument Clinic allows for and what I know Larry had
+initially hoped AC would make happen!</blockquote>
+<p>Yury Selivanov:</p>
+<blockquote>
+Exceptional results, congrats Victor. Will be happy to help with code
+review.</blockquote>
+</div>
+<div class="section" id="real-start">
+<h2>Real start</h2>
+<p>That's how the FASTCALL began for real! I started to push a long serie of
+patches adding new private functions and then modify code to call these new
+functions.</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

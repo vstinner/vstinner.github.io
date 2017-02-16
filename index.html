@@ -22,7 +22,113 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2016q4.html">My contributions to CPython during 2016 Q4</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/start-fastcall-project.html">The start of the FASTCALL project</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-16T17:00:00+01:00">
+                Published: jeu. 16 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><div class="section" id="false-start">
+<h2>False start</h2>
+<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
+functions. Builtin functions were between 20 and 50% faster!</p>
+<p>Sadly, some benchmarks were randomy slower. It will take me four months to
+understand why!</p>
+</div>
+<div class="section" id="work-on-benchmarks">
+<h2>Work on benchmarks</h2>
+<p>During four months, I worked on making benchmarks more stable. See my previous
+blog posts:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">My journey to stable benchmark, part 1 (system)</a> (May 21, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">My journey to stable benchmark, part 2 (deadcode)</a> (May 22, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a> (May 23, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">Visualize the system noise using perf and CPU isolation</a> (June 16, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/intel-cpus.html">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a> (July 15, 2015)</li>
+<li><a class="reference external" href="https://haypo.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a>
+(September 23, 2016)</li>
+<li><a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a>
+(November 19, 2016)</li>
+<li>...</li>
+</ul>
+<p>See my talk <a class="reference external" href="https://fosdem.org/2017/schedule/event/python_stable_benchmark/">How to run a stable benchmark</a> that I gave
+at FOSDEM 2017 (Brussels, Belgium): slides + video. I listed all the issues
+that I had to get reliable benchmarks.</p>
+</div>
+<div class="section" id="ask-for-permission">
+<h2>Ask for permission</h2>
+<p>August 2016, I
+confirmed that my change didn't introduce any slowndown. So I asked for the
+permission on the python-dev mailing list to start pushing changes: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-August/145793.html">New
+calling convention to avoid temporarily tuples when calling functions</a>.</p>
+<p>Guido van Rossum asked me for benchmark results:</p>
+<blockquote>
+But is there a performance improvement?</blockquote>
+</div>
+<div class="section" id="benchmark-results">
+<h2>Benchmark results</h2>
+<p>On micro-benchmarks, FASTCALL is much faster:</p>
+<ul class="simple">
+<li><tt class="docutils literal">getattr(1, &quot;real&quot;)</tt> becomes <strong>44%</strong> faster</li>
+<li><tt class="docutils literal">list(filter(lambda x: x, <span class="pre">list(range(1000))))</span></tt> becomes <strong>31%</strong> faster</li>
+<li><tt class="docutils literal">namedtuple.attr</tt> (read the attribute) becomes <strong>23%</strong> faster</li>
+<li>...</li>
+</ul>
+<p>Full results:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue26814#msg263999">FASTCALL compared to Python 3.6 (default branch)</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue26814#msg264003">2.7 / 3.4 / 3.5 / 3.6 / 3.6 FASTCALL comparison</a></li>
+</ul>
+<p>On the <a class="reference external" href="https://bugs.python.org/issue26814#msg266359">CPython benchmark suite</a>, I also saw many faster
+benchmarks:</p>
+<ul class="simple">
+<li>pickle_list: <strong>1.29x faster</strong></li>
+<li>etree_generate: <strong>1.22x faster</strong></li>
+<li>pickle_dict: <strong>1.19x faster</strong></li>
+<li>etree_process: <strong>1.16x faster</strong></li>
+<li>mako_v2: <strong>1.13x faster</strong></li>
+<li>telco: <strong>1.09x faster</strong></li>
+<li>...</li>
+</ul>
+</div>
+<div class="section" id="replies-to-my-email">
+<h2>Replies to my email</h2>
+<p>I got two very positive replies, so I understood that it was ok.</p>
+<p>Brett Canon:</p>
+<blockquote>
+I just wanted to say I'm excited about this and I'm glad someone is taking
+advantage of what Argument Clinic allows for and what I know Larry had
+initially hoped AC would make happen!</blockquote>
+<p>Yury Selivanov:</p>
+<blockquote>
+Exceptional results, congrats Victor. Will be happy to help with code
+review.</blockquote>
+</div>
+<div class="section" id="real-start">
+<h2>Real start</h2>
+<p>That's how the FASTCALL began for real! I started to push a long serie of
+patches adding new private functions and then modify code to call these new
+functions.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2016 Q4">My contributions to CPython during 2016 Q4</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-16T11:00:00+01:00">
                 Published: jeu. 16 février 2017
@@ -33,7 +139,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q4
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q4
 (october, november, december):</p>
 <pre class="literal-block">
 hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merges -u Stinner
@@ -44,342 +150,10 @@ hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merge
 <ul class="simple">
 <li>Python startup performance regression</li>
 <li>Optimizations</li>
-<li>Code placement and __attribute__((hot))</li>
-<li>Interesting bug: duplicated filters when tests reload the warnings module</li>
-<li>Contributions</li>
-<li>regrtest</li>
-<li>Other changes</li>
-</ul>
-<div class="section" id="python-startup-performance-regression">
-<h2>Python startup performance regression</h2>
-<div class="section" id="regresion">
-<h3>Regresion</h3>
-<p>My work on tracking Python performances started to become useful :-) I
-identified a performance slowdown on the <tt class="docutils literal">bm_python_startup</tt> benchmark
-(average time to start Python).</p>
-<p>Before September 2016, the start took around <strong>17.9 ms</strong>. At September 15,
-after the  <a class="reference external" href="https://haypo.github.io/cpython-sprint-2016.html">CPython sprint</a>, it was
-better: <strong>13.4 ms</strong>. But suddenly, at september 19, it became much worse:
-<strong>22.8 ms</strong>. What happened?</p>
-<p>Timeline of Python startup performance on speed.python.org:</p>
-<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=python_startup&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of Python startup performance" src="https://haypo.github.io/images/python_startup_regression.png" /></a>
-<p>I looked at commits between September 15 and September 19, and I quickly
-identified the commit of the <a class="reference external" href="http://bugs.python.org/issue28082">convert re flags to (much
-friendlier) IntFlag constants (issue #28082)</a>. The <tt class="docutils literal">re</tt> module now imports the
-<tt class="docutils literal">enum</tt> module to get a better representation for their flags.  Example:</p>
-<pre class="literal-block">
-$ ./python
-Python 3.7.0a0
-&gt;&gt;&gt; import re; re.M
-&lt;RegexFlag.MULTILINE: 8&gt;
-</pre>
-</div>
-<div class="section" id="revert">
-<h3>Revert</h3>
-<p>At November 7, I opened the issue #28637 to propose to revert the commit to get
-back better Python startup performance. The revert was approved by Guido van
-Rossum, so I pushed it.</p>
-</div>
-<div class="section" id="better-fix">
-<h3>Better fix</h3>
-<p>I also noticed that the <tt class="docutils literal">re</tt> module is not imported by default if Python is
-installed or if Python is run from its source code directory. The <tt class="docutils literal">re</tt> module
-is only imported by default if Python is installed in a virtual environment.</p>
-<p><strong>Serhiy Storchaka</strong> proposed a change to not import <tt class="docutils literal">re</tt> anymore in the
-<tt class="docutils literal">site</tt> module when Python runs into a virutal environment. Since the benefit
-was obvious (avoid an import at startup) and simple, it was quickly merged.</p>
-</div>
-<div class="section" id="restore-reverted-enum-change">
-<h3>Restore reverted enum change</h3>
-<p>Since using <tt class="docutils literal">enum</tt> in <tt class="docutils literal">re</tt> has no more impact on Python startup
-performance by default, the <tt class="docutils literal">enum</tt> change was restored at November 14.</p>
-<p>Sadly, the <tt class="docutils literal">enum</tt> change still have an impact on performance:
-<tt class="docutils literal">re.compile()</tt> became 1.2x slower (312 ms =&gt; 376 ms: +20%).</p>
-<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=regex_compile&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of re.compile() performance" src="https://haypo.github.io/images/regex_compile_perf.png" /></a>
-<p>I think that it's ok since it is very easy to use precompiled regular
-expressions in an application: store and reuse the result of <tt class="docutils literal">re.compile()</tt>,
-instead of calling directly <tt class="docutils literal">re.match()</tt> for example.</p>
-</div>
-</div>
-<div class="section" id="optimizations">
-<h2>Optimizations</h2>
-<div class="section" id="fastcall">
-<h3>FASTCALL</h3>
-<p>Same than 2016 Q3: I pushed a <em>lot</em> of changes for FASTCALL optimizations, but
-I will write a dedicated article later.</p>
-</div>
-<div class="section" id="no-int-int-micro-optimization-thank-you">
-<h3>No int+int micro-optimization, thank you</h3>
-<p>After 2 years of benchmarking and a huge effort of making Python benchmarks more
-reliable and stable, I decided to close the issue #21955 &quot;ceval.c: implement
-fast path for integers with a single digit&quot; as REJECTED. It became clear to me
-that such micro-optimization has no effect on non-trivial code, but only on
-specially crafted micro-benchmarks. I added a comment in the C code to prevent
-further optimizations attempts:</p>
-<pre class="literal-block">
-/* NOTE(haypo): Please don't try to micro-optimize int+int on
-   CPython using bytecode, it is simply worthless.
-   See http://bugs.python.org/issue21955 and
-   http://bugs.python.org/issue10044 for the discussion. In short,
-   no patch shown any impact on a realistic benchmark, only a minor
-   speedup on microbenchmarks. */
-</pre>
-</div>
-<div class="section" id="timeit">
-<h3>timeit</h3>
-<p>I enhanced the <tt class="docutils literal">timeit</tt> benchmark module to make it more reliable (issue
-#28240):</p>
-<ul class="simple">
-<li>Autorange now starts with a single loop iteration instead of 10. For example,
-<tt class="docutils literal">python3 <span class="pre">-m</span> timeit <span class="pre">-s</span> 'import time' 'time.sleep(1)'</tt> now only takes 4
-seconds instead of 40 seconds.</li>
-<li>Repeat the benchmarks 5 times by default, instead of only 3, to make
-benchmarks more reliable.</li>
-<li>Remove <tt class="docutils literal"><span class="pre">-c/--clock</span></tt> and <tt class="docutils literal"><span class="pre">-t/--time</span></tt> command line options which were
-deprecated since Python 3.3.</li>
-<li>Add <tt class="docutils literal">nsec</tt> (nanosecond) unit to format timings</li>
-<li>Enhance formatting of raw timings in verbose mode. Add newlines to the output
-for readability.</li>
-</ul>
-</div>
-<div class="section" id="micro-optimizations">
-<h3>Micro-optimizations</h3>
-<p>I also pushed two minor micro-optimizations:</p>
-<ul class="simple">
-<li>Use <tt class="docutils literal">PyThreadState_GET()</tt> macro in performance critical code.
-<tt class="docutils literal">_PyThreadState_UncheckedGet()</tt> calls are not inlined as expected, even
-when using <tt class="docutils literal">gcc <span class="pre">-O3</span></tt>.</li>
-<li>Modify <tt class="docutils literal">type_setattro()</tt> to call directly
-<tt class="docutils literal">_PyObject_GenericSetAttrWithDict()</tt> instead of
-<tt class="docutils literal">PyObject_GenericSetAttr()</tt>. <tt class="docutils literal">PyObject_GenericSetAttr()</tt> is a thin
-wrapper to <tt class="docutils literal">_PyObject_GenericSetAttrWithDict()</tt>.</li>
-</ul>
-</div>
-</div>
-<div class="section" id="code-placement-and-attribute-hot">
-<h2>Code placement and __attribute__((hot))</h2>
-<p>On <a class="reference external" href="https://speed.python.org/">speed.python.org</a>, I still noticed random
-performance slowdowns on the evil <tt class="docutils literal">call_simple</tt> benchmark. This benchmark is
-a <em>micro</em>-benchmark measuring the performance of a single Python function call,
-it is CPU-bound and very small and so impact by CPU caches. I was bitten again
-by significant performance slowdown only caused by code placement.</p>
-<p>It wasn't possible to use <em>Profiled Guided Optimization</em> (PGO) on the benchmark
-runner, since it used Ubuntu 14.04 and GCC crashed with an &quot;internal error&quot;.</p>
-<p>So I tried something different: mark &quot;hot functions&quot; with
-<tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt>. It's a GCC and Clang attribute helping code
-placements: &quot;hot functions&quot; are moved to a dedicated ELF section and so are
-closer in memory, and the compiler tries to optimize these functions even more.</p>
-<p>The following functions are considered as hot according to statistics collected
-by Linux <tt class="docutils literal">perf record</tt> and <tt class="docutils literal">perf report</tt> commands:</p>
-<ul class="simple">
-<li>_PyEval_EvalFrameDefault()</li>
-<li>call_function()</li>
-<li>_PyFunction_FastCall()</li>
-<li>PyFrame_New()</li>
-<li>frame_dealloc()</li>
-<li>PyErr_Occurred()</li>
-</ul>
-<p>I added a <tt class="docutils literal">_Py_HOT_FUNCTION</tt> macro which uses <tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> and
-used <tt class="docutils literal">_Py_HOT_FUNCTION</tt> on these functions (issue #28618).</p>
-<p>Read also my previous blog article <a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a> for a deeper analysis.</p>
-<p>Sadly, after I wrote this blog post and after more analysis of <tt class="docutils literal">call_simple</tt>
-benchmark results, I saw that <tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> wasn't enough. I still
-had random major performance slowdown.</p>
-<p>I dediced to upgrade the performance runner to Ubuntu 16.04. It was dangerous
-because nobody has access to the physical server, so it may takes weeks to
-repair it if I did a mistake. Hopefully, the upgrade gone smoothly and I was
-able to run again all benchmarks using PGO. As expected, using PGO+LTO,
-benchmark results are more stable!</p>
-</div>
-<div class="section" id="interesting-bug-duplicated-filters-when-tests-reload-the-warnings-module">
-<h2>Interesting bug: duplicated filters when tests reload the warnings module</h2>
-<p>Python test suite has an old bug: the issue #18383 opened in July 2013.
-Sometimes, the test suite emits the following warning:</p>
-<pre class="literal-block">
-[247/375] test_warnings
-Warning -- warnings.filters was modified by test_warnings
-</pre>
-<p>Since it's only a warning and it only occurs in the Python test suite, it was a
-low priority and took 3 years to be fixed! It also took time to find the right
-design to fix the root cause.</p>
-<div class="section" id="duplicated-filters">
-<h3>Duplicated filters</h3>
-<p>test_warnings imports the <tt class="docutils literal">warnings</tt> module 3 times:</p>
-<pre class="literal-block">
-import warnings as original_warnings   # Python
-py_warnings = support.import_fresh_module('warnings', blocked=['_warnings'])  # Python
-c_warnings = support.import_fresh_module('warnings', fresh=['_warnings'])   # C
-</pre>
-<p>The Python <tt class="docutils literal">warnings</tt> module (<tt class="docutils literal">Lib/warnings.py</tt>) installs warning filters
-when the module is loaded:</p>
-<pre class="literal-block">
-_processoptions(sys.warnoptions)
-</pre>
-<p>where <tt class="docutils literal">sys.warnoptions</tt> contains the value of the <tt class="docutils literal"><span class="pre">-W</span></tt> command line option.</p>
-<p>If the Python module is loaded more than once, filters are duplicated.</p>
-</div>
-<div class="section" id="first-fix-use-the-right-module">
-<h3>First fix: use the right module</h3>
-<p>I pushed a first fix in september 2015.</p>
-<p>Fix test_warnings: don't modify warnings.filters. BaseTest now ensures that
-unittest.TestCase.assertWarns() uses the same warnings module than
-warnings.catch_warnings(). Otherwise, warnings.catch_warnings() will be unable
-to remove the added filter.</p>
-</div>
-<div class="section" id="second-fix-don-t-add-duplicated-filters">
-<h3>Second fix: don't add duplicated filters</h3>
-<p>Issue #18383: the first patch was proposed by <strong>Florent Xicluna</strong> in 2013: save
-the length of filters, and remove newly added filters after <tt class="docutils literal">warnings</tt>
-modules are reloaded by <tt class="docutils literal">test_warnings</tt>. December 2014, <strong>Serhiy Storchaka</strong>
-reviewed the patch: he didn't like this <em>workaround</em>, he would like to fix the
-<em>root cause</em>.</p>
-<p>March 2015, <strong>Alex Shkop</strong> proposed a patch which avoids to add duplicated
-filters.</p>
-<p>September 2015, <strong>Martin Panter</strong> proposed to try to save/restore filters on
-the C warnings module. I proposed something similar in the issue #26742. But
-this solution has the same flaw that Florent's idea: it's only a workaround.</p>
-<p>Martin also proposed add a private flag to say that filters were already set to
-not try to add again same filters.</p>
-<p>Finally, in may 2016, Martin updated Alex's patch avoiding duplicated filters
-and pushed it.</p>
-</div>
-<div class="section" id="third-fix">
-<h3>Third fix</h3>
-<p>The filter comparisons wasn't perfect. A filter can be made of a precompiled
-regular expression, whereas these objects don't implement comparison.</p>
-<p>November 2016, I opened the issue #28727 to propose to implement rich
-comparison for <tt class="docutils literal">_sre.SRE_Pattern</tt>.</p>
-<p>My first patch didn't implement <tt class="docutils literal">hash()</tt> and had different bugs. It took me
-almost one week and 6 versions to write complete unit tests and handle all
-cases: support bytes and Unicode and handle regular expression flags.</p>
-<p><strong>Serhiy Storchaka</strong> found bugs and helps me to write the implementation.</p>
-</div>
-</div>
-<div class="section" id="contributions">
-<h2>Contributions</h2>
-<p>As usual, I reviewed and pushed changes written by other contributors:</p>
-<ul>
-<li><p class="first">Issue #27896: Allow passing sphinx options to Doc/Makefile. Patch written by
-<strong>Julien Palard</strong>.</p>
-</li>
-<li><p class="first">Issue #28476: Reuse math.factorial() in test_random.
-Patch written by <strong>Francisco Couzo</strong>.</p>
-</li>
-<li><p class="first">Issue #28479: Fix reST syntax in windows.rst. Patch written by <strong>Julien Palard</strong>.</p>
-</li>
-<li><p class="first">Issue #26273: Add new constants: <tt class="docutils literal">socket.TCP_CONGESTION</tt> (Linux 2.6.13) and
-<tt class="docutils literal">socket.TCP_USER_TIMEOUT</tt> (Linux 2.6.37).
-Patch written by <strong>Omar Sandoval</strong>.</p>
-</li>
-<li><p class="first">Issue #28979: Fix What's New in Python 3.6: compact dict is not faster, but
-only more compact. Patch written by <strong>Brendan Donegan</strong>.</p>
-</li>
-<li><p class="first">Issue #28147: Fix a memory leak in split-table dictionaries: <tt class="docutils literal">setattr()</tt>
-must not convert combined table into split table.
-Patch written by <strong>INADA Naoki</strong>.</p>
-</li>
-<li><p class="first">Issue #29109: Enhance tracemalloc documentation:</p>
-<ul class="simple">
-<li>Wrong parameter name, 'group_by' instead of 'key_type'</li>
-<li>Don't round up numbers when explaining the examples. If they exactly match
-what can be read in the script output, it is to easier to understand
-(4.8 MiB vs 4855 KiB)</li>
-<li>Fix incorrect method link that was pointing to another module</li>
-</ul>
-<p>Patch written by <strong>Loic Pefferkorn</strong>.</p>
-</li>
-</ul>
-</div>
-<div class="section" id="regrtest">
-<h2>regrtest</h2>
-<ul class="simple">
-<li>regrtest <tt class="docutils literal"><span class="pre">--fromfile</span></tt> now accepts a list of filenames, not only a list of
-<em>test</em> names.</li>
-<li>Issue #28409: regrtest: fix the parser of command line arguments.</li>
-</ul>
-</div>
-<div class="section" id="other-changes">
-<h2>Other changes</h2>
-<ul class="simple">
-<li>Fix <tt class="docutils literal">_Py_normalize_encoding()</tt> function: It was not exactly the same than
-Python <tt class="docutils literal">encodings.normalize_encoding()</tt>: the C function now also converts
-to lowercase.</li>
-<li>Issue #28256: Cleanup <tt class="docutils literal">_math.c</tt>: only define fallback implementations when
-needed. It avoids producing deadcode when the system provides required math
-functions, and so enhance the code coverage.</li>
-<li>_csv: use <tt class="docutils literal">_PyLong_AsInt()</tt> to simplify the code, the function checks for
-the limits of the C <tt class="docutils literal">int</tt> type.</li>
-<li>Issue #28544: Fix <tt class="docutils literal">_asynciomodule.c</tt> on Windows. <tt class="docutils literal">PyType_Ready()</tt> sets
-the reference to <tt class="docutils literal">&amp;PyType_Type</tt>. <tt class="docutils literal">&amp;PyType_Type</tt> address cannot be
-resolved at compilation time (not on Windows?).</li>
-<li>Issue #28082: Add basic unit tests on the new <tt class="docutils literal">re</tt> enums.</li>
-<li>Issue #28691: Fix <tt class="docutils literal">warn_invalid_escape_sequence()</tt>: handle correctly
-<tt class="docutils literal">DeprecationWarning</tt> raised as an exception. First clear the current
-exception to replace the <tt class="docutils literal">DeprecationWarning</tt> exception with a
-<tt class="docutils literal">SyntaxError</tt> exception. Unit test written by <strong>Serhiy Storchaka</strong>.</li>
-<li>Issue #28023: Fix python-gdb.py on old GDB versions. Replace
-<tt class="docutils literal"><span class="pre">int(value.address)+offset</span></tt> with <tt class="docutils literal">value.cast(unsigned <span class="pre">char*)+offset</span></tt>.
-It seems like <tt class="docutils literal">int(value.address)</tt> fails on old GDB versions.</li>
-<li>Issue #28765: <tt class="docutils literal">_sre.compile()</tt> now checks the type of <tt class="docutils literal">groupindex</tt> and
-<tt class="docutils literal">indexgroup</tt> arguments. <tt class="docutils literal">groupindex</tt> must a dictionary and <tt class="docutils literal">indexgroup</tt>
-must be a tuple.  Previously, <tt class="docutils literal">indexgroup</tt> was a list. Use a tuple to
-reduce the memory usage.</li>
-<li>Issue #28782: Fix a bug in the implementation <tt class="docutils literal">yield from</tt>
-(fix <tt class="docutils literal">_PyGen_yf()</tt> function). Fix the test checking if the next instruction
-is <tt class="docutils literal">YIELD_FROM</tt>.  Regression introduced by the new &quot;WordCode&quot; bytecode
-(issue #26647). Fix reviewed by <strong>Serhiy Storchaka</strong> and <strong>Yury Selivanov</strong>.</li>
-<li>Issue #28792: Remove aliases from <tt class="docutils literal">_bisect</tt>. Remove aliases from the C
-module.  Always implement <tt class="docutils literal">bisect()</tt> and <tt class="docutils literal">insort()</tt> aliases in
-<tt class="docutils literal">bisect.py</tt>.  Remove also the <tt class="docutils literal"># backward compatibility</tt> comment: there
-is no plan to deprecate nor remove these aliases. When keys are equal, it
-makes sense to use <tt class="docutils literal">bisect.bisect()</tt> and <tt class="docutils literal">bisect.insort()</tt>.</li>
-<li>Fix a <tt class="docutils literal">ResourceWarning</tt> in <tt class="docutils literal">generate_opcode_h.py</tt>. Use a context manager
-to close the Python file. Replace also <tt class="docutils literal">open()</tt> with <tt class="docutils literal">tokenize.open()</tt> to
-handle coding cookie of <tt class="docutils literal">Lib/opcode.py</tt>.</li>
-<li>Issue #28740: Add <tt class="docutils literal">sys.getandroidapilevel()</tt> function: return the build
-time API version of Android as an integer. Function only available on
-Android. The availability of this function can be tested to check if Python
-is running on Android.</li>
-<li>Issue #28152: Fix <tt class="docutils literal"><span class="pre">-Wunreachable-code</span></tt> warnings on Clang.<ul>
-<li>Don't declare dead code when the code is compiled with Clang.</li>
-<li>Replace C <tt class="docutils literal">if()</tt> with precompiler <tt class="docutils literal">#if</tt> to fix a warning on dead code
-when using Clang.</li>
-<li>Replace <tt class="docutils literal">0</tt> with <tt class="docutils literal">(0)</tt> to ignore a compiler warning about dead code on
-<tt class="docutils literal"><span class="pre">((int)(SEM_VALUE_MAX)</span> &lt; 0)</tt>: <tt class="docutils literal">SEM_VALUE_MAX</tt> is not negative on Linux.</li>
-</ul>
-</li>
-<li>Issue #28835: Fix a regression introduced in <tt class="docutils literal">warnings.catch_warnings()</tt>:
-call <tt class="docutils literal">warnings.showwarning()</tt> if it was overriden inside the context
-manager.</li>
-<li>Issue #28915: Replace <tt class="docutils literal">int</tt> with <tt class="docutils literal">Py_ssize_t</tt> in <tt class="docutils literal">modsupport</tt>.
-<tt class="docutils literal">Py_ssize_t</tt> type is better for indexes. The compiler might emit more
-efficient code for <tt class="docutils literal">i++</tt>. <tt class="docutils literal">Py_ssize_t</tt> is the type of a PyTuple index for
-example. Replace also <tt class="docutils literal">int endchar</tt> with <tt class="docutils literal">char endchar</tt>.</li>
-<li>Initialize variables to fix compiler warnings. Warnings seen on the &quot;AMD64
-Debian PGO 3.x&quot; buildbot. Warnings are false positive, but variable
-initialization should not harm performances.</li>
-<li>Remove useless variable initialization. Don't initialize variables which are
-not used before they are assigned.</li>
-<li>Issue #28838: Cleanup <tt class="docutils literal">abstract.h</tt>. Rewrite all comments to use the same style
-than other Python header files: comment functions <em>before</em> their declaration,
-no newline between the comment and the declaration. Reformat some comments,
-add newlines, to make them easier to read. Quote argument like 'arg' to
-mention an argument in a comment.</li>
-<li>Issue #28838: <tt class="docutils literal">abstract.h</tt>: remove long outdated comment. The documentation
-of the Python C API is more complete and more up to date than this old
-comment. Removal suggested by <strong>Antoine Pitrou</strong>.</li>
-<li>python-gdb.py: catch <tt class="docutils literal">gdb.error</tt> on <tt class="docutils literal">gdb.selected_frame()</tt>.</li>
-<li>Issue #28383: <tt class="docutils literal">__hash__</tt> documentation recommends naive XOR to combine, but
-this is suboptimal. Update the documentation to suggest to reuse the
-<tt class="docutils literal">hash()</tt> function on a tuple, with an example.</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<li>Code placement and ...</li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q4.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -592,32 +366,6 @@ Feb 29, 2016 ...</p>
 </footer><!-- /.post-info -->                <p class="first last">Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.</p>
 
                 <a class="readmore" href="https://haypo.github.io/intel-cpus.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="bookmark"
-                           title="Permalink to Visualize the system noise using perf and CPU isolation">Visualize the system noise using perf and CPU isolation</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-06-16T13:30:00+02:00">
-                Published: jeu. 16 juin 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->                <p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
-stable benchmarks, give fine control on benchmark parameters and compute
-statistics on results. With such tool, it becomes simple to <em>visualize</em>
-sources of noise. The CPU isolation will be used to visualize the system noise.
-Running a benchmark on isolated CPUs ...</p>
-                <a class="readmore" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

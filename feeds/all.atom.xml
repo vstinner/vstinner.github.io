@@ -1,5 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-16T11:00:00+01:00</updated><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-16T17:00:00+01:00</updated><entry><title>The start of the FASTCALL project</title><link href="https://haypo.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
+&lt;h2&gt;False start&lt;/h2&gt;
+&lt;p&gt;In April 2016, I experimented a Python change to avoid temporary tuple to call
+functions. Builtin functions were between 20 and 50% faster!&lt;/p&gt;
+&lt;p&gt;Sadly, some benchmarks were randomy slower. It will take me four months to
+understand why!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="work-on-benchmarks"&gt;
+&lt;h2&gt;Work on benchmarks&lt;/h2&gt;
+&lt;p&gt;During four months, I worked on making benchmarks more stable. See my previous
+blog posts:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;My journey to stable benchmark, part 1 (system)&lt;/a&gt; (May 21, 2016)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html"&gt;My journey to stable benchmark, part 2 (deadcode)&lt;/a&gt; (May 22, 2016)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-average.html"&gt;My journey to stable benchmark, part 3 (average)&lt;/a&gt; (May 23, 2016)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html"&gt;Visualize the system noise using perf and CPU isolation&lt;/a&gt; (June 16, 2016)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/intel-cpus.html"&gt;Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.&lt;/a&gt; (July 15, 2015)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/intel-cpus-part2.html"&gt;Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug&lt;/a&gt;
+(September 23, 2016)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html"&gt;Analysis of a Python performance issue&lt;/a&gt;
+(November 19, 2016)&lt;/li&gt;
+&lt;li&gt;...&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See my talk &lt;a class="reference external" href="https://fosdem.org/2017/schedule/event/python_stable_benchmark/"&gt;How to run a stable benchmark&lt;/a&gt; that I gave
+at FOSDEM 2017 (Brussels, Belgium): slides + video. I listed all the issues
+that I had to get reliable benchmarks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="ask-for-permission"&gt;
+&lt;h2&gt;Ask for permission&lt;/h2&gt;
+&lt;p&gt;August 2016, I
+confirmed that my change didn't introduce any slowndown. So I asked for the
+permission on the python-dev mailing list to start pushing changes: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-August/145793.html"&gt;New
+calling convention to avoid temporarily tuples when calling functions&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Guido van Rossum asked me for benchmark results:&lt;/p&gt;
+&lt;blockquote&gt;
+But is there a performance improvement?&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="benchmark-results"&gt;
+&lt;h2&gt;Benchmark results&lt;/h2&gt;
+&lt;p&gt;On micro-benchmarks, FASTCALL is much faster:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;getattr(1, &amp;quot;real&amp;quot;)&lt;/tt&gt; becomes &lt;strong&gt;44%&lt;/strong&gt; faster&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;list(filter(lambda x: x, &lt;span class="pre"&gt;list(range(1000))))&lt;/span&gt;&lt;/tt&gt; becomes &lt;strong&gt;31%&lt;/strong&gt; faster&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;namedtuple.attr&lt;/tt&gt; (read the attribute) becomes &lt;strong&gt;23%&lt;/strong&gt; faster&lt;/li&gt;
+&lt;li&gt;...&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Full results:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26814#msg263999"&gt;FASTCALL compared to Python 3.6 (default branch)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26814#msg264003"&gt;2.7 / 3.4 / 3.5 / 3.6 / 3.6 FASTCALL comparison&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;On the &lt;a class="reference external" href="https://bugs.python.org/issue26814#msg266359"&gt;CPython benchmark suite&lt;/a&gt;, I also saw many faster
+benchmarks:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;pickle_list: &lt;strong&gt;1.29x faster&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;etree_generate: &lt;strong&gt;1.22x faster&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;pickle_dict: &lt;strong&gt;1.19x faster&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;etree_process: &lt;strong&gt;1.16x faster&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;mako_v2: &lt;strong&gt;1.13x faster&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;telco: &lt;strong&gt;1.09x faster&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;...&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="replies-to-my-email"&gt;
+&lt;h2&gt;Replies to my email&lt;/h2&gt;
+&lt;p&gt;I got two very positive replies, so I understood that it was ok.&lt;/p&gt;
+&lt;p&gt;Brett Canon:&lt;/p&gt;
+&lt;blockquote&gt;
+I just wanted to say I'm excited about this and I'm glad someone is taking
+advantage of what Argument Clinic allows for and what I know Larry had
+initially hoped AC would make happen!&lt;/blockquote&gt;
+&lt;p&gt;Yury Selivanov:&lt;/p&gt;
+&lt;blockquote&gt;
+Exceptional results, congrats Victor. Will be happy to help with code
+review.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="real-start"&gt;
+&lt;h2&gt;Real start&lt;/h2&gt;
+&lt;p&gt;That's how the FASTCALL began for real! I started to push a long serie of
+patches adding new private functions and then modify code to call these new
+functions.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
 (october, november, december):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
