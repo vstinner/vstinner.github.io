@@ -587,11 +587,11 @@ I also pushed a few changes written by other contributors:
 
 * Issue #25907: Use {% trans %} tags in HTML templates to ease the translation
   of the documentation. The tag comes from Jinja templating system, used by
-  Sphinx. Patch written by Julien Palard.
+  Sphinx. Patch written by **Julien Palard**.
 * Issue #26248: Enhance os.scandir() doc, patch written by Ben Hoyt:
-* Fix error message in asyncio.selector_events. Patch written by Carlo
-  Beccarini.
+* Fix error message in asyncio.selector_events. Patch written by **Carlo
+  Beccarini**.
 * Issue #16851: Fix inspect.ismethod() doc, return also True if object is an
-  unbound method. Patch written by Anna Koroliuk.
+  unbound method. Patch written by **Anna Koroliuk**.
 * Issue #26574: Optimize bytes.replace(b'', b'.') and bytearray.replace(b'', b'.'):
-  up to 80% faster. Patch written by Josh Snider.
+  up to 80% faster. Patch written by **Josh Snider**.
