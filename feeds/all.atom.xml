@@ -1,5 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-24T22:00:00+01:00</updated><entry><title>FASTCALL microbenchmarks</title><link href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-24:fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-25T00:00:00+01:00</updated><entry><title>FASTCALL issues</title><link href="https://haypo.github.io/fastcall-issues.html" rel="alternate"></link><published>2017-02-25T00:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-25:fastcall-issues.html</id><summary type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
+are already part of Python 3.6.0, some are already merged into the future
+Python 3.7, the few remaining issues are still open.&lt;/p&gt;
+&lt;div class="section" id="id1"&gt;
+&lt;h2&gt;27 FASTCALL issues&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2016-04-21: &lt;a class="reference external" href="http://bugs.python.org/issue26814"&gt;[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-05-26: &lt;a class="reference external" href="http://bugs.python.org/issue27128"&gt;Add _PyObject_FastCall()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-08-20: &lt;a class="reference external" href="http://bugs.python.org/issue27809"&gt;Add _PyFunction_FastCallDict(): fast call with keyword arguments as a dict&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-08-20: &lt;a class="reference external" href="http://bugs.python.org/issue27810"&gt;Add METH_FASTCALL: new calling convention for C functions&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-08-22: &lt;a class="reference external" href="http://bugs.python.org/issue27830"&gt;Add _PyObject_FastCallKeywords(): avoid the creation of a temporary dictionary for keyword arguments&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-08-23: &lt;a class="reference external" href="http://bugs.python.org/issue27840"&gt;functools.partial: don't copy keywoard arguments in partial_call()?&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2016-08-23: &lt;a class="reference external" href="http://bugs.python.org/issue27841"&gt;Use fast call in method_call() and slot_tp_new()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-08-23: &lt;a class="reference external" href="http://bugs.python.org/issue27845"&gt;Optimize update_keyword_args() function&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-11-22: &lt;a class="reference external" href="http://bugs.python.org/issue28770"&gt;Update python-gdb.py for fastcalls&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-11-30: &lt;a class="reference external" href="http://bugs.python.org/issue28839"&gt;_PyFunction_FastCallDict(): replace PyTuple_New() with PyMem_Malloc()&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2016-12-02: &lt;a class="reference external" href="http://bugs.python.org/issue28855"&gt;Compiler warnings in _PyObject_CallArg1()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-12-02: &lt;a class="reference external" href="http://bugs.python.org/issue28858"&gt;Fastcall uses more C stack&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-12-09: &lt;a class="reference external" href="http://bugs.python.org/issue28915"&gt;Modify PyObject_CallFunction() to use fast call internally&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-10: &lt;a class="reference external" href="http://bugs.python.org/issue29227"&gt;Reduce C stack consumption in function calls&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-10: &lt;a class="reference external" href="http://bugs.python.org/issue29233"&gt;call_method(): call _PyObject_FastCall() rather than _PyObject_VaCallFunctionObjArgs()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-11: &lt;a class="reference external" href="http://bugs.python.org/issue29234"&gt;Disable inlining of _PyStack_AsTuple() to reduce the stack consumption&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-13: &lt;a class="reference external" href="http://bugs.python.org/issue29259"&gt;Add tp_fastcall to PyTypeObject: support FASTCALL calling convention for all callable objects&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2017-01-13: &lt;a class="reference external" href="http://bugs.python.org/issue29263"&gt;Implement LOAD_METHOD/CALL_METHOD for C functions&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-18: &lt;a class="reference external" href="http://bugs.python.org/issue29306"&gt;Check usage of Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() in new FASTCALL functions&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-19: &lt;a class="reference external" href="http://bugs.python.org/issue29318"&gt;Optimize _PyFunction_FastCallDict() for **kwargs&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2017-01-24: &lt;a class="reference external" href="http://bugs.python.org/issue29358"&gt;Add tp_fastnew and tp_fastinit to PyTypeObject, 15-20% faster object instanciation&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2017-01-24: &lt;a class="reference external" href="http://bugs.python.org/issue29360"&gt;_PyStack_AsDict(): Don't check if all keys are strings nor if keys are unique&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-25: &lt;a class="reference external" href="http://bugs.python.org/issue29367"&gt;python-gdb: display wrapper_call()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-05: &lt;a class="reference external" href="http://bugs.python.org/issue29451"&gt;Use _PyArg_Parser for _PyArg_ParseStack(): support positional only arguments&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-06: &lt;a class="reference external" href="http://bugs.python.org/issue29465"&gt;Modify _PyObject_FastCall() to reduce stack consumption&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-09: &lt;a class="reference external" href="http://bugs.python.org/issue29507"&gt;Use FASTCALL in call_method() to avoid temporary tuple&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-10: &lt;a class="reference external" href="http://bugs.python.org/issue29524"&gt;Move functions to call objects into a new Objects/call.c file&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="issues-converting-functions-to-fastcall"&gt;
+&lt;h2&gt;3 issues converting functions to FASTCALL&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2017-01-16: &lt;a class="reference external" href="http://bugs.python.org/issue29286"&gt;Use METH_FASTCALL in str methods&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-18: &lt;a class="reference external" href="http://bugs.python.org/issue29312"&gt;Use FASTCALL in dict.update()&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2017-02-05: &lt;a class="reference external" href="http://bugs.python.org/issue29452"&gt;Use FASTCALL for collections.deque methods: index, insert, rotate&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="argument-clinic-issues"&gt;
+&lt;h2&gt;6 Argument Clinic issues&lt;/h2&gt;
+&lt;p&gt;Converting code to Argument Clinic converts METH_VARARGS methods to
+METH_FASTCALL.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2017-01-16: &lt;a class="reference external" href="http://bugs.python.org/issue29289"&gt;Convert OrderedDict methods to Argument Clinic&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-17: &lt;a class="reference external" href="http://bugs.python.org/issue29299"&gt;Argument Clinic: Fix signature of optional positional-only arguments&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-17: &lt;a class="reference external" href="http://bugs.python.org/issue29300"&gt;Modify the _struct module to use FASTCALL and Argument Clinic&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-17: &lt;a class="reference external" href="http://bugs.python.org/issue29301"&gt;decimal: Use FASTCALL and/or Argument Clinic&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-01-18: &lt;a class="reference external" href="http://bugs.python.org/issue29311"&gt;Argument Clinic: convert dict methods&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-02: &lt;a class="reference external" href="http://bugs.python.org/issue29419"&gt;Argument Clinic: inline PyArg_UnpackTuple and PyArg_ParseStack(AndKeyword)?&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="other-optimization-issues"&gt;
+&lt;h2&gt;10 other optimization issues&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2016-08-24: &lt;a class="reference external" href="http://bugs.python.org/issue27848"&gt;C function calls: use Py_ssize_t rather than C int for number of arguments&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-09-07: &lt;a class="reference external" href="http://bugs.python.org/issue28004"&gt;Optimize bytes.join(sequence)&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2016-11-05: &lt;a class="reference external" href="http://bugs.python.org/issue28618"&gt;Decorate hot functions using __attribute__((hot)) to optimize Python&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-11-07: &lt;a class="reference external" href="http://bugs.python.org/issue28637"&gt;Python startup performance regression&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-11-25: &lt;a class="reference external" href="http://bugs.python.org/issue28800"&gt;Add RETURN_NONE bytecode instruction&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2016-11-25: &lt;a class="reference external" href="http://bugs.python.org/issue28799"&gt;Drop CALL_PROFILE special build?&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2016-12-09: &lt;a class="reference external" href="http://bugs.python.org/issue28924"&gt;Inline PyEval_EvalFrameEx() in callers&lt;/a&gt; [&lt;strong&gt;REJECTED&lt;/strong&gt;]&lt;/li&gt;
+&lt;li&gt;2016-12-15: &lt;a class="reference external" href="http://bugs.python.org/issue28977"&gt;Document PyObject_CallFunction() special case more explicitly&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-06: &lt;a class="reference external" href="http://bugs.python.org/issue29461"&gt;Experiment usage of likely/unlikely in CPython core&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;2017-02-08: &lt;a class="reference external" href="http://bugs.python.org/issue29502"&gt;Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>FASTCALL microbenchmarks</title><link href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-24:fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: &lt;a class="reference external" href="https://github.com/haypo/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon

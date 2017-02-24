@@ -22,7 +22,103 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/fastcall-microbenchmarks.html">FASTCALL microbenchmarks</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/fastcall-issues.html">FASTCALL issues</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-25T00:00:00+01:00">
+                Published: sam. 25 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
+are already part of Python 3.6.0, some are already merged into the future
+Python 3.7, the few remaining issues are still open.</p>
+<div class="section" id="id1">
+<h2>27 FASTCALL issues</h2>
+<ul class="simple">
+<li>2016-04-21: <a class="reference external" href="http://bugs.python.org/issue26814">[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments</a></li>
+<li>2016-05-26: <a class="reference external" href="http://bugs.python.org/issue27128">Add _PyObject_FastCall()</a></li>
+<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27809">Add _PyFunction_FastCallDict(): fast call with keyword arguments as a dict</a></li>
+<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27810">Add METH_FASTCALL: new calling convention for C functions</a></li>
+<li>2016-08-22: <a class="reference external" href="http://bugs.python.org/issue27830">Add _PyObject_FastCallKeywords(): avoid the creation of a temporary dictionary for keyword arguments</a></li>
+<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27840">functools.partial: don't copy keywoard arguments in partial_call()?</a> [<strong>REJECTED</strong>]</li>
+<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27841">Use fast call in method_call() and slot_tp_new()</a></li>
+<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27845">Optimize update_keyword_args() function</a></li>
+<li>2016-11-22: <a class="reference external" href="http://bugs.python.org/issue28770">Update python-gdb.py for fastcalls</a></li>
+<li>2016-11-30: <a class="reference external" href="http://bugs.python.org/issue28839">_PyFunction_FastCallDict(): replace PyTuple_New() with PyMem_Malloc()</a> [<strong>REJECTED</strong>]</li>
+<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28855">Compiler warnings in _PyObject_CallArg1()</a></li>
+<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28858">Fastcall uses more C stack</a></li>
+<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28915">Modify PyObject_CallFunction() to use fast call internally</a></li>
+<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29227">Reduce C stack consumption in function calls</a></li>
+<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29233">call_method(): call _PyObject_FastCall() rather than _PyObject_VaCallFunctionObjArgs()</a></li>
+<li>2017-01-11: <a class="reference external" href="http://bugs.python.org/issue29234">Disable inlining of _PyStack_AsTuple() to reduce the stack consumption</a></li>
+<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29259">Add tp_fastcall to PyTypeObject: support FASTCALL calling convention for all callable objects</a> [<strong>REJECTED</strong>]</li>
+<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29263">Implement LOAD_METHOD/CALL_METHOD for C functions</a></li>
+<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29306">Check usage of Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() in new FASTCALL functions</a></li>
+<li>2017-01-19: <a class="reference external" href="http://bugs.python.org/issue29318">Optimize _PyFunction_FastCallDict() for **kwargs</a> [<strong>REJECTED</strong>]</li>
+<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29358">Add tp_fastnew and tp_fastinit to PyTypeObject, 15-20% faster object instanciation</a> [<strong>REJECTED</strong>]</li>
+<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29360">_PyStack_AsDict(): Don't check if all keys are strings nor if keys are unique</a></li>
+<li>2017-01-25: <a class="reference external" href="http://bugs.python.org/issue29367">python-gdb: display wrapper_call()</a></li>
+<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29451">Use _PyArg_Parser for _PyArg_ParseStack(): support positional only arguments</a></li>
+<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29465">Modify _PyObject_FastCall() to reduce stack consumption</a></li>
+<li>2017-02-09: <a class="reference external" href="http://bugs.python.org/issue29507">Use FASTCALL in call_method() to avoid temporary tuple</a></li>
+<li>2017-02-10: <a class="reference external" href="http://bugs.python.org/issue29524">Move functions to call objects into a new Objects/call.c file</a></li>
+</ul>
+</div>
+<div class="section" id="issues-converting-functions-to-fastcall">
+<h2>3 issues converting functions to FASTCALL</h2>
+<ul class="simple">
+<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29286">Use METH_FASTCALL in str methods</a></li>
+<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29312">Use FASTCALL in dict.update()</a> [<strong>REJECTED</strong>]</li>
+<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29452">Use FASTCALL for collections.deque methods: index, insert, rotate</a></li>
+</ul>
+</div>
+<div class="section" id="argument-clinic-issues">
+<h2>6 Argument Clinic issues</h2>
+<p>Converting code to Argument Clinic converts METH_VARARGS methods to
+METH_FASTCALL.</p>
+<ul class="simple">
+<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29289">Convert OrderedDict methods to Argument Clinic</a></li>
+<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29299">Argument Clinic: Fix signature of optional positional-only arguments</a></li>
+<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29300">Modify the _struct module to use FASTCALL and Argument Clinic</a></li>
+<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29301">decimal: Use FASTCALL and/or Argument Clinic</a></li>
+<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29311">Argument Clinic: convert dict methods</a></li>
+<li>2017-02-02: <a class="reference external" href="http://bugs.python.org/issue29419">Argument Clinic: inline PyArg_UnpackTuple and PyArg_ParseStack(AndKeyword)?</a></li>
+</ul>
+</div>
+<div class="section" id="other-optimization-issues">
+<h2>10 other optimization issues</h2>
+<ul class="simple">
+<li>2016-08-24: <a class="reference external" href="http://bugs.python.org/issue27848">C function calls: use Py_ssize_t rather than C int for number of arguments</a></li>
+<li>2016-09-07: <a class="reference external" href="http://bugs.python.org/issue28004">Optimize bytes.join(sequence)</a> [<strong>REJECTED</strong>]</li>
+<li>2016-11-05: <a class="reference external" href="http://bugs.python.org/issue28618">Decorate hot functions using __attribute__((hot)) to optimize Python</a></li>
+<li>2016-11-07: <a class="reference external" href="http://bugs.python.org/issue28637">Python startup performance regression</a></li>
+<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28800">Add RETURN_NONE bytecode instruction</a> [<strong>REJECTED</strong>]</li>
+<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28799">Drop CALL_PROFILE special build?</a></li>
+<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28924">Inline PyEval_EvalFrameEx() in callers</a> [<strong>REJECTED</strong>]</li>
+<li>2016-12-15: <a class="reference external" href="http://bugs.python.org/issue28977">Document PyObject_CallFunction() special case more explicitly</a></li>
+<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29461">Experiment usage of likely/unlikely in CPython core</a></li>
+<li>2017-02-08: <a class="reference external" href="http://bugs.python.org/issue29502">Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?</a></li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="bookmark"
+                           title="Permalink to FASTCALL microbenchmarks">FASTCALL microbenchmarks</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-24T22:00:00+01:00">
                 Published: ven. 24 février 2017
@@ -33,205 +129,14 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
+</footer><!-- /.post-info -->                <p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
-that I abandon a change because the speedup is not significant, makes CPython
-slower, or because the change is too complex. Last 12 months, I counted that I
-abandonned 9 optimization issues, rejected for different reasons, on a total of
-46 optimization issues.</p>
-<p>This article gives Python 3.7 results of these microbenchmarks compared to
-Python 3.5 (before FASTCALL). I ignored 3 microbenchmarks which are between 2%
-and 5% slower: the code was not optimized and the result is not signifiant
-(less than 10% on a <em>microbenchmark</em> is not significant).</p>
-<p>On results below, the speedup is between 1.11x faster (-10%) and 1.92x faster
-(-48%). It's not easy to isolate the speedup of only FASTCALL. Since Python
-3.5, Python 3.7 got many other optimizations.</p>
-<p>Using FASTCALL gives a speedup around 20 ns: measured on a patch to use
-FASTCALL.  It's not a lot, but many builtin functions take less than 100 ns, so
-20 ns is significant in practice! Avoiding a tuple to pass positional arguments
-is interesting, but FASTCALL also allows further internal optimizations.</p>
-<p>Microbenchmark on calling builtin functions:</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="53%" />
-<col width="11%" />
-<col width="36%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Benchmark</th>
-<th class="head">3.5</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>struct.pack(&quot;i&quot;, 1)</td>
-<td>105 ns</td>
-<td>77.6 ns: 1.36x faster (-26%)</td>
-</tr>
-<tr><td>getattr(1, &quot;real&quot;)</td>
-<td>79.4 ns</td>
-<td>64.4 ns: 1.23x faster (-19%)</td>
-</tr>
-</tbody>
-</table>
-<p>Microbenchmark on calling methods of builtin types:</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="53%" />
-<col width="11%" />
-<col width="36%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Benchmark</th>
-<th class="head">3.5</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>{1: 2}.get(7, None)</td>
-<td>84.9 ns</td>
-<td>61.6 ns: 1.38x faster (-27%)</td>
-</tr>
-<tr><td>collections.deque([None]).index(None)</td>
-<td>116 ns</td>
-<td>87.0 ns: 1.33x faster (-25%)</td>
-</tr>
-<tr><td>{1: 2}.get(1)</td>
-<td>79.4 ns</td>
-<td>59.6 ns: 1.33x faster (-25%)</td>
-</tr>
-<tr><td>&quot;a&quot;.replace(&quot;x&quot;, &quot;y&quot;)</td>
-<td>134 ns</td>
-<td>101 ns: 1.33x faster (-25%)</td>
-</tr>
-<tr><td>b&quot;&quot;.decode()</td>
-<td>71.5 ns</td>
-<td>54.5 ns: 1.31x faster (-24%)</td>
-</tr>
-<tr><td>b&quot;&quot;.decode(&quot;ascii&quot;)</td>
-<td>99.1 ns</td>
-<td>75.7 ns: 1.31x faster (-24%)</td>
-</tr>
-<tr><td>collections.deque.rotate(1)</td>
-<td>106 ns</td>
-<td>82.8 ns: 1.28x faster (-22%)</td>
-</tr>
-<tr><td>collections.deque.insert()</td>
-<td>778 ns</td>
-<td>608 ns: 1.28x faster (-22%)</td>
-</tr>
-<tr><td>b&quot;&quot;.join((b&quot;hello&quot;, b&quot;world&quot;) * 100)</td>
-<td>4.02 us</td>
-<td>3.32 us: 1.21x faster (-17%)</td>
-</tr>
-<tr><td>[0].count(0)</td>
-<td>53.9 ns</td>
-<td>46.3 ns: 1.16x faster (-14%)</td>
-</tr>
-<tr><td>collections.deque.rotate()</td>
-<td>72.6 ns</td>
-<td>63.1 ns: 1.15x faster (-13%)</td>
-</tr>
-<tr><td>b&quot;&quot;.join((b&quot;hello&quot;, b&quot;world&quot;))</td>
-<td>102 ns</td>
-<td>89.8 ns: 1.13x faster (-12%)</td>
-</tr>
-</tbody>
-</table>
-<p>Microbenchmark on builtin functions calling Python functions (callbacks):</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="53%" />
-<col width="11%" />
-<col width="36%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Benchmark</th>
-<th class="head">3.5</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>map(lambda x: x, list(range(1000)))</td>
-<td>76.1 us</td>
-<td>61.1 us: 1.25x faster (-20%)</td>
-</tr>
-<tr><td>sorted(list(range(1000)), key=lambda x: x)</td>
-<td>90.2 us</td>
-<td>78.2 us: 1.15x faster (-13%)</td>
-</tr>
-<tr><td>filter(lambda x: x, list(range(1000)))</td>
-<td>81.8 us</td>
-<td>73.4 us: 1.11x faster (-10%)</td>
-</tr>
-</tbody>
-</table>
-<p>Microbenchmark on calling slots (<tt class="docutils literal">__getitem__</tt>, <tt class="docutils literal">__init__</tt>, <tt class="docutils literal">__int__</tt>)
-implemented in Python:</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="53%" />
-<col width="11%" />
-<col width="36%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Benchmark</th>
-<th class="head">3.5</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>Python __getitem__: obj[0]</td>
-<td>167 ns</td>
-<td>87.0 ns: 1.92x faster (-48%)</td>
-</tr>
-<tr><td>call_pyinit_kw1</td>
-<td>348 ns</td>
-<td>240 ns: 1.45x faster (-31%)</td>
-</tr>
-<tr><td>call_pyinit_kw5</td>
-<td>564 ns</td>
-<td>401 ns: 1.41x faster (-29%)</td>
-</tr>
-<tr><td>call_pyinit_kw10</td>
-<td>960 ns</td>
-<td>734 ns: 1.31x faster (-24%)</td>
-</tr>
-<tr><td>Python __int__: int(obj)</td>
-<td>241 ns</td>
-<td>207 ns: 1.16x faster (-14%)</td>
-</tr>
-</tbody>
-</table>
-<p>Microbenchmark on calling a method descriptor (static method):</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="53%" />
-<col width="11%" />
-<col width="36%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Benchmark</th>
-<th class="head">3.5</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>int.to_bytes(1, 4, &quot;little&quot;)</td>
-<td>177 ns</td>
-<td>103 ns: 1.72x faster (-42%)</td>
-</tr>
-</tbody>
-</table>
-<p>Benchmarks were run on <tt class="docutils literal"><span class="pre">speed-python</span></tt>, server used to run CPython benchmarks.</p>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+that I abandon ...</p>
+                <a class="readmore" href="https://haypo.github.io/fastcall-microbenchmarks.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -457,29 +362,6 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 </footer><!-- /.post-info -->                <p class="first last">Status of Python 3 in OpenStack Mitaka</p>
 
                 <a class="readmore" href="https://haypo.github.io/openstack_mitaka_python3.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/pybyteswriter.html" rel="bookmark"
-                           title="Permalink to Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython">Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-03-01T16:00:00+01:00">
-                Published: mar. 01 mars 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">_PyBytesWriter API</p>
-
-                <a class="readmore" href="https://haypo.github.io/pybyteswriter.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
