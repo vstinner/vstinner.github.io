@@ -1,5 +1,198 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-16T17:00:00+01:00</updated><entry><title>The start of the FASTCALL project</title><link href="https://haypo.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-02-24T22:00:00+01:00</updated><entry><title>FASTCALL microbenchmarks</title><link href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-24:fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
+dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
+them into a new Git repository: &lt;a class="reference external" href="https://github.com/haypo/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
+CPython developers to prove that an optimization is worth it. It's not uncommon
+that I abandon a change because the speedup is not significant, makes CPython
+slower, or because the change is too complex. Last 12 months, I counted that I
+abandonned 9 optimization issues, rejected for different reasons, on a total of
+46 optimization issues.&lt;/p&gt;
+&lt;p&gt;This article gives Python 3.7 results of these microbenchmarks compared to
+Python 3.5 (before FASTCALL). I ignored 3 microbenchmarks which are between 2%
+and 5% slower: the code was not optimized and the result is not signifiant
+(less than 10% on a &lt;em&gt;microbenchmark&lt;/em&gt; is not significant).&lt;/p&gt;
+&lt;p&gt;On results below, the speedup is between 1.11x faster (-10%) and 1.92x faster
+(-48%). It's not easy to isolate the speedup of only FASTCALL. Since Python
+3.5, Python 3.7 got many other optimizations.&lt;/p&gt;
+&lt;p&gt;Using FASTCALL gives a speedup around 20 ns: measured on a patch to use
+FASTCALL.  It's not a lot, but many builtin functions take less than 100 ns, so
+20 ns is significant in practice! Avoiding a tuple to pass positional arguments
+is interesting, but FASTCALL also allows further internal optimizations.&lt;/p&gt;
+&lt;p&gt;Microbenchmark on calling builtin functions:&lt;/p&gt;
+&lt;table border="1" class="docutils"&gt;
+&lt;colgroup&gt;
+&lt;col width="53%" /&gt;
+&lt;col width="11%" /&gt;
+&lt;col width="36%" /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign="bottom"&gt;
+&lt;tr&gt;&lt;th class="head"&gt;Benchmark&lt;/th&gt;
+&lt;th class="head"&gt;3.5&lt;/th&gt;
+&lt;th class="head"&gt;3.7&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign="top"&gt;
+&lt;tr&gt;&lt;td&gt;struct.pack(&amp;quot;i&amp;quot;, 1)&lt;/td&gt;
+&lt;td&gt;105 ns&lt;/td&gt;
+&lt;td&gt;77.6 ns: 1.36x faster (-26%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;getattr(1, &amp;quot;real&amp;quot;)&lt;/td&gt;
+&lt;td&gt;79.4 ns&lt;/td&gt;
+&lt;td&gt;64.4 ns: 1.23x faster (-19%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Microbenchmark on calling methods of builtin types:&lt;/p&gt;
+&lt;table border="1" class="docutils"&gt;
+&lt;colgroup&gt;
+&lt;col width="53%" /&gt;
+&lt;col width="11%" /&gt;
+&lt;col width="36%" /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign="bottom"&gt;
+&lt;tr&gt;&lt;th class="head"&gt;Benchmark&lt;/th&gt;
+&lt;th class="head"&gt;3.5&lt;/th&gt;
+&lt;th class="head"&gt;3.7&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign="top"&gt;
+&lt;tr&gt;&lt;td&gt;{1: 2}.get(7, None)&lt;/td&gt;
+&lt;td&gt;84.9 ns&lt;/td&gt;
+&lt;td&gt;61.6 ns: 1.38x faster (-27%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;collections.deque([None]).index(None)&lt;/td&gt;
+&lt;td&gt;116 ns&lt;/td&gt;
+&lt;td&gt;87.0 ns: 1.33x faster (-25%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;{1: 2}.get(1)&lt;/td&gt;
+&lt;td&gt;79.4 ns&lt;/td&gt;
+&lt;td&gt;59.6 ns: 1.33x faster (-25%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;&amp;quot;a&amp;quot;.replace(&amp;quot;x&amp;quot;, &amp;quot;y&amp;quot;)&lt;/td&gt;
+&lt;td&gt;134 ns&lt;/td&gt;
+&lt;td&gt;101 ns: 1.33x faster (-25%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;b&amp;quot;&amp;quot;.decode()&lt;/td&gt;
+&lt;td&gt;71.5 ns&lt;/td&gt;
+&lt;td&gt;54.5 ns: 1.31x faster (-24%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;b&amp;quot;&amp;quot;.decode(&amp;quot;ascii&amp;quot;)&lt;/td&gt;
+&lt;td&gt;99.1 ns&lt;/td&gt;
+&lt;td&gt;75.7 ns: 1.31x faster (-24%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;collections.deque.rotate(1)&lt;/td&gt;
+&lt;td&gt;106 ns&lt;/td&gt;
+&lt;td&gt;82.8 ns: 1.28x faster (-22%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;collections.deque.insert()&lt;/td&gt;
+&lt;td&gt;778 ns&lt;/td&gt;
+&lt;td&gt;608 ns: 1.28x faster (-22%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;b&amp;quot;&amp;quot;.join((b&amp;quot;hello&amp;quot;, b&amp;quot;world&amp;quot;) * 100)&lt;/td&gt;
+&lt;td&gt;4.02 us&lt;/td&gt;
+&lt;td&gt;3.32 us: 1.21x faster (-17%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;[0].count(0)&lt;/td&gt;
+&lt;td&gt;53.9 ns&lt;/td&gt;
+&lt;td&gt;46.3 ns: 1.16x faster (-14%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;collections.deque.rotate()&lt;/td&gt;
+&lt;td&gt;72.6 ns&lt;/td&gt;
+&lt;td&gt;63.1 ns: 1.15x faster (-13%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;b&amp;quot;&amp;quot;.join((b&amp;quot;hello&amp;quot;, b&amp;quot;world&amp;quot;))&lt;/td&gt;
+&lt;td&gt;102 ns&lt;/td&gt;
+&lt;td&gt;89.8 ns: 1.13x faster (-12%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Microbenchmark on builtin functions calling Python functions (callbacks):&lt;/p&gt;
+&lt;table border="1" class="docutils"&gt;
+&lt;colgroup&gt;
+&lt;col width="53%" /&gt;
+&lt;col width="11%" /&gt;
+&lt;col width="36%" /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign="bottom"&gt;
+&lt;tr&gt;&lt;th class="head"&gt;Benchmark&lt;/th&gt;
+&lt;th class="head"&gt;3.5&lt;/th&gt;
+&lt;th class="head"&gt;3.7&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign="top"&gt;
+&lt;tr&gt;&lt;td&gt;map(lambda x: x, list(range(1000)))&lt;/td&gt;
+&lt;td&gt;76.1 us&lt;/td&gt;
+&lt;td&gt;61.1 us: 1.25x faster (-20%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;sorted(list(range(1000)), key=lambda x: x)&lt;/td&gt;
+&lt;td&gt;90.2 us&lt;/td&gt;
+&lt;td&gt;78.2 us: 1.15x faster (-13%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;filter(lambda x: x, list(range(1000)))&lt;/td&gt;
+&lt;td&gt;81.8 us&lt;/td&gt;
+&lt;td&gt;73.4 us: 1.11x faster (-10%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Microbenchmark on calling slots (&lt;tt class="docutils literal"&gt;__getitem__&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;__init__&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;__int__&lt;/tt&gt;)
+implemented in Python:&lt;/p&gt;
+&lt;table border="1" class="docutils"&gt;
+&lt;colgroup&gt;
+&lt;col width="53%" /&gt;
+&lt;col width="11%" /&gt;
+&lt;col width="36%" /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign="bottom"&gt;
+&lt;tr&gt;&lt;th class="head"&gt;Benchmark&lt;/th&gt;
+&lt;th class="head"&gt;3.5&lt;/th&gt;
+&lt;th class="head"&gt;3.7&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign="top"&gt;
+&lt;tr&gt;&lt;td&gt;Python __getitem__: obj[0]&lt;/td&gt;
+&lt;td&gt;167 ns&lt;/td&gt;
+&lt;td&gt;87.0 ns: 1.92x faster (-48%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;call_pyinit_kw1&lt;/td&gt;
+&lt;td&gt;348 ns&lt;/td&gt;
+&lt;td&gt;240 ns: 1.45x faster (-31%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;call_pyinit_kw5&lt;/td&gt;
+&lt;td&gt;564 ns&lt;/td&gt;
+&lt;td&gt;401 ns: 1.41x faster (-29%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;call_pyinit_kw10&lt;/td&gt;
+&lt;td&gt;960 ns&lt;/td&gt;
+&lt;td&gt;734 ns: 1.31x faster (-24%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;Python __int__: int(obj)&lt;/td&gt;
+&lt;td&gt;241 ns&lt;/td&gt;
+&lt;td&gt;207 ns: 1.16x faster (-14%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Microbenchmark on calling a method descriptor (static method):&lt;/p&gt;
+&lt;table border="1" class="docutils"&gt;
+&lt;colgroup&gt;
+&lt;col width="53%" /&gt;
+&lt;col width="11%" /&gt;
+&lt;col width="36%" /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign="bottom"&gt;
+&lt;tr&gt;&lt;th class="head"&gt;Benchmark&lt;/th&gt;
+&lt;th class="head"&gt;3.5&lt;/th&gt;
+&lt;th class="head"&gt;3.7&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign="top"&gt;
+&lt;tr&gt;&lt;td&gt;int.to_bytes(1, 4, &amp;quot;little&amp;quot;)&lt;/td&gt;
+&lt;td&gt;177 ns&lt;/td&gt;
+&lt;td&gt;103 ns: 1.72x faster (-42%)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Benchmarks were run on &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;speed-python&lt;/span&gt;&lt;/tt&gt;, server used to run CPython benchmarks.&lt;/p&gt;
+</summary><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>The start of the FASTCALL project</title><link href="https://haypo.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
 &lt;h2&gt;False start&lt;/h2&gt;
 &lt;p&gt;In April 2016, I experimented a Python change to avoid temporary tuple to call
 functions. Builtin functions were between 20 and 50% faster!&lt;/p&gt;
@@ -1585,14 +1778,14 @@ testdir to sys.path.&lt;/li&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Issue #25907: Use {% trans %} tags in HTML templates to ease the translation
 of the documentation. The tag comes from Jinja templating system, used by
-Sphinx. Patch written by Julien Palard.&lt;/li&gt;
+Sphinx. Patch written by &lt;strong&gt;Julien Palard&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Issue #26248: Enhance os.scandir() doc, patch written by Ben Hoyt:&lt;/li&gt;
-&lt;li&gt;Fix error message in asyncio.selector_events. Patch written by Carlo
-Beccarini.&lt;/li&gt;
+&lt;li&gt;Fix error message in asyncio.selector_events. Patch written by &lt;strong&gt;Carlo
+Beccarini&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Issue #16851: Fix inspect.ismethod() doc, return also True if object is an
-unbound method. Patch written by Anna Koroliuk.&lt;/li&gt;
+unbound method. Patch written by &lt;strong&gt;Anna Koroliuk&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Issue #26574: Optimize bytes.replace(b'', b'.') and bytearray.replace(b'', b'.'):
-up to 80% faster. Patch written by Josh Snider.&lt;/li&gt;
+up to 80% faster. Patch written by &lt;strong&gt;Josh Snider&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;

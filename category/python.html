@@ -22,7 +22,224 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/start-fastcall-project.html">The start of the FASTCALL project</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/fastcall-microbenchmarks.html">FASTCALL microbenchmarks</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-02-24T22:00:00+01:00">
+                Published: ven. 24 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
+dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
+them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
+CPython developers to prove that an optimization is worth it. It's not uncommon
+that I abandon a change because the speedup is not significant, makes CPython
+slower, or because the change is too complex. Last 12 months, I counted that I
+abandonned 9 optimization issues, rejected for different reasons, on a total of
+46 optimization issues.</p>
+<p>This article gives Python 3.7 results of these microbenchmarks compared to
+Python 3.5 (before FASTCALL). I ignored 3 microbenchmarks which are between 2%
+and 5% slower: the code was not optimized and the result is not signifiant
+(less than 10% on a <em>microbenchmark</em> is not significant).</p>
+<p>On results below, the speedup is between 1.11x faster (-10%) and 1.92x faster
+(-48%). It's not easy to isolate the speedup of only FASTCALL. Since Python
+3.5, Python 3.7 got many other optimizations.</p>
+<p>Using FASTCALL gives a speedup around 20 ns: measured on a patch to use
+FASTCALL.  It's not a lot, but many builtin functions take less than 100 ns, so
+20 ns is significant in practice! Avoiding a tuple to pass positional arguments
+is interesting, but FASTCALL also allows further internal optimizations.</p>
+<p>Microbenchmark on calling builtin functions:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="11%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Benchmark</th>
+<th class="head">3.5</th>
+<th class="head">3.7</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>struct.pack(&quot;i&quot;, 1)</td>
+<td>105 ns</td>
+<td>77.6 ns: 1.36x faster (-26%)</td>
+</tr>
+<tr><td>getattr(1, &quot;real&quot;)</td>
+<td>79.4 ns</td>
+<td>64.4 ns: 1.23x faster (-19%)</td>
+</tr>
+</tbody>
+</table>
+<p>Microbenchmark on calling methods of builtin types:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="11%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Benchmark</th>
+<th class="head">3.5</th>
+<th class="head">3.7</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>{1: 2}.get(7, None)</td>
+<td>84.9 ns</td>
+<td>61.6 ns: 1.38x faster (-27%)</td>
+</tr>
+<tr><td>collections.deque([None]).index(None)</td>
+<td>116 ns</td>
+<td>87.0 ns: 1.33x faster (-25%)</td>
+</tr>
+<tr><td>{1: 2}.get(1)</td>
+<td>79.4 ns</td>
+<td>59.6 ns: 1.33x faster (-25%)</td>
+</tr>
+<tr><td>&quot;a&quot;.replace(&quot;x&quot;, &quot;y&quot;)</td>
+<td>134 ns</td>
+<td>101 ns: 1.33x faster (-25%)</td>
+</tr>
+<tr><td>b&quot;&quot;.decode()</td>
+<td>71.5 ns</td>
+<td>54.5 ns: 1.31x faster (-24%)</td>
+</tr>
+<tr><td>b&quot;&quot;.decode(&quot;ascii&quot;)</td>
+<td>99.1 ns</td>
+<td>75.7 ns: 1.31x faster (-24%)</td>
+</tr>
+<tr><td>collections.deque.rotate(1)</td>
+<td>106 ns</td>
+<td>82.8 ns: 1.28x faster (-22%)</td>
+</tr>
+<tr><td>collections.deque.insert()</td>
+<td>778 ns</td>
+<td>608 ns: 1.28x faster (-22%)</td>
+</tr>
+<tr><td>b&quot;&quot;.join((b&quot;hello&quot;, b&quot;world&quot;) * 100)</td>
+<td>4.02 us</td>
+<td>3.32 us: 1.21x faster (-17%)</td>
+</tr>
+<tr><td>[0].count(0)</td>
+<td>53.9 ns</td>
+<td>46.3 ns: 1.16x faster (-14%)</td>
+</tr>
+<tr><td>collections.deque.rotate()</td>
+<td>72.6 ns</td>
+<td>63.1 ns: 1.15x faster (-13%)</td>
+</tr>
+<tr><td>b&quot;&quot;.join((b&quot;hello&quot;, b&quot;world&quot;))</td>
+<td>102 ns</td>
+<td>89.8 ns: 1.13x faster (-12%)</td>
+</tr>
+</tbody>
+</table>
+<p>Microbenchmark on builtin functions calling Python functions (callbacks):</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="11%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Benchmark</th>
+<th class="head">3.5</th>
+<th class="head">3.7</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>map(lambda x: x, list(range(1000)))</td>
+<td>76.1 us</td>
+<td>61.1 us: 1.25x faster (-20%)</td>
+</tr>
+<tr><td>sorted(list(range(1000)), key=lambda x: x)</td>
+<td>90.2 us</td>
+<td>78.2 us: 1.15x faster (-13%)</td>
+</tr>
+<tr><td>filter(lambda x: x, list(range(1000)))</td>
+<td>81.8 us</td>
+<td>73.4 us: 1.11x faster (-10%)</td>
+</tr>
+</tbody>
+</table>
+<p>Microbenchmark on calling slots (<tt class="docutils literal">__getitem__</tt>, <tt class="docutils literal">__init__</tt>, <tt class="docutils literal">__int__</tt>)
+implemented in Python:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="11%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Benchmark</th>
+<th class="head">3.5</th>
+<th class="head">3.7</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>Python __getitem__: obj[0]</td>
+<td>167 ns</td>
+<td>87.0 ns: 1.92x faster (-48%)</td>
+</tr>
+<tr><td>call_pyinit_kw1</td>
+<td>348 ns</td>
+<td>240 ns: 1.45x faster (-31%)</td>
+</tr>
+<tr><td>call_pyinit_kw5</td>
+<td>564 ns</td>
+<td>401 ns: 1.41x faster (-29%)</td>
+</tr>
+<tr><td>call_pyinit_kw10</td>
+<td>960 ns</td>
+<td>734 ns: 1.31x faster (-24%)</td>
+</tr>
+<tr><td>Python __int__: int(obj)</td>
+<td>241 ns</td>
+<td>207 ns: 1.16x faster (-14%)</td>
+</tr>
+</tbody>
+</table>
+<p>Microbenchmark on calling a method descriptor (static method):</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="11%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Benchmark</th>
+<th class="head">3.5</th>
+<th class="head">3.7</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>int.to_bytes(1, 4, &quot;little&quot;)</td>
+<td>177 ns</td>
+<td>103 ns: 1.72x faster (-42%)</td>
+</tr>
+</tbody>
+</table>
+<p>Benchmarks were run on <tt class="docutils literal"><span class="pre">speed-python</span></tt>, server used to run CPython benchmarks.</p>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/start-fastcall-project.html" rel="bookmark"
+                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-16T17:00:00+01:00">
                 Published: jeu. 16 février 2017
@@ -33,7 +250,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><div class="section" id="false-start">
+</footer><!-- /.post-info -->                <div class="section" id="false-start">
 <h2>False start</h2>
 <p>In April 2016, I experimented a Python change to avoid temporary tuple to call
 functions. Builtin functions were between 20 and 50% faster!</p>
@@ -42,85 +259,10 @@ understand why!</p>
 </div>
 <div class="section" id="work-on-benchmarks">
 <h2>Work on benchmarks</h2>
-<p>During four months, I worked on making benchmarks more stable. See my previous
-blog posts:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">My journey to stable benchmark, part 1 (system)</a> (May 21, 2016)</li>
-<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">My journey to stable benchmark, part 2 (deadcode)</a> (May 22, 2016)</li>
-<li><a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-average.html">My journey to stable benchmark, part 3 (average)</a> (May 23, 2016)</li>
-<li><a class="reference external" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">Visualize the system noise using perf and CPU isolation</a> (June 16, 2016)</li>
-<li><a class="reference external" href="https://haypo.github.io/intel-cpus.html">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a> (July 15, 2015)</li>
-<li><a class="reference external" href="https://haypo.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a>
-(September 23, 2016)</li>
-<li><a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a>
-(November 19, 2016)</li>
-<li>...</li>
-</ul>
-<p>See my talk <a class="reference external" href="https://fosdem.org/2017/schedule/event/python_stable_benchmark/">How to run a stable benchmark</a> that I gave
-at FOSDEM 2017 (Brussels, Belgium): slides + video. I listed all the issues
-that I had to get reliable benchmarks.</p>
-</div>
-<div class="section" id="ask-for-permission">
-<h2>Ask for permission</h2>
-<p>August 2016, I
-confirmed that my change didn't introduce any slowndown. So I asked for the
-permission on the python-dev mailing list to start pushing changes: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-August/145793.html">New
-calling convention to avoid temporarily tuples when calling functions</a>.</p>
-<p>Guido van Rossum asked me for benchmark results:</p>
-<blockquote>
-But is there a performance improvement?</blockquote>
-</div>
-<div class="section" id="benchmark-results">
-<h2>Benchmark results</h2>
-<p>On micro-benchmarks, FASTCALL is much faster:</p>
-<ul class="simple">
-<li><tt class="docutils literal">getattr(1, &quot;real&quot;)</tt> becomes <strong>44%</strong> faster</li>
-<li><tt class="docutils literal">list(filter(lambda x: x, <span class="pre">list(range(1000))))</span></tt> becomes <strong>31%</strong> faster</li>
-<li><tt class="docutils literal">namedtuple.attr</tt> (read the attribute) becomes <strong>23%</strong> faster</li>
-<li>...</li>
-</ul>
-<p>Full results:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://bugs.python.org/issue26814#msg263999">FASTCALL compared to Python 3.6 (default branch)</a></li>
-<li><a class="reference external" href="https://bugs.python.org/issue26814#msg264003">2.7 / 3.4 / 3.5 / 3.6 / 3.6 FASTCALL comparison</a></li>
-</ul>
-<p>On the <a class="reference external" href="https://bugs.python.org/issue26814#msg266359">CPython benchmark suite</a>, I also saw many faster
-benchmarks:</p>
-<ul class="simple">
-<li>pickle_list: <strong>1.29x faster</strong></li>
-<li>etree_generate: <strong>1.22x faster</strong></li>
-<li>pickle_dict: <strong>1.19x faster</strong></li>
-<li>etree_process: <strong>1.16x faster</strong></li>
-<li>mako_v2: <strong>1.13x faster</strong></li>
-<li>telco: <strong>1.09x faster</strong></li>
-<li>...</li>
-</ul>
-</div>
-<div class="section" id="replies-to-my-email">
-<h2>Replies to my email</h2>
-<p>I got two very positive replies, so I understood that it was ok.</p>
-<p>Brett Canon:</p>
-<blockquote>
-I just wanted to say I'm excited about this and I'm glad someone is taking
-advantage of what Argument Clinic allows for and what I know Larry had
-initially hoped AC would make happen!</blockquote>
-<p>Yury Selivanov:</p>
-<blockquote>
-Exceptional results, congrats Victor. Will be happy to help with code
-review.</blockquote>
-</div>
-<div class="section" id="real-start">
-<h2>Real start</h2>
-<p>That's how the FASTCALL began for real! I started to push a long serie of
-patches adding new private functions and then modify code to call these new
-functions.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p>During four months, I worked on making ...</p></div>
+                <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -338,29 +480,6 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 </footer><!-- /.post-info -->                <p class="first last">_PyBytesWriter API</p>
 
                 <a class="readmore" href="https://haypo.github.io/pybyteswriter.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2015 Q4">My contributions to CPython during 2015 Q4</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-03-01T15:00:00+01:00">
-                Published: mar. 01 mars 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">My contributions to CPython during 2015 Q4</p>
-
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2015q4.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

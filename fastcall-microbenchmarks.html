@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
-        <title>Haypo blog 2 - fastcall</title>
+        <title>FASTCALL microbenchmarks</title>
         <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
         <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
 
@@ -16,13 +16,18 @@
                 <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
                 <nav><ul>
                     <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="bookmark"
+           title="Permalink to FASTCALL microbenchmarks">FASTCALL microbenchmarks</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/fastcall-microbenchmarks.html">FASTCALL microbenchmarks</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-24T22:00:00+01:00">
                 Published: ven. 24 février 2017
@@ -33,7 +38,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
+</footer><!-- /.post-info -->      <p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
@@ -226,45 +231,11 @@ implemented in Python:</p>
 </tbody>
 </table>
 <p>Benchmarks were run on <tt class="docutils literal"><span class="pre">speed-python</span></tt>, server used to run CPython benchmarks.</p>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/start-fastcall-project.html" rel="bookmark"
-                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-16T17:00:00+01:00">
-                Published: jeu. 16 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="false-start">
-<h2>False start</h2>
-<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
-functions. Builtin functions were between 20 and 50% faster!</p>
-<p>Sadly, some benchmarks were randomy slower. It will take me four months to
-understand why!</p>
-</div>
-<div class="section" id="work-on-benchmarks">
-<h2>Work on benchmarks</h2>
-<p>During four months, I worked on making ...</p></div>
-                <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>blogroll</h2>
