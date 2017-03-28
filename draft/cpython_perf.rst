@@ -48,3 +48,8 @@ speed.python.org
 
 * call_method: 70% slowdown, http://bugs.python.org/issue28618
   Hot functions marked with __attribute__((hot))
+
+pymicrobench
+============
+
+xxx
