@@ -22,7 +22,153 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/fastcall-issues.html">FASTCALL issues</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/speed-python-org-march-2017.html">speed.python.org results: March 2017</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-03-29T00:40:00+02:00">
+                Published: mer. 29 mars 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><p>In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
+Git: read <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html">[Python-Dev] CPython is now on GitHub</a> by
+Brett Cannon.</p>
+<p>In 2016, I worked on speed.python.org to automate running benchmarks and make
+benchmarks more stable. At the end, I had a single command to:</p>
+<ul class="simple">
+<li>tune the system for benchmarks</li>
+<li>compile CPython using LTO+PGO</li>
+<li>install CPython</li>
+<li>install performance</li>
+<li>run performance</li>
+<li>upload results</li>
+</ul>
+<p>But my tools were written for Mercurial and speed.python.org uses Mercurial
+revisions as keys for changes. Since the CPython repository was converted to
+Git, I have to remove all old results and run again old benchmarks. But before
+removing everyhing, I took screenshots of the most interesting pages. It would
+prefer to keep a copy of all data, but it would require to write new tools
+and I am not motivated to do that.</p>
+<div class="section" id="python-3-7-compared-to-python-2-7">
+<h2>Python 3.7 compared to Python 2.7</h2>
+<p>Benchmarks where Python 3.7 is <strong>faster</strong> than Python 2.7:</p>
+<img alt="python37_faster_py27" src="https://haypo.github.io/images/speed2017/python37_faster_py27.png" />
+<p>Benchmarks where Python 3.7 is <strong>slower</strong> than Python 2.7:</p>
+<img alt="python37_slower_py27" src="https://haypo.github.io/images/speed2017/python37_slower_py27.png" />
+</div>
+<div class="section" id="significant-optimizations">
+<h2>Significant optimizations</h2>
+<p>CPython became regulary faster in 2016 on the following benchmarks.</p>
+<p>call_method, the main optimized was <a class="reference external" href="https://bugs.python.org/issue26110">Speedup method calls 1.2x</a>:</p>
+<img alt="call_method" src="https://haypo.github.io/images/speed2017/call_method.png" />
+<p>float:</p>
+<img alt="float" src="https://haypo.github.io/images/speed2017/float.png" />
+<p>hexiom:</p>
+<img alt="hexiom" src="https://haypo.github.io/images/speed2017/hexiom.png" />
+<p>nqueens:</p>
+<img alt="nqueens" src="https://haypo.github.io/images/speed2017/nqueens.png" />
+<p>pickle_list, something happened near September 2016:</p>
+<img alt="pickle_list" src="https://haypo.github.io/images/speed2017/pickle_list.png" />
+<p>richards:</p>
+<img alt="richards" src="https://haypo.github.io/images/speed2017/richards.png" />
+<p>scimark_lu, I like the latest dot!</p>
+<img alt="scimark_lu" src="https://haypo.github.io/images/speed2017/scimark_lu.png" />
+<p>scimark_sor:</p>
+<img alt="scimark_sor" src="https://haypo.github.io/images/speed2017/scimark_sor.png" />
+<p>sympy_sum:</p>
+<img alt="sympy_sum" src="https://haypo.github.io/images/speed2017/sympy_sum.png" />
+<p>telco is one of the most impressive, it became regulary faster:</p>
+<img alt="telco" src="https://haypo.github.io/images/speed2017/telco.png" />
+<p>unpickle_list, something happened between March and May 2016:</p>
+<img alt="unpickle_list" src="https://haypo.github.io/images/speed2017/unpickle_list.png" />
+</div>
+<div class="section" id="the-enum-change">
+<h2>The enum change</h2>
+<p>One change related to the <tt class="docutils literal">enum</tt> module had significant impact on the two
+following benchmarks.</p>
+<p>python_startup:</p>
+<img alt="python_startup" src="https://haypo.github.io/images/speed2017/python_startup.png" />
+<p>See &quot;Python startup performance regression&quot; section of <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html">My contributions to
+CPython during 2016 Q4</a> for the
+explanation on changes around September 2016.</p>
+<p>regex_compile became 1.2x slower (312 ms =&gt; 376 ms: +20%) because constants
+of the <tt class="docutils literal">re</tt> module became <tt class="docutils literal">enum</tt> objects: see <a class="reference external" href="http://bugs.python.org/issue28082">convert re flags to (much
+friendlier) IntFlag constants (issue #28082)</a>.</p>
+<img alt="regex_compile" src="https://haypo.github.io/images/speed2017/regex_compile.png" />
+</div>
+<div class="section" id="benchmarks-became-stable">
+<h2>Benchmarks became stable</h2>
+<p>The following benchmarks are microbenchmarks which are impacted by many
+external factors. It's hard to get stable results. I'm happy to see that
+results are stable. I would say very stable compared to results when I started
+to work on the project!</p>
+<p>call_simple:</p>
+<img alt="call_simple" src="https://haypo.github.io/images/speed2017/call_simple.png" />
+<p>spectral_norm:</p>
+<img alt="spectral_norm" src="https://haypo.github.io/images/speed2017/spectral_norm.png" />
+</div>
+<div class="section" id="straight-line">
+<h2>Straight line</h2>
+<p>It seems like no optimization had a significant impact on the following
+benchmarks. You can also see that benchmarks became stable, so it's easier to
+detect performance regression or significant optimization.</p>
+<p>dulwich_log:</p>
+<img alt="dulwich_log" src="https://haypo.github.io/images/speed2017/dulwich_log.png" />
+<p>pidigits:</p>
+<img alt="pidigits" src="https://haypo.github.io/images/speed2017/pidigits.png" />
+<p>sqlite_synth:</p>
+<img alt="sqlite_synth" src="https://haypo.github.io/images/speed2017/sqlite_synth.png" />
+<p>Apart something around April 2016, tornado_http result is stable:</p>
+<img alt="tornado_http" src="https://haypo.github.io/images/speed2017/tornado_http.png" />
+</div>
+<div class="section" id="unstable-benchmarks">
+<h2>Unstable benchmarks</h2>
+<p>After months of efforts to make everything stable, some benchmarks are still
+unstable, even if temporary spikes are lower than before. See <a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a
+Python performance issue</a>
+to see the size of previous tempoary performance spikes.</p>
+<p>regex_v8:</p>
+<img alt="regex_v8" src="https://haypo.github.io/images/speed2017/regex_v8.png" />
+<p>scimark_sparse_mat_mult:</p>
+<img alt="scimark_sparse_mat_mult" src="https://haypo.github.io/images/speed2017/scimark_sparse_mat_mult.png" />
+<p>unpickle_pure_python:</p>
+<img alt="unpickle_pure_python" src="https://haypo.github.io/images/speed2017/unpickle_pure_python.png" />
+</div>
+<div class="section" id="boring-results">
+<h2>Boring results</h2>
+<p>There is nothing interesting to say on the following benchmark results.</p>
+<p>2to3:</p>
+<img alt="2to3" src="https://haypo.github.io/images/speed2017/2to3.png" />
+<p>crypto_pyaes:</p>
+<img alt="crypto_pyaes" src="https://haypo.github.io/images/speed2017/crypto_pyaes.png" />
+<p>deltablue:</p>
+<img alt="deltablue" src="https://haypo.github.io/images/speed2017/deltablue.png" />
+<p>logging_silent:</p>
+<img alt="logging_silent" src="https://haypo.github.io/images/speed2017/logging_silent.png" />
+<p>mako:</p>
+<img alt="mako" src="https://haypo.github.io/images/speed2017/mako.png" />
+<p>xml_etree_process:</p>
+<img alt="xml_etree_process" src="https://haypo.github.io/images/speed2017/xml_etree_process.png" />
+<p>xml_etre_iterparse:</p>
+<img alt="xml_etre_iterparse" src="https://haypo.github.io/images/speed2017/xml_etre_iterparse.png" />
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/fastcall-issues.html" rel="bookmark"
+                           title="Permalink to FASTCALL issues">FASTCALL issues</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-25T00:00:00+01:00">
                 Published: sam. 25 février 2017
@@ -33,84 +179,13 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+</footer><!-- /.post-info -->                <p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
-Python 3.7, the few remaining issues are still open.</p>
-<div class="section" id="id1">
-<h2>27 FASTCALL issues</h2>
-<ul class="simple">
-<li>2016-04-21: <a class="reference external" href="http://bugs.python.org/issue26814">[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments</a></li>
-<li>2016-05-26: <a class="reference external" href="http://bugs.python.org/issue27128">Add _PyObject_FastCall()</a></li>
-<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27809">Add _PyFunction_FastCallDict(): fast call with keyword arguments as a dict</a></li>
-<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27810">Add METH_FASTCALL: new calling convention for C functions</a></li>
-<li>2016-08-22: <a class="reference external" href="http://bugs.python.org/issue27830">Add _PyObject_FastCallKeywords(): avoid the creation of a temporary dictionary for keyword arguments</a></li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27840">functools.partial: don't copy keywoard arguments in partial_call()?</a> [<strong>REJECTED</strong>]</li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27841">Use fast call in method_call() and slot_tp_new()</a></li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27845">Optimize update_keyword_args() function</a></li>
-<li>2016-11-22: <a class="reference external" href="http://bugs.python.org/issue28770">Update python-gdb.py for fastcalls</a></li>
-<li>2016-11-30: <a class="reference external" href="http://bugs.python.org/issue28839">_PyFunction_FastCallDict(): replace PyTuple_New() with PyMem_Malloc()</a> [<strong>REJECTED</strong>]</li>
-<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28855">Compiler warnings in _PyObject_CallArg1()</a></li>
-<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28858">Fastcall uses more C stack</a></li>
-<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28915">Modify PyObject_CallFunction() to use fast call internally</a></li>
-<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29227">Reduce C stack consumption in function calls</a></li>
-<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29233">call_method(): call _PyObject_FastCall() rather than _PyObject_VaCallFunctionObjArgs()</a></li>
-<li>2017-01-11: <a class="reference external" href="http://bugs.python.org/issue29234">Disable inlining of _PyStack_AsTuple() to reduce the stack consumption</a></li>
-<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29259">Add tp_fastcall to PyTypeObject: support FASTCALL calling convention for all callable objects</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29263">Implement LOAD_METHOD/CALL_METHOD for C functions</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29306">Check usage of Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() in new FASTCALL functions</a></li>
-<li>2017-01-19: <a class="reference external" href="http://bugs.python.org/issue29318">Optimize _PyFunction_FastCallDict() for **kwargs</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29358">Add tp_fastnew and tp_fastinit to PyTypeObject, 15-20% faster object instanciation</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29360">_PyStack_AsDict(): Don't check if all keys are strings nor if keys are unique</a></li>
-<li>2017-01-25: <a class="reference external" href="http://bugs.python.org/issue29367">python-gdb: display wrapper_call()</a></li>
-<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29451">Use _PyArg_Parser for _PyArg_ParseStack(): support positional only arguments</a></li>
-<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29465">Modify _PyObject_FastCall() to reduce stack consumption</a></li>
-<li>2017-02-09: <a class="reference external" href="http://bugs.python.org/issue29507">Use FASTCALL in call_method() to avoid temporary tuple</a></li>
-<li>2017-02-10: <a class="reference external" href="http://bugs.python.org/issue29524">Move functions to call objects into a new Objects/call.c file</a></li>
-</ul>
-</div>
-<div class="section" id="issues-converting-functions-to-fastcall">
-<h2>3 issues converting functions to FASTCALL</h2>
-<ul class="simple">
-<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29286">Use METH_FASTCALL in str methods</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29312">Use FASTCALL in dict.update()</a> [<strong>REJECTED</strong>]</li>
-<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29452">Use FASTCALL for collections.deque methods: index, insert, rotate</a></li>
-</ul>
-</div>
-<div class="section" id="argument-clinic-issues">
-<h2>6 Argument Clinic issues</h2>
-<p>Converting code to Argument Clinic converts METH_VARARGS methods to
-METH_FASTCALL.</p>
-<ul class="simple">
-<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29289">Convert OrderedDict methods to Argument Clinic</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29299">Argument Clinic: Fix signature of optional positional-only arguments</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29300">Modify the _struct module to use FASTCALL and Argument Clinic</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29301">decimal: Use FASTCALL and/or Argument Clinic</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29311">Argument Clinic: convert dict methods</a></li>
-<li>2017-02-02: <a class="reference external" href="http://bugs.python.org/issue29419">Argument Clinic: inline PyArg_UnpackTuple and PyArg_ParseStack(AndKeyword)?</a></li>
-</ul>
-</div>
-<div class="section" id="other-optimization-issues">
-<h2>10 other optimization issues</h2>
-<ul class="simple">
-<li>2016-08-24: <a class="reference external" href="http://bugs.python.org/issue27848">C function calls: use Py_ssize_t rather than C int for number of arguments</a></li>
-<li>2016-09-07: <a class="reference external" href="http://bugs.python.org/issue28004">Optimize bytes.join(sequence)</a> [<strong>REJECTED</strong>]</li>
-<li>2016-11-05: <a class="reference external" href="http://bugs.python.org/issue28618">Decorate hot functions using __attribute__((hot)) to optimize Python</a></li>
-<li>2016-11-07: <a class="reference external" href="http://bugs.python.org/issue28637">Python startup performance regression</a></li>
-<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28800">Add RETURN_NONE bytecode instruction</a> [<strong>REJECTED</strong>]</li>
-<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28799">Drop CALL_PROFILE special build?</a></li>
-<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28924">Inline PyEval_EvalFrameEx() in callers</a> [<strong>REJECTED</strong>]</li>
-<li>2016-12-15: <a class="reference external" href="http://bugs.python.org/issue28977">Document PyObject_CallFunction() special case more explicitly</a></li>
-<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29461">Experiment usage of likely/unlikely in CPython core</a></li>
-<li>2017-02-08: <a class="reference external" href="http://bugs.python.org/issue29502">Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?</a></li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Python 3.7, the few remaining issues are still ...</p>
+                <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -339,34 +414,6 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 <h2>Summary</h2>
 <p>Since this report is much longer than I expected, here ...</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q1.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/analysis-python-performance-issue.html" rel="bookmark"
-                           title="Permalink to Analysis of a Python performance issue">Analysis of a Python performance issue</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-11-19T00:30:00+01:00">
-                Published: sam. 19 novembre 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->                <p>I am working on the CPython benchmark suite (<a class="reference external" href="https://github.com/python/performance">performance</a>) and I run the benchmark suite to
-upload results to <a class="reference external" href="http://speed.python.org/">speed.python.org</a>. While
-analying results, I noticed a temporary peak on the <tt class="docutils literal">call_method</tt>
-benchmark at October 19th:</p>
-<img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" />
-<p>The graphic shows the performance of the <tt class="docutils literal">call_method</tt> microbenchmark between
-Feb 29, 2016 ...</p>
-                <a class="readmore" href="https://haypo.github.io/analysis-python-performance-issue.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

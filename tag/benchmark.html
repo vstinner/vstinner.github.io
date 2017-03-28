@@ -22,7 +22,153 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/speed-python-org-march-2017.html">speed.python.org results: March 2017</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-03-29T00:40:00+02:00">
+                Published: mer. 29 mars 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info --><p>In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
+Git: read <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html">[Python-Dev] CPython is now on GitHub</a> by
+Brett Cannon.</p>
+<p>In 2016, I worked on speed.python.org to automate running benchmarks and make
+benchmarks more stable. At the end, I had a single command to:</p>
+<ul class="simple">
+<li>tune the system for benchmarks</li>
+<li>compile CPython using LTO+PGO</li>
+<li>install CPython</li>
+<li>install performance</li>
+<li>run performance</li>
+<li>upload results</li>
+</ul>
+<p>But my tools were written for Mercurial and speed.python.org uses Mercurial
+revisions as keys for changes. Since the CPython repository was converted to
+Git, I have to remove all old results and run again old benchmarks. But before
+removing everyhing, I took screenshots of the most interesting pages. It would
+prefer to keep a copy of all data, but it would require to write new tools
+and I am not motivated to do that.</p>
+<div class="section" id="python-3-7-compared-to-python-2-7">
+<h2>Python 3.7 compared to Python 2.7</h2>
+<p>Benchmarks where Python 3.7 is <strong>faster</strong> than Python 2.7:</p>
+<img alt="python37_faster_py27" src="https://haypo.github.io/images/speed2017/python37_faster_py27.png" />
+<p>Benchmarks where Python 3.7 is <strong>slower</strong> than Python 2.7:</p>
+<img alt="python37_slower_py27" src="https://haypo.github.io/images/speed2017/python37_slower_py27.png" />
+</div>
+<div class="section" id="significant-optimizations">
+<h2>Significant optimizations</h2>
+<p>CPython became regulary faster in 2016 on the following benchmarks.</p>
+<p>call_method, the main optimized was <a class="reference external" href="https://bugs.python.org/issue26110">Speedup method calls 1.2x</a>:</p>
+<img alt="call_method" src="https://haypo.github.io/images/speed2017/call_method.png" />
+<p>float:</p>
+<img alt="float" src="https://haypo.github.io/images/speed2017/float.png" />
+<p>hexiom:</p>
+<img alt="hexiom" src="https://haypo.github.io/images/speed2017/hexiom.png" />
+<p>nqueens:</p>
+<img alt="nqueens" src="https://haypo.github.io/images/speed2017/nqueens.png" />
+<p>pickle_list, something happened near September 2016:</p>
+<img alt="pickle_list" src="https://haypo.github.io/images/speed2017/pickle_list.png" />
+<p>richards:</p>
+<img alt="richards" src="https://haypo.github.io/images/speed2017/richards.png" />
+<p>scimark_lu, I like the latest dot!</p>
+<img alt="scimark_lu" src="https://haypo.github.io/images/speed2017/scimark_lu.png" />
+<p>scimark_sor:</p>
+<img alt="scimark_sor" src="https://haypo.github.io/images/speed2017/scimark_sor.png" />
+<p>sympy_sum:</p>
+<img alt="sympy_sum" src="https://haypo.github.io/images/speed2017/sympy_sum.png" />
+<p>telco is one of the most impressive, it became regulary faster:</p>
+<img alt="telco" src="https://haypo.github.io/images/speed2017/telco.png" />
+<p>unpickle_list, something happened between March and May 2016:</p>
+<img alt="unpickle_list" src="https://haypo.github.io/images/speed2017/unpickle_list.png" />
+</div>
+<div class="section" id="the-enum-change">
+<h2>The enum change</h2>
+<p>One change related to the <tt class="docutils literal">enum</tt> module had significant impact on the two
+following benchmarks.</p>
+<p>python_startup:</p>
+<img alt="python_startup" src="https://haypo.github.io/images/speed2017/python_startup.png" />
+<p>See &quot;Python startup performance regression&quot; section of <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html">My contributions to
+CPython during 2016 Q4</a> for the
+explanation on changes around September 2016.</p>
+<p>regex_compile became 1.2x slower (312 ms =&gt; 376 ms: +20%) because constants
+of the <tt class="docutils literal">re</tt> module became <tt class="docutils literal">enum</tt> objects: see <a class="reference external" href="http://bugs.python.org/issue28082">convert re flags to (much
+friendlier) IntFlag constants (issue #28082)</a>.</p>
+<img alt="regex_compile" src="https://haypo.github.io/images/speed2017/regex_compile.png" />
+</div>
+<div class="section" id="benchmarks-became-stable">
+<h2>Benchmarks became stable</h2>
+<p>The following benchmarks are microbenchmarks which are impacted by many
+external factors. It's hard to get stable results. I'm happy to see that
+results are stable. I would say very stable compared to results when I started
+to work on the project!</p>
+<p>call_simple:</p>
+<img alt="call_simple" src="https://haypo.github.io/images/speed2017/call_simple.png" />
+<p>spectral_norm:</p>
+<img alt="spectral_norm" src="https://haypo.github.io/images/speed2017/spectral_norm.png" />
+</div>
+<div class="section" id="straight-line">
+<h2>Straight line</h2>
+<p>It seems like no optimization had a significant impact on the following
+benchmarks. You can also see that benchmarks became stable, so it's easier to
+detect performance regression or significant optimization.</p>
+<p>dulwich_log:</p>
+<img alt="dulwich_log" src="https://haypo.github.io/images/speed2017/dulwich_log.png" />
+<p>pidigits:</p>
+<img alt="pidigits" src="https://haypo.github.io/images/speed2017/pidigits.png" />
+<p>sqlite_synth:</p>
+<img alt="sqlite_synth" src="https://haypo.github.io/images/speed2017/sqlite_synth.png" />
+<p>Apart something around April 2016, tornado_http result is stable:</p>
+<img alt="tornado_http" src="https://haypo.github.io/images/speed2017/tornado_http.png" />
+</div>
+<div class="section" id="unstable-benchmarks">
+<h2>Unstable benchmarks</h2>
+<p>After months of efforts to make everything stable, some benchmarks are still
+unstable, even if temporary spikes are lower than before. See <a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a
+Python performance issue</a>
+to see the size of previous tempoary performance spikes.</p>
+<p>regex_v8:</p>
+<img alt="regex_v8" src="https://haypo.github.io/images/speed2017/regex_v8.png" />
+<p>scimark_sparse_mat_mult:</p>
+<img alt="scimark_sparse_mat_mult" src="https://haypo.github.io/images/speed2017/scimark_sparse_mat_mult.png" />
+<p>unpickle_pure_python:</p>
+<img alt="unpickle_pure_python" src="https://haypo.github.io/images/speed2017/unpickle_pure_python.png" />
+</div>
+<div class="section" id="boring-results">
+<h2>Boring results</h2>
+<p>There is nothing interesting to say on the following benchmark results.</p>
+<p>2to3:</p>
+<img alt="2to3" src="https://haypo.github.io/images/speed2017/2to3.png" />
+<p>crypto_pyaes:</p>
+<img alt="crypto_pyaes" src="https://haypo.github.io/images/speed2017/crypto_pyaes.png" />
+<p>deltablue:</p>
+<img alt="deltablue" src="https://haypo.github.io/images/speed2017/deltablue.png" />
+<p>logging_silent:</p>
+<img alt="logging_silent" src="https://haypo.github.io/images/speed2017/logging_silent.png" />
+<p>mako:</p>
+<img alt="mako" src="https://haypo.github.io/images/speed2017/mako.png" />
+<p>xml_etree_process:</p>
+<img alt="xml_etree_process" src="https://haypo.github.io/images/speed2017/xml_etree_process.png" />
+<p>xml_etre_iterparse:</p>
+<img alt="xml_etre_iterparse" src="https://haypo.github.io/images/speed2017/xml_etre_iterparse.png" />
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/analysis-python-performance-issue.html" rel="bookmark"
+                           title="Permalink to Analysis of a Python performance issue">Analysis of a Python performance issue</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2016-11-19T00:30:00+01:00">
                 Published: sam. 19 novembre 2016
@@ -33,345 +179,16 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info --><p>I am working on the CPython benchmark suite (<a class="reference external" href="https://github.com/python/performance">performance</a>) and I run the benchmark suite to
+</footer><!-- /.post-info -->                <p>I am working on the CPython benchmark suite (<a class="reference external" href="https://github.com/python/performance">performance</a>) and I run the benchmark suite to
 upload results to <a class="reference external" href="http://speed.python.org/">speed.python.org</a>. While
 analying results, I noticed a temporary peak on the <tt class="docutils literal">call_method</tt>
 benchmark at October 19th:</p>
 <img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" />
 <p>The graphic shows the performance of the <tt class="docutils literal">call_method</tt> microbenchmark between
-Feb 29, 2016 and November 17, 2016 on the <tt class="docutils literal">default</tt> branch of CPython. The average
-is around 17.2 ms, whereas the peak is at 29.0 ms: <strong>68% slower</strong>!</p>
-<p>The server has two &quot;Intel(R) Xeon(R) CPU X5680  &#64; 3.33GHz&quot; CPUs, total: 24
-logical cores (12 physical cores with HyperThreading). This CPU was launched in
-2010 and based on the <a class="reference external" href="https://en.wikipedia.org/wiki/Gulftown">Westmere-EP microarchitecture</a>. Westmere-EP is based on Westmere,
-which is the 32 nm shrink of the Nehalem microarchitecture.</p>
-<div class="section" id="reproduce-results">
-<h2>Reproduce results</h2>
-<p>Before going too far, the first step is to validate that results are
-reproductible: reboot the computer, recompile Python, run again the benchmark.</p>
-<p>Instead of running the full benchmark suite, install Python, ..., we will run
-directly the benchmark manually using the Python freshly built in its source
-code directory.</p>
-<p>Interesting dots on the graphic (can be seen at speed.python.org, not on the
-screenshot):</p>
-<ul class="simple">
-<li>678fe178da0d, Oct 09, 17.0 ms: &quot;Fast&quot;</li>
-<li>1ce50f7027c1, Oct 19, 28.9 ms: &quot;Slow&quot;</li>
-<li>36af3566b67a, Nov 3, 16.9 ms: Fast again</li>
-</ul>
-<p>I use the following directories:</p>
-<ul class="simple">
-<li>~/perf: GitHub haypo/perf project</li>
-<li>~/performance: GitHub python/performance project</li>
-<li>~/cpython: Mercurial CPython repository</li>
-</ul>
-<p>Tune the system for benchmarks:</p>
-<pre class="literal-block">
-sudo python3 -m perf system tune
-</pre>
-<p>Note: all <tt class="docutils literal">system</tt> commands in this article are optional. They help to reduce
-the operating system jitter (make benchmarks more reliablee).</p>
-<p>Fast:</p>
-<pre class="literal-block">
-$ hg up -C -r 678fe178da0d
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ mv python python-fast
-$ PYTHONPATH=~/perf ./python-fast ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 17.0 ms +- 0.1 ms
-</pre>
-<p>Slow:</p>
-<pre class="literal-block">
-$ hg up -C -r 1ce50f7027c1
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ mv python python-slow
-$ PYTHONPATH=~/perf ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 29.3 ms +- 0.9 ms
-</pre>
-<p>We reproduced the significant benchmark result: 17 ms =&gt; 29 ms.</p>
-<p>I use <tt class="docutils literal">./configure</tt> and <tt class="docutils literal">make clean</tt> instead of incremental compilation,
-<tt class="docutils literal">make</tt> command, to avoid compilation errors, and to avoid potential side
-effects only caused by the incremental compilation.</p>
-</div>
-<div class="section" id="analysis-with-the-linux-perf-tool">
-<h2>Analysis with the Linux perf tool</h2>
-<p>To collect perf events, we will run the benchmark with <tt class="docutils literal"><span class="pre">--worker</span></tt> to run a
-single process and with <tt class="docutils literal"><span class="pre">-w0</span> <span class="pre">-n100</span></tt> to run the benchmark long enough: 100
-samples means at least 10 seconds (a single sample takes at least 100 ms).</p>
-<p>First, reset the system configuration to reset the Linux perf configuration:</p>
-<pre class="literal-block">
-sudo python3 -m perf system reset
-</pre>
-<p>Note: <tt class="docutils literal">python3 <span class="pre">-m</span> perf system tune</tt> reduces the sampling rate of Linux perf
-to reduce operating system jitter.</p>
-</div>
-<div class="section" id="perf-stat">
-<h2>perf stat</h2>
-<p>Command to get general statistics on the benchmark:</p>
-<pre class="literal-block">
-$ perf stat ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -v -w0 -n100
-</pre>
-<p>&quot;Fast&quot; results:</p>
-<pre class="literal-block">
-Performance counter stats for ./python-fast:
-
-      3773.585194 task-clock (msec)         #    0.998 CPUs utilized
-              369 context-switches          #    0.098 K/sec
-                0 cpu-migrations            #    0.000 K/sec
-            8,300 page-faults               #    0.002 M/sec
-   12,981,234,867 cycles                    #    3.440 GHz                     [83.27%]
-    1,460,980,720 stalled-cycles-frontend   #   11.25% frontend cycles idle    [83.36%]
-      435,806,788 stalled-cycles-backend    #    3.36% backend  cycles idle    [66.72%]
-   29,982,530,201 instructions              #    2.31  insns per cycle
-                                            #    0.05  stalled cycles per insn [83.40%]
-    5,613,631,616 branches                  # 1487.612 M/sec                   [83.40%]
-       16,006,564 branch-misses             #    0.29% of all branches         [83.27%]
-
-      3.780064486 seconds time elapsed
-</pre>
-<p>&quot;Slow&quot; results:</p>
-<pre class="literal-block">
-Performance counter stats for ./python-slow:
-
-      5906.239860 task-clock (msec)         #    0.998 CPUs utilized
-              556 context-switches          #    0.094 K/sec
-                0 cpu-migrations            #    0.000 K/sec
-            8,393 page-faults               #    0.001 M/sec
-   20,651,474,102 cycles                    #    3.497 GHz                     [83.36%]
-    8,480,803,345 stalled-cycles-frontend   #   41.07% frontend cycles idle    [83.37%]
-    4,247,826,420 stalled-cycles-backend    #   20.57% backend  cycles idle    [66.64%]
-   30,011,465,614 instructions              #    1.45  insns per cycle
-                                            #    0.28  stalled cycles per insn [83.32%]
-    5,612,485,730 branches                  #  950.264 M/sec                   [83.36%]
-       13,584,136 branch-misses             #    0.24% of all branches         [83.29%]
-
-      5.915402403 seconds time elapsed
-</pre>
-<p>Significant differences, Fast =&gt; Slow:</p>
-<ul class="simple">
-<li>Instruction per cycle: 2.31 =&gt; 1.45</li>
-<li>stalled-cycles-frontend: <strong>11.25% =&gt; 41.07%</strong></li>
-<li>stalled-cycles-backend: <strong>3.36% =&gt; 20.57%</strong></li>
-</ul>
-<p>The increase of stalled cycles is interesting. Since the code is supposed to be
-identical, it probably means that fetching instructions is slower. It sounds
-like an issue with CPU caches.</p>
-</div>
-<div class="section" id="statistics-on-the-cpu-l1-instruction-cache">
-<h2>Statistics on the CPU L1 instruction cache</h2>
-<p>The <tt class="docutils literal">perf list</tt> command can be used to get the name of events collecting
-statistics on the CPU L1 instruction cache:</p>
-<pre class="literal-block">
-$ perf list | grep L1
-  L1-icache-loads                                    [Hardware cache event]
-  L1-icache-load-misses                              [Hardware cache event]
-  (...)
-</pre>
-<p>Collect statistics on the CPU L1 instruction cache:</p>
-<pre class="literal-block">
-PYTHONPATH=~/perf perf stat -e L1-icache-loads,L1-icache-load-misses ./python-slow ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -w0 -n10
-</pre>
-<p>&quot;Fast&quot; statistics:</p>
-<pre class="literal-block">
-Performance counter stats for './python-fast (...)':
-
-   10,134,106,571 L1-icache-loads
-       10,917,606 L1-icache-load-misses     #    0.11% of all L1-icache hits
-
-      3.775067668 seconds time elapsed
-</pre>
-<p>&quot;Slow&quot; statistics:</p>
-<pre class="literal-block">
-Performance counter stats for './python-slow (...)':
-
-   10,753,371,258 L1-icache-loads
-      848,511,308 L1-icache-load-misses     #    7.89% of all L1-icache hits
-
-      6.020490449 seconds time elapsed
-</pre>
-<p>Cache misses on the L1 cache: <strong>0.1%</strong> (Fast) =&gt; <strong>8.0%</strong> (Slow).</p>
-<p>The slow Python has <strong>71.7x more L1 cache misses</strong> than the fast Python! It can
-explain the significant performance drop.</p>
-<div class="section" id="perf-report">
-<h3>perf report</h3>
-<p>The <tt class="docutils literal">perf record</tt> command can be used to collect statistics on the functions
-where the benchmark spends most of its time. Commands:</p>
-<pre class="literal-block">
-PYTHONPATH=~/perf perf record ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -v -w0 -n100
-perf report
-</pre>
-<p>Output:</p>
-<pre class="literal-block">
-40.27%  python  python              [.] _PyEval_EvalFrameDefault
-10.30%  python  python              [.] call_function
-10.21%  python  python              [.] PyFrame_New
- 8.56%  python  python              [.] frame_dealloc
- 5.51%  python  python              [.] PyObject_GenericGetAttr
- (...)
-</pre>
-<p>More than 64% of the time is spent in these 5 functions.</p>
-</div>
-<div class="section" id="system-tune">
-<h3>system tune</h3>
-<p>To run benchmark, tune again the system for benchmarks:</p>
-<pre class="literal-block">
-sudo python3 -m perf system tune
-</pre>
-</div>
-</div>
-<div class="section" id="hg-bisect">
-<h2>hg bisect</h2>
-<p>To find the revision which introduces the performance slowdown, we use a
-shell script to automate the bisection of the Mercurial history.</p>
-<p><tt class="docutils literal">cmd.sh</tt> script checking if a revision is fast or slow:</p>
-<pre class="literal-block">
-set -e -x
-./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-rm -f json
-PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --worker -o json -v
-PYTHONPATH=~/perf python3 cmd.py json
-</pre>
-<p><tt class="docutils literal">cmd.sh</tt> uses the following <tt class="docutils literal">cmd.py</tt> script which checks if the benchmark
-is slow: if it takes longer than 23 ms (average between 17 ans 29 ms):</p>
-<pre class="literal-block">
-import perf, sys
-bench = perf.Benchmark.load('json')
-bad = (29 + 17) / 2.0
-ms = bench.median() * 1e3
-if ms &gt;= bad:
-    print(&quot;BAD! %.1f ms &gt;= %.1f ms&quot; % (ms, bad))
-    sys.exit(1)
-else:
-    print(&quot;good: %.1f ms &lt; %.1f ms&quot; % (ms, bad))
-</pre>
-<p>In the bisection, &quot;good&quot; means &quot;fast&quot; (17 ms), whereas &quot;bad&quot; means &quot;slow&quot; (29
-ms).  The peak, revision 1ce50f7027c1, is used as the first &quot;bad&quot; revision. The
-previous fast revision before the peak is 678fe178da0d, our first &quot;good&quot;
-revision.</p>
-<p>Commands to identify the first revision which introduced the slowdown:</p>
-<pre class="literal-block">
-hg bisect --reset
-hg bisect -b 1ce50f7027c1
-hg bisect -g 678fe178da0d
-time hg bisect -c ./cmd.sh
-</pre>
-<p>3 min 52 sec later:</p>
-<pre class="literal-block">
-The first bad revision is:
-changeset:   104531:83877018ef97
-parent:      104528:ce85a1f129e3
-parent:      104530:2d352bf2b228
-user:        Serhiy Storchaka &lt;storchaka&#64;gmail.com&gt;
-date:        Tue Oct 18 13:27:54 2016 +0300
-files:       Misc/NEWS
-description:
-Issue #23782: Fixed possible memory leak in _PyTraceback_Add() and exception
-loss in PyTraceBack_Here().
-</pre>
-<p>Thank you <tt class="docutils literal">hg bisect</tt>! I love this tool.</p>
-<p>Even if I trust <tt class="docutils literal">hg bisect</tt>, I don't trust benchmarks, so I recheck manually:</p>
-<p>Slow:</p>
-<pre class="literal-block">
-$ hg up -C -r 83877018ef97
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 29.4 ms +- 1.8 ms
-</pre>
-<p>Use <tt class="docutils literal">hg parents</tt> to get the latest fast revision:</p>
-<pre class="literal-block">
-$ hg parents -r 83877018ef97
-changeset:   104528:ce85a1f129e3
-(...)
-
-changeset:   104530:2d352bf2b228
-branch:      3.6
-(...)
-</pre>
-<p>Check the parent:</p>
-<pre class="literal-block">
-$ hg up -C -r ce85a1f129e3
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 17.1 ms +- 0.1 ms
-</pre>
-<p>The revision ce85a1f129e3 is fast and the following revision 83877018ef97 is
-slow. <strong>The revision 83877018ef97 introduced the slowdown</strong>.  We found it!</p>
-</div>
-<div class="section" id="analysis-of-the-revision-introducing-the-slowdown">
-<h2>Analysis of the revision introducing the slowdown</h2>
-<p>The <a class="reference external" href="https://hg.python.org/cpython/rev/83877018ef97/">revision 83877018ef97</a>
-changes two files: Misc/NEWS and Python/traceback.c. The NEWS file is only
-documentation and so must not impact performances.  Python/traceback.c is part
-of the C code and so is more interesting.</p>
-<p>The commit only changes two C functions: <tt class="docutils literal">PyTraceBack_Here()</tt> and
-<tt class="docutils literal">_PyTraceback_Add()</tt>, but <tt class="docutils literal">perf report</tt> didn't show these functions as &quot;hot&quot;.
-In fact, these functions are never called by the benchmark.</p>
-<p><strong>The commit doesn't touch the C code used in the benchmark.</strong></p>
-<p>Unrelated C change impacting performances reminds me my previous <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">deadcode
-horror story</a>. The performance
-difference is probably caused by <strong>&quot;code placement&quot;</strong>: <tt class="docutils literal">perf stat</tt> showed a
-significant increase of the cache miss rate on the L1 instruction cache.</p>
-</div>
-<div class="section" id="use-gcc-attribute-hot">
-<h2>Use GCC __attribute__((hot))</h2>
-<p>Using PGO compilation was the solution for deadcode, but PGO doesn't work on
-Ubuntu 14.04 (the OS used by the benchmark server, speed-python) and PGO seems
-to make benchmarks less reliable.</p>
-<p>I wanted to try something else: mark hot functions using the GCC
-<tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> attribute. PGO compilation does this automatically.</p>
-<p>This attribute only has an impact on the code placement: where functions are
-loaded in memory. The flag declares functions in the <tt class="docutils literal">.text.hot</tt> ELF section
-rather than the <tt class="docutils literal">.text</tt> ELF section. Grouping hot functions in the same
-functions helps to reduce the distance between functions and so enhance the
-usage of CPU caches.</p>
-<p>I wrote and then pushed a patch in the <a class="reference external" href="http://bugs.python.org/issue28618">issue #28618</a>: &quot;Decorate hot functions using
-__attribute__((hot)) to optimize Python&quot;.</p>
-<p>The patch marks 6 functions as hot:</p>
-<ul class="simple">
-<li><tt class="docutils literal">_PyEval_EvalFrameDefault()</tt></li>
-<li><tt class="docutils literal">call_function()</tt></li>
-<li><tt class="docutils literal">_PyFunction_FastCall()</tt></li>
-<li><tt class="docutils literal">PyFrame_New()</tt></li>
-<li><tt class="docutils literal">frame_dealloc()</tt></li>
-<li><tt class="docutils literal">PyErr_Occurred()</tt></li>
-</ul>
-<p>Let's try the patch:</p>
-<pre class="literal-block">
-$ hg up -C -r 83877018ef97
-$ wget https://hg.python.org/cpython/raw-rev/59b91b4e9506 -O patch
-$ patch -p1 &lt; patch
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 16.7 ms +- 0.3 ms
-</pre>
-<p>It's easy to make mistakes and benchmarks are always suprising, so let's retry
-without the patch:</p>
-<pre class="literal-block">
-$ hg up -C -r 83877018ef97
-$ ./configure --with-lto -C &amp;&amp; make clean &amp;&amp; make
-$ PYTHONPATH=~/perf ./python ~/performance/performance/benchmarks/bm_call_method.py --inherit-environ=PYTHONPATH --fast
-call_method: Median +- std dev: 29.3 ms +- 0.6 ms
-</pre>
-<p>The check confirms that the GCC attribute fixed the issue!</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>On modern Intel CPUs, the code placement can have a major impact on the
-performance of microbenchmarks.</p>
-<p>The GCC <tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> attribute can be used manually to make &quot;hot
-functions&quot; close in memory to enhance the usage of CPU caches.</p>
-<p>To know more about the impact of code placement, see the very good talk of Zia
-Ansari (Intel) at the LLVM Developers' Meeting 2016: <a class="reference external" href="https://llvmdevelopersmeetingbay2016.sched.org/event/8YzY/causes-of-performance-instability-due-to-code-placement-in-x86">Causes of Performance
-Swings Due to Code Placement in IA</a>.
-He describes well &quot;performance swings&quot; like the one described in this article
-and explains how CPUs work internally and how code placement impacts CPU
-performances.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Feb 29, 2016 ...</p>
+                <a class="readmore" href="https://haypo.github.io/analysis-python-performance-issue.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
