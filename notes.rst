@@ -1,11 +1,3 @@
-Ideas of articles
-
-* Principle Engineer: fill the form
-* Contrib to CPython: 2016 Q1, Q2, Q3, Q4
-* PEP 524: os.urandom, Nick's PEP 523
-* Backport TCP_USER_TIMEOUT to OSP 7
-* Python 3 functional tests of OpenStack: run Gnocchi tests in DevStack
-
 Old ideas:
 
 * howto to port an openstack project to Python 3
