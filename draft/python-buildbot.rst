@@ -1,11 +1,27 @@
+++++++++++++++++
+Python buildbots
+++++++++++++++++
+
+:date: 2017-07-04 18:00
+:tags: cpython, builbot
+:category: python
+:slug: python-buildbots
+:authors: Victor Stinner
+
+I spent the last 6 months on working on buildbots: reduce the failure rate,
+send email notitication on failure, fix random bugs, detect more bugs using
+warnings, backport fixes to older branches, etc.
+
 Python buildbots
 ================
 
-https://www.python.org/dev/buildbot/
+CPython is running a `Buildbot <https://buildbot.net/>`_ server for continuous
+integration, but tests are run as post-commit: see `Python buildbots
+<https://www.python.org/dev/buildbot/>`_.
 
 CPython is tested by a wide range of buildbot slaves:
 
-* Operating systems:
+* 6 operating systems:
 
   * Linux: Debian, Ubuntu, Gentoo, RHEL, SLES
   * Windows: 7, 8, 8.1, 10
@@ -14,11 +30,11 @@ CPython is tested by a wide range of buildbot slaves:
   * AIX
   * OpenIndiana (currently offline)
 
-* CPU
+* 5 CPU architectures:
 
   * ARMv7
-  * x86 (32 bit)
-  * x86-64 aka "AMD64" (64-bit)
+  * x86 (Intel 32 bit)
+  * x86-64 aka "AMD64" (Intel 64-bit)
   * PPC64, PPC64LE
   * s390x
 
@@ -26,28 +42,32 @@ There are different kinds of tests:
 
 * Python test suite
 * Docs: check that the documentation can be build and doesn't contain warnings
-* "Refleaks": check for reference leaks and memory leaks using the Python test
-  suite, the ``--huntrleaks`` option of regrtest used with ``-R 3:3``.
-* "DMG": Build the macOS installer using the
+* "Refleaks": check for reference leaks and memory leaks, run the Python test
+  suite with the ``--huntrleaks`` option
+* "DMG": Build the macOS installer with the
   ``Mac/BuildScript/build-installer.py`` script
 
-Python can be tested with different configuration:
+Python is tested in different configurations:
 
-* Non-debug: default
-* Debug: ``./configure --with-pydebug``
+* Debug: ``./configure --with-pydebug``, the most common configuration
+* Non-debug: release mode, with compiler optimizations
+* PGO: Profiled Guided Optimization, ``./configure --enable-optimizations``
 * Installed: ``./configure --prefix=XXX && make install``
 * Shared library (libpython): ``./configure --enable-shared``
 
-Tested branches:
+Currently, 4 branches are tested:
 
 * ``master``: called "3.x" on buildbots
 * ``3.6``
 * ``3.5``
 * ``2.7``
-* ``custom``: special branch used by core developers for testing patches
 
-The buildbot configuration can be found in ``master/master.cfg`` file of the
-`buildmaster-config project <https://github.com/python/buildmaster-config/>`_.
+There is also ``custom``, a special branch used by core developers for testing
+patches.
+
+The buildbot configuration can be found in the ``master/master.cfg`` file of
+the `buildmaster-config project
+<https://github.com/python/buildmaster-config/>`_.
 
 
 Fix warnings
@@ -55,12 +75,31 @@ Fix warnings
 
 Add a new Orange color :-)
 
+Mailing list
+------------
+
+Since May 2017, buildbots are now sending notifications to a new
+`buildbot-status mailing list
+<https://mail.python.org/mm3/mailman3/lists/buildbot-status.python.org/>`_ when
+a buildbot starts failing: if the previous run was successful (green or orange)
+but the new build failed (red).
+
+* Create the mailing list
+* Fix a bug in our buildbot to be able to send emails
+* Whitelist buildbot@python.org email
+* Enjoy!
+
+https://bugs.python.org/issue30325
+
 Fix environment changed warnings
 --------------------------------
 
 * Test leaking files
 * Core dump: test_subprocess
 * Threads, @reap_threads, test_asyncio
+* New --fail-env-changed
+* --fail-env-changed now used on the master branch on buildbots, Travis CI and
+  AppVeyor
 
 Fix unstable tests, fail once, pass when run again
 --------------------------------------------------
@@ -103,8 +142,8 @@ I wrote 3 reports to the Python-Dev mailing list:
   <https://mail.python.org/pipermail/python-dev/2017-June/148511.html>`_
 
 
-Bugs
-====
+Funny Bugs
+==========
 
 http://bugs.python.org/issue30371
 
