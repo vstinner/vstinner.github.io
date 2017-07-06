@@ -173,8 +173,8 @@ unittest.TestCase. Explicitly break reference cycles between frames and the
 <https://github.com/python/cpython/commit/031bd532c48cf20a9cbf438bdae75dde49e36c51>`_.
 
 
-FASTCALL optimmizations
-=======================
+FASTCALL optimizations
+======================
 
 FASTCALL is my project to avoid temporary tuple to pass positional arguments
 and avoid temporary dictionary to pass keyword arguments when calling a
