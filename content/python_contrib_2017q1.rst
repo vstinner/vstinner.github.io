@@ -14,7 +14,7 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q1
 * Statistics
 * Optimization
 * Tricky bug
-* FASTCALL optimmizations
+* FASTCALL optimizations
 * Stack consumption
 * Contributions
 * os.urandom() and getrandom()
