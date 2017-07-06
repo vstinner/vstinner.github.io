@@ -22,7 +22,748 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q2.html">My contributions to CPython during 2017 Q2</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-07-05T15:00:00+02:00">
+                Published: mer. 05 juillet 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2
+(april, may, june):</p>
+<ul class="simple">
+<li>XXX</li>
+</ul>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a>.</p>
+<div class="section" id="statistics">
+<h2>Statistics</h2>
+<pre class="literal-block">
+# All branches
+$ git log --after=2017-03-31 --before=2017-06-30 --reverse --branches='*' --author=Stinner &gt; 2017Q2
+$ grep '^commit ' 2017Q2|wc -l
+222
+
+# Master branch only
+$ git log --after=2017-03-31 --before=2017-06-30 --reverse --author=Stinner origin/master|grep '^commit '|wc -l
+85
+</pre>
+<p>Statistics: <strong>85</strong> commits in the master branch, a <strong>total of 222 commits</strong>:
+most (but not all) of the remaining 137 commits are cherry-picked backports to
+2.7, 3.5 and 3.6 branches.</p>
+<p>Note: I didn't use <tt class="docutils literal"><span class="pre">--no-merges</span></tt> since we don't use merge anymore, but <tt class="docutils literal">git
+<span class="pre">cherry-pick</span> <span class="pre">-x</span></tt>, to <em>backport</em> fixes. Before GitHub, we used <strong>forwardport</strong>
+with Mercurial merges.</p>
+</div>
+<div class="section" id="mentoring">
+<h2>Mentoring</h2>
+<p>During this quarter, I tried to mark &quot;easy&quot; issues using a &quot;[EASY]&quot; tag in
+their title and the &quot;easy&quot; or &quot;easy C&quot; keyword. I announced these issues on the
+<a class="reference external" href="https://www.python.org/dev/core-mentorship/">core-mentorship mailing list</a>.
+I asked core developers to not fix these easy issues, but rather explain how to
+fix them. In each issue, I described how fix these issues.</p>
+<p>I mentored <strong>Stéphane Wirtel</strong> and <strong>Louie Lu</strong> to fix issues (easy or not).
+During this quarter, Stéphane Wirtel got <strong>5 commits</strong> merged into master (on a
+total of <strong>11 commits</strong>), and Louie lu got <strong>6 commits</strong> merged into master (on
+a total of <strong>10 commits</strong>).</p>
+<p>They helped me to fix reference leaks spotted by the new Refleaks buildbots.</p>
+</div>
+<div class="section" id="python-3-6-0-regression">
+<h2>Python 3.6.0 regression</h2>
+<p>I am ashamed, I introduced a tricky regression in Pyton 3.6.0 with my work on
+FASTCALL optimizations. A special way to call C builtin functions was broken:</p>
+<pre class="literal-block">
+from datetime import datetime
+next(iter(datetime.now, None))
+</pre>
+<p>This code raises a <tt class="docutils literal">StopIteration</tt> exception instead of formatting the
+current date and time.</p>
+<p>It's even worse: I was aware of the bug and already fixed it in master, but I
+just forgot to backport my fix: bpo-30524, fix _PyStack_UnpackDict().</p>
+<p>To prevent regressions, I now wrote exhaustive unit tests on all C functions
+which call functions (bpo-30524).</p>
+</div>
+<div class="section" id="struct-struct-format-type">
+<h2>struct.Struct.format type</h2>
+<p>Sometimes, fixing a bug can take longer than expected. In March 2014, <strong>Zbyszek
+Jędrzejewski-Szmek</strong> reported a bug on the <tt class="docutils literal">format</tt> attribute of the
+<tt class="docutils literal">struct.Struct</tt> class: this attribute type is bytes, whereas a Unicode string
+(str) was expected.</p>
+<p>I proposed to &quot;just&quot; change the attribute type in December 2014, but it was an
+incompatible change which would break the backward compatibility. <strong>Martin
+Panter</strong> agreed and wrote a patch. <strong>Serhiy Storchaka</strong> asked to discuss such
+incompatible change on python-dev, but then nothing happened during longer than
+2 years.</p>
+<p>In March 2017, I converted the old Martin's patch into a new GitHub pull
+request. <strong>Serhiy</strong> asked again to write to python-dev, so I wrote:
+[Python-Dev] <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-March/147688.html">Issue #21071: change struct.Struct.format type from bytes to str</a>. And...
+I got zero answer.</p>
+<p>Well, I didn't expect any, since it's a trivial change, and I don't expect that
+anyone rely on the exact <tt class="docutils literal">format</tt> attribute type.  Moreover, the
+<tt class="docutils literal">struct.Struct</tt> constructor already accepts bytes and str types, if if the
+attribute is pass to the constructor: it just works.</p>
+<p>In June 2017, Serhiy Storchaka replied to my email: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148360.html">If nobody opposed to this
+change it will be made in short time.</a>.  Since
+nobody replied, again, I just merged my pull request.</p>
+<p>So it took 3 years and 3 months to change the type of an uncommon attribute :-)</p>
+<p>Note: I never used this attribute... Before reading this issue, I didn't even
+know that the <tt class="docutils literal">struct</tt> module has a <tt class="docutils literal">struct.Struct</tt> type...</p>
+</div>
+<div class="section" id="optimization-one-less-syscall-per-open-call">
+<h2>Optimization: one less syscall per open() call</h2>
+<p>In bpo-30228, I modified FileIO.seek() and FileIO.tell() methods to now set the
+internal seekable attribute to avoid one <tt class="docutils literal">fstat()</tt> syscall per open() in
+buffered or text mode.</p>
+<p>The seekable property is now also more reliable since its value is
+set correctly on memory allocation failure.</p>
+<p>I still have a second pending pull request to remove one more <tt class="docutils literal">fstat()</tt>
+syscall: <a class="reference external" href="https://github.com/python/cpython/pull/1385">bpo-30228: TextIOWrapper uses abs_pos, not tell()</a>.</p>
+</div>
+<div class="section" id="make-regen-all">
+<h2>make regen-all</h2>
+<p>I started to look at bpo-23404, because the Python compilation failed on the
+&quot;AMD64 FreeBSD 9.x 3.x&quot; buildbot when trying to regenerate the
+<tt class="docutils literal">Include/opcode.h</tt> file.</p>
+<p>We had a <tt class="docutils literal">make touch</tt> command to workaround this file timestamp issue, but
+the command uses Mercurial, whereas Python migrated to Git. The &quot;touch&quot; step
+was removed on buildots because &quot;make touch&quot; was broken.</p>
+<p>I was always annoyed by the Makefile which wants to regenerate genrated files
+because of wrong file modification time, whereas the generated files were
+already up to date.</p>
+<p>The bug annoyed me on OpenIndiana where &quot;make touch&quot; didn't work beause the
+operating system only provides Python 2.6 and Mercurial didn't work on this
+version.</p>
+<p>The bug also annoyed me on FreeBSD which has no &quot;python&quot; command, only
+&quot;python2.7&quot;, and so required manual steps.</p>
+<p>The bug was also a pain point when trying to cross-compile Python.</p>
+<p>I decided to rewrite the Makefile to not regenerate generated files based on
+the file modification time anymore. Instead, I added a new &quot;make regen-all&quot;
+command to regenerate explicitly all generated files. Basically, I replaced
+&quot;make touch&quot; with &quot;make regen-all&quot;.</p>
+<p>Changes:</p>
+<ul class="simple">
+<li>Remove &quot;make touch&quot;, Tools/hg/hgtouch.py and .hgtouch</li>
+<li>Add a new &quot;make regen-all&quot; command to rebuild all generated files</li>
+<li>Add subcommands to only generate specific files:<ul>
+<li>regen-ast: Include/Python-ast.h and Python/Python-ast.c</li>
+<li>regen-grammar: Include/graminit.h and Python/graminit.c</li>
+<li>regen-importlib: Python/importlib_external.h and Python/importlib.h</li>
+<li>regen-opcode: Include/opcode.h</li>
+<li>regen-opcode-targets: Python/opcode_targets.h</li>
+<li>regen-typeslots: Objects/typeslots.inc</li>
+</ul>
+</li>
+<li>Rename PYTHON_FOR_GEN to PYTHON_FOR_REGEN</li>
+<li>pgen is now only built by by &quot;make regen-grammar&quot;</li>
+<li>Add $(srcdir)/ prefix to paths to source files to handle correctly
+compilation outside the source directory</li>
+</ul>
+<p>Note: $(PYTHON_FOR_REGEN) is no more used nor needed by &quot;make&quot;
+default target building Python.</p>
+<p>bpo-30273: Update sysconfig (#1464)</p>
+<p>The AST_H_DIR variable was removed from Makefile.pre.in by the commit
+a5c62a8e9f0de6c4133825a5710984a3cd5e102b (bpo-23404).</p>
+<p>AST_H_DIR was hardcoded to &quot;Include&quot;, so replace the removed variable
+by its content.</p>
+<p>Remove also ASDLGEN variable from sysconfig example since this
+variable was also removed.</p>
+<p>bpo-30273: update distutils.sysconfig for venv's created from Python.</p>
+<p>compiled out-of-tree (builddir != srcdir). (see also bpo-15366)</p>
+</div>
+<div class="section" id="trick-bug-clang-4-0-dtoa-and-strict-aliasing">
+<h2>Trick bug: Clang 4.0, dtoa and strict aliasing</h2>
+<p>Aha, another funny story about compilers.</p>
+<p>I noticed that the following tests started to fail on the &quot;AMD64 FreeBSD
+CURRENT Debug 3.x&quot; buildbot:</p>
+<ul class="simple">
+<li>test_cmath</li>
+<li>test_float</li>
+<li>test_json</li>
+<li>test_marshal</li>
+<li>test_math</li>
+<li>test_statistics</li>
+<li>test_strtod</li>
+</ul>
+<p>First, I bet on a libc change on FreeBSD. Then, I found that test_strtod fails
+on FreeBSD using clang 4.0, but pass using clang 3.8.</p>
+<p>I started to bisect the code using a subset of <tt class="docutils literal">Python/dtoa.c</tt>:</p>
+<ul class="simple">
+<li>Start: 2,876 lines</li>
+<li>dtoa2.c: 2,865 lines</li>
+<li>dtoa5.c: 50 lines</li>
+</ul>
+<p>Extract of dtoa5.c:</p>
+<pre class="literal-block">
+typedef union { double d; uint32_t L[2]; } U;
+
+struct Bigint { int wds; };
+
+static double
+ratio(struct Bigint *a)
+{
+    U da, db;
+    int k, ka, kb;
+    double r;
+
+    da.d = 1.682;
+    ka = 6;
+    db.d = 1.0;
+    kb = 5;
+    k = ka - kb + 32 * (a-&gt;wds - 12);
+    printf(&quot;k=%i\n&quot;, k);
+
+    if (k &gt; 0)
+        da.L[1] += k * 0x100000;
+    else {
+        k = -k;
+        db.L[1] += k * 0x100000;
+    }
+    r = da.d / db.d;
+    /* r == 3.364 */
+    return r;
+}
+</pre>
+<p>Even if I had a very short C code (50 lines) reproducing the bug, I was unable
+to understand the bug. I read many articles about aliasting, but I still don't
+understand the bug...</p>
+<p>Anyway, I wanted to report the bug to clang (LLVM), but the LLVM bug tracker was
+migrating and I was unable to subscribe to get an account!</p>
+<p>In the meanwhile, <strong>Dimitry Andric</strong>, a FreeBSD developer, told me that he got
+exactly the same clang 4.0 issue with &quot;dtoa.c&quot; in the <em>julia</em> programming
+language. He reported the bug to FreeBSD: <a class="reference external" href="https://bugs.freebsd.org/216770">lang/julia: fails to build with
+clang 4.0</a>, and to clang: <a class="reference external" href="https://bugs.llvm.org//show_bug.cgi?id=31928">After r280351:
+if/else blocks incorrectly optimized away?</a>. The &quot;problem&quot; is that clang
+developers disagree that it's a bug. In short, the discussion was around the C
+standard: does clang respect C aliasing rules or not? At the end, clang
+developers consider that they are right to optimize and that:</p>
+<blockquote>
+It's a bug in the code, not in the compiler</blockquote>
+<p>So I made a first change to use the <tt class="docutils literal"><span class="pre">-fno-strict-aliasing</span></tt> flag when Python
+is compiled with clang:</p>
+<blockquote>
+Python/dtoa.c is not compiled correctly with clang 4.0 and
+optimization level -O2 or higher, because of an aliasing issue on
+the double/ULong[2] union.</blockquote>
+<p>But this change can make Python slower when compiled on clang, so I was asked
+to only compile <tt class="docutils literal">Python/dtoa.c</tt> with this flag:</p>
+<blockquote>
+On clang, only compile dtoa.c with -fno-strict-aliasing, use strict
+aliasing to compile all other C files.</blockquote>
+</div>
+<div class="section" id="tricky-bugs">
+<h2>Tricky bugs</h2>
+<div class="section" id="signal">
+<h3>signal</h3>
+<p>Change written by <strong>Nathaniel J. Smith</strong>.</p>
+<p>bpo-30038: fix race condition in signal delivery + wakeup fd (#1082) (#2075)</p>
+<p>Before, it was possible to get the following sequence of
+events (especially on Windows, where the C-level signal handler for
+SIGINT is run in a separate thread):</p>
+<ul class="simple">
+<li>SIGINT arrives</li>
+<li>trip_signal is called</li>
+<li>trip_signal writes to the wakeup fd</li>
+<li>the main thread wakes up from select()-or-equivalent</li>
+<li>the main thread checks for pending signals, but doesn't see any</li>
+<li>the main thread drains the wakeup fd</li>
+<li>the main thread goes back to sleep</li>
+<li>trip_signal sets is_tripped=1 and calls Py_AddPendingCall to notify
+the main thread the it should run the Python-level signal handler</li>
+<li>the main thread doesn't notice because it's asleep</li>
+</ul>
+<dl class="docutils">
+<dt>This has been causing repeated failures in the Trio test suite:</dt>
+<dd><a class="reference external" href="https://github.com/python-trio/trio/issues/119">https://github.com/python-trio/trio/issues/119</a></dd>
+</dl>
+<p>(cherry picked from commit 4ae01496971624c75080431806ed1c08e00f22c7)</p>
+</div>
+<div class="section" id="misc">
+<h3>Misc</h3>
+<ul class="simple">
+<li>bpo-30225: is_valid_fd() now uses fstat() instead of dup() on macOS
+to return 0 on a pipe when the other side of the pipe is closed. fstat()
+fails with EBADF in that case, whereas dup() succeed.</li>
+</ul>
+<pre class="literal-block">
+bpo-30131: test_logging now joins queue threads (#1298)
+
+QueueListenerTest of test_logging now closes the multiprocessing
+Queue and joins its thread to prevent leaking dangling threads to
+following tests.
+
+Add also &#64;support.reap_threads to detect earlier if a test leaks
+threads (and try to &quot;cleanup&quot; these threads).
+</pre>
+</div>
+<div class="section" id="test-eintr">
+<h3>test_eintr</h3>
+<p>bpo-30320: test_eintr now uses pthread_sigmask() (#1523)</p>
+<p>Rewrite sigwaitinfo() and sigtimedwait() unit tests for EINTR using
+pthread_sigmask() to fix a race condition between the child and the
+parent process.</p>
+<p>Remove the pipe which was used as a weak workaround against the race
+condition.</p>
+<p>sigtimedwait() is now tested with a child process sending a signal
+instead of testing the timeout feature which is more unstable
+(especially regarding to clock resolution depending on the platform).</p>
+</div>
+<div class="section" id="freebsd-core-dump">
+<h3>FreeBSD core dump</h3>
+<p>bpo-30764: test_subprocess uses SuppressCrashReport. bpo-30764, bpo-29335:
+test_child_terminated_in_stopped_state() of test_subprocess now uses
+support.SuppressCrashReport() to prevent the creation of a core dump on
+FreeBSD.</p>
+<p>For an unknown reason, the bug only occurs on Koobs' buildbot, not on my VM,
+nor bapt's machine.</p>
+</div>
+</div>
+<div class="section" id="regrtest">
+<h2>regrtest</h2>
+<ul class="simple">
+<li>regrtest: always show before/after values of modified environment.</li>
+<li>bpo-30263: regrtest: log system load and the number of CPUs.
+--verbose now also imply --header.</li>
+<li>[2.7] bpo-30283: Backport test_regrtest from master to 2.7</li>
+<li>bpo-27103: regrtest disables -W if -R is used. Workaround for a regrtest bug.</li>
+<li>bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
+build directory, not in the source directory, since the source directory may
+be read-only and must not be modified. Fallback on the source directory if
+the build directory is not available (missing &quot;abs_builddir&quot; sysconfig
+variable).</li>
+<li>Synchronize libregrtest from master to 3.6</li>
+<li>[3.5] bpo-30383: Backport regrtest and test_regrtest enhancements from master to 3.5 (#2279)</li>
+<li>2.7 and 3.5: bpo-30383: Add NEWS entry for backported regrtest (#2438)</li>
+</ul>
+</div>
+<div class="section" id="regrtest-bisect">
+<h2>regrtest bisect</h2>
+<ul class="simple">
+<li>bpo-30540: regrtest: add --matchfile option.</li>
+<li>bpo-30523: Add --list-cases options to regrtest.
+Co-Authored-By: <strong>Louie Lu</strong>.</li>
+<li>bpo-29512: Add test.bisect, bisect failing tests.</li>
+</ul>
+<p>Add a new &quot;python3 -m test.bisect&quot; tool to bisect failing tests. It can be used
+to find which test method(s) leak references, leak files, etc.</p>
+</div>
+<div class="section" id="security">
+<h2>Security</h2>
+<div class="section" id="expat-2-2">
+<h3>expat 2.2</h3>
+<p>See <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2016-0718_expat_2.2_bug_537.html">CVE-2016-0718: expat 2.2, bug #537</a>.</p>
+<p>2.2:</p>
+<pre class="literal-block">
+bpo-29591: Upgrade Modules/expat to libexpat 2.2 (#2164)
+
+* bpo-29591: Upgrade Modules/expat to libexpat 2.2
+
+* bpo-29591: Restore Python changes on expat
+
+* bpo-29591: Remove expat config of unsupported platforms
+
+Remove the configuration (Modules/expat/*config.h) of unsupported
+platforms:
+
+* Amiga
+* MacOS Classic on PPC32
+* Open Watcom
+
+* bpo-29591: Remove useless XML_HAS_SET_HASH_SALT
+
+The XML_HAS_SET_HASH_SALT define of Modules/expat/expat.h became
+useless since our local expat copy was upgrade to expat 2.1 (it's now
+expat 2.2.0).
+</pre>
+<p>Fixed in master, 3.6, 3.5, 2.7. Pending PR for 3.4 and 3.3: XXX.</p>
+</div>
+<div class="section" id="expat-2-2-1">
+<h3>expat 2.2.1</h3>
+<p>See <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2017-9233_expat_2.2.1.html">CVE-2017-9233: Expat 2.2.1</a></p>
+<p>bpo-30694: Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
+of multiple security vulnerabilities including: CVE-2017-9233 (External
+entity infinite loop DoS), CVE-2016-9063 (Integer overflow, re-fix),
+CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)
+and CVE-2012-0876 (Counter hash flooding with SipHash).
+Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
+doesn't impact Python, since Python already gets entropy from the OS to set
+the expat secret using <tt class="docutils literal">XML_SetHashSalt()</tt>.</p>
+<p>Fixed in master, 3.6, 3.5, 2.7. Pending PR for 3.4 and 3.3: XXX.</p>
+</div>
+<div class="section" id="urllib-splithost-vulnerability">
+<h3>urllib splithost() vulnerability</h3>
+<p>See <a class="reference external" href="http://python-security.readthedocs.io/vuln/bpo-30500_urllib_connects_to_a_wrong_host.html">bpo-30500: urllib connects to a wrong host</a>
+vulnerability.</p>
+<p>bpo-30500: Fix urllib.parse.splithost() to correctly parse fragments. For
+example, <tt class="docutils literal"><span class="pre">splithost('//127.0.0.1#&#64;evil.com/')</span></tt> now correctly returns the
+<tt class="docutils literal">127.0.0.1</tt> host, instead of treating <tt class="docutils literal">&#64;evil.com</tt> as the host in an
+authentification (<tt class="docutils literal">login&#64;host</tt>).</p>
+<p>Fix applied to master, 3.6, 3.5 and 2.7. Pending PR for 3.4 and 3.3: XXX.</p>
+</div>
+<div class="section" id="travis-ci">
+<h3>Travis CI</h3>
+<p>Pending PR adding Travis CI and AppVeyor to 3.4 and 3.3 branches.</p>
+</div>
+</div>
+<div class="section" id="buildbots">
+<h2>Buildbots</h2>
+<p>Warnings:</p>
+<ul class="simple">
+<li>The &#64;reap_threads decorator and the threading_cleanup() function of
+test.support now log a warning if they fail to clenaup threads. The log may
+help to debug such other warning seen on the AMD64 FreeBSD CURRENT Non-Debug
+3.x buildbot: &quot;Warning -- threading._dangling was modified by test_logging&quot;.</li>
+<li>bpo-30764: regrtest: add --fail-env-changed option.</li>
+<li>threading_cleanup() failure marks test as ENV_CHANGED. If threading_cleanup()
+fails to cleanup threads, set a a new support.environment_altered flag to
+true, flag uses by save_env which is used by regrtest to check if a test
+altered the environment. At the end, the test file fails with ENV_CHANGED
+instead of SUCCESS, to report that it altered the environment.</li>
+</ul>
+<p>Many fixes required backports to 2.7, 3.5 and 3.6 branches.</p>
+<div class="section" id="fixes">
+<h3>Fixes</h3>
+<ul class="simple">
+<li>bpo-29972: Skip tests known to fail on AIX. See <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147748.html">[Python-Dev] Fix or drop AIX
+buildbot?</a>
+email.</li>
+<li>bpo-29925: Skip test_uuid1_safe() on OS X Tiger</li>
+<li>Fix/optimize test_asyncore.test_quick_connect(). Don't use addCleanup() in
+test_quick_connect() because it keeps the Thread object alive and so
+&#64;reap_threads fails on its timeout of 1 second. &quot;./python -m test -v
+test_asyncore -m test_quick_connect&quot; now takes 185 ms, instead of 11 seconds.</li>
+<li>bpo-30106: Fix test_asyncore.test_quick_connect(). test_quick_connect() runs
+a thread up to 50 seconds, whereas the socket is connected in 0.2 second and
+then the thread is expected to end in less than 3 second. On Linux, the
+thread ends quickly because select() seems to always return quickly. On
+FreeBSD, sometimes select() fails with timeout and so the thread runs much
+longer than expected. Fix the thread timeout to fix a race condition in the
+test.</li>
+<li>bpo-30106: Fix tearDown() of test_asyncore. Call asyncore.close_all() with
+ignore_all=True in the tearDown() method of the test_asyncore base test case.
+It should prevent keeping alive sockets in asyncore.socket_map if close()
+fails with an unexpected error.</li>
+<li>bpo-30108: Restore sys.path in test_site. Add setUpModule() and
+tearDownModule() functions to test_site to save/restore sys.path at the
+module level to prevent warning if the user site directory is created, since
+site.addsitedir() modifies sys.path.</li>
+<li>bpo-30107: don't dump core on expected test_io crash. test_io has two unit
+tests which trigger a deadlock:
+test_daemon_threads_shutdown_stdout_deadlock() and
+test_daemon_threads_shutdown_stderr_deadlock(). These tests call
+Py_FatalError() if the expected bug is triggered which calls abort(). Use
+test.support.SuppressCrashReport to prevent the creation on a core dump, to
+fix the warning: &quot;Warning -- files was modified by test_io (...)
+After:  ['python.core']&quot;</li>
+<li>bpo-30125: Disable faulthandler to run test_SEH() of test_ctypes to prevent
+the following log with a traceback: &quot;Windows fatal exception: access
+violation&quot;.</li>
+<li>bpo-30131: Cleanup threads in test_logging using &#64;support.reap_threads.</li>
+<li>bpo-30132: BuildExtTestCase of test_distutils now uses support.temp_cwd() in
+setUp() to remove files created in the current working directory in all
+BuildExtTestCase unit tests.</li>
+<li>bpo-30107: On macOS, test.support.SuppressCrashReport now redirects
+/usr/bin/defaults command stderr into a pipe to not pollute stderr. It fixes
+a test_io.test_daemon_threads_shutdown_stderr_deadlock() failure when the
+CrashReporter domain doesn't exists.</li>
+<li>bpo-30175: Skip client cert tests of test_imaplib. The IMAP server
+cyrus.andrew.cmu.edu doesn't accept our randomly generated client x509
+certificate anymore. test_nntplib fails randomly with EOFError in
+NetworkedNNTPTests.setUpClass(). Catch EOFError to skip tests in that case.</li>
+<li>bpo-30199: AsyncoreEchoServer of test_ssl now calls
+asyncore.close_all(ignore_all=True) to ensure that asyncore.socket_map is
+cleared once the test completes, even if ConnectionHandler was not correctly
+unregistered. Fix the following warning:
+<tt class="docutils literal">Warning <span class="pre">--</span> asyncore.socket_map was modified by test_ssl</tt>.</li>
+<li>Fix test_ftplib warning if IPv6 is not available. DummyFTPServer now calls
+del_channel() on bind() error to prevent the following warning in
+TestIPv6Environment.setUpClass():
+<tt class="docutils literal">Warning <span class="pre">--</span> asyncore.socket_map was modified by test_ftplib</tt></li>
+<li>bpo-30329: Catch Windows error 10022 on shutdown(). Catch the Windows socket
+WSAEINVAL error (code 10022) in imaplib and poplib on shutdown(SHUT_RDWR): An
+invalid operation was attempted. This error occurs sometimes on SSL
+connections.</li>
+<li>bpo-30357: test_thread now uses threading_cleanup(). test_thread: setUp() now
+uses support.threading_setup() and support.threading_cleanup() to wait until
+threads complete to avoid random side effects on following tests.
+Co-Authored-By: <strong>Grzegorz Grzywacz</strong>.</li>
+<li>bpo-30339: test_multiprocessing_main_handling timeout.
+test_multiprocessing_main_handling: increase the test_source timeout from 10
+seconds to 60 seconds, since the test fails randomly on busy buildbots.
+Sadly, this change wasn't enough to fix buildbots.</li>
+<li>bpo-30387: Fix warning in test_threading. test_is_alive_after_fork() now
+joins directly the thread to avoid the following warning added by bpo-30357:
+&quot;Warning -- threading_cleanup() failed to cleanup 0 threads after 2 sec
+(count: 0, dangling: 21)&quot;. Use also a different exit code to catch generic
+exit code 1.</li>
+<li>bpo-30649: test_os tolerates 50 ms delta for utime. On Windows, tolerate a
+delta of 50 ms instead of 20 ms in test_utime_current() and
+test_utime_current_old() of test_os. On other platforms, reduce the delta
+from 20 ms to 10 ms. Revert utime delta in test_os: PPC64 Fedora 3.x buildbot
+requires at least a delta of 14 ms: revert the utime delta to 20 ms.</li>
+<li>bpo-30595: Increase test_queue_feeder_donot_stop_onexc() timeout.
+_test_multiprocessing.test_queue_feeder_donot_stop_onexc() now uses a timeout
+of 1 second on Queue.get(), instead of 0.1 second, for slow buildbots.</li>
+<li>bpo-30764: test_subprocess uses SuppressCrashReport. bpo-30764, bpo-29335:
+test_child_terminated_in_stopped_state() of test_subprocess now uses
+support.SuppressCrashReport() to prevent the creation of a core dump on
+FreeBSD.</li>
+<li>bpo-30280: TestBaseSelectorEventLoop of
+test.test_asyncio.test_selector_events now correctly closes the event loop:
+cleanup its executor to not leak threads: don't override the close() method
+of the event loop, only override the_close_self_pipe() method. asyncio base
+TestCase now uses threading_setup() and threading_cleanup() of test.support
+to cleanup threads.</li>
+<li>bpo-30812: Fix test_warnings, restore _showwarnmsg. bpo-26568, bpo-30812: Fix
+test_showwarnmsg_missing(): restore the attribute after removing it.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="python-2-7">
+<h2>Python 2.7</h2>
+<ul class="simple">
+<li>Update gitignore from master.</li>
+<li>gitignore: add rules for the PC/ directory</li>
+<li>bpo-30258: regrtest handles child process crash</li>
+<li>Fix &quot;make tags&quot; command.</li>
+<li>Add Appveyor: a Windows CI for GitHub</li>
+<li>bpo-30258: Fix handling of child error in regrtest. Don't stop the
+worker thread if a child failed.</li>
+<li>bpo-30342: Fix sysconfig.is_python_build() on VS9.0. Fix
+sysconfig.is_python_build() if Python is built with Visual Studio 2008 (VS
+9.0).</li>
+<li>bpo-30764: support.SuppressCrashReport backported to 2.7, &quot;ported&quot; to Windows.
+Add Windows support to test.support.SuppressCrashReport: call SetErrorMode()
+and CrtSetReportMode(). _testcapi: add CrtSetReportMode() and
+CrtSetReportFile() functions and CRT_xxx and CRTDBG_xxx constants needed by
+SuppressCrashReport.</li>
+<li>bpo-30705: Fix test_regrtest.test_crashed(). Add test.support._crash_python()
+which triggers a crash but uses test.support.SuppressCrashReport() to prevent
+a crash report from popping up. Modify
+test_child_terminated_in_stopped_state() of test_subprocess and
+test_crashed() of test_regrtest to use _crash_python().</li>
+</ul>
+<div class="section" id="backports">
+<h3>Backports</h3>
+<p>I also backported many fixes wrote by other developers, including fixes which
+are 3 years old and older, to fix 2.7. Sometimes <strong>finding</strong> the proper fix
+takes much more time than the cherry-pick itself which is usually
+straighforward (no conflict, nothing to do). I am always impressed that Git is
+able to detect that a file was renamed between Python 2 and Python 3, and
+applies cleanly the change!</p>
+<p>A few examples of backports:</p>
+<ul class="simple">
+<li>2.7: test_distutils: Use EnvironGuard on InstallTestCase, UtilTestCase, and
+BuildExtTestCase  to prevent the following warning:
+<tt class="docutils literal">Warning <span class="pre">--</span> os.environ was modified by test_distutils</tt></li>
+<li>2.7: Fix test_multprocessing: Relax test timing (bpo-29861) to avoid sporadic
+failures.</li>
+</ul>
+</div>
+<div class="section" id="backport-old-fixes">
+<h3>Backport old fixes</h3>
+<ul class="simple">
+<li>[2.7] bpo-15526: test_startfile changes the cwd. Try to fix test_startfile's
+inability to clean up after itself in time. Patch by Jeremy Kloth.
+Fix the following support.rmtree() error while trying to remove the temporary
+working directory used by Python tests:
+&quot;WindowsError: [Error 32] The process cannot access the file because it is
+being used by another process: ...&quot;.
+Original commit written in September 2012!</li>
+<li>[2.7] bpo-6393: Fix locale.getprerredencoding() on macOS. Python crashes on OSX
+when <tt class="docutils literal">$LANG</tt> is set to some (but not all) invalid values due to an invalid
+result from nl_langinfo(). Fix written in September 2009!</li>
+<li>bpo-11790: Fix sporadic failures in
+test_multiprocessing.WithProcessesTestCondition.
+Fixed written in April 2011. This backported commit was tricky to identify!</li>
+<li>bpo-8799, fix test_threading: Reduce timing sensitivity of condition test by
+explicitly.  delaying the main thread so that it doesn't race ahead of the
+workers.  Fix written in Nov 2013.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="github">
+<h2>GitHub</h2>
+<p>SCM, backported to 2.7:</p>
+<pre class="literal-block">
+bpo-27593: Get SCM build info from git instead of hg (#1327)
+
+Based on commit 5c4b0d063aba0a68c325073f5f312a2c9f40d178 by Ned
+Deily, which is based on original patches by Brett Cannon and Steve
+Dower.
+
+Remove also the private _Py_svnversion() function and SVNVERSION
+variable.
+
+Note: Py_SubversionRevision() and Py_SubversionShortBranch() are
+unchanged, they are part of the public API.
+</pre>
+<pre class="literal-block">
+bpo-30232: Support Git worktree in configure.ac (#1391)
+
+Don't test if .git/HEAD file exists, but only if the .git file (or
+directory) exists.
+</pre>
+</div>
+<div class="section" id="enhancements">
+<h2>Enhancements</h2>
+<ul class="simple">
+<li>bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
+ignoring all OSError exception.</li>
+<li>bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
+PyTraceMalloc_Untrack() functions public. numpy is now able to use
+tracemalloc since numpy 1.13 (XXX check version XXX link to PR).</li>
+</ul>
+</div>
+<div class="section" id="bugfixes">
+<h2>Bugfixes</h2>
+<ul class="simple">
+<li>test_locale now ignores the DeprecationWarning, don't fail anymore if test
+run with <tt class="docutils literal">python3 <span class="pre">-Werror</span></tt>. Fix also deprecation message: add a space.</li>
+<li>Only define get_zone() and get_gmtoff() if needed, fix warnings on AIX.</li>
+<li>bpo-30125: On Windows, faulthandler.disable() now removes the exception
+handler installed by faulthandler.enable().</li>
+<li>tmtotuple(): use time_t for gmtoff.</li>
+<li>bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
+xml.sax.xmlreader now always closes the source: close the file object or the
+urllib object if source is a string (not an open file-like object). The
+change fixes a ResourceWarning on parsing error. Add
+test_parse_close_source() unit test.</li>
+<li>Fix SyntaxWarning on importing test_inspect. Fix the following warning when
+test_inspect.py is compiled to test_inspect.pyc:
+<tt class="docutils literal">SyntaxWarning: tuple parameter unpacking has been removed in 3.x</tt></li>
+<li>bpo-30418: Popen.communicate() always ignore EINVAL. On Windows,
+subprocess.Popen.communicate() now also ignore EINVAL on stdin.write() if the
+child process is still running but closed the pipe.</li>
+</ul>
+</div>
+<div class="section" id="refleaks">
+<h2>Refleaks</h2>
+<ul class="simple">
+<li>bpo-30598: _PySys_EndInit() now duplicates warnoptions. Fix a reference leak
+in subinterpreters, like test_callbacks_leak() of test_atexit. warnoptions is
+a list used to pass options from the command line to the sys module
+constructor. Before this change, the list was shared by multiple interpreter
+which is not the expected behaviour. Each interpreter should have their own
+independent mutable world. This change duplicates the list in each
+interpreter. So each interpreter owns its own list, so each interpreter can
+clear its own list.</li>
+<li>bpo-30601: Fix a refleak in WindowsConsoleIO. Fix a reference leak in
+_io._WindowsConsoleIO: PyUnicode_FSDecoder() always initialize decodedname
+when it succeed and it doesn't clear input decodedname object.</li>
+<li>bpo-30599: Fix test_threaded_import reference leak. Mock
+os.register_at_fork() when importing the random module, since this function
+doesn't allow to unregister callbacks and so leaked memory.</li>
+<li>2.7: _tkinter: Fix refleak in getint(). PyNumber_Int() creates a new reference:
+need to decrement result reference counter.</li>
+<li>bpo-30635: Fix refleak in test_c_locale_coercion. When checking for reference
+leaks, test_c_locale_coercion is run multiple times and so
+_LocaleCoercionTargetsTestCase.setUpClass() is called multiple times.
+setUpClass() appends new value at each call, so it looks like a reference
+leak. Moving the setup from setUpClass() to setUpModule() avoids this,
+eliminating the false alarm.</li>
+<li>bpo-30602: Fix refleak in os.spawnve(). When os.spawnve() fails while
+handling arguments, free correctly argvlist: pass lastarg+1 rather than
+lastarg to free_string_array() to also free the first item.</li>
+<li>bpo-30602: Fix refleak in os.spawnv(). When os.spawnv() fails while handling
+arguments, free correctly argvlist: pass lastarg+1 rather than lastarg to
+free_string_array() to also free the first item.</li>
+<li>Fix ref cycles in TestCase.assertRaises(). bpo-23890:
+unittest.TestCase.assertRaises() now manually breaks a reference cycle to not
+keep objects alive longer than expected.</li>
+<li>Python 2.7: bpo-30675: Fix refleak hunting in regrtest. regrtest now warms up
+caches: create explicitly all internal singletons which are created on demand
+to prevent false positives when checking for reference leaks.</li>
+<li>_winconsoleio: Fix memory leak. Fix memory leak when _winconsoleio tries to
+open a non-console file: free the name buffer.</li>
+<li>bpo-30813: Fix unittest when hunting refleaks. bpo-11798, bpo-16662,
+bpo-16935, bpo-30813: Skip
+test_discover_with_module_that_raises_SkipTest_on_import() and
+test_discover_with_init_module_that_raises_SkipTest_on_import() of
+test_unittest when hunting reference leaks using regrtest.</li>
+</ul>
+<p>Fix for Python 3.5:</p>
+<pre class="literal-block">
+bpo-30675: Fix multiprocessing code in regrtest (#2220)
+
+* Rewrite code to pass slaveargs from the master process to worker
+  processes: reuse the same code of the Python master branch
+* Move code to initialize tests in a new setup_tests() function,
+  similar change was done in the master branch
+* In a worker process, call setup_tests() with the namespace built
+  from slaveargs to initialize correctly tests
+
+Before this change, warm_caches() was not called in worker processes
+because the setup was done before rebuilding the namespace from
+slaveargs. As a consequence, the huntrleaks feature was unstable. For
+example, test_zipfile reported randomly false positive on reference
+leaks.
+</pre>
+<ul class="simple">
+<li>bpo-30704, bpo-30604: Fix memleak in code_dealloc(): Free also
+co_extra-&gt;ce_extras, not only co_extra. XXX Serhiy rewrote the structure in
+master to use a single memory block, implemented my idea.</li>
+</ul>
+<div class="section" id="false-positives">
+<h3>False positives</h3>
+<p>bpo-30776: reduce regrtest -R false positives (#2422)</p>
+<ul class="simple">
+<li>Change the regrtest --huntrleaks checker to decide if a test file
+leaks or not. Require that each run leaks at least 1 reference.</li>
+<li>Warmup runs are now completely ignored: ignored in the checker test
+and not used anymore to compute the sum.</li>
+<li>Add an unit test for a reference leak.</li>
+</ul>
+<p>Example of reference differences previously considered a failure
+(leak) and now considered as success (success, no leak):</p>
+<pre class="literal-block">
+[3, 0, 0]
+[0, 1, 0]
+[8, -8, 1]
+</pre>
+<p>bpo-30776: regrtest: reduce memleak false positive.</p>
+<p>Only report a leak if each run leaks at least one memory block.</p>
+</div>
+</div>
+<div class="section" id="contributions">
+<h2>Contributions</h2>
+<ul class="simple">
+<li>bpo-9850: Deprecate the macpath module. Co-Authored-By: <strong>Chi Hsuan Yen</strong>.</li>
+<li>bpo-30595: Fix multiprocessing.Queue.get(timeout).
+multiprocessing.Queue.get() with a timeout now polls its reader in
+non-blocking mode if it succeeded to aquire the lock but the acquire took
+longer than the timeout. Co-Authored-By: <strong>Grzegorz Grzywacz</strong>.</li>
+</ul>
+</div>
+<div class="section" id="test-fixes">
+<h2>Test fixes</h2>
+<ul class="simple">
+<li>bpo-29887: test_normalization handles PermissionError</li>
+<li>bpo-30257: _bsddb: Fix newDBObject(). Don't set cursorSetReturnsNone to
+DEFAULT_CURSOR_SET_RETURNS_NONE anymore if self-&gt;myenvobj is set.
+Fix a GCC warning on the strange indentation.</li>
+<li>bpo-30231: Remove skipped test_imaplib tests. The public cyrus.andrew.cmu.edu
+IMAP server (port 993) doesn't accept TLS connection using our self-signed
+x509 certificate. Remove the two tests which are already skipped. Write a new
+test_certfile_arg_warn() unit test for the certfile deprecation warning.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q1">My contributions to CPython during 2017 Q1</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-07-05T12:00:00+02:00">
                 Published: mer. 05 juillet 2017
@@ -33,7 +774,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q1
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q1
 (january, februrary, march):</p>
 <ul class="simple">
 <li>Statistics</li>
@@ -54,512 +795,10 @@
 <h2>Statistics</h2>
 <pre class="literal-block">
 # All commits
-$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches='*' --author=Stinner &gt; 2017Q1
-$ grep '^commit ' 2017Q1|wc -l
-121
-
-# Exclude merges
-$ git log --no-merges --after=2016-12-31 --before=2017-04-01 --reverse --branches='*' --author=Stinner|grep '^commit '|wc -l
-105
-
-# master branch (excluding merges)
-$ git log --no-merges --after=2016-12-31 --before=2017-04-01 --reverse --author=Stinner origin/master|grep '^commit '|wc -l
-98
-
-# Only merges
-$ git log --merges --after=2016-12-31 --before=2017-04-01 --reverse --branches='*' --author=Stinner|grep '^commit '|wc -l
-16
-</pre>
-<p>Statistics: <strong>98</strong> commits in the master branch, 16 merge commits (done using
-Mercurial before the migration to GitHub, and then converted to Git), and 7
-other commits (likely backports), total: <strong>121</strong> commits.</p>
-</div>
-<div class="section" id="optimization">
-<h2>Optimization</h2>
-<p>With the work done in 2016 on FASTCALL, it became much easier to optimize code
-by using the new FASTCALL API.</p>
-<div class="section" id="python-slots">
-<h3>Python slots</h3>
-<p>Issue #29507: I worked with <strong>INADA Naoki</strong> to continue the work he did with
-<strong>Yury Selivanov</strong> on optimizing method calls. We optimized &quot;slots&quot; implemented
-in Python. Slots is an internal optimization to call &quot;dunder&quot; methods like
-<tt class="docutils literal">__getitem__()</tt>.</p>
-<p>For Python methods, get the unbound Python function and prepend arguments with
-<em>self</em>, rather than calling the descriptor which creates a temporary
-PyMethodObject.</p>
-<p>Add a new _PyObject_FastCall_Prepend() function used to call the unbound Python
-method with <em>self</em>. It avoids the creation of a temporary tuple to pass
-positional arguments.</p>
-<p>Avoiding a temporary PyMethodObject and a temporary tuple makes Python slots up
-to <strong>1.46x faster</strong>. Microbenchmark on a <tt class="docutils literal">__getitem__()</tt> method implemented
-in Python:</p>
-<pre class="literal-block">
-Median +- std dev: 121 ns +- 5 ns -&gt; 82.8 ns +- 1.0 ns: 1.46x faster (-31%)
-</pre>
-</div>
-<div class="section" id="struct-module">
-<h3>struct module</h3>
-<p>In the issue #29300, <strong>Serhiy Storchaka</strong> and me converted most methods in the
-C <tt class="docutils literal">_struct</tt> module to Argument Clinic to make them use the FASTCALL calling
-convention. Using METH_FASTCALL avoids the creation of temporary tuple to pass
-positional arguments and so is faster. For example, <tt class="docutils literal"><span class="pre">struct.pack(&quot;i&quot;,</span> 1)</tt>
-becomes <strong>1.56x faster</strong> (-36%):</p>
-<pre class="literal-block">
-$ ./python -m perf timeit \
-    -s 'import struct; pack=struct.pack' 'pack(&quot;i&quot;, 1)' \
-    --compare-to=../default-ref/python
-Median +- std dev: 119 ns +- 1 ns -&gt; 76.8 ns +- 0.4 ns: 1.56x faster (-36%)
-Significant (t=295.91)
-</pre>
-<p>The difference is only <tt class="docutils literal">42.2 ns</tt>, but since the function only takes <tt class="docutils literal">76.8
-ns</tt>, the difference is significant. The speedup can also be explained by more
-efficient functions used to parse arguments. The new functions now use a cache
-on the format string.</p>
-</div>
-<div class="section" id="deque-module">
-<h3>deque module</h3>
-<p>Similar change in the deque module, I modified the index(), insert() and
-rotate() methods to use METH_FASTCALL. Speedup:</p>
-<ul class="simple">
-<li>d.index(): <strong>1.24x faster</strong></li>
-<li>d.rotate(1): 1.24x faster</li>
-<li>d.insert(): 1.18x faster</li>
-<li>d.rotate(): 1.10x faster</li>
-</ul>
-</div>
-</div>
-<div class="section" id="tricky-bug">
-<h2>Tricky bug</h2>
-<div class="section" id="test-exceptions-test-unraisable">
-<h3>test_exceptions.test_unraisable()</h3>
-<p>The optimization on Python slots (issue #29507) caused a regression in the
-test_unraisable() unit test of test_exceptions.</p>
-<p>The <tt class="docutils literal">test_unraisable()</tt> method expects that <tt class="docutils literal">PyErr_WriteUnraisable(method)</tt>
-fails on <tt class="docutils literal">repr(method)</tt>.</p>
-<p>Before the change, <tt class="docutils literal">slot_tp_finalize()</tt> called
-<tt class="docutils literal">PyErr_WriteUnraisable()</tt> with a PyMethodObject. In this case,
-<tt class="docutils literal">repr(method)</tt> calls <tt class="docutils literal">repr(self)</tt> which is <tt class="docutils literal">BrokenRepr.__repr__()</tt> and
-the calls raises a new exception.</p>
-<p>After the change, <tt class="docutils literal">slot_tp_finalize()</tt> uses an unbound method:
-<tt class="docutils literal">repr()</tt> is called on a regular <tt class="docutils literal">__del__()</tt> method which doesn't call
-<tt class="docutils literal">repr(self)</tt> and so <tt class="docutils literal">repr()</tt> doesn't fail anymore.</p>
-<p>The fix is to remove the BrokenRepr unit test, since
-<tt class="docutils literal">PyErr_WriteUnraisable()</tt> doesn't call <tt class="docutils literal">__repr__()</tt> anymore.</p>
-<p>The removed test was really implementation specific, and my optimization
-&quot;fixed&quot; the bug or &quot;broke&quot; the test. It's hard to say :-)</p>
-</div>
-<div class="section" id="unittest-assertraises-reference-cycle">
-<h3>unittest assertRaises() reference cycle</h3>
-<p>At April 2015, <strong>Vjacheslav Fyodorov</strong> reported a reference cycle in the
-assertRaises() method of the unittest module: bpo-23890.</p>
-<p>When the context manager API of the <tt class="docutils literal">assertRaises()</tt> method is used, the
-context manager returns an object which contains the exception. So the
-exception is kept alive longer than usual.</p>
-<p>Python 3 exceptions now store traceback objects which contain local variables.
-If a function stores the current exception in a local variable and the frame of
-this function is part of the traceback, we get a reference cycle:</p>
-<blockquote>
-exception -&gt; traceback &gt; frame -&gt; variable -&gt; exception</blockquote>
-<p>I fixed the reference cycle by manually clearing local variables. Example of
-change of my commit:</p>
-<pre class="literal-block">
-try:
-    return context.handle('assertRaises', args, kwargs)
-finally:
-    # bpo-23890: manually break a reference cycle
-    context = None
-</pre>
-<p>It's not the first time that I fixed such reference cycle in the unit test
-module. My previous fix was the issue #19880. Fix a reference leak in
-unittest.TestCase. Explicitly break reference cycles between frames and the
-<tt class="docutils literal">_Outcome</tt> instance: commit <a class="reference external" href="https://github.com/python/cpython/commit/031bd532c48cf20a9cbf438bdae75dde49e36c51">031bd532</a>.</p>
-</div>
-</div>
-<div class="section" id="fastcall-optimmizations">
-<h2>FASTCALL optimmizations</h2>
-<p>FASTCALL is my project to avoid temporary tuple to pass positional arguments
-and avoid temporary dictionary to pass keyword arguments when calling a
-function. It optimizes function calls in general.</p>
-<p>I continued work on FASTCALL to optimize code further and use FASTCALL in more
-cases.</p>
-<div class="section" id="recursion-depth">
-<h3>Recursion depth</h3>
-<p>In the issue #29306, I fixed the usage of Py_EnterRecursiveCall() to account
-correctly the recursion depth, to fix the code responsible to prevent C stack
-overflow:</p>
-<ul class="simple">
-<li><tt class="docutils literal"><span class="pre">*PyCFunction_*Call*()</span></tt> functions now call <tt class="docutils literal">Py_EnterRecursiveCall()</tt>.</li>
-<li><tt class="docutils literal">PyObject_Call()</tt> now calls directly <tt class="docutils literal">_PyFunction_FastCallDict()</tt> and
-<tt class="docutils literal">PyCFunction_Call()</tt> to avoid calling <tt class="docutils literal">Py_EnterRecursiveCall()</tt> twice per
-function call</li>
-</ul>
-</div>
-<div class="section" id="support-position-arguments">
-<h3>Support position arguments</h3>
-<p>The issue #29286 enhanced Argument Clinic to use FASTCALL for functions which
-only accept positional arguments:</p>
-<ul class="simple">
-<li>Rename _PyArg_ParseStack to _PyArg_ParseStackAndKeywords</li>
-<li>Add _PyArg_ParseStack() helper function</li>
-<li>Add _PyArg_NoStackKeywords() helper function.</li>
-<li>Add _PyArg_UnpackStack() function helper</li>
-<li>Argument Clinic: Use METH_FASTCALL calling convention instead of METH_VARARGS
-to parse position arguments and to parse &quot;boring&quot; position arguments.</li>
-</ul>
-</div>
-<div class="section" id="functions-converted-to-fastcall">
-<h3>Functions converted to FASTCALL</h3>
-<ul class="simple">
-<li>_hashopenssl module</li>
-<li>collections.OrderedDict methods (some of them, not all)</li>
-<li>__build_class__(), getattr(), next() and sorted() builtin functions</li>
-<li>type_prepare() C function, used in type constructor</li>
-<li>dict.get() and dict.setdefault() now use Argument Clinic. The signature of
-docstrings is also enhanced. For example, <tt class="docutils literal"><span class="pre">get(...)</span></tt> becomes
-<tt class="docutils literal">get(self, key, default=None, /)</tt>. Add also a note explaining why
-dict_update() doesn't use METH_FASTCALL.</li>
-</ul>
-</div>
-<div class="section" id="optimizations">
-<h3>Optimizations</h3>
-<ul class="simple">
-<li>Issue #28839: Optimize function_call(), now simply calls
-_PyFunction_FastCallDict() which is more efficient (fast paths for the common
-case, optimized code object and no keyword argument).</li>
-<li>Issue #28839: Optimize _PyFunction_FastCallDict() when kwargs is an empty
-dictionary, avoid the creation of an useless empty tuple.</li>
-<li>Issue #29259: Write fast path in _PyCFunction_FastCallKeywords() for
-METH_FASTCALL, avoid the creation of a temporary dictionary for keyword
-arguments.</li>
-<li>Issue #29259, #29263. methoddescr_call() creates a PyCFunction object, call
-it and the destroy it. Add a new _PyMethodDef_RawFastCallDict() method to
-avoid the temporary PyCFunction object.</li>
-<li>PyCFunction_Call() now calls _PyCFunction_FastCallDict()</li>
-<li>bpo-29735: Optimize partial_call(): avoid tuple. Add _PyObject_HasFastCall().
-Fix also a performance regression in partial_call() if the callable doesn't
-support FASTCALL.</li>
-</ul>
-</div>
-<div class="section" id="bugfixes">
-<h3>Bugfixes</h3>
-<ul class="simple">
-<li>Issue #29286: _PyStack_UnpackDict() now returns -1 on error. Change
-_PyStack_UnpackDict() prototype to be able to notify of failure when args is
-NULL.</li>
-<li>Fix PyCFunction_Call() performance issue. Issue #29259, #29465:
-PyCFunction_Call() doesn't create anymore a redundant tuple to pass
-positional arguments for METH_VARARGS. Add a new cfunction_call()
-subfunction.</li>
-</ul>
-</div>
-<div class="section" id="objects-call-c-file">
-<h3>Objects/call.c file</h3>
-<p>The issue #29465 moved all C functions &quot;calling functions&quot; to a new
-Objects/call.c file. Moving all functions at the same place should help to keep
-the code consistent. It might also help the compiler to inline code more
-easily, or maybe help to cache more machine code in CPU instruction cache.</p>
-<p>This change was made during the GitHub migration. Since the change is big
-(modify many <tt class="docutils literal">.c</tt> files), I got many conflicts and it was annoying to rebase
-it. I am not happy to get this <tt class="docutils literal">call.c</tt> file, it already helped me :-)</p>
-<p>Having <tt class="docutils literal">call.c</tt> also helps to keep helper functions need their callers, and
-prevent to expose them in the C API, even if they are exposed as private
-functions.</p>
-</div>
-<div class="section" id="don-t-optimize-keywords">
-<h3>Don't optimize keywords</h3>
-<ul class="simple">
-<li>Document that _PyFunction_FastCallDict() must copy kwargs. Issue #29318:
-Caller and callee functions must not share the dictionary: kwargs must be
-copied.</li>
-<li>Document why functools.partial() must copy kwargs. Add a comment to prevent
-further attempts to avoid a copy for optimization.</li>
-</ul>
-</div>
-</div>
-<div class="section" id="stack-consumption">
-<h2>Stack consumption</h2>
-<p>A FASTCALL micro-optimization was blocked by Serhiy Storchaka because it
-increased the C stack consumption. In the past, I never analyzed the C stack
-consumption. Since I wanted to get this micro-optimization merged, I tried to
-reduce the consumption.</p>
-<p>At the beginning, I wrote a function to <strong>measure</strong> the C stack consumption in
-a reliable way. It took me a few iterations.</p>
-<p>Table showing the C stack consumption in bytes, and the difference compared to
-Python 3.5 (last release before I started working on FASTCALL):</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="27%" />
-<col width="22%" />
-<col width="7%" />
-<col width="22%" />
-<col width="22%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Function</th>
-<th class="head">2.7</th>
-<th class="head">3.5</th>
-<th class="head">3.6</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>test_python_call</td>
-<td>1,360 (<strong>+352</strong>)</td>
-<td>1,008</td>
-<td>1,120 (<strong>+112</strong>)</td>
-<td>960 (<strong>-48</strong>)</td>
-</tr>
-<tr><td>test_python_getitem</td>
-<td>1,408 (<strong>+288</strong>)</td>
-<td>1,120</td>
-<td>1,168 (<strong>+48</strong>)</td>
-<td>880 (<strong>-240</strong>)</td>
-</tr>
-<tr><td>test_python_iterator</td>
-<td>1,424 (<strong>+192</strong>)</td>
-<td>1,232</td>
-<td>1,200 (<strong>-32</strong>)</td>
-<td>1,024 (<strong>-208</strong>)</td>
-</tr>
-<tr><td>Total</td>
-<td>4,192 (<strong>+832</strong>)</td>
-<td>3,360</td>
-<td>3,488 (<strong>+128</strong>)</td>
-<td>2,864 (<strong>-496</strong>)</td>
-</tr>
-</tbody>
-</table>
-<p>Table showing the number of function calls before a stack overflow,
-and the difference compared to Python 3.5:</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="24%" />
-<col width="23%" />
-<col width="7%" />
-<col width="23%" />
-<col width="23%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Function</th>
-<th class="head">2.7</th>
-<th class="head">3.5</th>
-<th class="head">3.6</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>test_python_call</td>
-<td>6,161 (<strong>-2,153</strong>)</td>
-<td>8,314</td>
-<td>7,482 (<strong>-832</strong>)</td>
-<td>8,729 (<strong>+415</strong>)</td>
-</tr>
-<tr><td>test_python_getitem</td>
-<td>5,951 (<strong>-1,531</strong>)</td>
-<td>7,482</td>
-<td>7,174 (<strong>-308</strong>)</td>
-<td>9,522 (<strong>+2,040</strong>)</td>
-</tr>
-<tr><td>test_python_iterator</td>
-<td>5,885 (<strong>-916</strong>)</td>
-<td>6,801</td>
-<td>6,983 (<strong>+182</strong>)</td>
-<td>8,184 (<strong>+1,383</strong>)</td>
-</tr>
-<tr><td>Total</td>
-<td>17,997 (<strong>-4600</strong>)</td>
-<td>22,597</td>
-<td>21,639 (<strong>-958</strong>)</td>
-<td>26,435 (<strong>+3,838</strong>)</td>
-</tr>
-</tbody>
-</table>
-<p>Python 3.7 is the best of 2.7, 3.5, 3.6 and 3.7: lowest stack consumption and
-maximum number of calls (before a stack overflow) ;-)</p>
-<p>Changes:</p>
-<ul class="simple">
-<li>call_method() now uses _PyObject_FastCall(). Issue #29233: Replace the
-inefficient _PyObject_VaCallFunctionObjArgs() with _PyObject_FastCall() in
-call_method() and call_maybe().</li>
-<li>Issue #29227: Inline call_function() into _PyEval_EvalFrameDefault() using
-Py_LOCAL_INLINE to reduce the stack consumption.</li>
-<li>Issue #29234: Inlining _PyStack_AsTuple() into callers increases their stack
-consumption, Disable inlining to optimize the stack consumption. Add
-_Py_NO_INLINE: use __attribute__((noinline)) of GCC and Clang.</li>
-</ul>
-</div>
-<div class="section" id="contributions">
-<h2>Contributions</h2>
-<ul class="simple">
-<li>Issue #28961: Fix unittest.mock._Call helper: don't ignore the name parameter
-anymore. Patch written by <strong>Jiajun Huang</strong>.</li>
-<li>Prohibit implicit C function declarations. Issue #27659: use
--Werror=implicit-function-declaration when possible (GCC and Clang, but it
-depends on the compiler version). Patch written by <strong>Chi Hsuan Yen</strong>.</li>
-</ul>
-</div>
-<div class="section" id="os-urandom-and-getrandom">
-<h2>os.urandom() and getrandom()</h2>
-<p>As usual, I had fun with os.urandom() in this quarter (see my previous article
-on urandom: <a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a>).</p>
-<p>The glibc developers succeeded to implement a function getrandom() in glibc
-2.25 (February 2017) to expose the &quot;new&quot; Linux getrandom() syscall which was
-introduced in Linux 3.17 (August 2014). Read the LWN article: <a class="reference external" href="https://lwn.net/Articles/711013/">The long road to
-getrandom() in glibc</a>.</p>
-<p>I created the issue #29157 because my os.urandom() implementation wasn't ready
-for the addition of a getrandom() function on Linux. My implementation using
-the getrandom() function didn't handle the ENOSYS error (syscall not
-supported), when Python is compiled on a recent kernel and glibc, but run on an
-older kernel and glibc.</p>
-<p>I rewrote the code to prefer getrandom() over getentropy():</p>
-<ul class="simple">
-<li>dev_urandom() now calls py_getentropy(). Prepare the fallback to support
-getentropy() failure and falls back on reading from /dev/urandom.</li>
-<li>Simplify dev_urandom(). pyurandom() is now responsible to call getentropy()
-or getrandom(). Enhance also dev_urandom() and pyurandom() documentation.</li>
-<li>getrandom() is now preferred over getentropy(). The glibc 2.24 now implements
-getentropy() on Linux using the getrandom() syscall.  But getentropy()
-doesn't support non-blocking mode. Since getrandom() is tried first, it's not
-more needed to explicitly exclude getentropy() on Solaris. Replace:
-&quot;if defined(HAVE_GETENTROPY) &amp;&amp; !defined(sun)&quot;
-with &quot;if defined(HAVE_GETENTROPY)&quot;</li>
-<li>Enhance py_getrandom() documentation. py_getentropy() now supports ENOSYS,
-EPERM &amp; EINTR</li>
-</ul>
-<p>IMHO the main enhancement was the documentation (comments) of the code. The
-main function pyrandom() now has this long comment:</p>
-<blockquote>
-<p>Read random bytes:</p>
-<ul class="simple">
-<li>Return 0 on success</li>
-<li>Raise an exception (if raise is non-zero) and return -1 on error</li>
-</ul>
-<p>Used sources of entropy ordered by preference, preferred source first:</p>
-<ul class="simple">
-<li>CryptGenRandom() on Windows</li>
-<li>getrandom() function (ex: Linux and Solaris): call py_getrandom()</li>
-<li>getentropy() function (ex: OpenBSD): call py_getentropy()</li>
-<li>/dev/urandom device</li>
-</ul>
-<p>Read from the /dev/urandom device if getrandom() or getentropy() function
-is not available or does not work.</p>
-<p>Prefer getrandom() over getentropy() because getrandom() supports blocking
-and non-blocking mode: see the PEP 524. Python requires non-blocking RNG at
-startup to initialize its hash secret, but os.urandom() must block until the
-system urandom is initialized (at least on Linux 3.17 and newer).</p>
-<p>Prefer getrandom() and getentropy() over reading directly /dev/urandom
-because these functions don't need file descriptors and so avoid ENFILE or
-EMFILE errors (too many open files): see the issue #18756.</p>
-<p>Only the getrandom() function supports non-blocking mode.</p>
-<p>Only use RNG running in the kernel. They are more secure because it is
-harder to get the internal state of a RNG running in the kernel land than a
-RNG running in the user land. The kernel has a direct access to the hardware
-and has access to hardware RNG, they are used as entropy sources.</p>
-<p>Note: the OpenSSL RAND_pseudo_bytes() function does not automatically reseed
-its RNG on fork(), two child processes (with the same pid) generate the same
-random numbers: see issue #18747. Kernel RNGs don't have this issue,
-they have access to good quality entropy sources.</p>
-<p>If raise is zero:</p>
-<ul class="simple">
-<li>Don't raise an exception on error</li>
-<li>Don't call the Python signal handler (don't call PyErr_CheckSignals()) if
-a function fails with EINTR: retry directly the interrupted function</li>
-<li>Don't release the GIL to call functions.</li>
-</ul>
-</blockquote>
-</div>
-<div class="section" id="migration-to-github">
-<h2>Migration to GitHub</h2>
-<p>In February 2017, the Mercurial repository was converted to Git and the
-development of CPython moved to GitHub at <a class="reference external" href="https://github.com/python/cpython/">https://github.com/python/cpython/</a>. I
-helped to polish the migration in early days:</p>
-<ul class="simple">
-<li>Rename README to README.rst and enhance formatting</li>
-<li>bpo-29527: Don't treat warnings as error in Travis docs job</li>
-<li>Travis CI: run rstlint.py in the docs job. Currently,
-<a class="reference external" href="http://buildbot.python.org/all/buildslaves/ware-docs">http://buildbot.python.org/all/buildslaves/ware-docs</a> buildbot is only run as
-post-commit. For example, bpo-29521 (PR#41) introduced two warnings,
-unnotified by the Travis CI docs job. Modify the docs job to run
-toosl/rstlint.py. Fix also the two minor warnings which causes the buildbot
-slave to fail. Doc/Makefile: set PYTHON to python3.</li>
-<li>Add Travis CI and Codecov badges to README.</li>
-<li>Exclude myself from mention-bot. I made changes in almost all CPython files
-last 5 years, so mention-bot asks me to review basically all pull requests. I
-simply don't have the bandwidth to review everything, sorry! I prefer to
-select myself which PR I want to follow.</li>
-<li>bpo-27425: Add .gitattributes, fix Windows tests. Mark binary files as binay
-in .gitattributes to not translate newline characters in Git repositories on
-Windows.</li>
-</ul>
-</div>
-<div class="section" id="enhancements">
-<h2>Enhancements</h2>
-<ul class="simple">
-<li>Issue #29259: python-gdb.py now also looks for PyCFunction in the current
-frame, not only in the older frame. python-gdb.py now also supports
-method-wrapper (wrapperobject) objects (Issue #29367).</li>
-<li>Issue #26273: Document the new TCP_USER_TIMEOUT and TCP_CONGESTION constants</li>
-<li>bpo-29919: Remove unused imports found by pyflakes. Make also minor PEP8
-coding style fixes on modified imports.</li>
-<li>bpo-29887: Test normalization now fails if download fails; fix also a
-ResourceWarning.</li>
-</ul>
-</div>
-<div class="section" id="security">
-<h2>Security</h2>
-<ul class="simple">
-<li>Backport for Python 3.4. Issues #27850 and #27766: Remove 3DES from ssl
-default cipher list and add ChaCha20 Poly1305. See the <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2016-2183_sweet32_attack_des_3des.html">CVE-2016-2183:
-Sweet32 attack (DES, 3DES)</a>
-vulnerability.</li>
-</ul>
-</div>
-<div class="section" id="regrtest">
-<h2>regrtest</h2>
-<p>regrtest is the runner of the Python test suite. Changes:</p>
-<ul class="simple">
-<li>regrtest: don't fail immediately if a child does crash. Issue #29362: Catch a
-crash of a worker process as a normal failure and continue to run next tests.
-It allows to get the usual test summary: single line result (OK/FAIL), total
-duration, etc.</li>
-<li>Fix regrtest -j0 -R output: write also dots into stderr, instead of stdout.</li>
-</ul>
-</div>
-<div class="section" id="id1">
-<h2>Bugfixes</h2>
-<ul class="simple">
-<li>Issue #29140: Fix hash(datetime.time). Fix time_hash() function: replace
-DATE_xxx() macros with TIME_xxx() macros. Before, the hash function used a
-wrong value for microseconds if fold is set (equal to 1).</li>
-<li>Issue #29174, #26741: Fix subprocess.Popen.__del__() on Python shutdown.
-subprocess.Popen.__del__() now keeps a strong reference to warnings.warn()
-function. The change allows to log the warning late at Python finalization.
-Before the warning was ignored or logged an error instead of the warning.</li>
-<li>Issue #25591: Fix test_imaplib if the module ssl is missing.</li>
-<li>Fix script_helper.run_python_until_end(): copy the <tt class="docutils literal">SYSTEMROOT</tt> environment
-variable.  Windows requires at least the SYSTEMROOT environment variable to
-start Python. If run_python_until_end() doesn't copy SYSTEMROOT, the
-function always fail on Windows.</li>
-<li>Fix datetime.fromtimestamp(): check bounds. Issue #29100: Fix
-datetime.fromtimestamp() regression introduced in Python 3.6.0: check minimum
-and maximum years.</li>
-<li>Fix test_datetime on system with 32-bit time_t. Issue #29100: Catch
-OverflowError in the new test_timestamp_limits() test.</li>
-<li>Fix test_datetime on Windows. Issue #29100: On Windows,
-datetime.datetime.fromtimestamp(min_ts) fails with an OSError in
-test_timestamp_limits().</li>
-<li>bpo-29176: Fix the name of the _curses.window class. Set name to
-<tt class="docutils literal">_curses.window</tt> instead of <tt class="docutils literal">_curses.curses window</tt> with a space!?</li>
-<li>bpo-29619: os.stat() and os.DirEntry.inodeo() now convert inode (st_ino)
-using unsigned integers to support very large inodes (larger than 2^31).</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches ...</pre></div>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q1.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -779,37 +1018,6 @@ changes were to use the new <tt class="docutils literal">getentropy()</tt> and <
 available on Linux, Solaris, OpenBSD, etc.</p>
 <p>In 2013, <tt class="docutils literal">os.urandom ...</tt></p></div>
                 <a class="readmore" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2016 Q2">My contributions to CPython during 2016 Q2</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-12T18:00:00+01:00">
-                Published: dim. 12 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q2
-(april, may, june):</p>
-<pre class="literal-block">
-hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merges -u Stinner
-</pre>
-<p>Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>.</p>
-<div class="section" id="start-of-my-work-on-optimization">
-<h2>Start of my work on optimization</h2>
-<p>During 2016 Q2, I started ...</p></div>
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
