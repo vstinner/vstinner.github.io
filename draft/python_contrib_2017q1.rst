@@ -9,10 +9,24 @@ My contributions to CPython during 2017 Q1
 :authors: Victor Stinner
 
 My contributions to `CPython <https://www.python.org/>`_ during 2017 Q1
-(january, februrary, march).
+(january, februrary, march):
+
+* Statistics
+* Optimization
+* Tricky bug
+* FASTCALL optimmizations
+* Stack consumption
+* Contributions
+* os.urandom() and getrandom()
+* Migration to GitHub
+* Enhancements
+* Security
+* regrtest
+* Bugfixes
 
 Previous report: `My contributions to CPython during 2016 Q4
 <{filename}/python_contrib_2016q4.rst>`_.
+
 
 Statistics
 ==========
@@ -99,6 +113,7 @@ rotate() methods to use METH_FASTCALL. Speedup:
 * d.insert(): 1.18x faster
 * d.rotate(): 1.10x faster
 
+
 Tricky bug
 ==========
 
@@ -158,8 +173,15 @@ unittest.TestCase. Explicitly break reference cycles between frames and the
 <https://github.com/python/cpython/commit/031bd532c48cf20a9cbf438bdae75dde49e36c51>`_.
 
 
-FASTCALL
-========
+FASTCALL optimmizations
+=======================
+
+FASTCALL is my project to avoid temporary tuple to pass positional arguments
+and avoid temporary dictionary to pass keyword arguments when calling a
+function. It optimizes function calls in general.
+
+I continued work on FASTCALL to optimize code further and use FASTCALL in more
+cases.
 
 Recursion depth
 ---------------
@@ -289,6 +311,9 @@ test_python_iterator   5,885 (**-916**)     6,801   6,983 (**+182**)     8,184 (
 Total                  17,997 (**-4600**)  22,597  21,639 (**-958**)    26,435 (**+3,838**)
 ====================  ===================  ======  ===================  ===================
 
+Python 3.7 is the best of 2.7, 3.5, 3.6 and 3.7: lowest stack consumption and
+maximum number of calls (before a stack overflow) ;-)
+
 Changes:
 
 * call_method() now uses _PyObject_FastCall(). Issue #29233: Replace the
@@ -316,7 +341,22 @@ Contributions
 os.urandom() and getrandom()
 ============================
 
-Issue #29157: Prefer getrandom() over getentropy()
+As usual, I had fun with os.urandom() in this quarter (see my previous article
+on urandom: `PEP 524: os.urandom() now blocks on Linux in Python 3.6
+<{filename}/pep_524_os_urandom_blocking.rst>`_).
+
+The glibc developers succeeded to implement a function getrandom() in glibc
+2.25 (February 2017) to expose the "new" Linux getrandom() syscall which was
+introduced in Linux 3.17 (August 2014). Read the LWN article: `The long road to
+getrandom() in glibc <https://lwn.net/Articles/711013/>`_.
+
+I created the issue #29157 because my os.urandom() implementation wasn't ready
+for the addition of a getrandom() function on Linux. My implementation using
+the getrandom() function didn't handle the ENOSYS error (syscall not
+supported), when Python is compiled on a recent kernel and glibc, but run on an
+older kernel and glibc.
+
+I rewrote the code to prefer getrandom() over getentropy():
 
 * dev_urandom() now calls py_getentropy(). Prepare the fallback to support
   getentropy() failure and falls back on reading from /dev/urandom.
@@ -331,18 +371,59 @@ Issue #29157: Prefer getrandom() over getentropy()
 * Enhance py_getrandom() documentation. py_getentropy() now supports ENOSYS,
   EPERM & EINTR
 
+IMHO the main enhancement was the documentation (comments) of the code. The
+main function pyrandom() now has this long comment:
 
-regrtest
-========
+   Read random bytes:
 
-* regrtest: don't fail immediately if a child does crash. Issue #29362: Catch a
-  crash of a worker process as a normal failure and continue to run next tests.
-  It allows to get the usual test summary: single line result (OK/FAIL), total
-  duration, etc.
-* Fix regrtest -j0 -R output: write also dots into stderr, instead of stdout.
+   - Return 0 on success
+   - Raise an exception (if raise is non-zero) and return -1 on error
+
+   Used sources of entropy ordered by preference, preferred source first:
+
+   - CryptGenRandom() on Windows
+   - getrandom() function (ex: Linux and Solaris): call py_getrandom()
+   - getentropy() function (ex: OpenBSD): call py_getentropy()
+   - /dev/urandom device
+
+   Read from the /dev/urandom device if getrandom() or getentropy() function
+   is not available or does not work.
+
+   Prefer getrandom() over getentropy() because getrandom() supports blocking
+   and non-blocking mode: see the PEP 524. Python requires non-blocking RNG at
+   startup to initialize its hash secret, but os.urandom() must block until the
+   system urandom is initialized (at least on Linux 3.17 and newer).
+
+   Prefer getrandom() and getentropy() over reading directly /dev/urandom
+   because these functions don't need file descriptors and so avoid ENFILE or
+   EMFILE errors (too many open files): see the issue #18756.
+
+   Only the getrandom() function supports non-blocking mode.
+
+   Only use RNG running in the kernel. They are more secure because it is
+   harder to get the internal state of a RNG running in the kernel land than a
+   RNG running in the user land. The kernel has a direct access to the hardware
+   and has access to hardware RNG, they are used as entropy sources.
+
+   Note: the OpenSSL RAND_pseudo_bytes() function does not automatically reseed
+   its RNG on fork(), two child processes (with the same pid) generate the same
+   random numbers: see issue #18747. Kernel RNGs don't have this issue,
+   they have access to good quality entropy sources.
+
+   If raise is zero:
+
+   - Don't raise an exception on error
+   - Don't call the Python signal handler (don't call PyErr_CheckSignals()) if
+     a function fails with EINTR: retry directly the interrupted function
+   - Don't release the GIL to call functions.
+
 
 Migration to GitHub
 ===================
+
+In February 2017, the Mercurial repository was converted to Git and the
+development of CPython moved to GitHub at https://github.com/python/cpython/. I
+helped to polish the migration in early days:
 
 * Rename README to README.rst and enhance formatting
 * bpo-29527: Don't treat warnings as error in Travis docs job
@@ -361,13 +442,14 @@ Migration to GitHub
   in .gitattributes to not translate newline characters in Git repositories on
   Windows.
 
+
 Enhancements
 ============
 
-* Issue #29259: python-gdb.py now also checks for PyCFunction in the current
+* Issue #29259: python-gdb.py now also looks for PyCFunction in the current
   frame, not only in the older frame. python-gdb.py now also supports
   method-wrapper (wrapperobject) objects (Issue #29367).
-* Issue #26273: Document TCP_USER_TIMEOUT and TCP_CONGESTION
+* Issue #26273: Document the new TCP_USER_TIMEOUT and TCP_CONGESTION constants
 * bpo-29919: Remove unused imports found by pyflakes. Make also minor PEP8
   coding style fixes on modified imports.
 * bpo-29887: Test normalization now fails if download fails; fix also a
@@ -382,16 +464,28 @@ Security
   <http://python-security.readthedocs.io/vuln/cve-2016-2183_sweet32_attack_des_3des.html>`_
   vulnerability.
 
+regrtest
+========
+
+regrtest is the runner of the Python test suite. Changes:
+
+* regrtest: don't fail immediately if a child does crash. Issue #29362: Catch a
+  crash of a worker process as a normal failure and continue to run next tests.
+  It allows to get the usual test summary: single line result (OK/FAIL), total
+  duration, etc.
+* Fix regrtest -j0 -R output: write also dots into stderr, instead of stdout.
+
 Bugfixes
 ========
 
 * Issue #29140: Fix hash(datetime.time). Fix time_hash() function: replace
   DATE_xxx() macros with TIME_xxx() macros. Before, the hash function used a
   wrong value for microseconds if fold is set (equal to 1).
-* Issue #29174, #26741: Fix subprocess.Popen.__del__() fox Python shutdown.
+* Issue #29174, #26741: Fix subprocess.Popen.__del__() on Python shutdown.
   subprocess.Popen.__del__() now keeps a strong reference to warnings.warn()
-  function.
-* Issue #25591: Fix test_imaplib if ssl miss
+  function. The change allows to log the warning late at Python finalization.
+  Before the warning was ignored or logged an error instead of the warning.
+* Issue #25591: Fix test_imaplib if the module ssl is missing.
 * Fix script_helper.run_python_until_end(): copy the ``SYSTEMROOT`` environment
   variable.  Windows requires at least the SYSTEMROOT environment variable to
   start Python. If run_python_until_end() doesn't copy SYSTEMROOT, the
@@ -404,7 +498,7 @@ Bugfixes
 * Fix test_datetime on Windows. Issue #29100: On Windows,
   datetime.datetime.fromtimestamp(min_ts) fails with an OSError in
   test_timestamp_limits().
-* bpo-29176: Fix name of the _curses.window class. Set name to "_curses.window"
-  instead of "_curses.curses window" (with a space!?).
+* bpo-29176: Fix the name of the _curses.window class. Set name to
+  ``_curses.window`` instead of ``_curses.curses window`` with a space!?
 * bpo-29619: os.stat() and os.DirEntry.inodeo() now convert inode (st_ino)
-  using unsigned integers.
+  using unsigned integers to support very large inodes (larger than 2^31).
