@@ -166,7 +166,7 @@ Changes:
   - regen-typeslots: Objects/typeslots.inc
 
 * Rename PYTHON_FOR_GEN to PYTHON_FOR_REGEN
-* pgen is now only built by by "make regen-grammar"
+* pgen is now only built by "make regen-grammar"
 * Add $(srcdir)/ prefix to paths to source files to handle correctly
   compilation outside the source directory
 
@@ -352,23 +352,6 @@ FreeBSD.
 For an unknown reason, the bug only occurs on Koobs' buildbot, not on my VM,
 nor bapt's machine.
 
-regrtest
-========
-
-* regrtest: always show before/after values of modified environment.
-* bpo-30263: regrtest: log system load and the number of CPUs.
-  --verbose now also imply --header.
-* [2.7] bpo-30283: Backport test_regrtest from master to 2.7
-* bpo-27103: regrtest disables -W if -R is used. Workaround for a regrtest bug.
-* bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
-  build directory, not in the source directory, since the source directory may
-  be read-only and must not be modified. Fallback on the source directory if
-  the build directory is not available (missing "abs_builddir" sysconfig
-  variable).
-* Synchronize libregrtest from master to 3.6
-* [3.5] bpo-30383: Backport regrtest and test_regrtest enhancements from master to 3.5 (#2279)
-* 2.7 and 3.5: bpo-30383: Add NEWS entry for backported regrtest (#2438)
-
 regrtest bisect
 ===============
 
@@ -379,6 +362,8 @@ regrtest bisect
 
 Add a new "python3 -m test.bisect" tool to bisect failing tests. It can be used
 to find which test method(s) leak references, leak files, etc.
+
+XXX python-dev emails.
 
 Security
 ========
@@ -454,7 +439,8 @@ Pending PR adding Travis CI and AppVeyor to 3.4 and 3.3 branches.
 Buildbots
 =========
 
-Warnings:
+Warnings
+--------
 
 * The @reap_threads decorator and the threading_cleanup() function of
   test.support now log a warning if they fail to clenaup threads. The log may
@@ -468,6 +454,24 @@ Warnings:
   instead of SUCCESS, to report that it altered the environment.
 
 Many fixes required backports to 2.7, 3.5 and 3.6 branches.
+
+regrtest
+--------
+
+* regrtest: always show before/after values of modified environment.
+* bpo-30263: regrtest: log system load and the number of CPUs.
+  --verbose now also imply --header.
+* [2.7] bpo-30283: Backport test_regrtest from master to 2.7
+* bpo-27103: regrtest disables -W if -R is used. Workaround for a regrtest bug.
+* bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
+  build directory, not in the source directory, since the source directory may
+  be read-only and must not be modified. Fallback on the source directory if
+  the build directory is not available (missing "abs_builddir" sysconfig
+  variable).
+* Synchronize libregrtest from master to 3.6
+* [3.5] bpo-30383: Backport regrtest and test_regrtest enhancements from master to 3.5 (#2279)
+* 2.7 and 3.5: bpo-30383: Add NEWS entry for backported regrtest (#2438)
+
 
 Fixes
 -----
