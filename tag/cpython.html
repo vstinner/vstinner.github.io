@@ -22,7 +22,212 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/python-test-bisect.html">New Python test.bisect tool</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-07-12T15:00:00+02:00">
+                Published: mer. 12 juillet 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> <a href="https://haypo.github.io/tag/tests.html">tests</a> </p>
+</footer><!-- /.post-info --><p>This article tells the story of the new CPython <tt class="docutils literal">test.bisect</tt> tool to
+identify failing tests in the CPython test suite.</p>
+<div class="section" id="modify-manually-a-test-file">
+<h2>Modify manually a test file</h2>
+<p>I am fixing reference leaks since many years. When the test file contains more
+than 200 tests and is longer than 5,000 lines, it's just not possible to spot a
+reference leak. Each time, I modified the long test file and actually <em>removes</em>
+enough code until the file becomes short enough so I can read it.</p>
+<p>This method <em>works</em>, but it usually took me 20 to 30 minutes, and so it was
+common that I made mistakes... and usually had to restart from the start...</p>
+</div>
+<div class="section" id="first-failed-attempt">
+<h2>First failed attempt</h2>
+<p>In october 2014, while fixing <a class="reference external" href="http://bugs.python.org/issue22588#msg228905">yet another reference leak in test_capi</a>, <strong>Xavier de Gaye</strong> was
+surprised that I identified quickly the leak and wanted to want how I
+proceeded. I explained my method removing code, but I also asked for a tool.</p>
+<p>Xavier created bpo-22607 at 2014-10-11 and wrote a patch based on an integer
+range to run a subset of tests and did something special on the <tt class="docutils literal">subTest()</tt>
+context manager. But <strong>Georg Brandl</strong> wasn't convinced by this approach and...
+I forgot this issue.</p>
+</div>
+<div class="section" id="new-design-list-tests-run-a-subset">
+<h2>New design: list tests, run a subset</h2>
+<p>During this quarter, I had to fix dozens of reference leaks but also tests
+failing with &quot;environment changed&quot;: one test method modified &quot;something&quot;. It
+was really painful to identify each time the failing test.</p>
+<p>So I created bpo-29512 at 2017-02-09 to ask again the same tool. Technically, I
+just wanted to run a subset of tests.</p>
+<p>While working on OpenStack, I enjoyed the <tt class="docutils literal">testr</tt> tool, a test runner able to
+list tests and to run a subset of tests. <tt class="docutils literal">testr</tt> also provides a bisection
+tool to identify a subset of tests enough to reproduce a bug. The subset can
+contain more than a single test. Sometimes you need to run two tests
+sequentially to trigger a specific bug, and it's usually long and boring to
+identify manually these two tests.</p>
+<p>I proposed a similar design for my bisection tool. Start by listing all tests,
+and then:</p>
+<ul class="simple">
+<li>create a pure <em>random</em> sample of tests: subset with half the size of the
+current test set</li>
+<li>If tests still fail, use the subset as the new set. Otherwise, throw the
+subset.</li>
+<li>Loop until the subset is small enough or the process run longer than 100
+iterations.</li>
+</ul>
+</div>
+<div class="section" id="regrtest-list-cases">
+<h2>regrtest --list-cases</h2>
+<p>To list tests, I created bpo-30523 and wrote a patch for the unittest module.
+Modifying unittest didn't work well with doctests and the command line
+interface (CLI) didn't work as I wanted. I proposed to modify regrtest instead
+of unittest.</p>
+<p>I proposed to <strong>Louie Lu</strong> to implement my new idea. I was impressed that he
+implemented it so quickly and that it worked so well! I just asked him to not
+exclude doctest test cases, since these test cases were working as expected!  I
+quickly merged his modified patch which adds the <tt class="docutils literal"><span class="pre">--list-cases</span></tt> option to
+regrtest.</p>
+<p>Note: regrtest already had a <tt class="docutils literal"><span class="pre">--list-tests</span></tt> which lists test <em>files</em>, whereas
+<tt class="docutils literal"><span class="pre">--list-cases</span></tt> lists test <em>methods</em> and doctests.</p>
+</div>
+<div class="section" id="regrtest-matchfile">
+<h2>regrtest --matchfile</h2>
+<p>I created bpo-30540 to add a --matchfile option to regrtest. regrtest already
+had a --match option, but it was only possible to use the option once, and I
+wanted to use a text files for my list of tests.</p>
+<p>Again, I was surprised that it was so simple to implement the feature. By the
+way, I modified regrtest --match to allow to specific the option multiple
+times, to run multiple tests instead of a single one.</p>
+</div>
+<div class="section" id="new-test-bisect-tool">
+<h2>New test.bisect tool</h2>
+<p>Since I had the two key features: <tt class="docutils literal">regrtest <span class="pre">--list-cases</span></tt> and <tt class="docutils literal">regrtest
+<span class="pre">--matchfile</span></tt>, it became trivial to implement the bisection tool. I wrote a
+first prototype. The &quot;prototype&quot; worked much better than expected.</p>
+<p>My first version required a text file listing test cases. I modified it to run
+automatically the new <tt class="docutils literal"><span class="pre">--list-cases</span></tt> command.</p>
+<p>I extended the tool to not only track reference leaks, but also &quot;environment
+changed&quot; failures like finding a test which creates a file but doesn't remove
+it.</p>
+<p>I was asked to add this tool in the Python stdlib, so I added it as
+<tt class="docutils literal">Lib/test/bisect.py</tt> to use it with:</p>
+<pre class="literal-block">
+python3 -m test.bisect ...
+</pre>
+<p>The test.bisect CLI is similar to the test CLI on purpose.</p>
+</div>
+<div class="section" id="reference-leak-example">
+<h2>Reference leak example</h2>
+<p>I modified <tt class="docutils literal">test_access()</tt> of test_os to add manually a reference leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_os
+(...)
+test_os leaked [1, 1, 1] references, sum=3
+test_os leaked [1, 1, 1] memory blocks, sum=3
+test_os failed in 33 sec
+(...)
+</pre>
+<p>Just replace <tt class="docutils literal"><span class="pre">-m</span> test</tt> with <tt class="docutils literal"><span class="pre">-m</span> test.bisect</tt> in the command, and you get
+the guilty method:</p>
+<pre class="literal-block">
+$ ./python -m test.bisect -R 3:3 test_os
+Start bisection with 257 tests
+Test arguments: -R 3:3 test_os
+Bisection will stop when getting 1 or less tests (-n/--max-tests option), or after 100 iterations (-N/--max-iter option)
+
+[+] Iteration 1: run 128 tests/257
+
++ /home/haypo/prog/python/master/python -m test --matchfile /tmp/tmpvbraed7h -R 3:3 test_os
+(...)
+Tests succeeded: skip this subtest, try a new subbset
+
+[+] Iteration 2: run 128 tests/257
+
++ /home/haypo/prog/python/master/python -m test --matchfile /tmp/tmpcjqtzgfe -R 3:3 test_os
+(...)
+Tests failed: use this new subtest
+
+[+] Iteration 3: run 64 tests/128
+(...)
+[+] Iteration 15: run 1 tests/2
+(...)
+
+Tests (1):
+* test.test_os.FileTests.test_access
+
+Bisection completed in 16 iterations and 0:03:10
+</pre>
+<p>The <tt class="docutils literal">test.bisect</tt> command found the bug I introduced:
+<tt class="docutils literal">test.test_os.FileTests.test_access</tt>.</p>
+<p>The command takes a few minutes, but I don't care of its performance as soon as
+its fully automated! If you use the <tt class="docutils literal"><span class="pre">-o</span> file</tt> option, each time the tool is
+able to reduce the size of the test set, it writes the new list of tests on
+disk. So even if the tool crashs or fails to find a single failure test, it
+already helps!</p>
+<p>I am now very happy that <tt class="docutils literal">test.bisect</tt> works better than I expected. So I
+backported it to 2.7, 3.5, 3.6 and master branches, since I want to fix <em>all</em>
+buildbot failures on <em>all</em> maintained branches.</p>
+</div>
+<div class="section" id="environment-changed-example">
+<h2>Environment changed example</h2>
+<p>While running the previous example, I noticed the following warning:</p>
+<pre class="literal-block">
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+</pre>
+<p>Using the new <tt class="docutils literal"><span class="pre">--fail-env-changed</span></tt> option, it is now posible to check which
+test of test_os emits such warning:</p>
+<pre class="literal-block">
+haypo&#64;selma$ ./python -m test.bisect --fail-env-changed -R 3:3 test_os
+(...)
+
+Tests (1):
+* test.test_os.TestSendfile.test_keywords
+
+Bisection completed in 14 iterations and 0:03:27
+</pre>
+<p>I never trust anything, so let's confirm the bug:</p>
+<pre class="literal-block">
+haypo&#64;selma$ ./python -m test --fail-env-changed -R 3:3 test_os -m test.test_os.TestSendfile.test_keywords
+Run tests sequentially
+0:00:00 load avg: 0.33 [1/1] test_os
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+beginning 6 repetitions
+123456
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.
+test_os failed (env changed)
+
+1 test altered the execution environment:
+    test_os
+
+Total duration: 21 sec
+Tests result: ENV CHANGED
+</pre>
+<p>Ok right, there is something wrong with test_keywords(). I just opened
+the <a class="reference external" href="http://bugs.python.org/issue30908">bpo-30908</a>.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q1">My contributions to CPython during 2017 Q1</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-07-05T12:00:00+02:00">
                 Published: mer. 05 juillet 2017
@@ -33,7 +238,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q1
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q1
 (january, februrary, march):</p>
 <ul class="simple">
 <li>Statistics</li>
@@ -54,512 +259,10 @@
 <h2>Statistics</h2>
 <pre class="literal-block">
 # All commits
-$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches='*' --author=Stinner &gt; 2017Q1
-$ grep '^commit ' 2017Q1|wc -l
-121
-
-# Exclude merges
-$ git log --no-merges --after=2016-12-31 --before=2017-04-01 --reverse --branches='*' --author=Stinner|grep '^commit '|wc -l
-105
-
-# master branch (excluding merges)
-$ git log --no-merges --after=2016-12-31 --before=2017-04-01 --reverse --author=Stinner origin/master|grep '^commit '|wc -l
-98
-
-# Only merges
-$ git log --merges --after=2016-12-31 --before=2017-04-01 --reverse --branches='*' --author=Stinner|grep '^commit '|wc -l
-16
-</pre>
-<p>Statistics: <strong>98</strong> commits in the master branch, 16 merge commits (done using
-Mercurial before the migration to GitHub, and then converted to Git), and 7
-other commits (likely backports), total: <strong>121</strong> commits.</p>
-</div>
-<div class="section" id="optimization">
-<h2>Optimization</h2>
-<p>With the work done in 2016 on FASTCALL, it became much easier to optimize code
-by using the new FASTCALL API.</p>
-<div class="section" id="python-slots">
-<h3>Python slots</h3>
-<p>Issue #29507: I worked with <strong>INADA Naoki</strong> to continue the work he did with
-<strong>Yury Selivanov</strong> on optimizing method calls. We optimized &quot;slots&quot; implemented
-in Python. Slots is an internal optimization to call &quot;dunder&quot; methods like
-<tt class="docutils literal">__getitem__()</tt>.</p>
-<p>For Python methods, get the unbound Python function and prepend arguments with
-<em>self</em>, rather than calling the descriptor which creates a temporary
-PyMethodObject.</p>
-<p>Add a new _PyObject_FastCall_Prepend() function used to call the unbound Python
-method with <em>self</em>. It avoids the creation of a temporary tuple to pass
-positional arguments.</p>
-<p>Avoiding a temporary PyMethodObject and a temporary tuple makes Python slots up
-to <strong>1.46x faster</strong>. Microbenchmark on a <tt class="docutils literal">__getitem__()</tt> method implemented
-in Python:</p>
-<pre class="literal-block">
-Median +- std dev: 121 ns +- 5 ns -&gt; 82.8 ns +- 1.0 ns: 1.46x faster (-31%)
-</pre>
-</div>
-<div class="section" id="struct-module">
-<h3>struct module</h3>
-<p>In the issue #29300, <strong>Serhiy Storchaka</strong> and me converted most methods in the
-C <tt class="docutils literal">_struct</tt> module to Argument Clinic to make them use the FASTCALL calling
-convention. Using METH_FASTCALL avoids the creation of temporary tuple to pass
-positional arguments and so is faster. For example, <tt class="docutils literal"><span class="pre">struct.pack(&quot;i&quot;,</span> 1)</tt>
-becomes <strong>1.56x faster</strong> (-36%):</p>
-<pre class="literal-block">
-$ ./python -m perf timeit \
-    -s 'import struct; pack=struct.pack' 'pack(&quot;i&quot;, 1)' \
-    --compare-to=../default-ref/python
-Median +- std dev: 119 ns +- 1 ns -&gt; 76.8 ns +- 0.4 ns: 1.56x faster (-36%)
-Significant (t=295.91)
-</pre>
-<p>The difference is only <tt class="docutils literal">42.2 ns</tt>, but since the function only takes <tt class="docutils literal">76.8
-ns</tt>, the difference is significant. The speedup can also be explained by more
-efficient functions used to parse arguments. The new functions now use a cache
-on the format string.</p>
-</div>
-<div class="section" id="deque-module">
-<h3>deque module</h3>
-<p>Similar change in the deque module, I modified the index(), insert() and
-rotate() methods to use METH_FASTCALL. Speedup:</p>
-<ul class="simple">
-<li>d.index(): <strong>1.24x faster</strong></li>
-<li>d.rotate(1): 1.24x faster</li>
-<li>d.insert(): 1.18x faster</li>
-<li>d.rotate(): 1.10x faster</li>
-</ul>
-</div>
-</div>
-<div class="section" id="tricky-bug">
-<h2>Tricky bug</h2>
-<div class="section" id="test-exceptions-test-unraisable">
-<h3>test_exceptions.test_unraisable()</h3>
-<p>The optimization on Python slots (issue #29507) caused a regression in the
-test_unraisable() unit test of test_exceptions.</p>
-<p>The <tt class="docutils literal">test_unraisable()</tt> method expects that <tt class="docutils literal">PyErr_WriteUnraisable(method)</tt>
-fails on <tt class="docutils literal">repr(method)</tt>.</p>
-<p>Before the change, <tt class="docutils literal">slot_tp_finalize()</tt> called
-<tt class="docutils literal">PyErr_WriteUnraisable()</tt> with a PyMethodObject. In this case,
-<tt class="docutils literal">repr(method)</tt> calls <tt class="docutils literal">repr(self)</tt> which is <tt class="docutils literal">BrokenRepr.__repr__()</tt> and
-the calls raises a new exception.</p>
-<p>After the change, <tt class="docutils literal">slot_tp_finalize()</tt> uses an unbound method:
-<tt class="docutils literal">repr()</tt> is called on a regular <tt class="docutils literal">__del__()</tt> method which doesn't call
-<tt class="docutils literal">repr(self)</tt> and so <tt class="docutils literal">repr()</tt> doesn't fail anymore.</p>
-<p>The fix is to remove the BrokenRepr unit test, since
-<tt class="docutils literal">PyErr_WriteUnraisable()</tt> doesn't call <tt class="docutils literal">__repr__()</tt> anymore.</p>
-<p>The removed test was really implementation specific, and my optimization
-&quot;fixed&quot; the bug or &quot;broke&quot; the test. It's hard to say :-)</p>
-</div>
-<div class="section" id="unittest-assertraises-reference-cycle">
-<h3>unittest assertRaises() reference cycle</h3>
-<p>At April 2015, <strong>Vjacheslav Fyodorov</strong> reported a reference cycle in the
-assertRaises() method of the unittest module: bpo-23890.</p>
-<p>When the context manager API of the <tt class="docutils literal">assertRaises()</tt> method is used, the
-context manager returns an object which contains the exception. So the
-exception is kept alive longer than usual.</p>
-<p>Python 3 exceptions now store traceback objects which contain local variables.
-If a function stores the current exception in a local variable and the frame of
-this function is part of the traceback, we get a reference cycle:</p>
-<blockquote>
-exception -&gt; traceback &gt; frame -&gt; variable -&gt; exception</blockquote>
-<p>I fixed the reference cycle by manually clearing local variables. Example of
-change of my commit:</p>
-<pre class="literal-block">
-try:
-    return context.handle('assertRaises', args, kwargs)
-finally:
-    # bpo-23890: manually break a reference cycle
-    context = None
-</pre>
-<p>It's not the first time that I fixed such reference cycle in the unit test
-module. My previous fix was the issue #19880. Fix a reference leak in
-unittest.TestCase. Explicitly break reference cycles between frames and the
-<tt class="docutils literal">_Outcome</tt> instance: commit <a class="reference external" href="https://github.com/python/cpython/commit/031bd532c48cf20a9cbf438bdae75dde49e36c51">031bd532</a>.</p>
-</div>
-</div>
-<div class="section" id="fastcall-optimizations">
-<h2>FASTCALL optimizations</h2>
-<p>FASTCALL is my project to avoid temporary tuple to pass positional arguments
-and avoid temporary dictionary to pass keyword arguments when calling a
-function. It optimizes function calls in general.</p>
-<p>I continued work on FASTCALL to optimize code further and use FASTCALL in more
-cases.</p>
-<div class="section" id="recursion-depth">
-<h3>Recursion depth</h3>
-<p>In the issue #29306, I fixed the usage of Py_EnterRecursiveCall() to account
-correctly the recursion depth, to fix the code responsible to prevent C stack
-overflow:</p>
-<ul class="simple">
-<li><tt class="docutils literal"><span class="pre">*PyCFunction_*Call*()</span></tt> functions now call <tt class="docutils literal">Py_EnterRecursiveCall()</tt>.</li>
-<li><tt class="docutils literal">PyObject_Call()</tt> now calls directly <tt class="docutils literal">_PyFunction_FastCallDict()</tt> and
-<tt class="docutils literal">PyCFunction_Call()</tt> to avoid calling <tt class="docutils literal">Py_EnterRecursiveCall()</tt> twice per
-function call</li>
-</ul>
-</div>
-<div class="section" id="support-position-arguments">
-<h3>Support position arguments</h3>
-<p>The issue #29286 enhanced Argument Clinic to use FASTCALL for functions which
-only accept positional arguments:</p>
-<ul class="simple">
-<li>Rename _PyArg_ParseStack to _PyArg_ParseStackAndKeywords</li>
-<li>Add _PyArg_ParseStack() helper function</li>
-<li>Add _PyArg_NoStackKeywords() helper function.</li>
-<li>Add _PyArg_UnpackStack() function helper</li>
-<li>Argument Clinic: Use METH_FASTCALL calling convention instead of METH_VARARGS
-to parse position arguments and to parse &quot;boring&quot; position arguments.</li>
-</ul>
-</div>
-<div class="section" id="functions-converted-to-fastcall">
-<h3>Functions converted to FASTCALL</h3>
-<ul class="simple">
-<li>_hashopenssl module</li>
-<li>collections.OrderedDict methods (some of them, not all)</li>
-<li>__build_class__(), getattr(), next() and sorted() builtin functions</li>
-<li>type_prepare() C function, used in type constructor</li>
-<li>dict.get() and dict.setdefault() now use Argument Clinic. The signature of
-docstrings is also enhanced. For example, <tt class="docutils literal"><span class="pre">get(...)</span></tt> becomes
-<tt class="docutils literal">get(self, key, default=None, /)</tt>. Add also a note explaining why
-dict_update() doesn't use METH_FASTCALL.</li>
-</ul>
-</div>
-<div class="section" id="optimizations">
-<h3>Optimizations</h3>
-<ul class="simple">
-<li>Issue #28839: Optimize function_call(), now simply calls
-_PyFunction_FastCallDict() which is more efficient (fast paths for the common
-case, optimized code object and no keyword argument).</li>
-<li>Issue #28839: Optimize _PyFunction_FastCallDict() when kwargs is an empty
-dictionary, avoid the creation of an useless empty tuple.</li>
-<li>Issue #29259: Write fast path in _PyCFunction_FastCallKeywords() for
-METH_FASTCALL, avoid the creation of a temporary dictionary for keyword
-arguments.</li>
-<li>Issue #29259, #29263. methoddescr_call() creates a PyCFunction object, call
-it and the destroy it. Add a new _PyMethodDef_RawFastCallDict() method to
-avoid the temporary PyCFunction object.</li>
-<li>PyCFunction_Call() now calls _PyCFunction_FastCallDict()</li>
-<li>bpo-29735: Optimize partial_call(): avoid tuple. Add _PyObject_HasFastCall().
-Fix also a performance regression in partial_call() if the callable doesn't
-support FASTCALL.</li>
-</ul>
-</div>
-<div class="section" id="bugfixes">
-<h3>Bugfixes</h3>
-<ul class="simple">
-<li>Issue #29286: _PyStack_UnpackDict() now returns -1 on error. Change
-_PyStack_UnpackDict() prototype to be able to notify of failure when args is
-NULL.</li>
-<li>Fix PyCFunction_Call() performance issue. Issue #29259, #29465:
-PyCFunction_Call() doesn't create anymore a redundant tuple to pass
-positional arguments for METH_VARARGS. Add a new cfunction_call()
-subfunction.</li>
-</ul>
-</div>
-<div class="section" id="objects-call-c-file">
-<h3>Objects/call.c file</h3>
-<p>The issue #29465 moved all C functions &quot;calling functions&quot; to a new
-Objects/call.c file. Moving all functions at the same place should help to keep
-the code consistent. It might also help the compiler to inline code more
-easily, or maybe help to cache more machine code in CPU instruction cache.</p>
-<p>This change was made during the GitHub migration. Since the change is big
-(modify many <tt class="docutils literal">.c</tt> files), I got many conflicts and it was annoying to rebase
-it. I am not happy to get this <tt class="docutils literal">call.c</tt> file, it already helped me :-)</p>
-<p>Having <tt class="docutils literal">call.c</tt> also helps to keep helper functions need their callers, and
-prevent to expose them in the C API, even if they are exposed as private
-functions.</p>
-</div>
-<div class="section" id="don-t-optimize-keywords">
-<h3>Don't optimize keywords</h3>
-<ul class="simple">
-<li>Document that _PyFunction_FastCallDict() must copy kwargs. Issue #29318:
-Caller and callee functions must not share the dictionary: kwargs must be
-copied.</li>
-<li>Document why functools.partial() must copy kwargs. Add a comment to prevent
-further attempts to avoid a copy for optimization.</li>
-</ul>
-</div>
-</div>
-<div class="section" id="stack-consumption">
-<h2>Stack consumption</h2>
-<p>A FASTCALL micro-optimization was blocked by Serhiy Storchaka because it
-increased the C stack consumption. In the past, I never analyzed the C stack
-consumption. Since I wanted to get this micro-optimization merged, I tried to
-reduce the consumption.</p>
-<p>At the beginning, I wrote a function to <strong>measure</strong> the C stack consumption in
-a reliable way. It took me a few iterations.</p>
-<p>Table showing the C stack consumption in bytes, and the difference compared to
-Python 3.5 (last release before I started working on FASTCALL):</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="27%" />
-<col width="22%" />
-<col width="7%" />
-<col width="22%" />
-<col width="22%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Function</th>
-<th class="head">2.7</th>
-<th class="head">3.5</th>
-<th class="head">3.6</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>test_python_call</td>
-<td>1,360 (<strong>+352</strong>)</td>
-<td>1,008</td>
-<td>1,120 (<strong>+112</strong>)</td>
-<td>960 (<strong>-48</strong>)</td>
-</tr>
-<tr><td>test_python_getitem</td>
-<td>1,408 (<strong>+288</strong>)</td>
-<td>1,120</td>
-<td>1,168 (<strong>+48</strong>)</td>
-<td>880 (<strong>-240</strong>)</td>
-</tr>
-<tr><td>test_python_iterator</td>
-<td>1,424 (<strong>+192</strong>)</td>
-<td>1,232</td>
-<td>1,200 (<strong>-32</strong>)</td>
-<td>1,024 (<strong>-208</strong>)</td>
-</tr>
-<tr><td>Total</td>
-<td>4,192 (<strong>+832</strong>)</td>
-<td>3,360</td>
-<td>3,488 (<strong>+128</strong>)</td>
-<td>2,864 (<strong>-496</strong>)</td>
-</tr>
-</tbody>
-</table>
-<p>Table showing the number of function calls before a stack overflow,
-and the difference compared to Python 3.5:</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="24%" />
-<col width="23%" />
-<col width="7%" />
-<col width="23%" />
-<col width="23%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Function</th>
-<th class="head">2.7</th>
-<th class="head">3.5</th>
-<th class="head">3.6</th>
-<th class="head">3.7</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td>test_python_call</td>
-<td>6,161 (<strong>-2,153</strong>)</td>
-<td>8,314</td>
-<td>7,482 (<strong>-832</strong>)</td>
-<td>8,729 (<strong>+415</strong>)</td>
-</tr>
-<tr><td>test_python_getitem</td>
-<td>5,951 (<strong>-1,531</strong>)</td>
-<td>7,482</td>
-<td>7,174 (<strong>-308</strong>)</td>
-<td>9,522 (<strong>+2,040</strong>)</td>
-</tr>
-<tr><td>test_python_iterator</td>
-<td>5,885 (<strong>-916</strong>)</td>
-<td>6,801</td>
-<td>6,983 (<strong>+182</strong>)</td>
-<td>8,184 (<strong>+1,383</strong>)</td>
-</tr>
-<tr><td>Total</td>
-<td>17,997 (<strong>-4600</strong>)</td>
-<td>22,597</td>
-<td>21,639 (<strong>-958</strong>)</td>
-<td>26,435 (<strong>+3,838</strong>)</td>
-</tr>
-</tbody>
-</table>
-<p>Python 3.7 is the best of 2.7, 3.5, 3.6 and 3.7: lowest stack consumption and
-maximum number of calls (before a stack overflow) ;-)</p>
-<p>Changes:</p>
-<ul class="simple">
-<li>call_method() now uses _PyObject_FastCall(). Issue #29233: Replace the
-inefficient _PyObject_VaCallFunctionObjArgs() with _PyObject_FastCall() in
-call_method() and call_maybe().</li>
-<li>Issue #29227: Inline call_function() into _PyEval_EvalFrameDefault() using
-Py_LOCAL_INLINE to reduce the stack consumption.</li>
-<li>Issue #29234: Inlining _PyStack_AsTuple() into callers increases their stack
-consumption, Disable inlining to optimize the stack consumption. Add
-_Py_NO_INLINE: use __attribute__((noinline)) of GCC and Clang.</li>
-</ul>
-</div>
-<div class="section" id="contributions">
-<h2>Contributions</h2>
-<ul class="simple">
-<li>Issue #28961: Fix unittest.mock._Call helper: don't ignore the name parameter
-anymore. Patch written by <strong>Jiajun Huang</strong>.</li>
-<li>Prohibit implicit C function declarations. Issue #27659: use
--Werror=implicit-function-declaration when possible (GCC and Clang, but it
-depends on the compiler version). Patch written by <strong>Chi Hsuan Yen</strong>.</li>
-</ul>
-</div>
-<div class="section" id="os-urandom-and-getrandom">
-<h2>os.urandom() and getrandom()</h2>
-<p>As usual, I had fun with os.urandom() in this quarter (see my previous article
-on urandom: <a class="reference external" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a>).</p>
-<p>The glibc developers succeeded to implement a function getrandom() in glibc
-2.25 (February 2017) to expose the &quot;new&quot; Linux getrandom() syscall which was
-introduced in Linux 3.17 (August 2014). Read the LWN article: <a class="reference external" href="https://lwn.net/Articles/711013/">The long road to
-getrandom() in glibc</a>.</p>
-<p>I created the issue #29157 because my os.urandom() implementation wasn't ready
-for the addition of a getrandom() function on Linux. My implementation using
-the getrandom() function didn't handle the ENOSYS error (syscall not
-supported), when Python is compiled on a recent kernel and glibc, but run on an
-older kernel and glibc.</p>
-<p>I rewrote the code to prefer getrandom() over getentropy():</p>
-<ul class="simple">
-<li>dev_urandom() now calls py_getentropy(). Prepare the fallback to support
-getentropy() failure and falls back on reading from /dev/urandom.</li>
-<li>Simplify dev_urandom(). pyurandom() is now responsible to call getentropy()
-or getrandom(). Enhance also dev_urandom() and pyurandom() documentation.</li>
-<li>getrandom() is now preferred over getentropy(). The glibc 2.24 now implements
-getentropy() on Linux using the getrandom() syscall.  But getentropy()
-doesn't support non-blocking mode. Since getrandom() is tried first, it's not
-more needed to explicitly exclude getentropy() on Solaris. Replace:
-&quot;if defined(HAVE_GETENTROPY) &amp;&amp; !defined(sun)&quot;
-with &quot;if defined(HAVE_GETENTROPY)&quot;</li>
-<li>Enhance py_getrandom() documentation. py_getentropy() now supports ENOSYS,
-EPERM &amp; EINTR</li>
-</ul>
-<p>IMHO the main enhancement was the documentation (comments) of the code. The
-main function pyrandom() now has this long comment:</p>
-<blockquote>
-<p>Read random bytes:</p>
-<ul class="simple">
-<li>Return 0 on success</li>
-<li>Raise an exception (if raise is non-zero) and return -1 on error</li>
-</ul>
-<p>Used sources of entropy ordered by preference, preferred source first:</p>
-<ul class="simple">
-<li>CryptGenRandom() on Windows</li>
-<li>getrandom() function (ex: Linux and Solaris): call py_getrandom()</li>
-<li>getentropy() function (ex: OpenBSD): call py_getentropy()</li>
-<li>/dev/urandom device</li>
-</ul>
-<p>Read from the /dev/urandom device if getrandom() or getentropy() function
-is not available or does not work.</p>
-<p>Prefer getrandom() over getentropy() because getrandom() supports blocking
-and non-blocking mode: see the PEP 524. Python requires non-blocking RNG at
-startup to initialize its hash secret, but os.urandom() must block until the
-system urandom is initialized (at least on Linux 3.17 and newer).</p>
-<p>Prefer getrandom() and getentropy() over reading directly /dev/urandom
-because these functions don't need file descriptors and so avoid ENFILE or
-EMFILE errors (too many open files): see the issue #18756.</p>
-<p>Only the getrandom() function supports non-blocking mode.</p>
-<p>Only use RNG running in the kernel. They are more secure because it is
-harder to get the internal state of a RNG running in the kernel land than a
-RNG running in the user land. The kernel has a direct access to the hardware
-and has access to hardware RNG, they are used as entropy sources.</p>
-<p>Note: the OpenSSL RAND_pseudo_bytes() function does not automatically reseed
-its RNG on fork(), two child processes (with the same pid) generate the same
-random numbers: see issue #18747. Kernel RNGs don't have this issue,
-they have access to good quality entropy sources.</p>
-<p>If raise is zero:</p>
-<ul class="simple">
-<li>Don't raise an exception on error</li>
-<li>Don't call the Python signal handler (don't call PyErr_CheckSignals()) if
-a function fails with EINTR: retry directly the interrupted function</li>
-<li>Don't release the GIL to call functions.</li>
-</ul>
-</blockquote>
-</div>
-<div class="section" id="migration-to-github">
-<h2>Migration to GitHub</h2>
-<p>In February 2017, the Mercurial repository was converted to Git and the
-development of CPython moved to GitHub at <a class="reference external" href="https://github.com/python/cpython/">https://github.com/python/cpython/</a>. I
-helped to polish the migration in early days:</p>
-<ul class="simple">
-<li>Rename README to README.rst and enhance formatting</li>
-<li>bpo-29527: Don't treat warnings as error in Travis docs job</li>
-<li>Travis CI: run rstlint.py in the docs job. Currently,
-<a class="reference external" href="http://buildbot.python.org/all/buildslaves/ware-docs">http://buildbot.python.org/all/buildslaves/ware-docs</a> buildbot is only run as
-post-commit. For example, bpo-29521 (PR#41) introduced two warnings,
-unnotified by the Travis CI docs job. Modify the docs job to run
-toosl/rstlint.py. Fix also the two minor warnings which causes the buildbot
-slave to fail. Doc/Makefile: set PYTHON to python3.</li>
-<li>Add Travis CI and Codecov badges to README.</li>
-<li>Exclude myself from mention-bot. I made changes in almost all CPython files
-last 5 years, so mention-bot asks me to review basically all pull requests. I
-simply don't have the bandwidth to review everything, sorry! I prefer to
-select myself which PR I want to follow.</li>
-<li>bpo-27425: Add .gitattributes, fix Windows tests. Mark binary files as binay
-in .gitattributes to not translate newline characters in Git repositories on
-Windows.</li>
-</ul>
-</div>
-<div class="section" id="enhancements">
-<h2>Enhancements</h2>
-<ul class="simple">
-<li>Issue #29259: python-gdb.py now also looks for PyCFunction in the current
-frame, not only in the older frame. python-gdb.py now also supports
-method-wrapper (wrapperobject) objects (Issue #29367).</li>
-<li>Issue #26273: Document the new TCP_USER_TIMEOUT and TCP_CONGESTION constants</li>
-<li>bpo-29919: Remove unused imports found by pyflakes. Make also minor PEP8
-coding style fixes on modified imports.</li>
-<li>bpo-29887: Test normalization now fails if download fails; fix also a
-ResourceWarning.</li>
-</ul>
-</div>
-<div class="section" id="security">
-<h2>Security</h2>
-<ul class="simple">
-<li>Backport for Python 3.4. Issues #27850 and #27766: Remove 3DES from ssl
-default cipher list and add ChaCha20 Poly1305. See the <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2016-2183_sweet32_attack_des_3des.html">CVE-2016-2183:
-Sweet32 attack (DES, 3DES)</a>
-vulnerability.</li>
-</ul>
-</div>
-<div class="section" id="regrtest">
-<h2>regrtest</h2>
-<p>regrtest is the runner of the Python test suite. Changes:</p>
-<ul class="simple">
-<li>regrtest: don't fail immediately if a child does crash. Issue #29362: Catch a
-crash of a worker process as a normal failure and continue to run next tests.
-It allows to get the usual test summary: single line result (OK/FAIL), total
-duration, etc.</li>
-<li>Fix regrtest -j0 -R output: write also dots into stderr, instead of stdout.</li>
-</ul>
-</div>
-<div class="section" id="id1">
-<h2>Bugfixes</h2>
-<ul class="simple">
-<li>Issue #29140: Fix hash(datetime.time). Fix time_hash() function: replace
-DATE_xxx() macros with TIME_xxx() macros. Before, the hash function used a
-wrong value for microseconds if fold is set (equal to 1).</li>
-<li>Issue #29174, #26741: Fix subprocess.Popen.__del__() on Python shutdown.
-subprocess.Popen.__del__() now keeps a strong reference to warnings.warn()
-function. The change allows to log the warning late at Python finalization.
-Before the warning was ignored or logged an error instead of the warning.</li>
-<li>Issue #25591: Fix test_imaplib if the module ssl is missing.</li>
-<li>Fix script_helper.run_python_until_end(): copy the <tt class="docutils literal">SYSTEMROOT</tt> environment
-variable.  Windows requires at least the SYSTEMROOT environment variable to
-start Python. If run_python_until_end() doesn't copy SYSTEMROOT, the
-function always fail on Windows.</li>
-<li>Fix datetime.fromtimestamp(): check bounds. Issue #29100: Fix
-datetime.fromtimestamp() regression introduced in Python 3.6.0: check minimum
-and maximum years.</li>
-<li>Fix test_datetime on system with 32-bit time_t. Issue #29100: Catch
-OverflowError in the new test_timestamp_limits() test.</li>
-<li>Fix test_datetime on Windows. Issue #29100: On Windows,
-datetime.datetime.fromtimestamp(min_ts) fails with an OSError in
-test_timestamp_limits().</li>
-<li>bpo-29176: Fix the name of the _curses.window class. Set name to
-<tt class="docutils literal">_curses.window</tt> instead of <tt class="docutils literal">_curses.curses window</tt> with a space!?</li>
-<li>bpo-29619: os.stat() and os.DirEntry.inodeo() now convert inode (st_ino)
-using unsigned integers to support very large inodes (larger than 2^31).</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches ...</pre></div>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q1.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -782,37 +485,6 @@ hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merge
 <h2>Start of my work on optimization</h2>
 <p>During 2016 Q2, I started ...</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q2.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q1.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2016 Q1">My contributions to CPython during 2016 Q1</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-09T17:00:00+01:00">
-                Published: jeu. 09 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q1
-(january, februrary, march):</p>
-<pre class="literal-block">
-hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merges -u Stinner
-</pre>
-<p>Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>.</p>
-<div class="section" id="summary">
-<h2>Summary</h2>
-<p>Since this report is much longer than I expected, here ...</p></div>
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

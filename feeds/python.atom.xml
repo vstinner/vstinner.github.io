@@ -1,5 +1,186 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-05T12:00:00+02:00</updated><entry><title>My contributions to CPython during 2017 Q1</title><link href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="alternate"></link><published>2017-07-05T12:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-05:contrib-cpython-2017q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-12T15:00:00+02:00</updated><entry><title>New Python test.bisect tool</title><link href="https://haypo.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-12:python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
+identify failing tests in the CPython test suite.&lt;/p&gt;
+&lt;div class="section" id="modify-manually-a-test-file"&gt;
+&lt;h2&gt;Modify manually a test file&lt;/h2&gt;
+&lt;p&gt;I am fixing reference leaks since many years. When the test file contains more
+than 200 tests and is longer than 5,000 lines, it's just not possible to spot a
+reference leak. Each time, I modified the long test file and actually &lt;em&gt;removes&lt;/em&gt;
+enough code until the file becomes short enough so I can read it.&lt;/p&gt;
+&lt;p&gt;This method &lt;em&gt;works&lt;/em&gt;, but it usually took me 20 to 30 minutes, and so it was
+common that I made mistakes... and usually had to restart from the start...&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-failed-attempt"&gt;
+&lt;h2&gt;First failed attempt&lt;/h2&gt;
+&lt;p&gt;In october 2014, while fixing &lt;a class="reference external" href="http://bugs.python.org/issue22588#msg228905"&gt;yet another reference leak in test_capi&lt;/a&gt;, &lt;strong&gt;Xavier de Gaye&lt;/strong&gt; was
+surprised that I identified quickly the leak and wanted to want how I
+proceeded. I explained my method removing code, but I also asked for a tool.&lt;/p&gt;
+&lt;p&gt;Xavier created bpo-22607 at 2014-10-11 and wrote a patch based on an integer
+range to run a subset of tests and did something special on the &lt;tt class="docutils literal"&gt;subTest()&lt;/tt&gt;
+context manager. But &lt;strong&gt;Georg Brandl&lt;/strong&gt; wasn't convinced by this approach and...
+I forgot this issue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-design-list-tests-run-a-subset"&gt;
+&lt;h2&gt;New design: list tests, run a subset&lt;/h2&gt;
+&lt;p&gt;During this quarter, I had to fix dozens of reference leaks but also tests
+failing with &amp;quot;environment changed&amp;quot;: one test method modified &amp;quot;something&amp;quot;. It
+was really painful to identify each time the failing test.&lt;/p&gt;
+&lt;p&gt;So I created bpo-29512 at 2017-02-09 to ask again the same tool. Technically, I
+just wanted to run a subset of tests.&lt;/p&gt;
+&lt;p&gt;While working on OpenStack, I enjoyed the &lt;tt class="docutils literal"&gt;testr&lt;/tt&gt; tool, a test runner able to
+list tests and to run a subset of tests. &lt;tt class="docutils literal"&gt;testr&lt;/tt&gt; also provides a bisection
+tool to identify a subset of tests enough to reproduce a bug. The subset can
+contain more than a single test. Sometimes you need to run two tests
+sequentially to trigger a specific bug, and it's usually long and boring to
+identify manually these two tests.&lt;/p&gt;
+&lt;p&gt;I proposed a similar design for my bisection tool. Start by listing all tests,
+and then:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;create a pure &lt;em&gt;random&lt;/em&gt; sample of tests: subset with half the size of the
+current test set&lt;/li&gt;
+&lt;li&gt;If tests still fail, use the subset as the new set. Otherwise, throw the
+subset.&lt;/li&gt;
+&lt;li&gt;Loop until the subset is small enough or the process run longer than 100
+iterations.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regrtest-list-cases"&gt;
+&lt;h2&gt;regrtest --list-cases&lt;/h2&gt;
+&lt;p&gt;To list tests, I created bpo-30523 and wrote a patch for the unittest module.
+Modifying unittest didn't work well with doctests and the command line
+interface (CLI) didn't work as I wanted. I proposed to modify regrtest instead
+of unittest.&lt;/p&gt;
+&lt;p&gt;I proposed to &lt;strong&gt;Louie Lu&lt;/strong&gt; to implement my new idea. I was impressed that he
+implemented it so quickly and that it worked so well! I just asked him to not
+exclude doctest test cases, since these test cases were working as expected!  I
+quickly merged his modified patch which adds the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--list-cases&lt;/span&gt;&lt;/tt&gt; option to
+regrtest.&lt;/p&gt;
+&lt;p&gt;Note: regrtest already had a &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--list-tests&lt;/span&gt;&lt;/tt&gt; which lists test &lt;em&gt;files&lt;/em&gt;, whereas
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--list-cases&lt;/span&gt;&lt;/tt&gt; lists test &lt;em&gt;methods&lt;/em&gt; and doctests.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regrtest-matchfile"&gt;
+&lt;h2&gt;regrtest --matchfile&lt;/h2&gt;
+&lt;p&gt;I created bpo-30540 to add a --matchfile option to regrtest. regrtest already
+had a --match option, but it was only possible to use the option once, and I
+wanted to use a text files for my list of tests.&lt;/p&gt;
+&lt;p&gt;Again, I was surprised that it was so simple to implement the feature. By the
+way, I modified regrtest --match to allow to specific the option multiple
+times, to run multiple tests instead of a single one.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-test-bisect-tool"&gt;
+&lt;h2&gt;New test.bisect tool&lt;/h2&gt;
+&lt;p&gt;Since I had the two key features: &lt;tt class="docutils literal"&gt;regrtest &lt;span class="pre"&gt;--list-cases&lt;/span&gt;&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;regrtest
+&lt;span class="pre"&gt;--matchfile&lt;/span&gt;&lt;/tt&gt;, it became trivial to implement the bisection tool. I wrote a
+first prototype. The &amp;quot;prototype&amp;quot; worked much better than expected.&lt;/p&gt;
+&lt;p&gt;My first version required a text file listing test cases. I modified it to run
+automatically the new &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--list-cases&lt;/span&gt;&lt;/tt&gt; command.&lt;/p&gt;
+&lt;p&gt;I extended the tool to not only track reference leaks, but also &amp;quot;environment
+changed&amp;quot; failures like finding a test which creates a file but doesn't remove
+it.&lt;/p&gt;
+&lt;p&gt;I was asked to add this tool in the Python stdlib, so I added it as
+&lt;tt class="docutils literal"&gt;Lib/test/bisect.py&lt;/tt&gt; to use it with:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+python3 -m test.bisect ...
+&lt;/pre&gt;
+&lt;p&gt;The test.bisect CLI is similar to the test CLI on purpose.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reference-leak-example"&gt;
+&lt;h2&gt;Reference leak example&lt;/h2&gt;
+&lt;p&gt;I modified &lt;tt class="docutils literal"&gt;test_access()&lt;/tt&gt; of test_os to add manually a reference leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_os
+(...)
+test_os leaked [1, 1, 1] references, sum=3
+test_os leaked [1, 1, 1] memory blocks, sum=3
+test_os failed in 33 sec
+(...)
+&lt;/pre&gt;
+&lt;p&gt;Just replace &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-m&lt;/span&gt; test&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-m&lt;/span&gt; test.bisect&lt;/tt&gt; in the command, and you get
+the guilty method:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test.bisect -R 3:3 test_os
+Start bisection with 257 tests
+Test arguments: -R 3:3 test_os
+Bisection will stop when getting 1 or less tests (-n/--max-tests option), or after 100 iterations (-N/--max-iter option)
+
+[+] Iteration 1: run 128 tests/257
+
++ /home/haypo/prog/python/master/python -m test --matchfile /tmp/tmpvbraed7h -R 3:3 test_os
+(...)
+Tests succeeded: skip this subtest, try a new subbset
+
+[+] Iteration 2: run 128 tests/257
+
++ /home/haypo/prog/python/master/python -m test --matchfile /tmp/tmpcjqtzgfe -R 3:3 test_os
+(...)
+Tests failed: use this new subtest
+
+[+] Iteration 3: run 64 tests/128
+(...)
+[+] Iteration 15: run 1 tests/2
+(...)
+
+Tests (1):
+* test.test_os.FileTests.test_access
+
+Bisection completed in 16 iterations and 0:03:10
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; command found the bug I introduced:
+&lt;tt class="docutils literal"&gt;test.test_os.FileTests.test_access&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The command takes a few minutes, but I don't care of its performance as soon as
+its fully automated! If you use the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-o&lt;/span&gt; file&lt;/tt&gt; option, each time the tool is
+able to reduce the size of the test set, it writes the new list of tests on
+disk. So even if the tool crashs or fails to find a single failure test, it
+already helps!&lt;/p&gt;
+&lt;p&gt;I am now very happy that &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; works better than I expected. So I
+backported it to 2.7, 3.5, 3.6 and master branches, since I want to fix &lt;em&gt;all&lt;/em&gt;
+buildbot failures on &lt;em&gt;all&lt;/em&gt; maintained branches.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="environment-changed-example"&gt;
+&lt;h2&gt;Environment changed example&lt;/h2&gt;
+&lt;p&gt;While running the previous example, I noticed the following warning:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+&lt;/pre&gt;
+&lt;p&gt;Using the new &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--fail-env-changed&lt;/span&gt;&lt;/tt&gt; option, it is now posible to check which
+test of test_os emits such warning:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+haypo&amp;#64;selma$ ./python -m test.bisect --fail-env-changed -R 3:3 test_os
+(...)
+
+Tests (1):
+* test.test_os.TestSendfile.test_keywords
+
+Bisection completed in 14 iterations and 0:03:27
+&lt;/pre&gt;
+&lt;p&gt;I never trust anything, so let's confirm the bug:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+haypo&amp;#64;selma$ ./python -m test --fail-env-changed -R 3:3 test_os -m test.test_os.TestSendfile.test_keywords
+Run tests sequentially
+0:00:00 load avg: 0.33 [1/1] test_os
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+beginning 6 repetitions
+123456
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.
+Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.Warning -- threading_cleanup() failed to cleanup 0 threads after 3 sec (count: 0, dangling: 2)
+.
+test_os failed (env changed)
+
+1 test altered the execution environment:
+    test_os
+
+Total duration: 21 sec
+Tests result: ENV CHANGED
+&lt;/pre&gt;
+&lt;p&gt;Ok right, there is something wrong with test_keywords(). I just opened
+the &lt;a class="reference external" href="http://bugs.python.org/issue30908"&gt;bpo-30908&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category><category term="tests"></category></entry><entry><title>My contributions to CPython during 2017 Q1</title><link href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="alternate"></link><published>2017-07-05T12:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-05:contrib-cpython-2017q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Statistics&lt;/li&gt;
