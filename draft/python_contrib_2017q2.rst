@@ -2,7 +2,7 @@
 My contributions to CPython during 2017 Q2
 ++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2017-07-05 15:00
+:date: 2017-07-12 16:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2017q2
@@ -11,7 +11,34 @@ My contributions to CPython during 2017 Q2
 My contributions to `CPython <https://www.python.org/>`_ during 2017 Q2
 (april, may, june):
 
-* XXX
+* Statistics
+* Mentoring
+* Python 3.6.0 regression
+* struct.Struct.format type
+* Optimization: one less syscall per open() call
+* make regen-all
+* Trick bug: Clang 4.0, dtoa and strict aliasing
+* sigwaitinfo() race condition in test_eintr
+* FreeBSD test_subprocess core dump
+* Security
+* Buildbots
+
+  * Bug caused by a vacuum cleaner
+  * Warnings
+  * regrtest
+  * New test.bisect tool
+  * Bug fixes
+
+* Python 2.7
+
+  * Backports
+  * Backport old fixes
+
+* GitHub migration (continued)
+* Refleaks
+* Contributions
+* Test fixes
+* Stars of the cpython GitHub project
 
 Previous report: `My contributions to CPython during 2017 Q1
 <{filename}/python_contrib_2017q1.rst>`_.
@@ -39,6 +66,7 @@ Note: I didn't use ``--no-merges`` since we don't use merge anymore, but ``git
 cherry-pick -x``, to *backport* fixes. Before GitHub, we used **forwardport**
 with Mercurial merges.
 
+
 Mentoring
 =========
 
@@ -48,12 +76,16 @@ their title and the "easy" or "easy C" keyword. I announced these issues on the
 I asked core developers to not fix these easy issues, but rather explain how to
 fix them. In each issue, I described how fix these issues.
 
+It was a success since all easy issues were fixed quickly, usually the PR was
+merged in less than 24 hours after I created the issue!
+
 I mentored **Stéphane Wirtel** and **Louie Lu** to fix issues (easy or not).
 During this quarter, Stéphane Wirtel got **5 commits** merged into master (on a
-total of **11 commits**), and Louie lu got **6 commits** merged into master (on
-a total of **10 commits**).
+**total of 11 commits**), and Louie lu got **6 commits** merged into master (on
+a **total of 10 commits**).
 
 They helped me to fix reference leaks spotted by the new Refleaks buildbots.
+
 
 Python 3.6.0 regression
 =======================
@@ -71,7 +103,9 @@ It's even worse: I was aware of the bug and already fixed it in master, but I
 just forgot to backport my fix: bpo-30524, fix _PyStack_UnpackDict().
 
 To prevent regressions, I now wrote exhaustive unit tests on all C functions
-which call functions (bpo-30524).
+calling functions: the commit `bpo-30524: Write unit tests for FASTCALL
+<https://github.com/python/cpython/commit/3b5cf85edc188345668f987c824a2acb338a7816>`__
+
 
 struct.Struct.format type
 =========================
@@ -95,25 +129,26 @@ I got zero answer.
 
 Well, I didn't expect any, since it's a trivial change, and I don't expect that
 anyone rely on the exact ``format`` attribute type.  Moreover, the
-``struct.Struct`` constructor already accepts bytes and str types, if if the
-attribute is pass to the constructor: it just works.
+``struct.Struct`` constructor already accepts bytes and str types, if the
+attribute is passed to the constructor: it just works.
 
 In June 2017, Serhiy Storchaka replied to my email: `If nobody opposed to this
 change it will be made in short time.
-<https://mail.python.org/pipermail/python-dev/2017-June/148360.html>`_.  Since
-nobody replied, again, I just merged my pull request.
+<https://mail.python.org/pipermail/python-dev/2017-June/148360.html>`_.
 
-So it took 3 years and 3 months to change the type of an uncommon attribute :-)
+Since nobody replied, again, I just merged my pull request. So it took **3
+years and 3 months** to change the type of an uncommon attribute :-)
 
 Note: I never used this attribute... Before reading this issue, I didn't even
 know that the ``struct`` module has a ``struct.Struct`` type...
+
 
 Optimization: one less syscall per open() call
 ==============================================
 
 In bpo-30228, I modified FileIO.seek() and FileIO.tell() methods to now set the
-internal seekable attribute to avoid one ``fstat()`` syscall per open() in
-buffered or text mode.
+internal seekable attribute to avoid one ``fstat()`` syscall per Python open()
+call in buffered or text mode.
 
 The seekable property is now also more reliable since its value is
 set correctly on memory allocation failure.
@@ -131,10 +166,10 @@ I started to look at bpo-23404, because the Python compilation failed on the
 ``Include/opcode.h`` file.
 
 We had a ``make touch`` command to workaround this file timestamp issue, but
-the command uses Mercurial, whereas Python migrated to Git. The "touch" step
-was removed on buildots because "make touch" was broken.
+the command uses Mercurial, whereas Python migrated to Git last february. The
+buildobt "touch" step was removed because ``make touch`` was broken.
 
-I was always annoyed by the Makefile which wants to regenerate genrated files
+I was always annoyed by the Makefile which wants to regenerate generated files
 because of wrong file modification time, whereas the generated files were
 already up to date.
 
@@ -148,13 +183,12 @@ The bug also annoyed me on FreeBSD which has no "python" command, only
 The bug was also a pain point when trying to cross-compile Python.
 
 I decided to rewrite the Makefile to not regenerate generated files based on
-the file modification time anymore. Instead, I added a new "make regen-all"
+the file modification time anymore. Instead, I added a new ``make regen-all``
 command to regenerate explicitly all generated files. Basically, I replaced
-"make touch" with "make regen-all".
+``make touch`` with ``make regen-all``.
 
 Changes:
 
-* Remove "make touch", Tools/hg/hgtouch.py and .hgtouch
 * Add a new "make regen-all" command to rebuild all generated files
 * Add subcommands to only generate specific files:
 
@@ -169,24 +203,9 @@ Changes:
 * pgen is now only built by "make regen-grammar"
 * Add $(srcdir)/ prefix to paths to source files to handle correctly
   compilation outside the source directory
+* Remove "make touch", Tools/hg/hgtouch.py and .hgtouch
 
-Note: $(PYTHON_FOR_REGEN) is no more used nor needed by "make"
-default target building Python.
-
-bpo-30273: Update sysconfig (#1464)
-
-The AST_H_DIR variable was removed from Makefile.pre.in by the commit
-a5c62a8e9f0de6c4133825a5710984a3cd5e102b (bpo-23404).
-
-AST_H_DIR was hardcoded to "Include", so replace the removed variable
-by its content.
-
-Remove also ASDLGEN variable from sysconfig example since this
-variable was also removed.
-
-bpo-30273: update distutils.sysconfig for venv's created from Python.
-
-compiled out-of-tree (builddir != srcdir). (see also bpo-15366)
+Note: By default, $(PYTHON_FOR_REGEN) is no more used nor needed by "make".
 
 
 Trick bug: Clang 4.0, dtoa and strict aliasing
@@ -206,12 +225,12 @@ CURRENT Debug 3.x" buildbot:
 * test_strtod
 
 First, I bet on a libc change on FreeBSD. Then, I found that test_strtod fails
-on FreeBSD using clang 4.0, but pass using clang 3.8.
+on FreeBSD using clang 4.0, but pass on FreeBSD using clang 3.8.
 
-I started to bisect the code using a subset of ``Python/dtoa.c``:
+I started to bisect the code on Linux using a subset of ``Python/dtoa.c``:
 
-* Start: 2,876 lines
-* dtoa2.c: 2,865 lines
+* Start (integrated in CPython code base): 2,876 lines
+* dtoa2.c (standalone): 2,865 lines
 * dtoa5.c: 50 lines
 
 Extract of dtoa5.c::
@@ -245,22 +264,29 @@ Extract of dtoa5.c::
         return r;
     }
 
-Even if I had a very short C code (50 lines) reproducing the bug, I was unable
-to understand the bug. I read many articles about aliasting, but I still don't
-understand the bug...
+Even if I had a very short C code (50 lines) reproducing the bug, I was still
+unable to understand the bug. I read many articles about aliasing, and I still
+don't understand fully the bug... I suggest you these two good articles:
+
+* `Understanding Strict Aliasing
+  <http://cellperformance.beyond3d.com/articles/2006/06/understanding-strict-aliasing.html>`_
+  (Mike Acton, June 1, 2006)
+* `Demystifying The Restrict Keyword
+  <http://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html>`_
+  (Mike Acton, May 29, 2006)
 
 Anyway, I wanted to report the bug to clang (LLVM), but the LLVM bug tracker was
 migrating and I was unable to subscribe to get an account!
 
 In the meanwhile, **Dimitry Andric**, a FreeBSD developer, told me that he got
-exactly the same clang 4.0 issue with "dtoa.c" in the *julia* programming
+*exactly* the same clang 4.0 issue with "dtoa.c" in the *julia* programming
 language. He reported the bug to FreeBSD: `lang/julia: fails to build with
 clang 4.0 <https://bugs.freebsd.org/216770>`_, and to clang: `After r280351:
 if/else blocks incorrectly optimized away?
 <https://bugs.llvm.org//show_bug.cgi?id=31928>`_. The "problem" is that clang
 developers disagree that it's a bug. In short, the discussion was around the C
 standard: does clang respect C aliasing rules or not? At the end, clang
-developers consider that they are right to optimize and that:
+developers consider that they are right to optimize. To summarize:
 
     It's a bug in the code, not in the compiler
 
@@ -277,93 +303,112 @@ to only compile ``Python/dtoa.c`` with this flag:
     On clang, only compile dtoa.c with -fno-strict-aliasing, use strict
     aliasing to compile all other C files.
 
-Tricky bugs
-===========
 
-signal
-------
+sigwaitinfo() race condition in test_eintr
+==========================================
 
-Change written by **Nathaniel J. Smith**.
+When I wrote and implemented the `PEP 475, Retry system calls failing with
+EINTR <https://www.python.org/dev/peps/pep-0475/>`_, I didn't expect so many
+annoying bugs of the newly written ``test_eintr`` unit test. This test calls
+system calls while sending signals every 100 ms. Usually the test tries to
+block on a system call during at least 200 ms, to make sure that the syscall
+was interrupted at least once by a signal.
 
-bpo-30038: fix race condition in signal delivery + wakeup fd (#1082) (#2075)
+Since the PEP was implemented, I already fixed many race conditions in
+``test_eintr``, but there was still a race condition on the ``sigwaitinfo()``
+unit test. *Sometimes* on a *few specific buildbots* (FreeBSD), the test fails
+randomly.
 
-Before, it was possible to get the following sequence of
-events (especially on Windows, where the C-level signal handler for
-SIGINT is run in a separate thread):
+My first attempt was the `bpo-25277 <http://bugs.python.org/issue25277>`_,
+opened at 2015-09-30. I added faulthandler to dump tracebacks if a test hangs
+longer than 10 minutes. Then I changed the sleep from 200 ms to 2 seconds in
+the ``sigwaitinfo()`` test... just to reduce the risk of race condition, but
+using a longer sleep doesn't fix the root issue.
 
-- SIGINT arrives
-- trip_signal is called
-- trip_signal writes to the wakeup fd
-- the main thread wakes up from select()-or-equivalent
-- the main thread checks for pending signals, but doesn't see any
-- the main thread drains the wakeup fd
-- the main thread goes back to sleep
-- trip_signal sets is_tripped=1 and calls Py_AddPendingCall to notify
-  the main thread the it should run the Python-level signal handler
-- the main thread doesn't notice because it's asleep
+My second attempt was the `bpo-25868 <http://bugs.python.org/issue25868>`_,
+opened at 2015-12-15. I added a pipe to "synchronize the parent and the child
+processes", to try to make the sigwaitinfo() test a little bit more reliable. I
+also reduced the sleep from 2 seconds to 100 ms.
 
-This has been causing repeated failures in the Trio test suite:
-  https://github.com/python-trio/trio/issues/119
+7 minutes after my fix, **Martin Panter** wrote:
 
-(cherry picked from commit 4ae01496971624c75080431806ed1c08e00f22c7)
+    With the pipe, there is still a potential race after the parent writes to
+    the pipe and before sigwaitinfo() is invoked, versus the child sleep()
+    call.
 
-Misc
-----
+    What do you think of my suggestion to block the signal? Then (in theory) it
+    should be robust, rather than relying on timing.
 
-* bpo-30225: is_valid_fd() now uses fstat() instead of dup() on macOS
-  to return 0 on a pipe when the other side of the pipe is closed. fstat()
-  fails with EBADF in that case, whereas dup() succeed.
+I replied that I wasn't sure that sigwaitinfo() EINTR error was still tested if
+we make his proposed change.
 
-::
+One month later, Martin wrote a patch but I was unable to take a decision on
+his change. In september 2016, Martin noticed a new test failure on the FreeBSD
+9 buildbot.
 
-    bpo-30131: test_logging now joins queue threads (#1298)
+My third attempt is the bpo-30320, opened at 2017-05-09. This time, I really
+wanted to fix *all* buildbot random failures. Since I was able to reproduce the
+bug, I was able to write a fix but also to check that:
 
-    QueueListenerTest of test_logging now closes the multiprocessing
-    Queue and joins its thread to prevent leaking dangling threads to
-    following tests.
+* sigwaitinfo() and sigtimedwait() fail with EINTR and Python automatically
+  restarts the interrupted syscall
+* running the test in a loop doesn't fail: I ran the test during 5 minutes in 10
+  shells (tests running 10 times in parallel) => no failure, the race condition
+  seems to be gone. I hacked the test file to only run the sigwaitinfo() and
+  sigtimedwait() unit tests.
 
-    Add also @support.reap_threads to detect earlier if a test leaks
-    threads (and try to "cleanup" these threads).
+So I `pushed my fix
+<https://github.com/python/cpython/commit/211a392cc15f9a7b1b8ce65d8f6c9f8237d1b77f>`_:
 
-test_eintr
-----------
+    bpo-30320: test_eintr now uses pthread_sigmask()
 
-bpo-30320: test_eintr now uses pthread_sigmask() (#1523)
+    Rewrite sigwaitinfo() and sigtimedwait() unit tests for EINTR using
+    pthread_sigmask() to fix a race condition between the child and the
+    parent process.
 
-Rewrite sigwaitinfo() and sigtimedwait() unit tests for EINTR using
-pthread_sigmask() to fix a race condition between the child and the
-parent process.
+    Remove the pipe which was used as a weak workaround against the race
+    condition.
 
-Remove the pipe which was used as a weak workaround against the race
-condition.
+    sigtimedwait() is now tested with a child process sending a signal
+    instead of testing the timeout feature which is more unstable
+    (especially regarding to clock resolution depending on the platform).
 
-sigtimedwait() is now tested with a child process sending a signal
-instead of testing the timeout feature which is more unstable
-(especially regarding to clock resolution depending on the platform).
+To be honest, I wasn't really confident when I pushed my fix that blocking the
+waited signal is the proper fix.
 
-FreeBSD core dump
------------------
+So it took **1 year and 8 months** to really find and fix the root bug.
 
-bpo-30764: test_subprocess uses SuppressCrashReport. bpo-30764, bpo-29335:
-test_child_terminated_in_stopped_state() of test_subprocess now uses
-support.SuppressCrashReport() to prevent the creation of a core dump on
-FreeBSD.
+Sadly, while I was working on dozens of other bugs, I completely lost track of
+Martin's patch, even if I opened the bpo-25868. Sorry Martin for forgotting to
+review your patch! But when you wrote it, I was unable to test that
+sigwaitinfo() was still failing with EINTR.
 
-For an unknown reason, the bug only occurs on Koobs' buildbot, not on my VM,
-nor bapt's machine.
 
-regrtest bisect
-===============
+FreeBSD test_subprocess core dump
+=================================
 
-* bpo-30540: regrtest: add --matchfile option.
-* bpo-30523: Add --list-cases options to regrtest.
-  Co-Authored-By: **Louie Lu**.
-* bpo-29512: Add test.bisect, bisect failing tests.
+bpo-30448: During one month, some FreeBSD buildbots was emitting this warning
+which started to annoy me, since I was trying to fix *all* buildbots warnings::
 
-Add a new "python3 -m test.bisect" tool to bisect failing tests. It can be used
-to find which test method(s) leak references, leak files, etc.
+    Warning -- files was modified by test_subprocess
+      Before: []
+      After:  ['python.core']
 
-XXX python-dev emails.
+I tried and failed to reproduce the warning on my FreeBSD 11 VM. I also asked a
+friend who also failed to reproduce it. I was developping my ``test.bisect``
+tool and I wanted to guess access to a machine to reproduce the bug, but I
+failed to find such machine.
+
+Later, **Kubilay Kocak** aka *koobs* gave me access to his FreeBSD buildbots
+and in a few seconds with my new test.bisect tool, I identified that the
+``test_child_terminated_in_stopped_state()`` test triggers a deliberate crash,
+but doesn't disable core dump creation. The fix is simple, use
+``test.support.SuppressCrashReport`` context manager.
+
+Maybe only FreeBSD 10 and older dump a core on this specific test, not FreeBSD
+11. I don't know why. The test is special, it tests a process which is traced
+using ``ptrace()``.
+
 
 Security
 ========
@@ -439,6 +484,18 @@ Pending PR adding Travis CI and AppVeyor to 3.4 and 3.3 branches.
 Buildbots
 =========
 
+Buildbot outage caused by a vacuum cleaner
+------------------------------------------
+
+Nick Coghlan: "It looks like the FreeBSD buildbots had an outage a little while ago"
+
+`Kubilay Kocak
+<https://mail.python.org/pipermail/python-buildbots/2017-June/000122.html>`_:
+"Vacuum cleaner tripped RCD pulling too much current from the same circuit as
+heater was running on. Buildbot worker host on same circuit".
+
+Unit tests versus real life :-)
+
 Warnings
 --------
 
@@ -473,8 +530,15 @@ regrtest
 * 2.7 and 3.5: bpo-30383: Add NEWS entry for backported regrtest (#2438)
 
 
-Fixes
------
+New test.bisect tool
+--------------------
+
+See the `New Python test.bisect tool <{filename}/python_test_bisect.rst>`_
+article.
+
+
+Bug fixes
+---------
 
 * bpo-29972: Skip tests known to fail on AIX. See `[Python-Dev] Fix or drop AIX
   buildbot?
@@ -570,6 +634,7 @@ Fixes
 * bpo-30812: Fix test_warnings, restore _showwarnmsg. bpo-26568, bpo-30812: Fix
   test_showwarnmsg_missing(): restore the attribute after removing it.
 
+
 Python 2.7
 ==========
 
@@ -632,8 +697,9 @@ Backport old fixes
   explicitly.  delaying the main thread so that it doesn't race ahead of the
   workers.  Fix written in Nov 2013.
 
-GitHub
-======
+
+GitHub migration (continued)
+============================
 
 SCM, backported to 2.7::
 
@@ -656,6 +722,7 @@ SCM, backported to 2.7::
     Don't test if .git/HEAD file exists, but only if the .git file (or
     directory) exists.
 
+
 Enhancements
 ============
 
@@ -664,6 +731,7 @@ Enhancements
 * bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
   PyTraceMalloc_Untrack() functions public. numpy is now able to use
   tracemalloc since numpy 1.13 (XXX check version XXX link to PR).
+
 
 Bugfixes
 ========
@@ -685,6 +753,7 @@ Bugfixes
 * bpo-30418: Popen.communicate() always ignore EINVAL. On Windows,
   subprocess.Popen.communicate() now also ignore EINVAL on stdin.write() if the
   child process is still running but closed the pipe.
+
 
 Refleaks
 ========
@@ -795,3 +864,41 @@ Test fixes
   IMAP server (port 993) doesn't accept TLS connection using our self-signed
   x509 certificate. Remove the two tests which are already skipped. Write a new
   test_certfile_arg_warn() unit test for the certfile deprecation warning.
+
+
+Stars of the cpython GitHub project
+===================================
+
+https://mail.python.org/pipermail/python-dev/2017-June/148523.html
+
+GitHub has a showcase page of hosted programming languages:
+
+   https://github.com/showcases/programming-languages
+
+Python is only #11 with 8,539 stars, behind PHP and Ruby!
+
+Hey, you should "like" ("star"?) the CPython project if you like Python!
+
+   https://github.com/python/cpython/
+   Click on "Star" at the top right.
+
+https://mail.python.org/pipermail/python-dev/2017-July/148548.html
+
+4 days later, we got +2,389 new stars, thank you! (8,539 => 10,928)
+
+Python moved from the 11th place to the 9th, before Elixir and Julia.
+
+Python is still behind Ruby (12,511) and PHP (12,318), but it's
+already much better than before!
+
+
+ Ben Hoyt benhoyt at gmail.com
+
+I also posted it on reddit.com/r/Python, where it got a bit of traction:
+https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/
+
+I just posted on python-list, Terry Jan Reedy
+
+
+
+Update, 2017-07-12: 11,467 stars, only 902 stars behind PHP ;-)
