@@ -11,169 +11,50 @@ My contributions to CPython during 2017 Q2 (part 2)
 This is the second part of my contributions to `CPython
 <https://www.python.org/>`_ during 2017 Q2 (april, may, june):
 
-* FreeBSD test_subprocess core dump
-* Security
+* Mentoring
+* Reference and memory leaks
 * Contributions
 * Enhancements
-* Refleaks
 * Bugfixes
-* Test fixes
 * Stars of the CPython GitHub project
 
+Previous report: `My contributions to CPython during 2017 Q2 (part
+1) <{filename}/python_contrib_2017q2_part1.rst>`_.
 
-FreeBSD test_subprocess core dump
-=================================
-
-bpo-30448: During one month, some FreeBSD buildbots was emitting this warning
-which started to annoy me, since I was trying to fix *all* buildbots warnings::
-
-    Warning -- files was modified by test_subprocess
-      Before: []
-      After:  ['python.core']
-
-I tried and failed to reproduce the warning on my FreeBSD 11 VM. I also asked a
-friend to reproduce the bug, but he also failed. I was developping my
-``test.bisect`` tool and I wanted to get access to a machine to reproduce the
-bug!
-
-Later, **Kubilay Kocak** aka *koobs* gave me access to his FreeBSD buildbots
-and in a few seconds with my new test.bisect tool, I identified that the
-``test_child_terminated_in_stopped_state()`` test triggers a deliberate crash,
-but doesn't disable core dump creation. The fix is simple, use
-``test.support.SuppressCrashReport`` context manager. Thanks *koobs* for the
-access!
-
-Maybe only FreeBSD 10 and older dump a core on this specific test, not FreeBSD
-11. I don't know why. The test is special, it tests a process which crashs
-while being traced with ``ptrace()``.
+Next report: `My contributions to CPython during 2017 Q2 (part 3)
+<{filename}/python_contrib_2017q2_part3.rst>`_.
 
 
-Security
-========
+Mentoring
+=========
 
-Backport fixes
---------------
+During this quarter, I tried to mark "easy" issues using a "[EASY]" tag in
+their title and the "easy" or "easy C" keyword. I announced these issues on the
+`core-mentorship mailing list <https://www.python.org/dev/core-mentorship/>`_.
+I asked core developers to not fix these easy issues, but rather explain how to
+fix them. In each issue, I described how fix these issues.
 
-I am trying to fix all known security fixes in the 6 maintained Python
-branches: 2.7, 3.3, 3.4, 3.5, 3.6 and master.
+It was a success since all easy issues were fixed quickly, usually the PR was
+merged in less than 24 hours after I created the issue!
 
-I created the `python-security.readthedocs.io
-<http://python-security.readthedocs.io/>`_ website to track these
-vulnerabilities, especially which Python versions are fixed, to identifiy
-missing backports.
+I mentored **Stéphane Wirtel** and **Louie Lu** to fix issues (easy or not).
+During this quarter, Stéphane Wirtel got **5 commits** merged into master (on a
+**total of 11 commits**), and Louie lu got **6 commits** merged into master (on
+a **total of 10 commits**).
 
-Python 2.7, 3.5, 3.6 and master are quite good, I am still working on
-backporting fixes into 3.4 and 3.3. Larry Hastings merged my 3.4 backports and
-other security fixes, and scheduled a new 3.4.7 release next weeks. Later, I
-will try to fix Python 3.3 as well, before its end-of-life, scheduled for the
-end of september.
-
-See also the `Status of Python branches
-<https://docs.python.org/devguide/#status-of-python-branches>`_ in the
-devguide.
-
-libexpat 2.2
-------------
-
-Python embeds a copy of libexpat to ease Python compilation on Windows and
-macOS. It means that we have to remind to upgrade it at each libexpat release.
-It is especially important when security vulerabilities are fixed in libexpat.
-
-libexpat 2.2 was released at 2016-06-21 and it contains such fixes for
-vulnerabilities, see: `CVE-2016-0718: expat 2.2, bug #537
-<http://python-security.readthedocs.io/vuln/cve-2016-0718_expat_2.2_bug_537.html>`_.
-
-Sadly, it took us a few months to upgrade libexpat. I wrote a short shell
-script to easily upgrade libexpat: recreate Modules/expat/ directory from a
-libexpat tarball.
-
-My commit:
-
-    bpo-29591: Upgrade Modules/expat to libexpat 2.2 (#2164)
-
-    Remove the configuration (``Modules/expat/*config.h``) of unsupported
-    platforms: Amiga, MacOS Classic on PPC32, Open Watcom.
-
-    Remove XML_HAS_SET_HASH_SALT define: it became useless since our local
-    expat copy was upgrade to expat 2.1 (it's now expat 2.2.0).
-
-I upgraded our libexpat copy to 2.2 in 2.7, 3.4, 3.5, 3.6 and master branches.
-I still have a pending pull request for 3.3.
-
-libexpat 2.2.1
---------------
-
-Just after I finally upgraded our libexpat copy to 2.2.0... libexpat 2.2.1 was
-released with new security fixes!  See `CVE-2017-9233: Expat 2.2.1
-<http://python-security.readthedocs.io/vuln/cve-2017-9233_expat_2.2.1.html>`_
-
-Again, I upgraded libexpat to 2.2.1 in all branches (pending: 3.3), see
-bpo-30694.
-
-    Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
-    of multiple security vulnerabilities including:
-
-    * CVE-2017-9233 (External entity infinite loop DoS),
-    * CVE-2016-9063 (Integer overflow, re-fix),
-    * CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)
-    * CVE-2012-0876 (Counter hash flooding with SipHash).
-
-    Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
-    doesn't impact Python, since Python already gets entropy from the OS to set
-    the expat secret using ``XML_SetHashSalt()``.
-
-urllib splithost() vulnerability
---------------------------------
-
-Vulnerability: `bpo-30500: urllib connects to a wrong host
-<http://python-security.readthedocs.io/vuln/bpo-30500_urllib_connects_to_a_wrong_host.html>`_.
-
-While it was quick to confirm the vulnerability, it was tricky to decide how to
-properly fix it without breaking backward compatibility. We had too few unit
-tests, and no obvious definition of the *expected* behaviour. I contributed to
-the discussed and to polish the fix:
-
-Commit of bpo-30500:
-
-    Fix urllib.parse.splithost() to correctly parse fragments. For example,
-    ``splithost('//127.0.0.1#@evil.com/')`` now correctly returns the
-    ``127.0.0.1`` host, instead of treating ``@evil.com`` as the host in an
-    authentification (``login@host``).
-
-Fix applied to master, 3.6, 3.5, 3.4 and 2.7; pending pull request for 3.3.
-
-Travis CI
----------
-
-I also wrote a pull request to enable Travis CI and AppVeyor CI on Python 3.3
-and 3.4 branches, but these changes are complex and not merged yet. I am now
-confident that the CI will be enabled on 3.4!
-
-The PR for Python 3.4: `[3.4] Backport CI config from master
-<https://github.com/python/cpython/pull/2475>`_.
+They helped me to fix reference leaks spotted by the new Refleaks buildbots.
 
 
-Contributions
-=============
+Reference and memory leaks
+==========================
 
-* bpo-9850: Deprecate the macpath module. Co-Authored-By: **Chi Hsuan Yen**.
-* bpo-30595: Fix multiprocessing.Queue.get(timeout).
-  multiprocessing.Queue.get() with a timeout now polls its reader in
-  non-blocking mode if it succeeded to aquire the lock but the acquire took
-  longer than the timeout. Co-Authored-By: **Grzegorz Grzywacz**.
+Zachary Ware installed a Gentoo and a Windows buildbots running the Python test
+suite with ``--huntrleaks`` to detect reference and memory leaks.
 
-Enhancements
-============
-
-* bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
-  ignoring all OSError exception.
-* bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
-  PyTraceMalloc_Untrack() functions public. numpy is now able to use
-  tracemalloc since numpy 1.13 (XXX check version XXX link to PR).
-
-
-Refleaks
-========
+I worked hard with others, especially Stéphane Wirtel and Louie Lu, to fix
+*all* reference leaks and memory leaks in Python 2.7, 3.5, 3.6 and master.
+Right now, there is no more leaks on Windows! For Gentoo, the buildbot is
+currently offline, but I am confident that all leaks also fixed.
 
 * bpo-30598: _PySys_EndInit() now duplicates warnoptions. Fix a reference leak
   in subinterpreters, like test_callbacks_leak() of test_atexit. warnoptions is
@@ -217,26 +98,27 @@ Refleaks
   test_discover_with_init_module_that_raises_SkipTest_on_import() of
   test_unittest when hunting reference leaks using regrtest.
 
-Fix for Python 3.5::
-
-    bpo-30675: Fix multiprocessing code in regrtest (#2220)
-
-    * Rewrite code to pass slaveargs from the master process to worker
-      processes: reuse the same code of the Python master branch
-    * Move code to initialize tests in a new setup_tests() function,
-      similar change was done in the master branch
-    * In a worker process, call setup_tests() with the namespace built
-      from slaveargs to initialize correctly tests
-
-    Before this change, warm_caches() was not called in worker processes
-    because the setup was done before rebuilding the namespace from
-    slaveargs. As a consequence, the huntrleaks feature was unstable. For
-    example, test_zipfile reported randomly false positive on reference
-    leaks.
-
 * bpo-30704, bpo-30604: Fix memleak in code_dealloc(): Free also
   co_extra->ce_extras, not only co_extra. XXX Serhiy rewrote the structure in
   master to use a single memory block, implemented my idea.
+
+Python 3.5 regrtest fix
+-----------------------
+
+bpo-30675, Fix the multiprocessing code in regrtest:
+
+* Rewrite code to pass ``slaveargs`` from the master process to worker
+  processes: reuse the same code of the Python master branch.
+* Move code to initialize tests in a new ``setup_tests()`` function,
+  similar change was done in the master branch.
+* In a worker process, call ``setup_tests()`` with the namespace built
+  from ``slaveargs`` to initialize correctly tests.
+
+Before this change, ``warm_caches()`` was not called in worker processes
+because the setup was done before rebuilding the namespace from ``slaveargs``.
+As a consequence, the ``huntrleaks`` feature was unstable. For example,
+``test_zipfile`` reported randomly false positive on reference leaks.
+
 
 False positives
 ---------------
@@ -256,14 +138,35 @@ Example of reference differences previously considered a failure
     [0, 1, 0]
     [8, -8, 1]
 
-bpo-30776: regrtest: reduce memleak false positive.
+The same change was done to check for memory leaks.
 
-Only report a leak if each run leaks at least one memory block.
+
+Contributions
+=============
+
+This quarter, I helped to merge two contributions:
+
+* bpo-9850: Deprecate the macpath module. Co-Authored-By: **Chi Hsuan Yen**.
+* bpo-30595: Fix multiprocessing.Queue.get(timeout).
+  multiprocessing.Queue.get() with a timeout now polls its reader in
+  non-blocking mode if it succeeded to aquire the lock but the acquire took
+  longer than the timeout. Co-Authored-By: **Grzegorz Grzywacz**.
+
+Enhancements
+============
+
+* bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
+  ignoring all OSError exception.
+* bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
+  PyTraceMalloc_Untrack() functions public. numpy is able to use
+  tracemalloc since numpy 1.13.
 
 
 Bugfixes
 ========
 
+* bpo-30125: On Windows, faulthandler.disable() now removes the exception
+  handler installed by faulthandler.enable().
 * bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
   build directory, not in the source directory, since the source directory may
   be read-only and must not be modified. Fallback on the source directory if
@@ -271,10 +174,10 @@ Bugfixes
   variable).
 * test_locale now ignores the DeprecationWarning, don't fail anymore if test
   run with ``python3 -Werror``. Fix also deprecation message: add a space.
-* Only define get_zone() and get_gmtoff() if needed, fix warnings on AIX.
-* bpo-30125: On Windows, faulthandler.disable() now removes the exception
-  handler installed by faulthandler.enable().
-* tmtotuple(): use time_t for gmtoff.
+* Fix a compiler warnings on AIX: only define get_zone() and get_gmtoff() if
+  needed.
+* Fix a compiler warning in tmtotuple(): use the ``time_t`` type for the
+  ``gmtoff`` parameter.
 * bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
   xml.sax.xmlreader now always closes the source: close the file object or the
   urllib object if source is a string (not an open file-like object). The
@@ -283,15 +186,9 @@ Bugfixes
 * Fix SyntaxWarning on importing test_inspect. Fix the following warning when
   test_inspect.py is compiled to test_inspect.pyc:
   ``SyntaxWarning: tuple parameter unpacking has been removed in 3.x``
-* bpo-30418: Popen.communicate() always ignore EINVAL. On Windows,
-  subprocess.Popen.communicate() now also ignore EINVAL on stdin.write() if the
-  child process is still running but closed the pipe.
-
-
-Test fixes
-==========
-
-* bpo-29887: test_normalization handles PermissionError
+* bpo-30418: On Windows, subprocess.Popen.communicate() now also ignore EINVAL
+  on stdin.write(): ignore also EINVAL if the child process is still running
+  but closed the pipe.
 * bpo-30257: _bsddb: Fix newDBObject(). Don't set cursorSetReturnsNone to
   DEFAULT_CURSOR_SET_RETURNS_NONE anymore if self->myenvobj is set.
   Fix a GCC warning on the strange indentation.
@@ -308,8 +205,9 @@ At June 30, I wrote `an email to python-dev
 <https://mail.python.org/pipermail/python-dev/2017-June/148523.html>`_ about
 `GitHub showcase of hosted programming languages
 <https://github.com/showcases/programming-languages>`_: Python is only #11 with
-8,539 stars, behind PHP and Ruby! I suggested to "like" ("star"?) the project
-to GitHub if you like the Python programming language!
+8,539 stars, behind PHP and Ruby! I suggested to "like" ("star"?) the `CPython
+project on GitHub <https://github.com/python/cpython/>`_ if you like the Python
+programming language!
 
 Four days later, `we got +2,389 new stars (8,539 => 10,928)
 <https://mail.python.org/pipermail/python-dev/2017-July/148548.html>`_, thank
@@ -317,15 +215,13 @@ you! Python moved from the 11th place to the 9th, before Elixir and Julia.
 
 Ben Hoyt `posted it on reddit.com/r/Python
 <https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/>`_,
-where it got a bit of traction.
-
-Terry Jan Reedy also `posted it on python-list
+where it got a bit of traction. Terry Jan Reedy also `posted it on python-list
 <https://mail.python.org/pipermail/python-list/2017-July/723476.html>`_.
 
-Update, 2017-07-12: 11,467 stars, only 902 stars behind PHP ;-)
-
-Screenshot showing Ruby, PHP and CPython:
+Screenshot at 2017-07-13 showing Ruby, PHP and CPython:
 
 .. image:: {filename}/images/github_cpython_stars.png
    :alt: GitHub showcase: Programming languages
    :target: https://github.com/showcases/programming-languages
+
+CPython now has 11,512 stars, only 861 stars behind PHP ;-)
