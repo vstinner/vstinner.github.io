@@ -1,5 +1,446 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-12T15:00:00+02:00</updated><entry><title>New Python test.bisect tool</title><link href="https://haypo.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-12:python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-13T09:00:00+02:00</updated><entry><title>Work on Python buildbots, 2017 Q2</title><link href="https://haypo.github.io/python-buildbots-2017q2.html" rel="alternate"></link><published>2017-07-13T09:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:python-buildbots-2017q2.html</id><summary type="html">&lt;p&gt;I spent the last 6 months on working on buildbots: reduce the failure rate,
+send email notitication on failure, fix random bugs, detect more bugs using
+warnings, backport fixes to older branches, etc. I decided to fix &lt;em&gt;all&lt;/em&gt;
+buildbots issues: fix all warnings and all unstable tests!&lt;/p&gt;
+&lt;p&gt;The good news is that I made great progress, I fixed most random failures. A
+random fail now became the exception rather than the norm. Some issues were not
+bugs in tests, but real race conditions in the code. It's always good to fix
+unlikely race conditions before users hit them on production!&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Introduction: Python Buildbots&lt;/li&gt;
+&lt;li&gt;Orange Is The New Color&lt;/li&gt;
+&lt;li&gt;New buildbot-status Mailing List&lt;/li&gt;
+&lt;li&gt;Hardware issues&lt;ul&gt;
+&lt;li&gt;The vacuum cleaner&lt;/li&gt;
+&lt;li&gt;The memory stick&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Warnings&lt;/li&gt;
+&lt;li&gt;regrtest&lt;/li&gt;
+&lt;li&gt;Bug fixes&lt;/li&gt;
+&lt;li&gt;Python 2.7&lt;/li&gt;
+&lt;li&gt;Buildbot reports to python-dev&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="introduction-python-buildbots"&gt;
+&lt;h2&gt;Introduction: Python Buildbots&lt;/h2&gt;
+&lt;p&gt;CPython is running a &lt;a class="reference external" href="https://buildbot.net/"&gt;Buildbot&lt;/a&gt; server for continuous
+integration, but tests are run as post-commit: see &lt;a class="reference external" href="https://www.python.org/dev/buildbot/"&gt;Python buildbots&lt;/a&gt;. CPython is tested by a wide range of
+buildbot slaves:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;6 operating systems:&lt;ul&gt;
+&lt;li&gt;Linux (Debian, Ubuntu, Gentoo, RHEL, SLES)&lt;/li&gt;
+&lt;li&gt;Windows (7, 8, 8.1 and 10)&lt;/li&gt;
+&lt;li&gt;macOS (Tiger, El Capitain, Sierra)&lt;/li&gt;
+&lt;li&gt;FreeBSD (9, 10, CURRENT)&lt;/li&gt;
+&lt;li&gt;AIX&lt;/li&gt;
+&lt;li&gt;OpenIndiana (currently offline)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;5 CPU architectures:&lt;ul&gt;
+&lt;li&gt;ARMv7&lt;/li&gt;
+&lt;li&gt;x86 (Intel 32 bit)&lt;/li&gt;
+&lt;li&gt;x86-64 aka &amp;quot;AMD64&amp;quot; (Intel 64-bit)&lt;/li&gt;
+&lt;li&gt;PPC64, PPC64LE&lt;/li&gt;
+&lt;li&gt;s390x&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;3 C compilers:&lt;ul&gt;
+&lt;li&gt;GCC&lt;/li&gt;
+&lt;li&gt;Clang (FreeBSD, macOS)&lt;/li&gt;
+&lt;li&gt;Visual Studio (Windows)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There are different kinds of tests:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Python test suite: the most common check&lt;/li&gt;
+&lt;li&gt;Docs: check that the documentation can be build and doesn't contain warnings&lt;/li&gt;
+&lt;li&gt;Refleaks: check for reference leaks and memory leaks, run the Python test
+suite with the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--huntrleaks&lt;/span&gt;&lt;/tt&gt; option&lt;/li&gt;
+&lt;li&gt;DMG: Build the macOS installer with the
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Mac/BuildScript/build-installer.py&lt;/span&gt;&lt;/tt&gt; script&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Python is tested in different configurations:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Debug: &lt;tt class="docutils literal"&gt;./configure &lt;span class="pre"&gt;--with-pydebug&lt;/span&gt;&lt;/tt&gt;, the most common configuration&lt;/li&gt;
+&lt;li&gt;Non-debug: release mode, with compiler optimizations&lt;/li&gt;
+&lt;li&gt;PGO: Profiled Guided Optimization, &lt;tt class="docutils literal"&gt;./configure &lt;span class="pre"&gt;--enable-optimizations&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Installed: &lt;tt class="docutils literal"&gt;./configure &lt;span class="pre"&gt;--prefix=XXX&lt;/span&gt; &amp;amp;&amp;amp; make install&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Shared library (libpython): &lt;tt class="docutils literal"&gt;./configure &lt;span class="pre"&gt;--enable-shared&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Currently, 4 branches are tested:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;master&lt;/tt&gt;: called &amp;quot;3.x&amp;quot; on buildbots&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;3.6&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;3.5&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;2.7&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There is also &lt;tt class="docutils literal"&gt;custom&lt;/tt&gt;, a special branch used by core developers for testing
+patches.&lt;/p&gt;
+&lt;p&gt;The buildbot configuration can be found in the &lt;a class="reference external" href="https://github.com/python/buildmaster-config/"&gt;buildmaster-config project&lt;/a&gt; (start with the
+&lt;tt class="docutils literal"&gt;master/master.cfg&lt;/tt&gt; file).&lt;/p&gt;
+&lt;p&gt;Note: Thanks to the migration to GitHub, Pull Requests are now tested on Linux,
+Windows and macOS by Travis CI and AppVeyor. It's the first time in the CPython
+development history that we have automated pre-commit tests!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="orange-is-the-new-color"&gt;
+&lt;h2&gt;Orange Is The New Color&lt;/h2&gt;
+&lt;p&gt;A buildbot now becomes orange when tests contain warnings.&lt;/p&gt;
+&lt;p&gt;My first change was to modify the buildbot configuration to extract warnings
+from the raw test output to create a new &amp;quot;warnings&amp;quot; report, to more easily
+detect warnings and tests failing randomly (test fail then pass when re-run).&lt;/p&gt;
+&lt;p&gt;Example of orange build, x86-64 El Capitain 3.x:&lt;/p&gt;
+&lt;img alt="Buildbot: orange build" src="https://haypo.github.io/images/buildbot_orange.png" /&gt;
+&lt;p&gt;Extract of the current &lt;tt class="docutils literal"&gt;master/custom/steps.py&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+class Test(BaseTest):
+    # Regular expression used to catch warnings, errors and bugs
+    warningPattern = (
+        # regrtest saved_test_environment warning:
+        # Warning -- files was modified by test_distutils
+        # test.support &amp;#64;reap_threads:
+        # Warning -- threading_cleanup() failed to cleanup ...
+        r&amp;quot;Warning -- &amp;quot;,
+        # Py_FatalError() call
+        r&amp;quot;Fatal Python error:&amp;quot;,
+        # PyErr_WriteUnraisable() exception: usually, error in
+        # garbage collector or destructor
+        r&amp;quot;Exception ignored in:&amp;quot;,
+        # faulthandler_exc_handler(): Windows exception handler installed with
+        # AddVectoredExceptionHandler() by faulthandler.enable()
+        r&amp;quot;Windows fatal exception:&amp;quot;,
+        # Resource warning: unclosed file, socket, etc.
+        # NOTE: match the &amp;quot;ResourceWarning&amp;quot; anywhere, not only at the start
+        r&amp;quot;ResourceWarning&amp;quot;,
+        # regrtest: At least one test failed. Log a warning even if the test
+        # passed on the second try, to notify that a test is unstable.
+        r'Re-running failed tests in verbose mode',
+        # Re-running test 'test_multiprocessing_fork' in verbose mode
+        r'Re-running test .* in verbose mode',
+        # Thread last resort exception handler in t_bootstrap()
+        r'Unhandled exception in thread started by ',
+        # test_os leaked [6, 6, 6] memory blocks, sum=18,
+        r'test_[^ ]+ leaked ',
+    )
+    # Use &amp;quot;.*&amp;quot; prefix to search the regex anywhere since stdout is mixed
+    # with stderr, so warnings are not always written at the start
+    # of a line. The log consumer calls warningPattern.match(line)
+    warningPattern = r&amp;quot;.*(?:%s)&amp;quot; % &amp;quot;|&amp;quot;.join(warningPattern)
+    warningPattern = re.compile(warningPattern)
+
+    # if tests have warnings, mark the overall build as WARNINGS (orange)
+    warnOnWarnings = True
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-buildbot-status-mailing-list"&gt;
+&lt;h2&gt;New buildbot-status Mailing List&lt;/h2&gt;
+&lt;p&gt;To check buildbots, previously I had to analyze manually the huge &amp;quot;waterfall&amp;quot;
+view of four Python branches: 2.7, 3.5, 3.6 and master (&amp;quot;3.x&amp;quot;).&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://buildbot.python.org/all/waterfall?category=3.x.stable&amp;amp;category=3.x.unstable"&gt;Python master (&amp;quot;3.x&amp;quot;)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://buildbot.python.org/all/waterfall?category=3.6.stable&amp;amp;category=3.6.unstable"&gt;Python 3.6&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://buildbot.python.org/all/waterfall?category=3.5.stable&amp;amp;category=3.5.unstable"&gt;Python 3.5&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="http://buildbot.python.org/all/waterfall?category=2.7.stable&amp;amp;category=2.7.unstable"&gt;Python 2.7&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example of typical buildbot waterfall:&lt;/p&gt;
+&lt;a class="reference external image-reference" href="http://buildbot.python.org/all/waterfall?category=3.x.stable&amp;amp;category=3.x.unstable"&gt;&lt;img alt="Buildbot waterfall" src="https://haypo.github.io/images/buildbot_waterfall.png" /&gt;&lt;/a&gt;
+&lt;p&gt;The screenshot is obviously truncated since the webpage is giant: I have to
+scroll in all directions... It's not convenient to check the status of all
+builds, detect random failures, etc.&lt;/p&gt;
+&lt;p&gt;We also have an IRC bot reporting buildbot failures: when a green (success) or
+orange (warning) buildbot becomes red (failure). I wanted to have the same
+thing, but by email. Technically, it's trivial to enable email notification,
+but I never did it because buildbots were simply too unstable: most failures
+were not related to the newly tested changes.&lt;/p&gt;
+&lt;p&gt;But I decided to fix &lt;em&gt;all&lt;/em&gt; buildbots issues, so I enabled email notification
+(&lt;a class="reference external" href="https://bugs.python.org/issue30325"&gt;bpo-30325&lt;/a&gt;). Since May 2017,
+buildbots are now sending notifications to a new &lt;a class="reference external" href="https://mail.python.org/mm3/mailman3/lists/buildbot-status.python.org/"&gt;buildbot-status mailing list&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I use the mailing list to check if the failure is known or not: I try to answer
+to all failure notification emails. If the failure is known, I copy the link to
+the issue. Otherwise, I create a new issue and then copy the link to the new
+issue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="hardware-issues"&gt;
+&lt;h2&gt;Hardware issues&lt;/h2&gt;
+&lt;p&gt;Unit tests versus real life :-) (or &amp;quot;software versus hardware&amp;quot;)&lt;/p&gt;
+&lt;div class="section" id="the-vacuum-cleaner"&gt;
+&lt;h3&gt;The vacuum cleaner&lt;/h3&gt;
+&lt;p&gt;Fixing buildbot issues can be boring sometimes, so let's start with a funny
+bug. At June 25, Nick Coghlan wrote to the &lt;a class="reference external" href="https://mail.python.org/mailman/listinfo/python-buildbots"&gt;python-buildbots&lt;/a&gt; mailing list:&lt;/p&gt;
+&lt;blockquote&gt;
+It looks like the FreeBSD buildbots had an outage a little while ago,
+and the FreeBSD 10 one may need a nudge to get back online (the
+FreeBSD Current one looks like it came back automatically).&lt;/blockquote&gt;
+&lt;p&gt;The reason is unexpected :-) &lt;a class="reference external" href="https://mail.python.org/pipermail/python-buildbots/2017-June/000122.html"&gt;Kubilay Kocak, owner of the buildbot, answered&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Vacuum cleaner tripped RCD pulling too much current from the same circuit
+as heater was running on. Buildbot worker host on same circuit.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-memory-stick"&gt;
+&lt;h3&gt;The memory stick&lt;/h3&gt;
+&lt;p&gt;I opened at least 50 issues to report random buildbot failures. In the middle
+of these issues, you can find &lt;a class="reference external" href="http://bugs.python.org/issue30371"&gt;bpo-30371&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+http://buildbot.python.org/all/builders/AMD64%20Windows7%20SP1%203.x/builds/436/steps/test/logs/stdio
+
+======================================================================
+FAIL: test_long_lines (test.test_email.test_email.TestFeedParsers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File &amp;quot;C:\buildbot.python.org\3.x.kloth-win64\build\lib\test\test_email\test_email.py&amp;quot;, line 3526, in test_long_lines
+    self.assertEqual(m.get_payload(), 'x'*M*N)
+AssertionError: 'xxxx[17103482 chars]xxxxxzxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[2896464 chars]xxxx' != 'xxxx[17103482 chars]xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[2896464 chars]xxxx'
+
+Notice the &amp;quot;z&amp;quot; in &amp;quot;...xxxxxz...&amp;quot;.
+&lt;/pre&gt;
+&lt;p&gt;and:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+New fail, same buildbot:
+
+======================================================================
+FAIL: test_long_lines (test.test_email.test_email.TestFeedParsers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File &amp;quot;C:\buildbot.python.org\3.x.kloth-win64\build\lib\test\test_email\test_email.py&amp;quot;, line 3534, in test_long_lines
+    self.assertEqual(m.items(), [('a', ''), ('b', 'x'*M*N)])
+AssertionError: Lists differ: [('a'[1845894 chars]xxxxxzxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[18154072 chars]xx')] != [('a'[1845894 chars]xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[18154072 chars]xx')]
+
+First differing element 1:
+('b',[1845882 chars]xxxxxzxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[18154071 chars]xxx')
+('b',[1845882 chars]xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx[18154071 chars]xxx')
+
+  [('a', ''),
+   ('b',
+
+
+Don't click on http://buildbot.python.org/all/builders/AMD64%20Windows7%20SP1%203.x/builds/439/steps/test/logs/stdio
+: the log contains lines of 2 MB which make my Firefox super slow :-)
+&lt;/pre&gt;
+&lt;p&gt;Jeremy Kloth, owner the buildbot, answered:&lt;/p&gt;
+&lt;blockquote&gt;
+Watch this space, but I'm pretty sure that it is (was) bad memory.&lt;/blockquote&gt;
+&lt;p&gt;He fixed the issue:&lt;/p&gt;
+&lt;blockquote&gt;
+That's the real problem, I'm not &lt;em&gt;sure&lt;/em&gt; it's the memory, but it does have
+the symptoms. And that is why my buildbot was down earlier, I was
+attempting to determine the bad stick and replace it.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="warnings"&gt;
+&lt;h2&gt;Warnings&lt;/h2&gt;
+&lt;p&gt;To fix test warnings, I enhanced the test suite to report more information when
+a warning is emitted and to ease detection of failures.&lt;/p&gt;
+&lt;p&gt;A major change is the new &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--fail-env-changed&lt;/span&gt;&lt;/tt&gt; option I added to regrtest
+(bpo-30764): make tests fail if the &amp;quot;environment&amp;quot; is changed. This option is
+now used on buildbots, Travis CI and AppVeyor, but only for the &lt;em&gt;master&lt;/em&gt; branch
+yet.&lt;/p&gt;
+&lt;p&gt;Other changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The &amp;#64;reap_threads decorator and the threading_cleanup() function of
+test.support now log a warning if they fail to clenaup threads. The log may
+help to debug such other warning seen on the AMD64 FreeBSD CURRENT Non-Debug
+3.x buildbot: &amp;quot;Warning -- threading._dangling was modified by test_logging&amp;quot;.&lt;/li&gt;
+&lt;li&gt;threading_cleanup() failure marks test as ENV_CHANGED. If threading_cleanup()
+fails to cleanup threads, set a a new support.environment_altered flag to
+true, flag uses by save_env which is used by regrtest to check if a test
+altered the environment. At the end, the test file fails with ENV_CHANGED
+instead of SUCCESS, to report that it altered the environment.&lt;/li&gt;
+&lt;li&gt;regrtest: always show before/after values of modified environment.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I backported all these changes to the 2.7, 3.5 and 3.6 branches to make sure
+that warnings are fixed in all maintained branches.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regrtest"&gt;
+&lt;h2&gt;regrtest&lt;/h2&gt;
+&lt;p&gt;As usual, I spent time our specialized test runner, regrtest:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-30263: regrtest: log system load and the number of CPUs. I tried to find
+a relationship between race conditions and the system load. I failed to
+find any obvious correlation yet, but I still consider that the system load
+is useful.&lt;/li&gt;
+&lt;li&gt;bpo-27103: regrtest disables -W if -R (reference hunting) is used. Workaround
+for a regrtest bug.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;But the most complex task was to backport &lt;em&gt;all&lt;/em&gt; regrtest features and
+enhancements from master to regrtest of 3.6, 3.5 and then 2.7 branches.&lt;/p&gt;
+&lt;p&gt;In Python 3.6, I rewrote regrtest.py file to split it into smaller files a in
+new Lib/test/libregrtest/ library, so it was painful to backport changes to 3.5
+(bpo-30383) which still uses the single regrtest.py file.&lt;/p&gt;
+&lt;p&gt;In Python 2.7 (bpo-30283), it is even worse. Lib/test/regrtest.py uses the old
+&lt;tt class="docutils literal"&gt;getopt&lt;/tt&gt; module to parse the command line instead of the new &lt;tt class="docutils literal"&gt;argparse&lt;/tt&gt;
+used in 3.5 and newer. But I succeeded to backport all features and
+enhancements from master!&lt;/p&gt;
+&lt;p&gt;Python 2.7, 3.5, 3.6 and master now have almost the same CLI for &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-m&lt;/span&gt;
+test&lt;/tt&gt;, almost the same features (except of one or two missing feature), and
+should provide the same level of information on failures and warnings.&lt;/p&gt;
+&lt;p&gt;By the way, the new &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool is now also available in all these
+branches. See my &lt;a class="reference external" href="https://haypo.github.io/python-test-bisect.html"&gt;New Python test.bisect tool&lt;/a&gt; article.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bug-fixes"&gt;
+&lt;h2&gt;Bug fixes&lt;/h2&gt;
+&lt;p&gt;As expected, the longest section here is the list of changes I wrote to fix all
+buildbot failures and warnings:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-29972: Skip tests known to fail on AIX. See &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147748.html"&gt;[Python-Dev] Fix or drop AIX
+buildbot?&lt;/a&gt;
+email.&lt;/li&gt;
+&lt;li&gt;bpo-29925: Skip test_uuid1_safe() on OS X Tiger&lt;/li&gt;
+&lt;li&gt;Fix and optimize test_asyncore.test_quick_connect(). Don't use addCleanup() in
+test_quick_connect() because it keeps the Thread object alive and so
+&amp;#64;reap_threads times out after 1 second. &amp;quot;./python -m test -v
+test_asyncore -m test_quick_connect&amp;quot; now takes 185 ms, instead of 11 seconds.&lt;/li&gt;
+&lt;li&gt;bpo-30106: Fix test_asyncore.test_quick_connect(). test_quick_connect() runs
+a thread up to 50 seconds, whereas the socket is connected in 0.2 second and
+then the thread is expected to end in less than 3 second. On Linux, the
+thread ends quickly because select() seems to always return quickly. On
+FreeBSD, sometimes select() fails with timeout and so the thread runs much
+longer than expected. Fix the thread timeout to fix a race condition in the
+test.&lt;/li&gt;
+&lt;li&gt;bpo-30106: Fix tearDown() of test_asyncore. Call asyncore.close_all() with
+ignore_all=True in the tearDown() method of the test_asyncore base test case.
+It prevents keeping alive sockets in asyncore.socket_map if close()
+fails with an unexpected error.&lt;/li&gt;
+&lt;li&gt;bpo-30108: Restore sys.path in test_site. Add setUpModule() and
+tearDownModule() functions to test_site to save/restore sys.path at the
+module level to prevent warning if the user site directory is created, since
+site.addsitedir() modifies sys.path.&lt;/li&gt;
+&lt;li&gt;bpo-30107: test_io doesn't dump a core file on an expected crash anymore.
+test_io has two unit tests which trigger a deadlock:
+test_daemon_threads_shutdown_stdout_deadlock() and
+test_daemon_threads_shutdown_stderr_deadlock(). These tests call
+Py_FatalError() if the expected bug is triggered which calls abort(). Use
+test.support.SuppressCrashReport to prevent the creation on a core dump, to
+fix the warning:
+&lt;tt class="docutils literal"&gt;Warning &lt;span class="pre"&gt;--&lt;/span&gt; files was modified by test_io &lt;span class="pre"&gt;(...)&lt;/span&gt; After: ['python.core']&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;bpo-30125: Disable faulthandler to run test_SEH() of test_ctypes to prevent
+the following log with a traceback:
+&lt;tt class="docutils literal"&gt;Windows fatal exception: access violation&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;bpo-30131: test_logging cleans up threads using &amp;#64;support.reap_threads.&lt;/li&gt;
+&lt;li&gt;bpo-30132: BuildExtTestCase of test_distutils now uses support.temp_cwd() in
+setUp() to remove files created in the current working directory by
+BuildExtTestCase unit tests.&lt;/li&gt;
+&lt;li&gt;bpo-30107: On macOS, test.support.SuppressCrashReport now redirects
+/usr/bin/defaults command stderr into a pipe to not pollute stderr. It fixes
+a test_io.test_daemon_threads_shutdown_stderr_deadlock() failure when the
+CrashReporter domain doesn't exists.&lt;/li&gt;
+&lt;li&gt;bpo-30175: Skip client cert tests of test_imaplib. The IMAP server
+cyrus.andrew.cmu.edu doesn't accept our randomly generated client x509
+certificate anymore.&lt;/li&gt;
+&lt;li&gt;bpo-30175: test_nntplib fails randomly with EOFError in NetworkedNNTPTests.setUpClass():
+catch EOFError to skip tests in that case.&lt;/li&gt;
+&lt;li&gt;bpo-30199: AsyncoreEchoServer of test_ssl now calls
+asyncore.close_all(ignore_all=True) to ensure that asyncore.socket_map is
+cleared once the test completes, even if ConnectionHandler was not correctly
+unregistered. Fix the following warning:
+&lt;tt class="docutils literal"&gt;Warning &lt;span class="pre"&gt;--&lt;/span&gt; asyncore.socket_map was modified by test_ssl&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Fix test_ftplib warning if IPv6 is not available. DummyFTPServer now calls
+del_channel() on bind() error to prevent the following warning in
+TestIPv6Environment.setUpClass():
+&lt;tt class="docutils literal"&gt;Warning &lt;span class="pre"&gt;--&lt;/span&gt; asyncore.socket_map was modified by test_ftplib&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;bpo-30329: Catch Windows error 10022 on shutdown(). Catch the Windows socket
+WSAEINVAL error (code 10022) in imaplib and poplib on shutdown(SHUT_RDWR): An
+invalid operation was attempted. This error occurs sometimes on SSL
+connections.&lt;/li&gt;
+&lt;li&gt;bpo-30357: test_thread now uses threading_cleanup(). test_thread: setUp() now
+uses support.threading_setup() and support.threading_cleanup() to wait until
+threads complete to avoid random side effects on following tests.
+Co-Authored-By: &lt;strong&gt;Grzegorz Grzywacz&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;bpo-30339: test_multiprocessing_main_handling timeout.
+test_multiprocessing_main_handling: increase the test_source timeout from 10
+seconds to 60 seconds, since the test fails randomly on busy buildbots.
+Sadly, this change wasn't enough to fix buildbots.&lt;/li&gt;
+&lt;li&gt;bpo-30387: Fix warning in test_threading. test_is_alive_after_fork() now
+joins directly the thread to avoid the following warning added by bpo-30357:
+&amp;quot;Warning -- threading_cleanup() failed to cleanup 0 threads after 2 sec
+(count: 0, dangling: 21)&amp;quot;. Use also a different exit code to catch generic
+exit code 1.&lt;/li&gt;
+&lt;li&gt;bpo-30649: On Windows, test_os now tolerates a delta of 50 ms instead of 20
+ms in test_utime_current() and test_utime_current_old(). On other platforms,
+reduce the delta from 20 ms to 10 ms. PPC64 Fedora 3.x buildbot requires at
+least a delta of 14 ms.&lt;/li&gt;
+&lt;li&gt;bpo-30595: test_queue_feeder_donot_stop_onexc() of _test_multiprocessing now
+uses a timeout of 1 second on Queue.get(), instead of 0.1 second, for slow
+buildbots.&lt;/li&gt;
+&lt;li&gt;bpo-30764, bpo-29335: test_child_terminated_in_stopped_state() of
+test_subprocess now uses support.SuppressCrashReport() to prevent the
+creation of a core dump on FreeBSD.&lt;/li&gt;
+&lt;li&gt;bpo-30280: TestBaseSelectorEventLoop of
+test.test_asyncio.test_selector_events now correctly closes the event loop:
+cleanup its executor to not leak threads: don't override the close() method
+of the event loop, only override the_close_self_pipe() method. asyncio base
+TestCase now uses threading_setup() and threading_cleanup() of test.support
+to cleanup threads.&lt;/li&gt;
+&lt;li&gt;bpo-26568, bpo-30812: Fix test_showwarnmsg_missing(): restore the attribute
+after removing it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="id2"&gt;
+&lt;h2&gt;Python 2.7&lt;/h2&gt;
+&lt;p&gt;I wanted to fix &lt;em&gt;all&lt;/em&gt; buildbot issues of &lt;em&gt;all&lt;/em&gt; branches including 2.7, whereas
+I didn't touch much the Python 2.7 code base last months (last years???). The
+first six months of 2017, I backported dozens of commits from master to 2.7!&lt;/p&gt;
+&lt;p&gt;For example, I added AppVeyor on 2.7: a Windows CI for GitHub!&lt;/p&gt;
+&lt;p&gt;On Windows we support multiple versions of Visual Studio. I use Visual Studio
+2008, whereas most 2.7 Windows buildbots use Visual Studio 2010 or newer.  I
+fixed sysconfig.is_python_build() if Python is built with Visual Studio 2008
+(VS 9.0) (bpo-30342).&lt;/p&gt;
+&lt;p&gt;Other Python 2.7 changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Fix &amp;quot;make tags&amp;quot; command.&lt;/li&gt;
+&lt;li&gt;bpo-30764: support.SuppressCrashReport backported to 2.7 and &amp;quot;ported&amp;quot; to
+Windows.  Add Windows support to test.support.SuppressCrashReport: call
+SetErrorMode() and CrtSetReportMode(). _testcapi: add CrtSetReportMode() and
+CrtSetReportFile() functions and CRT_xxx and CRTDBG_xxx constants needed by
+SuppressCrashReport.&lt;/li&gt;
+&lt;li&gt;bpo-30705: Fix test_regrtest.test_crashed(). Add test.support._crash_python()
+which triggers a crash but uses test.support.SuppressCrashReport() to prevent
+a crash report from popping up. Modify
+test_child_terminated_in_stopped_state() of test_subprocess and
+test_crashed() of test_regrtest to use _crash_python().&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I also backported many fixes wrote by other developers, including old fixes up
+to 8 years old!&lt;/p&gt;
+&lt;p&gt;Usually, &lt;strong&gt;finding&lt;/strong&gt; the proper fix takes much more time than the cherry-pick
+itself which is usually straighforward (no conflict, nothing to do). I am
+always impressed that Git is able to detect that a file was renamed between
+Python 2 and Python 3, and applies cleanly the change!&lt;/p&gt;
+&lt;p&gt;Example of backports from master to 2.7:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-6393: Fix locale.getprerredencoding() on macOS. Python crashes on OSX
+when &lt;tt class="docutils literal"&gt;$LANG&lt;/tt&gt; is set to some (but not all) invalid values due to an invalid
+result from nl_langinfo(). Fix written in &lt;strong&gt;September 2009&lt;/strong&gt; (8 years ago)!&lt;/li&gt;
+&lt;li&gt;bpo-15526: test_startfile changes the cwd. Try to fix test_startfile's
+inability to clean up after itself in time. Patch by &lt;strong&gt;Jeremy Kloth&lt;/strong&gt;.
+Fix the following support.rmtree() error while trying to remove the temporary
+working directory used by Python tests:
+&amp;quot;WindowsError: [Error 32] The process cannot access the file because it is
+being used by another process: ...&amp;quot;.
+Original commit written in &lt;strong&gt;September 2012&lt;/strong&gt;!&lt;/li&gt;
+&lt;li&gt;bpo-11790: Fix sporadic failures in
+test_multiprocessing.WithProcessesTestCondition.
+Fixed written in &lt;strong&gt;April 2011&lt;/strong&gt;. This backported commit was tricky to
+identify!&lt;/li&gt;
+&lt;li&gt;bpo-8799, fix test_threading: Reduce timing sensitivity of condition test by
+explicitly.  delaying the main thread so that it doesn't race ahead of the
+workers.  Fix written in &lt;strong&gt;Nov 2013&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;test_distutils: Use EnvironGuard on InstallTestCase, UtilTestCase, and
+BuildExtTestCase  to prevent the following warning:
+&lt;tt class="docutils literal"&gt;Warning &lt;span class="pre"&gt;--&lt;/span&gt; os.environ was modified by test_distutils&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Fix test_multprocessing: Relax test timing (bpo-29861) to avoid sporadic
+failures.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="buildbot-reports-to-python-dev"&gt;
+&lt;h2&gt;Buildbot reports to python-dev&lt;/h2&gt;
+&lt;p&gt;I also wrote 3 reports to the Python-Dev mailing list:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;May 3: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-May/147838.html"&gt;Status of Python buildbots&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;June 8: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148271.html"&gt;Buildbot report, june 2017&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;June 29: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148511.html"&gt;Buildbot report (almost July)&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>New Python test.bisect tool</title><link href="https://haypo.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-12:python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
 identify failing tests in the CPython test suite.&lt;/p&gt;
 &lt;div class="section" id="modify-manually-a-test-file"&gt;
 &lt;h2&gt;Modify manually a test file&lt;/h2&gt;
