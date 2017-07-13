@@ -2,7 +2,7 @@
 My contributions to CPython during 2017 Q2 (part 3)
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2017-07-13 16:30
+:date: 2017-07-13 17:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2017q2-part3
