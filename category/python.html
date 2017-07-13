@@ -22,9 +22,9 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">My contributions to CPython during 2017 Q2 (part 2)</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 (part 3)</a></h1>
 <footer class="post-info">
-        <abbr class="published" title="2017-07-13T16:30:00+02:00">
+        <abbr class="published" title="2017-07-13T17:00:00+02:00">
                 Published: jeu. 13 juillet 2017
         </abbr>
 
@@ -33,194 +33,288 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>This is the second part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
+</footer><!-- /.post-info --><p>This is the third part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
 <ul class="simple">
-<li>Mentoring</li>
-<li>Reference and memory leaks</li>
-<li>Contributions</li>
-<li>Enhancements</li>
-<li>Bugfixes</li>
-<li>Stars of the CPython GitHub project</li>
+<li>Security</li>
+<li>Trick bug: Clang 4.0, dtoa and strict aliasing</li>
+<li>sigwaitinfo() race condition in test_eintr</li>
+<li>FreeBSD test_subprocess core dump</li>
 </ul>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part
-1)</a>.</p>
-<p>Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 (part 3)</a>.</p>
-<div class="section" id="mentoring">
-<h2>Mentoring</h2>
-<p>During this quarter, I tried to mark &quot;easy&quot; issues using a &quot;[EASY]&quot; tag in
-their title and the &quot;easy&quot; or &quot;easy C&quot; keyword. I announced these issues on the
-<a class="reference external" href="https://www.python.org/dev/core-mentorship/">core-mentorship mailing list</a>.
-I asked core developers to not fix these easy issues, but rather explain how to
-fix them. In each issue, I described how fix these issues.</p>
-<p>It was a success since all easy issues were fixed quickly, usually the PR was
-merged in less than 24 hours after I created the issue!</p>
-<p>I mentored <strong>Stéphane Wirtel</strong> and <strong>Louie Lu</strong> to fix issues (easy or not).
-During this quarter, Stéphane Wirtel got <strong>5 commits</strong> merged into master (on a
-<strong>total of 11 commits</strong>), and Louie lu got <strong>6 commits</strong> merged into master (on
-a <strong>total of 10 commits</strong>).</p>
-<p>They helped me to fix reference leaks spotted by the new Refleaks buildbots.</p>
+<p>Previous reports:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part 1)
+(part 2)</a>.</li>
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">My contributions to CPython during 2017 Q2 (part 2)
+(part 2)</a>.</li>
+</ul>
+<div class="section" id="security">
+<h2>Security</h2>
+<div class="section" id="backport-fixes">
+<h3>Backport fixes</h3>
+<p>I am trying to fix all known security fixes in the 6 maintained Python
+branches: 2.7, 3.3, 3.4, 3.5, 3.6 and master.</p>
+<p>I created the <a class="reference external" href="http://python-security.readthedocs.io/">python-security.readthedocs.io</a> website to track these
+vulnerabilities, especially which Python versions are fixed, to identifiy
+missing backports.</p>
+<p>Python 2.7, 3.5, 3.6 and master are quite good, I am still working on
+backporting fixes into 3.4 and 3.3. Larry Hastings merged my 3.4 backports and
+other security fixes, and scheduled a new 3.4.7 release next weeks. Later, I
+will try to fix Python 3.3 as well, before its end-of-life, scheduled for the
+end of september.</p>
+<p>See the <a class="reference external" href="https://docs.python.org/devguide/#status-of-python-branches">Status of Python branches</a> in the
+devguide.</p>
 </div>
-<div class="section" id="reference-and-memory-leaks">
-<h2>Reference and memory leaks</h2>
-<p>Zachary Ware installed a Gentoo and a Windows buildbots running the Python test
-suite with <tt class="docutils literal"><span class="pre">--huntrleaks</span></tt> to detect reference and memory leaks.</p>
-<p>I worked hard with others, especially Stéphane Wirtel and Louie Lu, to fix
-<em>all</em> reference leaks and memory leaks in Python 2.7, 3.5, 3.6 and master.
-Right now, there is no more leaks on Windows! For Gentoo, the buildbot is
-currently offline, but I am confident that all leaks also fixed.</p>
-<ul class="simple">
-<li>bpo-30598: _PySys_EndInit() now duplicates warnoptions. Fix a reference leak
-in subinterpreters, like test_callbacks_leak() of test_atexit. warnoptions is
-a list used to pass options from the command line to the sys module
-constructor. Before this change, the list was shared by multiple interpreter
-which is not the expected behaviour. Each interpreter should have their own
-independent mutable world. This change duplicates the list in each
-interpreter. So each interpreter owns its own list, so each interpreter can
-clear its own list.</li>
-<li>bpo-30601: Fix a refleak in WindowsConsoleIO. Fix a reference leak in
-_io._WindowsConsoleIO: PyUnicode_FSDecoder() always initialize decodedname
-when it succeed and it doesn't clear input decodedname object.</li>
-<li>bpo-30599: Fix test_threaded_import reference leak. Mock
-os.register_at_fork() when importing the random module, since this function
-doesn't allow to unregister callbacks and so leaked memory.</li>
-<li>2.7: _tkinter: Fix refleak in getint(). PyNumber_Int() creates a new reference:
-need to decrement result reference counter.</li>
-<li>bpo-30635: Fix refleak in test_c_locale_coercion. When checking for reference
-leaks, test_c_locale_coercion is run multiple times and so
-_LocaleCoercionTargetsTestCase.setUpClass() is called multiple times.
-setUpClass() appends new value at each call, so it looks like a reference
-leak. Moving the setup from setUpClass() to setUpModule() avoids this,
-eliminating the false alarm.</li>
-<li>bpo-30602: Fix refleak in os.spawnve(). When os.spawnve() fails while
-handling arguments, free correctly argvlist: pass lastarg+1 rather than
-lastarg to free_string_array() to also free the first item.</li>
-<li>bpo-30602: Fix refleak in os.spawnv(). When os.spawnv() fails while handling
-arguments, free correctly argvlist: pass lastarg+1 rather than lastarg to
-free_string_array() to also free the first item.</li>
-<li>Fix ref cycles in TestCase.assertRaises(). bpo-23890:
-unittest.TestCase.assertRaises() now manually breaks a reference cycle to not
-keep objects alive longer than expected.</li>
-<li>Python 2.7: bpo-30675: Fix refleak hunting in regrtest. regrtest now warms up
-caches: create explicitly all internal singletons which are created on demand
-to prevent false positives when checking for reference leaks.</li>
-<li>_winconsoleio: Fix memory leak. Fix memory leak when _winconsoleio tries to
-open a non-console file: free the name buffer.</li>
-<li>bpo-30813: Fix unittest when hunting refleaks. bpo-11798, bpo-16662,
-bpo-16935, bpo-30813: Skip
-test_discover_with_module_that_raises_SkipTest_on_import() and
-test_discover_with_init_module_that_raises_SkipTest_on_import() of
-test_unittest when hunting reference leaks using regrtest.</li>
-<li>bpo-30704, bpo-30604: Fix memleak in code_dealloc(): Free also
-co_extra-&gt;ce_extras, not only co_extra. XXX Serhiy rewrote the structure in
-master to use a single memory block, implemented my idea.</li>
-</ul>
-<div class="section" id="python-3-5-regrtest-fix">
-<h3>Python 3.5 regrtest fix</h3>
-<p>bpo-30675, Fix the multiprocessing code in regrtest:</p>
-<ul class="simple">
-<li>Rewrite code to pass <tt class="docutils literal">slaveargs</tt> from the master process to worker
-processes: reuse the same code of the Python master branch.</li>
-<li>Move code to initialize tests in a new <tt class="docutils literal">setup_tests()</tt> function,
-similar change was done in the master branch.</li>
-<li>In a worker process, call <tt class="docutils literal">setup_tests()</tt> with the namespace built
-from <tt class="docutils literal">slaveargs</tt> to initialize correctly tests.</li>
-</ul>
-<p>Before this change, <tt class="docutils literal">warm_caches()</tt> was not called in worker processes
-because the setup was done before rebuilding the namespace from <tt class="docutils literal">slaveargs</tt>.
-As a consequence, the <tt class="docutils literal">huntrleaks</tt> feature was unstable. For example,
-<tt class="docutils literal">test_zipfile</tt> reported randomly false positive on reference leaks.</p>
+<div class="section" id="libexpat-2-2">
+<h3>libexpat 2.2</h3>
+<p>Python embeds a copy of libexpat to ease Python compilation on Windows and
+macOS. It means that we have to remind to upgrade it at each libexpat release.
+It is especially important when security vulerabilities are fixed in libexpat.</p>
+<p>libexpat 2.2 was released at 2016-06-21 and it contains such fixes for
+vulnerabilities, see: <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2016-0718_expat_2.2_bug_537.html">CVE-2016-0718: expat 2.2, bug #537</a>.</p>
+<p>Sadly, it took us a few months to upgrade libexpat. I wrote a short shell
+script to easily upgrade libexpat: recreate the <tt class="docutils literal">Modules/expat/</tt> directory
+from a libexpat tarball.</p>
+<p>My commit:</p>
+<blockquote>
+<p>bpo-29591: Upgrade Modules/expat to libexpat 2.2 (#2164)</p>
+<p>Remove the configuration (<tt class="docutils literal"><span class="pre">Modules/expat/*config.h</span></tt>) of unsupported
+platforms: Amiga, MacOS Classic on PPC32, Open Watcom.</p>
+<p>Remove XML_HAS_SET_HASH_SALT define: it became useless since our local
+expat copy was upgrade to expat 2.1 (it's now expat 2.2.0).</p>
+</blockquote>
+<p>I upgraded libexpat to 2.2 in Pytohn 2.7, 3.4, 3.5, 3.6 and master branches.
+I still have a pending pull request for 3.3.</p>
 </div>
-<div class="section" id="false-positives">
-<h3>False positives</h3>
-<p>bpo-30776: reduce regrtest -R false positives (#2422)</p>
+<div class="section" id="libexpat-2-2-1">
+<h3>libexpat 2.2.1</h3>
+<p>Just after I finally upgraded our libexpat copy to 2.2.0... libexpat 2.2.1 was
+released with new security fixes!  See <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2017-9233_expat_2.2.1.html">CVE-2017-9233: Expat 2.2.1</a></p>
+<p>Again, I upgraded libexpat to 2.2.1 in all branches (pending: 3.3), see
+bpo-30694. My commit:</p>
+<blockquote>
+<p>Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
+of multiple security vulnerabilities including:</p>
 <ul class="simple">
-<li>Change the regrtest --huntrleaks checker to decide if a test file
-leaks or not. Require that each run leaks at least 1 reference.</li>
-<li>Warmup runs are now completely ignored: ignored in the checker test
-and not used anymore to compute the sum.</li>
-<li>Add an unit test for a reference leak.</li>
+<li>CVE-2017-9233 (External entity infinite loop DoS),</li>
+<li>CVE-2016-9063 (Integer overflow, re-fix),</li>
+<li>CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)</li>
+<li>CVE-2012-0876 (Counter hash flooding with SipHash).</li>
 </ul>
-<p>Example of reference differences previously considered a failure
-(leak) and now considered as success (success, no leak):</p>
+<p>Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
+doesn't impact Python, since Python already gets entropy from the OS to set
+the expat secret using <tt class="docutils literal">XML_SetHashSalt()</tt>.</p>
+</blockquote>
+</div>
+<div class="section" id="urllib-splithost-vulnerability">
+<h3>urllib splithost() vulnerability</h3>
+<p>Vulnerability: <a class="reference external" href="http://python-security.readthedocs.io/vuln/bpo-30500_urllib_connects_to_a_wrong_host.html">bpo-30500: urllib connects to a wrong host</a>.</p>
+<p>While it was quick to confirm the vulnerability, it was tricky to decide how to
+properly <strong>fix it without breaking backward compatibility</strong>. We had too few
+unit tests, and no obvious definition of the <em>expected</em> behaviour. I
+contributed to the discussed and to polish the fix:</p>
+<p>bpo-30500 commit:</p>
+<blockquote>
+Fix urllib.parse.splithost() to correctly parse fragments. For example,
+<tt class="docutils literal"><span class="pre">splithost('//127.0.0.1#&#64;evil.com/')</span></tt> now correctly returns the
+<tt class="docutils literal">127.0.0.1</tt> host, instead of treating <tt class="docutils literal">&#64;evil.com</tt> as the host in an
+authentification (<tt class="docutils literal">login&#64;host</tt>).</blockquote>
+<p>Fix applied to master, 3.6, 3.5, 3.4 and 2.7; pending pull request for 3.3.</p>
+</div>
+<div class="section" id="travis-ci">
+<h3>Travis CI</h3>
+<p>I also wrote a pull request to enable Travis CI and AppVeyor CI on Python 3.3
+and 3.4 branches, to test security on CI. These changes are complex and not
+merged yet, but I am now confident that the CI will be enabled on 3.4!</p>
+<p>My PR for Python 3.4: <a class="reference external" href="https://github.com/python/cpython/pull/2475">[3.4] Backport CI config from master</a>.</p>
+</div>
+</div>
+<div class="section" id="tricky-bug-clang-4-0-dtoa-and-strict-aliasing">
+<h2>Tricky bug: Clang 4.0, dtoa and strict aliasing</h2>
+<p>Aha, another funny story about compilers: bpo-30104.</p>
+<p>I noticed that the following tests started to fail on the &quot;AMD64 FreeBSD
+CURRENT Debug 3.x&quot; buildbot:</p>
+<ul class="simple">
+<li>test_cmath</li>
+<li>test_float</li>
+<li>test_json</li>
+<li>test_marshal</li>
+<li>test_math</li>
+<li>test_statistics</li>
+<li>test_strtod</li>
+</ul>
+<p>First, I bet on a libc change on FreeBSD. Then, I found that test_strtod fails
+on FreeBSD using clang 4.0, but pass on FreeBSD using clang 3.8.</p>
+<p>I started to bisect the code on Linux using a subset of <tt class="docutils literal">Python/dtoa.c</tt>:</p>
+<ul class="simple">
+<li>Start (integrated in CPython code base): 2,876 lines</li>
+<li>dtoa2.c (standalone): 2,865 lines</li>
+<li>dtoa5.c: 50 lines</li>
+</ul>
+<p>Extract of dtoa5.c:</p>
 <pre class="literal-block">
-[3, 0, 0]
-[0, 1, 0]
-[8, -8, 1]
+typedef union { double d; uint32_t L[2]; } U;
+
+struct Bigint { int wds; };
+
+static double
+ratio(struct Bigint *a)
+{
+    U da, db;
+    int k, ka, kb;
+    double r;
+
+    da.d = 1.682;
+    ka = 6;
+    db.d = 1.0;
+    kb = 5;
+    k = ka - kb + 32 * (a-&gt;wds - 12);
+    printf(&quot;k=%i\n&quot;, k);
+
+    if (k &gt; 0)
+        da.L[1] += k * 0x100000;
+    else {
+        k = -k;
+        db.L[1] += k * 0x100000;
+    }
+    r = da.d / db.d;
+    /* r == 3.364 */
+    return r;
+}
 </pre>
-<p>The same change was done to check for memory leaks.</p>
-</div>
-</div>
-<div class="section" id="contributions">
-<h2>Contributions</h2>
-<p>This quarter, I helped to merge two contributions:</p>
+<p>Even if I had a very short C code (50 lines) reproducing the bug, I was still
+unable to understand the bug. I read many articles about aliasing, and I still
+don't understand fully the bug... I suggest you these two good articles:</p>
 <ul class="simple">
-<li>bpo-9850: Deprecate the macpath module. Co-Authored-By: <strong>Chi Hsuan Yen</strong>.</li>
-<li>bpo-30595: Fix multiprocessing.Queue.get(timeout).
-multiprocessing.Queue.get() with a timeout now polls its reader in
-non-blocking mode if it succeeded to aquire the lock but the acquire took
-longer than the timeout. Co-Authored-By: <strong>Grzegorz Grzywacz</strong>.</li>
+<li><a class="reference external" href="http://cellperformance.beyond3d.com/articles/2006/06/understanding-strict-aliasing.html">Understanding Strict Aliasing</a>
+(Mike Acton, June 1, 2006)</li>
+<li><a class="reference external" href="http://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html">Demystifying The Restrict Keyword</a>
+(Mike Acton, May 29, 2006)</li>
 </ul>
+<p>Anyway, I wanted to report the bug to clang (LLVM), but the LLVM bug tracker was
+migrating and I was unable to subscribe to get an account!</p>
+<p>In the meanwhile, <strong>Dimitry Andric</strong>, a FreeBSD developer, told me that he got
+<em>exactly</em> the same clang 4.0 issue with &quot;dtoa.c&quot; in the <em>julia</em> programming
+language. Two months before I saw the same bug, he already reported the bug to
+FreeBSD: <a class="reference external" href="https://bugs.freebsd.org/216770">lang/julia: fails to build with clang 4.0</a>, and to clang: <a class="reference external" href="https://bugs.llvm.org//show_bug.cgi?id=31928">After r280351: if/else
+blocks incorrectly optimized away?</a>.</p>
+<p>The &quot;problem&quot; is that clang
+developers disagree that it's a bug. In short, the discussion was around the C
+standard: does clang respect C aliasing rules or not? At the end, clang
+developers consider that they are right to optimize. To summarize:</p>
+<blockquote>
+It's a bug in the code, not in the compiler</blockquote>
+<p>So I made a first change to use the <tt class="docutils literal"><span class="pre">-fno-strict-aliasing</span></tt> flag when Python
+is compiled with clang:</p>
+<blockquote>
+Python/dtoa.c is not compiled correctly with clang 4.0 and
+optimization level -O2 or higher, because of an aliasing issue on
+the double/ULong[2] union.</blockquote>
+<p>But this change can make Python slower when compiled on clang, so I was asked
+to only compile <tt class="docutils literal">Python/dtoa.c</tt> with this flag:</p>
+<blockquote>
+On clang, only compile dtoa.c with -fno-strict-aliasing, use strict
+aliasing to compile all other C files.</blockquote>
 </div>
-<div class="section" id="enhancements">
-<h2>Enhancements</h2>
+<div class="section" id="sigwaitinfo-race-condition-in-test-eintr">
+<h2>sigwaitinfo() race condition in test_eintr</h2>
+<div class="section" id="the-tricky-test-eintr">
+<h3>The tricky test_eintr</h3>
+<p>When I wrote and implemented the <a class="reference external" href="https://www.python.org/dev/peps/pep-0475/">PEP 475, Retry system calls failing with
+EINTR</a>, I didn't expect so many
+annoying bugs of the newly written <tt class="docutils literal">test_eintr</tt> unit test. This test calls
+system calls while sending signals every 100 ms. Usually the test tries to
+block on a system call during at least 200 ms, to make sure that the syscall
+was interrupted at least once by a signal, to check that Python correctly
+retries the interrupted system call.</p>
+<p>Since the PEP was implemented, I already fixed many race conditions in
+<tt class="docutils literal">test_eintr</tt>, but there was still a race condition on the <tt class="docutils literal">sigwaitinfo()</tt>
+unit test. <em>Sometimes</em> on a <em>few specific buildbots</em> (FreeBSD), the test fails
+randomly.</p>
+</div>
+<div class="section" id="first-attempt">
+<h3>First attempt</h3>
+<p>My first attempt was the <a class="reference external" href="http://bugs.python.org/issue25277">bpo-25277</a>,
+opened at 2015-09-30. I added faulthandler to dump tracebacks if a test hangs
+longer than 10 minutes. Then I changed the sleep from 200 ms to 2 seconds in
+the <tt class="docutils literal">sigwaitinfo()</tt> test... just to make the bug less likely, but using a
+longer sleep doesn't fix the root issue.</p>
+</div>
+<div class="section" id="second-attempt">
+<h3>Second attempt</h3>
+<p>My second attempt was the <a class="reference external" href="http://bugs.python.org/issue25868">bpo-25868</a>,
+opened at 2015-12-15. I added a pipe to &quot;synchronize the parent and the child
+processes&quot;, to try to make the sigwaitinfo() test a little bit more reliable. I
+also reduced the sleep from 2 seconds to 100 ms.</p>
+<p>7 minutes after my fix, <strong>Martin Panter</strong> wrote:</p>
+<blockquote>
+<p>With the pipe, there is still a potential race after the parent writes to
+the pipe and before sigwaitinfo() is invoked, versus the child sleep()
+call.</p>
+<p>What do you think of my suggestion to block the signal? Then (in theory) it
+should be robust, rather than relying on timing.</p>
+</blockquote>
+<p>I replied that I wasn't sure that sigwaitinfo() EINTR error was still tested if
+we make his proposed change.</p>
+<p>One month later, Martin wrote a patch but I was unable to take a decision on
+his change. In september 2016, Martin noticed a new test failure on the FreeBSD
+9 buildbot.</p>
+</div>
+<div class="section" id="third-attempt">
+<h3>Third attempt</h3>
+<p>My third attempt is the bpo-30320, opened at 2017-05-09. This time, I really
+wanted to fix <em>all</em> buildbot random failures. Since I was now able to reproduce
+the bug on my FreeBSD VM, I was able to write a fix but also to check that:</p>
 <ul class="simple">
-<li>bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
-ignoring all OSError exception.</li>
-<li>bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
-PyTraceMalloc_Untrack() functions public. numpy is able to use
-tracemalloc since numpy 1.13.</li>
+<li>sigwaitinfo() and sigtimedwait() fail with EINTR and Python automatically
+restarts the interrupted syscall</li>
+<li>I hacked the test file to only run the sigwaitinfo() and sigtimedwait() unit
+tests. Running the test in a loop doesn't fail: I ran the test during 5
+minutes in 10 shells (tests running 10 times in parallel) =&gt; no failure, the
+race condition seems to be gone.</li>
 </ul>
+<p>So I <a class="reference external" href="https://github.com/python/cpython/commit/211a392cc15f9a7b1b8ce65d8f6c9f8237d1b77f">pushed my fix</a>:</p>
+<blockquote>
+<p>bpo-30320: test_eintr now uses pthread_sigmask()</p>
+<p>Rewrite sigwaitinfo() and sigtimedwait() unit tests for EINTR using
+pthread_sigmask() to fix a race condition between the child and the
+parent process.</p>
+<p>Remove the pipe which was used as a weak workaround against the race
+condition.</p>
+<p>sigtimedwait() is now tested with a child process sending a signal
+instead of testing the timeout feature which is more unstable
+(especially regarding to clock resolution depending on the platform).</p>
+</blockquote>
+<p>To be honest, I wasn't really confident, when I pushed my fix, that blocking
+the waited signal is the proper fix.</p>
+<p>So it took <strong>1 year and 8 months</strong> to really find and fix the root bug.</p>
+<p>Sadly, while I was working on dozens of other bugs, I completely lost track of
+Martin's patch, even if I opened the bpo-25868. Sorry Martin for forgotting to
+review your patch! But when you wrote it, I was unable to test that
+sigwaitinfo() was still failing with EINTR.</p>
 </div>
-<div class="section" id="bugfixes">
-<h2>Bugfixes</h2>
-<ul class="simple">
-<li>bpo-30125: On Windows, faulthandler.disable() now removes the exception
-handler installed by faulthandler.enable().</li>
-<li>bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
-build directory, not in the source directory, since the source directory may
-be read-only and must not be modified. Fallback on the source directory if
-the build directory is not available (missing &quot;abs_builddir&quot; sysconfig
-variable).</li>
-<li>test_locale now ignores the DeprecationWarning, don't fail anymore if test
-run with <tt class="docutils literal">python3 <span class="pre">-Werror</span></tt>. Fix also deprecation message: add a space.</li>
-<li>Fix a compiler warnings on AIX: only define get_zone() and get_gmtoff() if
-needed.</li>
-<li>Fix a compiler warning in tmtotuple(): use the <tt class="docutils literal">time_t</tt> type for the
-<tt class="docutils literal">gmtoff</tt> parameter.</li>
-<li>bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
-xml.sax.xmlreader now always closes the source: close the file object or the
-urllib object if source is a string (not an open file-like object). The
-change fixes a ResourceWarning on parsing error. Add
-test_parse_close_source() unit test.</li>
-<li>Fix SyntaxWarning on importing test_inspect. Fix the following warning when
-test_inspect.py is compiled to test_inspect.pyc:
-<tt class="docutils literal">SyntaxWarning: tuple parameter unpacking has been removed in 3.x</tt></li>
-<li>bpo-30418: On Windows, subprocess.Popen.communicate() now also ignore EINVAL
-on stdin.write(): ignore also EINVAL if the child process is still running
-but closed the pipe.</li>
-<li>bpo-30257: _bsddb: Fix newDBObject(). Don't set cursorSetReturnsNone to
-DEFAULT_CURSOR_SET_RETURNS_NONE anymore if self-&gt;myenvobj is set.
-Fix a GCC warning on the strange indentation.</li>
-<li>bpo-30231: Remove skipped test_imaplib tests. The public cyrus.andrew.cmu.edu
-IMAP server (port 993) doesn't accept TLS connection using our self-signed
-x509 certificate. Remove the two tests which are already skipped. Write a new
-test_certfile_arg_warn() unit test for the certfile deprecation warning.</li>
-</ul>
 </div>
-<div class="section" id="stars-of-the-cpython-github-project">
-<h2>Stars of the CPython GitHub project</h2>
-<p>At June 30, I wrote <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148523.html">an email to python-dev</a> about
-<a class="reference external" href="https://github.com/showcases/programming-languages">GitHub showcase of hosted programming languages</a>: Python is only #11 with
-8,539 stars, behind PHP and Ruby! I suggested to &quot;like&quot; (&quot;star&quot;?) the <a class="reference external" href="https://github.com/python/cpython/">CPython
-project on GitHub</a> if you like the Python
-programming language!</p>
-<p>Four days later, <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148548.html">we got +2,389 new stars (8,539 =&gt; 10,928)</a>, thank
-you! Python moved from the 11th place to the 9th, before Elixir and Julia.</p>
-<p>Ben Hoyt <a class="reference external" href="https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/">posted it on reddit.com/r/Python</a>,
-where it got a bit of traction. Terry Jan Reedy also <a class="reference external" href="https://mail.python.org/pipermail/python-list/2017-July/723476.html">posted it on python-list</a>.</p>
-<p>Screenshot at 2017-07-13 showing Ruby, PHP and CPython:</p>
-<a class="reference external image-reference" href="https://github.com/showcases/programming-languages"><img alt="GitHub showcase: Programming languages" src="https://haypo.github.io/images/github_cpython_stars.png" /></a>
-<p>CPython now has 11,512 stars, only 861 stars behind PHP ;-)</p>
+<div class="section" id="freebsd-test-subprocess-core-dump">
+<h2>FreeBSD test_subprocess core dump</h2>
+<p>bpo-30448: During one month, some FreeBSD buildbots was emitting this warning
+which started to annoy me, since I was trying to fix <em>all</em> buildbots warnings:</p>
+<pre class="literal-block">
+Warning -- files was modified by test_subprocess
+  Before: []
+  After:  ['python.core']
+</pre>
+<p>I tried and failed to reproduce the warning on my FreeBSD 11 VM. I also asked a
+friend to reproduce the bug, but he also failed. I was developping my
+<tt class="docutils literal">test.bisect</tt> tool and I wanted to get access to a machine to reproduce the
+bug!</p>
+<p>Later, <strong>Kubilay Kocak</strong> aka <em>koobs</em> gave me access to his FreeBSD buildbots
+and in a few seconds with my new test.bisect tool, I identified that the
+<tt class="docutils literal">test_child_terminated_in_stopped_state()</tt> test triggers a deliberate crash,
+but doesn't disable core dump creation. The fix is simple, use
+<tt class="docutils literal">test.support.SuppressCrashReport</tt> context manager. Thanks <em>koobs</em> for the
+access!</p>
+<p>Maybe only FreeBSD 10 and older dump a core on this specific test, not FreeBSD
+11. I don't know why. The test is special, it tests a process which crashs
+while being traced with <tt class="docutils literal">ptrace()</tt>.</p>
 </div>
                 </article>
             </aside><!-- /#featured -->
@@ -231,8 +325,8 @@ where it got a bit of traction. Terry Jan Reedy also <a class="reference externa
 
             <li><article class="hentry">
                 <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q2-part3.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q2 (part 3)">My contributions to CPython during 2017 Q2 (part 3)</a></h1>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q2-part2.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q2 (part 2)">My contributions to CPython during 2017 Q2 (part 2)</a></h1>
                 </header>
 
                 <div class="entry-content">
@@ -246,19 +340,19 @@ where it got a bit of traction. Terry Jan Reedy also <a class="reference externa
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>This is the third part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
+</footer><!-- /.post-info -->                <p>This is the second part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
 <ul class="simple">
-<li>Security</li>
-<li>Trick bug: Clang 4.0, dtoa and strict aliasing</li>
-<li>sigwaitinfo() race condition in test_eintr</li>
-<li>FreeBSD test_subprocess core dump</li>
+<li>Mentoring</li>
+<li>Reference and memory leaks</li>
+<li>Contributions</li>
+<li>Enhancements</li>
+<li>Bugfixes</li>
+<li>Stars of the CPython GitHub project</li>
 </ul>
-<p>Previous reports:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part 1)
-(part 2)</a>.</li>
-<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">My contributions ...</a></li></ul>
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">read more</a>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part
+1)</a>.</p>
+<p>Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 ...</a></p>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
 

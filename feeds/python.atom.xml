@@ -1,194 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-13T16:30:00+02:00</updated><entry><title>My contributions to CPython during 2017 Q2 (part 2)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part2.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part2.html</id><summary type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;Mentoring&lt;/li&gt;
-&lt;li&gt;Reference and memory leaks&lt;/li&gt;
-&lt;li&gt;Contributions&lt;/li&gt;
-&lt;li&gt;Enhancements&lt;/li&gt;
-&lt;li&gt;Bugfixes&lt;/li&gt;
-&lt;li&gt;Stars of the CPython GitHub project&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part
-1)&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html"&gt;My contributions to CPython during 2017 Q2 (part 3)&lt;/a&gt;.&lt;/p&gt;
-&lt;div class="section" id="mentoring"&gt;
-&lt;h2&gt;Mentoring&lt;/h2&gt;
-&lt;p&gt;During this quarter, I tried to mark &amp;quot;easy&amp;quot; issues using a &amp;quot;[EASY]&amp;quot; tag in
-their title and the &amp;quot;easy&amp;quot; or &amp;quot;easy C&amp;quot; keyword. I announced these issues on the
-&lt;a class="reference external" href="https://www.python.org/dev/core-mentorship/"&gt;core-mentorship mailing list&lt;/a&gt;.
-I asked core developers to not fix these easy issues, but rather explain how to
-fix them. In each issue, I described how fix these issues.&lt;/p&gt;
-&lt;p&gt;It was a success since all easy issues were fixed quickly, usually the PR was
-merged in less than 24 hours after I created the issue!&lt;/p&gt;
-&lt;p&gt;I mentored &lt;strong&gt;Stéphane Wirtel&lt;/strong&gt; and &lt;strong&gt;Louie Lu&lt;/strong&gt; to fix issues (easy or not).
-During this quarter, Stéphane Wirtel got &lt;strong&gt;5 commits&lt;/strong&gt; merged into master (on a
-&lt;strong&gt;total of 11 commits&lt;/strong&gt;), and Louie lu got &lt;strong&gt;6 commits&lt;/strong&gt; merged into master (on
-a &lt;strong&gt;total of 10 commits&lt;/strong&gt;).&lt;/p&gt;
-&lt;p&gt;They helped me to fix reference leaks spotted by the new Refleaks buildbots.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="section" id="reference-and-memory-leaks"&gt;
-&lt;h2&gt;Reference and memory leaks&lt;/h2&gt;
-&lt;p&gt;Zachary Ware installed a Gentoo and a Windows buildbots running the Python test
-suite with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--huntrleaks&lt;/span&gt;&lt;/tt&gt; to detect reference and memory leaks.&lt;/p&gt;
-&lt;p&gt;I worked hard with others, especially Stéphane Wirtel and Louie Lu, to fix
-&lt;em&gt;all&lt;/em&gt; reference leaks and memory leaks in Python 2.7, 3.5, 3.6 and master.
-Right now, there is no more leaks on Windows! For Gentoo, the buildbot is
-currently offline, but I am confident that all leaks also fixed.&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;bpo-30598: _PySys_EndInit() now duplicates warnoptions. Fix a reference leak
-in subinterpreters, like test_callbacks_leak() of test_atexit. warnoptions is
-a list used to pass options from the command line to the sys module
-constructor. Before this change, the list was shared by multiple interpreter
-which is not the expected behaviour. Each interpreter should have their own
-independent mutable world. This change duplicates the list in each
-interpreter. So each interpreter owns its own list, so each interpreter can
-clear its own list.&lt;/li&gt;
-&lt;li&gt;bpo-30601: Fix a refleak in WindowsConsoleIO. Fix a reference leak in
-_io._WindowsConsoleIO: PyUnicode_FSDecoder() always initialize decodedname
-when it succeed and it doesn't clear input decodedname object.&lt;/li&gt;
-&lt;li&gt;bpo-30599: Fix test_threaded_import reference leak. Mock
-os.register_at_fork() when importing the random module, since this function
-doesn't allow to unregister callbacks and so leaked memory.&lt;/li&gt;
-&lt;li&gt;2.7: _tkinter: Fix refleak in getint(). PyNumber_Int() creates a new reference:
-need to decrement result reference counter.&lt;/li&gt;
-&lt;li&gt;bpo-30635: Fix refleak in test_c_locale_coercion. When checking for reference
-leaks, test_c_locale_coercion is run multiple times and so
-_LocaleCoercionTargetsTestCase.setUpClass() is called multiple times.
-setUpClass() appends new value at each call, so it looks like a reference
-leak. Moving the setup from setUpClass() to setUpModule() avoids this,
-eliminating the false alarm.&lt;/li&gt;
-&lt;li&gt;bpo-30602: Fix refleak in os.spawnve(). When os.spawnve() fails while
-handling arguments, free correctly argvlist: pass lastarg+1 rather than
-lastarg to free_string_array() to also free the first item.&lt;/li&gt;
-&lt;li&gt;bpo-30602: Fix refleak in os.spawnv(). When os.spawnv() fails while handling
-arguments, free correctly argvlist: pass lastarg+1 rather than lastarg to
-free_string_array() to also free the first item.&lt;/li&gt;
-&lt;li&gt;Fix ref cycles in TestCase.assertRaises(). bpo-23890:
-unittest.TestCase.assertRaises() now manually breaks a reference cycle to not
-keep objects alive longer than expected.&lt;/li&gt;
-&lt;li&gt;Python 2.7: bpo-30675: Fix refleak hunting in regrtest. regrtest now warms up
-caches: create explicitly all internal singletons which are created on demand
-to prevent false positives when checking for reference leaks.&lt;/li&gt;
-&lt;li&gt;_winconsoleio: Fix memory leak. Fix memory leak when _winconsoleio tries to
-open a non-console file: free the name buffer.&lt;/li&gt;
-&lt;li&gt;bpo-30813: Fix unittest when hunting refleaks. bpo-11798, bpo-16662,
-bpo-16935, bpo-30813: Skip
-test_discover_with_module_that_raises_SkipTest_on_import() and
-test_discover_with_init_module_that_raises_SkipTest_on_import() of
-test_unittest when hunting reference leaks using regrtest.&lt;/li&gt;
-&lt;li&gt;bpo-30704, bpo-30604: Fix memleak in code_dealloc(): Free also
-co_extra-&amp;gt;ce_extras, not only co_extra. XXX Serhiy rewrote the structure in
-master to use a single memory block, implemented my idea.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;div class="section" id="python-3-5-regrtest-fix"&gt;
-&lt;h3&gt;Python 3.5 regrtest fix&lt;/h3&gt;
-&lt;p&gt;bpo-30675, Fix the multiprocessing code in regrtest:&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;Rewrite code to pass &lt;tt class="docutils literal"&gt;slaveargs&lt;/tt&gt; from the master process to worker
-processes: reuse the same code of the Python master branch.&lt;/li&gt;
-&lt;li&gt;Move code to initialize tests in a new &lt;tt class="docutils literal"&gt;setup_tests()&lt;/tt&gt; function,
-similar change was done in the master branch.&lt;/li&gt;
-&lt;li&gt;In a worker process, call &lt;tt class="docutils literal"&gt;setup_tests()&lt;/tt&gt; with the namespace built
-from &lt;tt class="docutils literal"&gt;slaveargs&lt;/tt&gt; to initialize correctly tests.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Before this change, &lt;tt class="docutils literal"&gt;warm_caches()&lt;/tt&gt; was not called in worker processes
-because the setup was done before rebuilding the namespace from &lt;tt class="docutils literal"&gt;slaveargs&lt;/tt&gt;.
-As a consequence, the &lt;tt class="docutils literal"&gt;huntrleaks&lt;/tt&gt; feature was unstable. For example,
-&lt;tt class="docutils literal"&gt;test_zipfile&lt;/tt&gt; reported randomly false positive on reference leaks.&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="section" id="false-positives"&gt;
-&lt;h3&gt;False positives&lt;/h3&gt;
-&lt;p&gt;bpo-30776: reduce regrtest -R false positives (#2422)&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;Change the regrtest --huntrleaks checker to decide if a test file
-leaks or not. Require that each run leaks at least 1 reference.&lt;/li&gt;
-&lt;li&gt;Warmup runs are now completely ignored: ignored in the checker test
-and not used anymore to compute the sum.&lt;/li&gt;
-&lt;li&gt;Add an unit test for a reference leak.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Example of reference differences previously considered a failure
-(leak) and now considered as success (success, no leak):&lt;/p&gt;
-&lt;pre class="literal-block"&gt;
-[3, 0, 0]
-[0, 1, 0]
-[8, -8, 1]
-&lt;/pre&gt;
-&lt;p&gt;The same change was done to check for memory leaks.&lt;/p&gt;
-&lt;/div&gt;
-&lt;/div&gt;
-&lt;div class="section" id="contributions"&gt;
-&lt;h2&gt;Contributions&lt;/h2&gt;
-&lt;p&gt;This quarter, I helped to merge two contributions:&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;bpo-9850: Deprecate the macpath module. Co-Authored-By: &lt;strong&gt;Chi Hsuan Yen&lt;/strong&gt;.&lt;/li&gt;
-&lt;li&gt;bpo-30595: Fix multiprocessing.Queue.get(timeout).
-multiprocessing.Queue.get() with a timeout now polls its reader in
-non-blocking mode if it succeeded to aquire the lock but the acquire took
-longer than the timeout. Co-Authored-By: &lt;strong&gt;Grzegorz Grzywacz&lt;/strong&gt;.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="section" id="enhancements"&gt;
-&lt;h2&gt;Enhancements&lt;/h2&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
-ignoring all OSError exception.&lt;/li&gt;
-&lt;li&gt;bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
-PyTraceMalloc_Untrack() functions public. numpy is able to use
-tracemalloc since numpy 1.13.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="section" id="bugfixes"&gt;
-&lt;h2&gt;Bugfixes&lt;/h2&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;bpo-30125: On Windows, faulthandler.disable() now removes the exception
-handler installed by faulthandler.enable().&lt;/li&gt;
-&lt;li&gt;bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
-build directory, not in the source directory, since the source directory may
-be read-only and must not be modified. Fallback on the source directory if
-the build directory is not available (missing &amp;quot;abs_builddir&amp;quot; sysconfig
-variable).&lt;/li&gt;
-&lt;li&gt;test_locale now ignores the DeprecationWarning, don't fail anymore if test
-run with &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-Werror&lt;/span&gt;&lt;/tt&gt;. Fix also deprecation message: add a space.&lt;/li&gt;
-&lt;li&gt;Fix a compiler warnings on AIX: only define get_zone() and get_gmtoff() if
-needed.&lt;/li&gt;
-&lt;li&gt;Fix a compiler warning in tmtotuple(): use the &lt;tt class="docutils literal"&gt;time_t&lt;/tt&gt; type for the
-&lt;tt class="docutils literal"&gt;gmtoff&lt;/tt&gt; parameter.&lt;/li&gt;
-&lt;li&gt;bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
-xml.sax.xmlreader now always closes the source: close the file object or the
-urllib object if source is a string (not an open file-like object). The
-change fixes a ResourceWarning on parsing error. Add
-test_parse_close_source() unit test.&lt;/li&gt;
-&lt;li&gt;Fix SyntaxWarning on importing test_inspect. Fix the following warning when
-test_inspect.py is compiled to test_inspect.pyc:
-&lt;tt class="docutils literal"&gt;SyntaxWarning: tuple parameter unpacking has been removed in 3.x&lt;/tt&gt;&lt;/li&gt;
-&lt;li&gt;bpo-30418: On Windows, subprocess.Popen.communicate() now also ignore EINVAL
-on stdin.write(): ignore also EINVAL if the child process is still running
-but closed the pipe.&lt;/li&gt;
-&lt;li&gt;bpo-30257: _bsddb: Fix newDBObject(). Don't set cursorSetReturnsNone to
-DEFAULT_CURSOR_SET_RETURNS_NONE anymore if self-&amp;gt;myenvobj is set.
-Fix a GCC warning on the strange indentation.&lt;/li&gt;
-&lt;li&gt;bpo-30231: Remove skipped test_imaplib tests. The public cyrus.andrew.cmu.edu
-IMAP server (port 993) doesn't accept TLS connection using our self-signed
-x509 certificate. Remove the two tests which are already skipped. Write a new
-test_certfile_arg_warn() unit test for the certfile deprecation warning.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/div&gt;
-&lt;div class="section" id="stars-of-the-cpython-github-project"&gt;
-&lt;h2&gt;Stars of the CPython GitHub project&lt;/h2&gt;
-&lt;p&gt;At June 30, I wrote &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148523.html"&gt;an email to python-dev&lt;/a&gt; about
-&lt;a class="reference external" href="https://github.com/showcases/programming-languages"&gt;GitHub showcase of hosted programming languages&lt;/a&gt;: Python is only #11 with
-8,539 stars, behind PHP and Ruby! I suggested to &amp;quot;like&amp;quot; (&amp;quot;star&amp;quot;?) the &lt;a class="reference external" href="https://github.com/python/cpython/"&gt;CPython
-project on GitHub&lt;/a&gt; if you like the Python
-programming language!&lt;/p&gt;
-&lt;p&gt;Four days later, &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148548.html"&gt;we got +2,389 new stars (8,539 =&amp;gt; 10,928)&lt;/a&gt;, thank
-you! Python moved from the 11th place to the 9th, before Elixir and Julia.&lt;/p&gt;
-&lt;p&gt;Ben Hoyt &lt;a class="reference external" href="https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/"&gt;posted it on reddit.com/r/Python&lt;/a&gt;,
-where it got a bit of traction. Terry Jan Reedy also &lt;a class="reference external" href="https://mail.python.org/pipermail/python-list/2017-July/723476.html"&gt;posted it on python-list&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;Screenshot at 2017-07-13 showing Ruby, PHP and CPython:&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://github.com/showcases/programming-languages"&gt;&lt;img alt="GitHub showcase: Programming languages" src="https://haypo.github.io/images/github_cpython_stars.png" /&gt;&lt;/a&gt;
-&lt;p&gt;CPython now has 11,512 stars, only 861 stars behind PHP ;-)&lt;/p&gt;
-&lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/python.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-13T17:00:00+02:00</updated><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Security&lt;/li&gt;
 &lt;li&gt;Trick bug: Clang 4.0, dtoa and strict aliasing&lt;/li&gt;
@@ -470,6 +281,195 @@ access!&lt;/p&gt;
 &lt;p&gt;Maybe only FreeBSD 10 and older dump a core on this specific test, not FreeBSD
 11. I don't know why. The test is special, it tests a process which crashs
 while being traced with &lt;tt class="docutils literal"&gt;ptrace()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 2)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part2.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part2.html</id><summary type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Mentoring&lt;/li&gt;
+&lt;li&gt;Reference and memory leaks&lt;/li&gt;
+&lt;li&gt;Contributions&lt;/li&gt;
+&lt;li&gt;Enhancements&lt;/li&gt;
+&lt;li&gt;Bugfixes&lt;/li&gt;
+&lt;li&gt;Stars of the CPython GitHub project&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part
+1)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html"&gt;My contributions to CPython during 2017 Q2 (part 3)&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="mentoring"&gt;
+&lt;h2&gt;Mentoring&lt;/h2&gt;
+&lt;p&gt;During this quarter, I tried to mark &amp;quot;easy&amp;quot; issues using a &amp;quot;[EASY]&amp;quot; tag in
+their title and the &amp;quot;easy&amp;quot; or &amp;quot;easy C&amp;quot; keyword. I announced these issues on the
+&lt;a class="reference external" href="https://www.python.org/dev/core-mentorship/"&gt;core-mentorship mailing list&lt;/a&gt;.
+I asked core developers to not fix these easy issues, but rather explain how to
+fix them. In each issue, I described how fix these issues.&lt;/p&gt;
+&lt;p&gt;It was a success since all easy issues were fixed quickly, usually the PR was
+merged in less than 24 hours after I created the issue!&lt;/p&gt;
+&lt;p&gt;I mentored &lt;strong&gt;Stéphane Wirtel&lt;/strong&gt; and &lt;strong&gt;Louie Lu&lt;/strong&gt; to fix issues (easy or not).
+During this quarter, Stéphane Wirtel got &lt;strong&gt;5 commits&lt;/strong&gt; merged into master (on a
+&lt;strong&gt;total of 11 commits&lt;/strong&gt;), and Louie lu got &lt;strong&gt;6 commits&lt;/strong&gt; merged into master (on
+a &lt;strong&gt;total of 10 commits&lt;/strong&gt;).&lt;/p&gt;
+&lt;p&gt;They helped me to fix reference leaks spotted by the new Refleaks buildbots.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reference-and-memory-leaks"&gt;
+&lt;h2&gt;Reference and memory leaks&lt;/h2&gt;
+&lt;p&gt;Zachary Ware installed a Gentoo and a Windows buildbots running the Python test
+suite with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--huntrleaks&lt;/span&gt;&lt;/tt&gt; to detect reference and memory leaks.&lt;/p&gt;
+&lt;p&gt;I worked hard with others, especially Stéphane Wirtel and Louie Lu, to fix
+&lt;em&gt;all&lt;/em&gt; reference leaks and memory leaks in Python 2.7, 3.5, 3.6 and master.
+Right now, there is no more leaks on Windows! For Gentoo, the buildbot is
+currently offline, but I am confident that all leaks also fixed.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-30598: _PySys_EndInit() now duplicates warnoptions. Fix a reference leak
+in subinterpreters, like test_callbacks_leak() of test_atexit. warnoptions is
+a list used to pass options from the command line to the sys module
+constructor. Before this change, the list was shared by multiple interpreter
+which is not the expected behaviour. Each interpreter should have their own
+independent mutable world. This change duplicates the list in each
+interpreter. So each interpreter owns its own list, so each interpreter can
+clear its own list.&lt;/li&gt;
+&lt;li&gt;bpo-30601: Fix a refleak in WindowsConsoleIO. Fix a reference leak in
+_io._WindowsConsoleIO: PyUnicode_FSDecoder() always initialize decodedname
+when it succeed and it doesn't clear input decodedname object.&lt;/li&gt;
+&lt;li&gt;bpo-30599: Fix test_threaded_import reference leak. Mock
+os.register_at_fork() when importing the random module, since this function
+doesn't allow to unregister callbacks and so leaked memory.&lt;/li&gt;
+&lt;li&gt;2.7: _tkinter: Fix refleak in getint(). PyNumber_Int() creates a new reference:
+need to decrement result reference counter.&lt;/li&gt;
+&lt;li&gt;bpo-30635: Fix refleak in test_c_locale_coercion. When checking for reference
+leaks, test_c_locale_coercion is run multiple times and so
+_LocaleCoercionTargetsTestCase.setUpClass() is called multiple times.
+setUpClass() appends new value at each call, so it looks like a reference
+leak. Moving the setup from setUpClass() to setUpModule() avoids this,
+eliminating the false alarm.&lt;/li&gt;
+&lt;li&gt;bpo-30602: Fix refleak in os.spawnve(). When os.spawnve() fails while
+handling arguments, free correctly argvlist: pass lastarg+1 rather than
+lastarg to free_string_array() to also free the first item.&lt;/li&gt;
+&lt;li&gt;bpo-30602: Fix refleak in os.spawnv(). When os.spawnv() fails while handling
+arguments, free correctly argvlist: pass lastarg+1 rather than lastarg to
+free_string_array() to also free the first item.&lt;/li&gt;
+&lt;li&gt;Fix ref cycles in TestCase.assertRaises(). bpo-23890:
+unittest.TestCase.assertRaises() now manually breaks a reference cycle to not
+keep objects alive longer than expected.&lt;/li&gt;
+&lt;li&gt;Python 2.7: bpo-30675: Fix refleak hunting in regrtest. regrtest now warms up
+caches: create explicitly all internal singletons which are created on demand
+to prevent false positives when checking for reference leaks.&lt;/li&gt;
+&lt;li&gt;_winconsoleio: Fix memory leak. Fix memory leak when _winconsoleio tries to
+open a non-console file: free the name buffer.&lt;/li&gt;
+&lt;li&gt;bpo-30813: Fix unittest when hunting refleaks. bpo-11798, bpo-16662,
+bpo-16935, bpo-30813: Skip
+test_discover_with_module_that_raises_SkipTest_on_import() and
+test_discover_with_init_module_that_raises_SkipTest_on_import() of
+test_unittest when hunting reference leaks using regrtest.&lt;/li&gt;
+&lt;li&gt;bpo-30704, bpo-30604: Fix memleak in code_dealloc(): Free also
+co_extra-&amp;gt;ce_extras, not only co_extra. XXX Serhiy rewrote the structure in
+master to use a single memory block, implemented my idea.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="python-3-5-regrtest-fix"&gt;
+&lt;h3&gt;Python 3.5 regrtest fix&lt;/h3&gt;
+&lt;p&gt;bpo-30675, Fix the multiprocessing code in regrtest:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Rewrite code to pass &lt;tt class="docutils literal"&gt;slaveargs&lt;/tt&gt; from the master process to worker
+processes: reuse the same code of the Python master branch.&lt;/li&gt;
+&lt;li&gt;Move code to initialize tests in a new &lt;tt class="docutils literal"&gt;setup_tests()&lt;/tt&gt; function,
+similar change was done in the master branch.&lt;/li&gt;
+&lt;li&gt;In a worker process, call &lt;tt class="docutils literal"&gt;setup_tests()&lt;/tt&gt; with the namespace built
+from &lt;tt class="docutils literal"&gt;slaveargs&lt;/tt&gt; to initialize correctly tests.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Before this change, &lt;tt class="docutils literal"&gt;warm_caches()&lt;/tt&gt; was not called in worker processes
+because the setup was done before rebuilding the namespace from &lt;tt class="docutils literal"&gt;slaveargs&lt;/tt&gt;.
+As a consequence, the &lt;tt class="docutils literal"&gt;huntrleaks&lt;/tt&gt; feature was unstable. For example,
+&lt;tt class="docutils literal"&gt;test_zipfile&lt;/tt&gt; reported randomly false positive on reference leaks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="false-positives"&gt;
+&lt;h3&gt;False positives&lt;/h3&gt;
+&lt;p&gt;bpo-30776: reduce regrtest -R false positives (#2422)&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Change the regrtest --huntrleaks checker to decide if a test file
+leaks or not. Require that each run leaks at least 1 reference.&lt;/li&gt;
+&lt;li&gt;Warmup runs are now completely ignored: ignored in the checker test
+and not used anymore to compute the sum.&lt;/li&gt;
+&lt;li&gt;Add an unit test for a reference leak.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example of reference differences previously considered a failure
+(leak) and now considered as success (success, no leak):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+[3, 0, 0]
+[0, 1, 0]
+[8, -8, 1]
+&lt;/pre&gt;
+&lt;p&gt;The same change was done to check for memory leaks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="contributions"&gt;
+&lt;h2&gt;Contributions&lt;/h2&gt;
+&lt;p&gt;This quarter, I helped to merge two contributions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-9850: Deprecate the macpath module. Co-Authored-By: &lt;strong&gt;Chi Hsuan Yen&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;bpo-30595: Fix multiprocessing.Queue.get(timeout).
+multiprocessing.Queue.get() with a timeout now polls its reader in
+non-blocking mode if it succeeded to aquire the lock but the acquire took
+longer than the timeout. Co-Authored-By: &lt;strong&gt;Grzegorz Grzywacz&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="enhancements"&gt;
+&lt;h2&gt;Enhancements&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
+ignoring all OSError exception.&lt;/li&gt;
+&lt;li&gt;bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
+PyTraceMalloc_Untrack() functions public. numpy is able to use
+tracemalloc since numpy 1.13.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bugfixes"&gt;
+&lt;h2&gt;Bugfixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;bpo-30125: On Windows, faulthandler.disable() now removes the exception
+handler installed by faulthandler.enable().&lt;/li&gt;
+&lt;li&gt;bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
+build directory, not in the source directory, since the source directory may
+be read-only and must not be modified. Fallback on the source directory if
+the build directory is not available (missing &amp;quot;abs_builddir&amp;quot; sysconfig
+variable).&lt;/li&gt;
+&lt;li&gt;test_locale now ignores the DeprecationWarning, don't fail anymore if test
+run with &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-Werror&lt;/span&gt;&lt;/tt&gt;. Fix also deprecation message: add a space.&lt;/li&gt;
+&lt;li&gt;Fix a compiler warnings on AIX: only define get_zone() and get_gmtoff() if
+needed.&lt;/li&gt;
+&lt;li&gt;Fix a compiler warning in tmtotuple(): use the &lt;tt class="docutils literal"&gt;time_t&lt;/tt&gt; type for the
+&lt;tt class="docutils literal"&gt;gmtoff&lt;/tt&gt; parameter.&lt;/li&gt;
+&lt;li&gt;bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
+xml.sax.xmlreader now always closes the source: close the file object or the
+urllib object if source is a string (not an open file-like object). The
+change fixes a ResourceWarning on parsing error. Add
+test_parse_close_source() unit test.&lt;/li&gt;
+&lt;li&gt;Fix SyntaxWarning on importing test_inspect. Fix the following warning when
+test_inspect.py is compiled to test_inspect.pyc:
+&lt;tt class="docutils literal"&gt;SyntaxWarning: tuple parameter unpacking has been removed in 3.x&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;bpo-30418: On Windows, subprocess.Popen.communicate() now also ignore EINVAL
+on stdin.write(): ignore also EINVAL if the child process is still running
+but closed the pipe.&lt;/li&gt;
+&lt;li&gt;bpo-30257: _bsddb: Fix newDBObject(). Don't set cursorSetReturnsNone to
+DEFAULT_CURSOR_SET_RETURNS_NONE anymore if self-&amp;gt;myenvobj is set.
+Fix a GCC warning on the strange indentation.&lt;/li&gt;
+&lt;li&gt;bpo-30231: Remove skipped test_imaplib tests. The public cyrus.andrew.cmu.edu
+IMAP server (port 993) doesn't accept TLS connection using our self-signed
+x509 certificate. Remove the two tests which are already skipped. Write a new
+test_certfile_arg_warn() unit test for the certfile deprecation warning.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="stars-of-the-cpython-github-project"&gt;
+&lt;h2&gt;Stars of the CPython GitHub project&lt;/h2&gt;
+&lt;p&gt;At June 30, I wrote &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148523.html"&gt;an email to python-dev&lt;/a&gt; about
+&lt;a class="reference external" href="https://github.com/showcases/programming-languages"&gt;GitHub showcase of hosted programming languages&lt;/a&gt;: Python is only #11 with
+8,539 stars, behind PHP and Ruby! I suggested to &amp;quot;like&amp;quot; (&amp;quot;star&amp;quot;?) the &lt;a class="reference external" href="https://github.com/python/cpython/"&gt;CPython
+project on GitHub&lt;/a&gt; if you like the Python
+programming language!&lt;/p&gt;
+&lt;p&gt;Four days later, &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148548.html"&gt;we got +2,389 new stars (8,539 =&amp;gt; 10,928)&lt;/a&gt;, thank
+you! Python moved from the 11th place to the 9th, before Elixir and Julia.&lt;/p&gt;
+&lt;p&gt;Ben Hoyt &lt;a class="reference external" href="https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/"&gt;posted it on reddit.com/r/Python&lt;/a&gt;,
+where it got a bit of traction. Terry Jan Reedy also &lt;a class="reference external" href="https://mail.python.org/pipermail/python-list/2017-July/723476.html"&gt;posted it on python-list&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Screenshot at 2017-07-13 showing Ruby, PHP and CPython:&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://github.com/showcases/programming-languages"&gt;&lt;img alt="GitHub showcase: Programming languages" src="https://haypo.github.io/images/github_cpython_stars.png" /&gt;&lt;/a&gt;
+&lt;p&gt;CPython now has 11,512 stars, only 861 stars behind PHP ;-)&lt;/p&gt;
 &lt;/div&gt;
 </summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 1)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part1.html" rel="alternate"></link><published>2017-07-13T16:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part1.html</id><summary type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
