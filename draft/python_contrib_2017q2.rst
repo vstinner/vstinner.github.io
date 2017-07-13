@@ -58,11 +58,11 @@ with Mercurial merges.
 Buildbots and test.bisect
 =========================
 
-See the `Work on Python buildbots, 2017 Q2 <{filename}/buildbots_2017q2.rst>`_
-article.
+Since this article became way too long, I splitted it into sub-articles. See
+also these two articles:
 
-See the `New Python test.bisect tool <{filename}/python_test_bisect.rst>`_
-article.
+* `New Python test.bisect tool <{filename}/python_test_bisect.rst>`_
+* `Work on Python buildbots, 2017 Q2 <{filename}/buildbots_2017q2.rst>`_
 
 
 Mentoring
@@ -305,6 +305,9 @@ to only compile ``Python/dtoa.c`` with this flag:
 sigwaitinfo() race condition in test_eintr
 ==========================================
 
+The tricky test_eintr
+---------------------
+
 When I wrote and implemented the `PEP 475, Retry system calls failing with
 EINTR <https://www.python.org/dev/peps/pep-0475/>`_, I didn't expect so many
 annoying bugs of the newly written ``test_eintr`` unit test. This test calls
@@ -317,11 +320,17 @@ Since the PEP was implemented, I already fixed many race conditions in
 unit test. *Sometimes* on a *few specific buildbots* (FreeBSD), the test fails
 randomly.
 
+First attempt
+-------------
+
 My first attempt was the `bpo-25277 <http://bugs.python.org/issue25277>`_,
 opened at 2015-09-30. I added faulthandler to dump tracebacks if a test hangs
 longer than 10 minutes. Then I changed the sleep from 200 ms to 2 seconds in
 the ``sigwaitinfo()`` test... just to reduce the risk of race condition, but
 using a longer sleep doesn't fix the root issue.
+
+Second attempt
+--------------
 
 My second attempt was the `bpo-25868 <http://bugs.python.org/issue25868>`_,
 opened at 2015-12-15. I added a pipe to "synchronize the parent and the child
@@ -343,6 +352,9 @@ we make his proposed change.
 One month later, Martin wrote a patch but I was unable to take a decision on
 his change. In september 2016, Martin noticed a new test failure on the FreeBSD
 9 buildbot.
+
+Third attempt
+-------------
 
 My third attempt is the bpo-30320, opened at 2017-05-09. This time, I really
 wanted to fix *all* buildbot random failures. Since I was able to reproduce the
@@ -655,36 +667,28 @@ Test fixes
 Stars of the cpython GitHub project
 ===================================
 
-https://mail.python.org/pipermail/python-dev/2017-June/148523.html
+At June 30, I wrote `an email to python-dev
+<https://mail.python.org/pipermail/python-dev/2017-June/148523.html>`_ about
+`GitHub showcase of hosted programming languages
+<https://github.com/showcases/programming-languages>`_: Python is only #11 with
+8,539 stars, behind PHP and Ruby! I suggested to "like" ("star"?) the project
+to GitHub if you like the Python programming language!
 
-GitHub has a showcase page of hosted programming languages:
+Four days later, `we got +2,389 new stars (8,539 => 10,928)
+<https://mail.python.org/pipermail/python-dev/2017-July/148548.html>`_, thank
+you! Python moved from the 11th place to the 9th, before Elixir and Julia.
 
-   https://github.com/showcases/programming-languages
+Ben Hoyt `posted it on reddit.com/r/Python
+<https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/>`_,
+where it got a bit of traction.
 
-Python is only #11 with 8,539 stars, behind PHP and Ruby!
-
-Hey, you should "like" ("star"?) the CPython project if you like Python!
-
-   https://github.com/python/cpython/
-   Click on "Star" at the top right.
-
-https://mail.python.org/pipermail/python-dev/2017-July/148548.html
-
-4 days later, we got +2,389 new stars, thank you! (8,539 => 10,928)
-
-Python moved from the 11th place to the 9th, before Elixir and Julia.
-
-Python is still behind Ruby (12,511) and PHP (12,318), but it's
-already much better than before!
-
-
- Ben Hoyt benhoyt at gmail.com
-
-I also posted it on reddit.com/r/Python, where it got a bit of traction:
-https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/
-
-I just posted on python-list, Terry Jan Reedy
-
-
+Terry Jan Reedy also `posted it on python-list
+<https://mail.python.org/pipermail/python-list/2017-July/723476.html>`_.
 
 Update, 2017-07-12: 11,467 stars, only 902 stars behind PHP ;-)
+
+Screenshot showing Ruby, PHP and CPython:
+
+.. image:: {filename}/images/buildbot_orange.png
+   :alt: GitHub showcase: Programming languages
+   :target: https://github.com/showcases/programming-languages
