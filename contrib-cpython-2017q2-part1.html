@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>My contributions to CPython during 2017 Q2 (part 1)</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/contrib-cpython-2017q2-part1.html" rel="bookmark"
+           title="Permalink to My contributions to CPython during 2017 Q2 (part 1)">My contributions to CPython during 2017 Q2 (part 1)</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-07-13T16:00:00+02:00">
+                Published: jeu. 13 juillet 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>This is the first part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
+<ul class="simple">
+<li>Statistics</li>
+<li>Buidbots and test.bisect</li>
+<li>Python 3.6.0 regression</li>
+<li>struct.Struct.format type</li>
+<li>Optimization: one less syscall per open() call</li>
+<li>make regen-all</li>
+</ul>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a>.</p>
+<p>Next reports:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">My contributions to CPython during 2017 Q2 (part 2)</a>.</li>
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 (part 3)</a>.</li>
+</ul>
+<p>Next parts</p>
+<div class="section" id="statistics">
+<h2>Statistics</h2>
+<pre class="literal-block">
+# All branches
+$ git log --after=2017-03-31 --before=2017-06-30 --reverse --branches='*' --author=Stinner &gt; 2017Q2
+$ grep '^commit ' 2017Q2|wc -l
+222
+
+# Master branch only
+$ git log --after=2017-03-31 --before=2017-06-30 --reverse --author=Stinner origin/master|grep '^commit '|wc -l
+85
+</pre>
+<p>Statistics: <strong>85</strong> commits in the master branch, a <strong>total of 222 commits</strong>:
+most (but not all) of the remaining 137 commits are cherry-picked backports to
+2.7, 3.5 and 3.6 branches.</p>
+<p>Note: I didn't use <tt class="docutils literal"><span class="pre">--no-merges</span></tt> since we don't use merge anymore, but <tt class="docutils literal">git
+<span class="pre">cherry-pick</span> <span class="pre">-x</span></tt>, to <em>backport</em> fixes. Before GitHub, we used <strong>forwardport</strong>
+with Mercurial merges (ex: commit into 3.6, then merge into master).</p>
+</div>
+<div class="section" id="buildbots-and-test-bisect">
+<h2>Buildbots and test.bisect</h2>
+<p>Since this article became way too long, I splitted it into sub-articles:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/python-test-bisect.html">New Python test.bisect tool</a></li>
+<li><a class="reference external" href="https://haypo.github.io/python-buildbots-2017q2.html">Work on Python buildbots, 2017 Q2</a></li>
+</ul>
+</div>
+<div class="section" id="python-3-6-0-regression">
+<h2>Python 3.6.0 regression</h2>
+<p>I am ashamed, I introduced a tricky regression in Pyton 3.6.0 with my work on
+FASTCALL optimizations :-( A special way to call C builtin functions was broken:</p>
+<pre class="literal-block">
+from datetime import datetime
+next(iter(datetime.now, None))
+</pre>
+<p>This code raises a <tt class="docutils literal">StopIteration</tt> exception instead of formatting the
+current date and time.</p>
+<p>It's even worse. I was aware of the bug, it was already fixed it in master, but
+I just forgot to backport my fix: bpo-30524, fix _PyStack_UnpackDict().</p>
+<p>To prevent regressions, I wrote exhaustive unit tests on the 3 FASTCALL
+functions, commit: <a class="reference external" href="https://github.com/python/cpython/commit/3b5cf85edc188345668f987c824a2acb338a7816">bpo-30524: Write unit tests for FASTCALL</a></p>
+</div>
+<div class="section" id="struct-struct-format-type">
+<h2>struct.Struct.format type</h2>
+<p>Sometimes, fixing a bug can take longer than expected. In March 2014, <strong>Zbyszek
+Jędrzejewski-Szmek</strong> reported a bug on the <tt class="docutils literal">format</tt> attribute of the
+<tt class="docutils literal">struct.Struct</tt> class: this attribute type is bytes, whereas a Unicode string
+(str) was expected.</p>
+<p>I proposed to &quot;just&quot; change the attribute type in December 2014, but it was an
+incompatible change which would break the backward compatibility. <strong>Martin
+Panter</strong> agreed and wrote a patch. <strong>Serhiy Storchaka</strong> asked to discuss such
+incompatible change on python-dev, but then nothing happened during longer
+than...  2 years!</p>
+<p>In March 2017, I converted the old Martin's patch into a new GitHub pull
+request. <strong>Serhiy</strong> asked again to write to python-dev, so I wrote:
+<a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-March/147688.html">Issue #21071: change struct.Struct.format type from bytes to str</a>. And...
+I got zero answer.</p>
+<p>Well, I didn't expect any, since it's a trivial change, and I don't expect that
+anyone rely on the exact <tt class="docutils literal">format</tt> attribute type.  Moreover, the
+<tt class="docutils literal">struct.Struct</tt> constructor already accepts bytes and str types. If the
+attribute is passed to the constructor: it just works.</p>
+<p>In June 2017, Serhiy Storchaka replied to my email: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148360.html">If nobody opposed to this
+change it will be made in short time.</a></p>
+<p>Since nobody replied, again, I just merged my pull request. So it took <strong>3
+years and 3 months</strong> to change the type of an uncommon attribute :-)</p>
+<p>Note: I never used this attribute... Before reading this issue, I didn't even
+know that the <tt class="docutils literal">struct</tt> module has a <tt class="docutils literal">struct.Struct</tt> type...</p>
+</div>
+<div class="section" id="optimization-one-less-syscall-per-open-call">
+<h2>Optimization: one less syscall per open() call</h2>
+<p>In bpo-30228, I modified FileIO.seek() and FileIO.tell() methods to now set the
+internal seekable attribute to avoid one <tt class="docutils literal">fstat()</tt> syscall per Python open()
+call in buffered or text mode.</p>
+<p>The seekable property is now also more reliable since its value is
+set correctly on memory allocation failure.</p>
+<p>I still have a second pending pull request to remove one more <tt class="docutils literal">fstat()</tt>
+syscall: <a class="reference external" href="https://github.com/python/cpython/pull/1385">bpo-30228: TextIOWrapper uses abs_pos, not tell()</a>.</p>
+</div>
+<div class="section" id="make-regen-all">
+<h2>make regen-all</h2>
+<p>I started to look at bpo-23404, because the Python compilation failed on the
+&quot;AMD64 FreeBSD 9.x 3.x&quot; buildbot when trying to regenerate the
+<tt class="docutils literal">Include/opcode.h</tt> file.</p>
+<div class="section" id="old-broken-make-touch">
+<h3>Old broken make touch</h3>
+<p>We had a <tt class="docutils literal">make touch</tt> command to workaround this file timestamp issue, but
+the command uses Mercurial, whereas Python migrated to Git last february. The
+buildobt &quot;touch&quot; step was removed because <tt class="docutils literal">make touch</tt> was broken.</p>
+<p>I was always annoyed by the Makefile which wants to regenerate generated files
+because of wrong file modification time, whereas the generated files were
+already up to date.</p>
+<p>The bug annoyed me on OpenIndiana where &quot;make touch&quot; didn't work beause the
+operating system only provides Python 2.6 and Mercurial didn't work on this
+version.</p>
+<p>The bug also annoyed me on FreeBSD which has no &quot;python&quot; command, only
+&quot;python2.7&quot;, and so required manual steps.</p>
+<p>The bug was also a pain point when trying to cross-compile Python.</p>
+</div>
+<div class="section" id="new-shiny-make-regen-all">
+<h3>New shiny make regen-all</h3>
+<p>I decided to rewrite the Makefile to not regenerate generated files based on
+the file modification time anymore. Instead, I added a new <tt class="docutils literal">make <span class="pre">regen-all</span></tt>
+command to regenerate explicitly all generated files. Basically, I replaced
+<tt class="docutils literal">make touch</tt> with <tt class="docutils literal">make <span class="pre">regen-all</span></tt>.</p>
+<p>Changes:</p>
+<ul class="simple">
+<li>Add a new <tt class="docutils literal">make <span class="pre">regen-all</span></tt> command to rebuild all generated files</li>
+<li>Add subcommands to only generate specific files:<ul>
+<li><tt class="docutils literal"><span class="pre">regen-ast</span></tt>: Include/Python-ast.h and Python/Python-ast.c</li>
+<li><tt class="docutils literal"><span class="pre">regen-grammar</span></tt>: Include/graminit.h and Python/graminit.c</li>
+<li><tt class="docutils literal"><span class="pre">regen-importlib</span></tt>: Python/importlib_external.h and Python/importlib.h</li>
+<li><tt class="docutils literal"><span class="pre">regen-opcode</span></tt>: Include/opcode.h</li>
+<li><tt class="docutils literal"><span class="pre">regen-opcode-targets</span></tt>: Python/opcode_targets.h</li>
+<li><tt class="docutils literal"><span class="pre">regen-typeslots</span></tt>: Objects/typeslots.inc</li>
+</ul>
+</li>
+<li>Rename <tt class="docutils literal">PYTHON_FOR_GEN</tt> to <tt class="docutils literal">PYTHON_FOR_REGEN</tt></li>
+<li>pgen is now only built by <tt class="docutils literal">make <span class="pre">regen-grammar</span></tt></li>
+<li>Add <tt class="docutils literal">$(srcdir)/</tt> prefix to paths to source files to handle correctly
+compilation outside the source directory</li>
+<li>Remove <tt class="docutils literal">make touch</tt>, <tt class="docutils literal">Tools/hg/hgtouch.py</tt> and <tt class="docutils literal">.hgtouch</tt></li>
+</ul>
+<p>Note: By default, <tt class="docutils literal">$(PYTHON_FOR_REGEN)</tt> is no more used nor needed by &quot;make&quot;.</p>
+</div>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

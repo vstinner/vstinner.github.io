@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>My contributions to CPython during 2017 Q2 (part 2)</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/contrib-cpython-2017q2-part2.html" rel="bookmark"
+           title="Permalink to My contributions to CPython during 2017 Q2 (part 2)">My contributions to CPython during 2017 Q2 (part 2)</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-07-13T16:30:00+02:00">
+                Published: jeu. 13 juillet 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>This is the second part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
+<ul class="simple">
+<li>Mentoring</li>
+<li>Reference and memory leaks</li>
+<li>Contributions</li>
+<li>Enhancements</li>
+<li>Bugfixes</li>
+<li>Stars of the CPython GitHub project</li>
+</ul>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part
+1)</a>.</p>
+<p>Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 (part 3)</a>.</p>
+<div class="section" id="mentoring">
+<h2>Mentoring</h2>
+<p>During this quarter, I tried to mark &quot;easy&quot; issues using a &quot;[EASY]&quot; tag in
+their title and the &quot;easy&quot; or &quot;easy C&quot; keyword. I announced these issues on the
+<a class="reference external" href="https://www.python.org/dev/core-mentorship/">core-mentorship mailing list</a>.
+I asked core developers to not fix these easy issues, but rather explain how to
+fix them. In each issue, I described how fix these issues.</p>
+<p>It was a success since all easy issues were fixed quickly, usually the PR was
+merged in less than 24 hours after I created the issue!</p>
+<p>I mentored <strong>Stéphane Wirtel</strong> and <strong>Louie Lu</strong> to fix issues (easy or not).
+During this quarter, Stéphane Wirtel got <strong>5 commits</strong> merged into master (on a
+<strong>total of 11 commits</strong>), and Louie lu got <strong>6 commits</strong> merged into master (on
+a <strong>total of 10 commits</strong>).</p>
+<p>They helped me to fix reference leaks spotted by the new Refleaks buildbots.</p>
+</div>
+<div class="section" id="reference-and-memory-leaks">
+<h2>Reference and memory leaks</h2>
+<p>Zachary Ware installed a Gentoo and a Windows buildbots running the Python test
+suite with <tt class="docutils literal"><span class="pre">--huntrleaks</span></tt> to detect reference and memory leaks.</p>
+<p>I worked hard with others, especially Stéphane Wirtel and Louie Lu, to fix
+<em>all</em> reference leaks and memory leaks in Python 2.7, 3.5, 3.6 and master.
+Right now, there is no more leaks on Windows! For Gentoo, the buildbot is
+currently offline, but I am confident that all leaks also fixed.</p>
+<ul class="simple">
+<li>bpo-30598: _PySys_EndInit() now duplicates warnoptions. Fix a reference leak
+in subinterpreters, like test_callbacks_leak() of test_atexit. warnoptions is
+a list used to pass options from the command line to the sys module
+constructor. Before this change, the list was shared by multiple interpreter
+which is not the expected behaviour. Each interpreter should have their own
+independent mutable world. This change duplicates the list in each
+interpreter. So each interpreter owns its own list, so each interpreter can
+clear its own list.</li>
+<li>bpo-30601: Fix a refleak in WindowsConsoleIO. Fix a reference leak in
+_io._WindowsConsoleIO: PyUnicode_FSDecoder() always initialize decodedname
+when it succeed and it doesn't clear input decodedname object.</li>
+<li>bpo-30599: Fix test_threaded_import reference leak. Mock
+os.register_at_fork() when importing the random module, since this function
+doesn't allow to unregister callbacks and so leaked memory.</li>
+<li>2.7: _tkinter: Fix refleak in getint(). PyNumber_Int() creates a new reference:
+need to decrement result reference counter.</li>
+<li>bpo-30635: Fix refleak in test_c_locale_coercion. When checking for reference
+leaks, test_c_locale_coercion is run multiple times and so
+_LocaleCoercionTargetsTestCase.setUpClass() is called multiple times.
+setUpClass() appends new value at each call, so it looks like a reference
+leak. Moving the setup from setUpClass() to setUpModule() avoids this,
+eliminating the false alarm.</li>
+<li>bpo-30602: Fix refleak in os.spawnve(). When os.spawnve() fails while
+handling arguments, free correctly argvlist: pass lastarg+1 rather than
+lastarg to free_string_array() to also free the first item.</li>
+<li>bpo-30602: Fix refleak in os.spawnv(). When os.spawnv() fails while handling
+arguments, free correctly argvlist: pass lastarg+1 rather than lastarg to
+free_string_array() to also free the first item.</li>
+<li>Fix ref cycles in TestCase.assertRaises(). bpo-23890:
+unittest.TestCase.assertRaises() now manually breaks a reference cycle to not
+keep objects alive longer than expected.</li>
+<li>Python 2.7: bpo-30675: Fix refleak hunting in regrtest. regrtest now warms up
+caches: create explicitly all internal singletons which are created on demand
+to prevent false positives when checking for reference leaks.</li>
+<li>_winconsoleio: Fix memory leak. Fix memory leak when _winconsoleio tries to
+open a non-console file: free the name buffer.</li>
+<li>bpo-30813: Fix unittest when hunting refleaks. bpo-11798, bpo-16662,
+bpo-16935, bpo-30813: Skip
+test_discover_with_module_that_raises_SkipTest_on_import() and
+test_discover_with_init_module_that_raises_SkipTest_on_import() of
+test_unittest when hunting reference leaks using regrtest.</li>
+<li>bpo-30704, bpo-30604: Fix memleak in code_dealloc(): Free also
+co_extra-&gt;ce_extras, not only co_extra. XXX Serhiy rewrote the structure in
+master to use a single memory block, implemented my idea.</li>
+</ul>
+<div class="section" id="python-3-5-regrtest-fix">
+<h3>Python 3.5 regrtest fix</h3>
+<p>bpo-30675, Fix the multiprocessing code in regrtest:</p>
+<ul class="simple">
+<li>Rewrite code to pass <tt class="docutils literal">slaveargs</tt> from the master process to worker
+processes: reuse the same code of the Python master branch.</li>
+<li>Move code to initialize tests in a new <tt class="docutils literal">setup_tests()</tt> function,
+similar change was done in the master branch.</li>
+<li>In a worker process, call <tt class="docutils literal">setup_tests()</tt> with the namespace built
+from <tt class="docutils literal">slaveargs</tt> to initialize correctly tests.</li>
+</ul>
+<p>Before this change, <tt class="docutils literal">warm_caches()</tt> was not called in worker processes
+because the setup was done before rebuilding the namespace from <tt class="docutils literal">slaveargs</tt>.
+As a consequence, the <tt class="docutils literal">huntrleaks</tt> feature was unstable. For example,
+<tt class="docutils literal">test_zipfile</tt> reported randomly false positive on reference leaks.</p>
+</div>
+<div class="section" id="false-positives">
+<h3>False positives</h3>
+<p>bpo-30776: reduce regrtest -R false positives (#2422)</p>
+<ul class="simple">
+<li>Change the regrtest --huntrleaks checker to decide if a test file
+leaks or not. Require that each run leaks at least 1 reference.</li>
+<li>Warmup runs are now completely ignored: ignored in the checker test
+and not used anymore to compute the sum.</li>
+<li>Add an unit test for a reference leak.</li>
+</ul>
+<p>Example of reference differences previously considered a failure
+(leak) and now considered as success (success, no leak):</p>
+<pre class="literal-block">
+[3, 0, 0]
+[0, 1, 0]
+[8, -8, 1]
+</pre>
+<p>The same change was done to check for memory leaks.</p>
+</div>
+</div>
+<div class="section" id="contributions">
+<h2>Contributions</h2>
+<p>This quarter, I helped to merge two contributions:</p>
+<ul class="simple">
+<li>bpo-9850: Deprecate the macpath module. Co-Authored-By: <strong>Chi Hsuan Yen</strong>.</li>
+<li>bpo-30595: Fix multiprocessing.Queue.get(timeout).
+multiprocessing.Queue.get() with a timeout now polls its reader in
+non-blocking mode if it succeeded to aquire the lock but the acquire took
+longer than the timeout. Co-Authored-By: <strong>Grzegorz Grzywacz</strong>.</li>
+</ul>
+</div>
+<div class="section" id="enhancements">
+<h2>Enhancements</h2>
+<ul class="simple">
+<li>bpo-30265: support.unlink() now only ignores ENOENT and ENOTDIR, instead of
+ignoring all OSError exception.</li>
+<li>bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
+PyTraceMalloc_Untrack() functions public. numpy is able to use
+tracemalloc since numpy 1.13.</li>
+</ul>
+</div>
+<div class="section" id="bugfixes">
+<h2>Bugfixes</h2>
+<ul class="simple">
+<li>bpo-30125: On Windows, faulthandler.disable() now removes the exception
+handler installed by faulthandler.enable().</li>
+<li>bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
+build directory, not in the source directory, since the source directory may
+be read-only and must not be modified. Fallback on the source directory if
+the build directory is not available (missing &quot;abs_builddir&quot; sysconfig
+variable).</li>
+<li>test_locale now ignores the DeprecationWarning, don't fail anymore if test
+run with <tt class="docutils literal">python3 <span class="pre">-Werror</span></tt>. Fix also deprecation message: add a space.</li>
+<li>Fix a compiler warnings on AIX: only define get_zone() and get_gmtoff() if
+needed.</li>
+<li>Fix a compiler warning in tmtotuple(): use the <tt class="docutils literal">time_t</tt> type for the
+<tt class="docutils literal">gmtoff</tt> parameter.</li>
+<li>bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
+xml.sax.xmlreader now always closes the source: close the file object or the
+urllib object if source is a string (not an open file-like object). The
+change fixes a ResourceWarning on parsing error. Add
+test_parse_close_source() unit test.</li>
+<li>Fix SyntaxWarning on importing test_inspect. Fix the following warning when
+test_inspect.py is compiled to test_inspect.pyc:
+<tt class="docutils literal">SyntaxWarning: tuple parameter unpacking has been removed in 3.x</tt></li>
+<li>bpo-30418: On Windows, subprocess.Popen.communicate() now also ignore EINVAL
+on stdin.write(): ignore also EINVAL if the child process is still running
+but closed the pipe.</li>
+<li>bpo-30257: _bsddb: Fix newDBObject(). Don't set cursorSetReturnsNone to
+DEFAULT_CURSOR_SET_RETURNS_NONE anymore if self-&gt;myenvobj is set.
+Fix a GCC warning on the strange indentation.</li>
+<li>bpo-30231: Remove skipped test_imaplib tests. The public cyrus.andrew.cmu.edu
+IMAP server (port 993) doesn't accept TLS connection using our self-signed
+x509 certificate. Remove the two tests which are already skipped. Write a new
+test_certfile_arg_warn() unit test for the certfile deprecation warning.</li>
+</ul>
+</div>
+<div class="section" id="stars-of-the-cpython-github-project">
+<h2>Stars of the CPython GitHub project</h2>
+<p>At June 30, I wrote <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148523.html">an email to python-dev</a> about
+<a class="reference external" href="https://github.com/showcases/programming-languages">GitHub showcase of hosted programming languages</a>: Python is only #11 with
+8,539 stars, behind PHP and Ruby! I suggested to &quot;like&quot; (&quot;star&quot;?) the <a class="reference external" href="https://github.com/python/cpython/">CPython
+project on GitHub</a> if you like the Python
+programming language!</p>
+<p>Four days later, <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148548.html">we got +2,389 new stars (8,539 =&gt; 10,928)</a>, thank
+you! Python moved from the 11th place to the 9th, before Elixir and Julia.</p>
+<p>Ben Hoyt <a class="reference external" href="https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/">posted it on reddit.com/r/Python</a>,
+where it got a bit of traction. Terry Jan Reedy also <a class="reference external" href="https://mail.python.org/pipermail/python-list/2017-July/723476.html">posted it on python-list</a>.</p>
+<p>Screenshot at 2017-07-13 showing Ruby, PHP and CPython:</p>
+<a class="reference external image-reference" href="https://github.com/showcases/programming-languages"><img alt="GitHub showcase: Programming languages" src="https://haypo.github.io/images/github_cpython_stars.png" /></a>
+<p>CPython now has 11,512 stars, only 861 stars behind PHP ;-)</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>blogroll</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>
