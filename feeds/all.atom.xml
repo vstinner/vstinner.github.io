@@ -8,10 +8,8 @@
 &lt;/ul&gt;
 &lt;p&gt;Previous reports:&lt;/p&gt;
 &lt;ul class="simple"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part 1)
-(part 2)&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html"&gt;My contributions to CPython during 2017 Q2 (part 2)
-(part 2)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part 1)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html"&gt;My contributions to CPython during 2017 Q2 (part 2)&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="security"&gt;
 &lt;h2&gt;Security&lt;/h2&gt;
@@ -291,8 +289,7 @@ while being traced with &lt;tt class="docutils literal"&gt;ptrace()&lt;/tt&gt;.&
 &lt;li&gt;Bugfixes&lt;/li&gt;
 &lt;li&gt;Stars of the CPython GitHub project&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part
-1)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part 1)&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html"&gt;My contributions to CPython during 2017 Q2 (part 3)&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="mentoring"&gt;
 &lt;h2&gt;Mentoring&lt;/h2&gt;
