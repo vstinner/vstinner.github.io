@@ -2,7 +2,7 @@
 My contributions to CPython during 2017 Q2
 ++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2017-07-12 16:00
+:date: 2017-07-13 16:00
 :tags: cpython
 :category: python
 :slug: contrib-cpython-2017q2
@@ -12,6 +12,7 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q2
 (april, may, june):
 
 * Statistics
+* Buidbots and test.bisect
 * Mentoring
 * Python 3.6.0 regression
 * struct.Struct.format type
@@ -21,19 +22,6 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q2
 * sigwaitinfo() race condition in test_eintr
 * FreeBSD test_subprocess core dump
 * Security
-* Buildbots
-
-  * Bug caused by a vacuum cleaner
-  * Warnings
-  * regrtest
-  * New test.bisect tool
-  * Bug fixes
-
-* Python 2.7
-
-  * Backports
-  * Backport old fixes
-
 * GitHub migration (continued)
 * Refleaks
 * Contributions
@@ -65,6 +53,16 @@ most (but not all) of the remaining 137 commits are cherry-picked backports to
 Note: I didn't use ``--no-merges`` since we don't use merge anymore, but ``git
 cherry-pick -x``, to *backport* fixes. Before GitHub, we used **forwardport**
 with Mercurial merges.
+
+
+Buildbots and test.bisect
+=========================
+
+See the `Work on Python buildbots, 2017 Q2 <{filename}/buildbots_2017q2.rst>`_
+article.
+
+See the `New Python test.bisect tool <{filename}/python_test_bisect.rst>`_
+article.
 
 
 Mentoring
@@ -481,223 +479,6 @@ Travis CI
 Pending PR adding Travis CI and AppVeyor to 3.4 and 3.3 branches.
 
 
-Buildbots
-=========
-
-Buildbot outage caused by a vacuum cleaner
-------------------------------------------
-
-Nick Coghlan: "It looks like the FreeBSD buildbots had an outage a little while ago"
-
-`Kubilay Kocak
-<https://mail.python.org/pipermail/python-buildbots/2017-June/000122.html>`_:
-"Vacuum cleaner tripped RCD pulling too much current from the same circuit as
-heater was running on. Buildbot worker host on same circuit".
-
-Unit tests versus real life :-)
-
-Warnings
---------
-
-* The @reap_threads decorator and the threading_cleanup() function of
-  test.support now log a warning if they fail to clenaup threads. The log may
-  help to debug such other warning seen on the AMD64 FreeBSD CURRENT Non-Debug
-  3.x buildbot: "Warning -- threading._dangling was modified by test_logging".
-* bpo-30764: regrtest: add --fail-env-changed option.
-* threading_cleanup() failure marks test as ENV_CHANGED. If threading_cleanup()
-  fails to cleanup threads, set a a new support.environment_altered flag to
-  true, flag uses by save_env which is used by regrtest to check if a test
-  altered the environment. At the end, the test file fails with ENV_CHANGED
-  instead of SUCCESS, to report that it altered the environment.
-
-Many fixes required backports to 2.7, 3.5 and 3.6 branches.
-
-regrtest
---------
-
-* regrtest: always show before/after values of modified environment.
-* bpo-30263: regrtest: log system load and the number of CPUs.
-  --verbose now also imply --header.
-* [2.7] bpo-30283: Backport test_regrtest from master to 2.7
-* bpo-27103: regrtest disables -W if -R is used. Workaround for a regrtest bug.
-* bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
-  build directory, not in the source directory, since the source directory may
-  be read-only and must not be modified. Fallback on the source directory if
-  the build directory is not available (missing "abs_builddir" sysconfig
-  variable).
-* Synchronize libregrtest from master to 3.6
-* [3.5] bpo-30383: Backport regrtest and test_regrtest enhancements from master to 3.5 (#2279)
-* 2.7 and 3.5: bpo-30383: Add NEWS entry for backported regrtest (#2438)
-
-
-New test.bisect tool
---------------------
-
-See the `New Python test.bisect tool <{filename}/python_test_bisect.rst>`_
-article.
-
-
-Bug fixes
----------
-
-* bpo-29972: Skip tests known to fail on AIX. See `[Python-Dev] Fix or drop AIX
-  buildbot?
-  <https://mail.python.org/pipermail/python-dev/2017-April/147748.html>`_
-  email.
-* bpo-29925: Skip test_uuid1_safe() on OS X Tiger
-* Fix/optimize test_asyncore.test_quick_connect(). Don't use addCleanup() in
-  test_quick_connect() because it keeps the Thread object alive and so
-  @reap_threads fails on its timeout of 1 second. "./python -m test -v
-  test_asyncore -m test_quick_connect" now takes 185 ms, instead of 11 seconds.
-* bpo-30106: Fix test_asyncore.test_quick_connect(). test_quick_connect() runs
-  a thread up to 50 seconds, whereas the socket is connected in 0.2 second and
-  then the thread is expected to end in less than 3 second. On Linux, the
-  thread ends quickly because select() seems to always return quickly. On
-  FreeBSD, sometimes select() fails with timeout and so the thread runs much
-  longer than expected. Fix the thread timeout to fix a race condition in the
-  test.
-* bpo-30106: Fix tearDown() of test_asyncore. Call asyncore.close_all() with
-  ignore_all=True in the tearDown() method of the test_asyncore base test case.
-  It should prevent keeping alive sockets in asyncore.socket_map if close()
-  fails with an unexpected error.
-* bpo-30108: Restore sys.path in test_site. Add setUpModule() and
-  tearDownModule() functions to test_site to save/restore sys.path at the
-  module level to prevent warning if the user site directory is created, since
-  site.addsitedir() modifies sys.path.
-* bpo-30107: don't dump core on expected test_io crash. test_io has two unit
-  tests which trigger a deadlock:
-  test_daemon_threads_shutdown_stdout_deadlock() and
-  test_daemon_threads_shutdown_stderr_deadlock(). These tests call
-  Py_FatalError() if the expected bug is triggered which calls abort(). Use
-  test.support.SuppressCrashReport to prevent the creation on a core dump, to
-  fix the warning: "Warning -- files was modified by test_io (...)
-  After:  ['python.core']"
-* bpo-30125: Disable faulthandler to run test_SEH() of test_ctypes to prevent
-  the following log with a traceback: "Windows fatal exception: access
-  violation".
-* bpo-30131: Cleanup threads in test_logging using @support.reap_threads.
-* bpo-30132: BuildExtTestCase of test_distutils now uses support.temp_cwd() in
-  setUp() to remove files created in the current working directory in all
-  BuildExtTestCase unit tests.
-* bpo-30107: On macOS, test.support.SuppressCrashReport now redirects
-  /usr/bin/defaults command stderr into a pipe to not pollute stderr. It fixes
-  a test_io.test_daemon_threads_shutdown_stderr_deadlock() failure when the
-  CrashReporter domain doesn't exists.
-* bpo-30175: Skip client cert tests of test_imaplib. The IMAP server
-  cyrus.andrew.cmu.edu doesn't accept our randomly generated client x509
-  certificate anymore. test_nntplib fails randomly with EOFError in
-  NetworkedNNTPTests.setUpClass(). Catch EOFError to skip tests in that case.
-* bpo-30199: AsyncoreEchoServer of test_ssl now calls
-  asyncore.close_all(ignore_all=True) to ensure that asyncore.socket_map is
-  cleared once the test completes, even if ConnectionHandler was not correctly
-  unregistered. Fix the following warning:
-  ``Warning -- asyncore.socket_map was modified by test_ssl``.
-* Fix test_ftplib warning if IPv6 is not available. DummyFTPServer now calls
-  del_channel() on bind() error to prevent the following warning in
-  TestIPv6Environment.setUpClass():
-  ``Warning -- asyncore.socket_map was modified by test_ftplib``
-* bpo-30329: Catch Windows error 10022 on shutdown(). Catch the Windows socket
-  WSAEINVAL error (code 10022) in imaplib and poplib on shutdown(SHUT_RDWR): An
-  invalid operation was attempted. This error occurs sometimes on SSL
-  connections.
-* bpo-30357: test_thread now uses threading_cleanup(). test_thread: setUp() now
-  uses support.threading_setup() and support.threading_cleanup() to wait until
-  threads complete to avoid random side effects on following tests.
-  Co-Authored-By: **Grzegorz Grzywacz**.
-* bpo-30339: test_multiprocessing_main_handling timeout.
-  test_multiprocessing_main_handling: increase the test_source timeout from 10
-  seconds to 60 seconds, since the test fails randomly on busy buildbots.
-  Sadly, this change wasn't enough to fix buildbots.
-* bpo-30387: Fix warning in test_threading. test_is_alive_after_fork() now
-  joins directly the thread to avoid the following warning added by bpo-30357:
-  "Warning -- threading_cleanup() failed to cleanup 0 threads after 2 sec
-  (count: 0, dangling: 21)". Use also a different exit code to catch generic
-  exit code 1.
-* bpo-30649: test_os tolerates 50 ms delta for utime. On Windows, tolerate a
-  delta of 50 ms instead of 20 ms in test_utime_current() and
-  test_utime_current_old() of test_os. On other platforms, reduce the delta
-  from 20 ms to 10 ms. Revert utime delta in test_os: PPC64 Fedora 3.x buildbot
-  requires at least a delta of 14 ms: revert the utime delta to 20 ms.
-* bpo-30595: Increase test_queue_feeder_donot_stop_onexc() timeout.
-  _test_multiprocessing.test_queue_feeder_donot_stop_onexc() now uses a timeout
-  of 1 second on Queue.get(), instead of 0.1 second, for slow buildbots.
-* bpo-30764: test_subprocess uses SuppressCrashReport. bpo-30764, bpo-29335:
-  test_child_terminated_in_stopped_state() of test_subprocess now uses
-  support.SuppressCrashReport() to prevent the creation of a core dump on
-  FreeBSD.
-* bpo-30280: TestBaseSelectorEventLoop of
-  test.test_asyncio.test_selector_events now correctly closes the event loop:
-  cleanup its executor to not leak threads: don't override the close() method
-  of the event loop, only override the_close_self_pipe() method. asyncio base
-  TestCase now uses threading_setup() and threading_cleanup() of test.support
-  to cleanup threads.
-* bpo-30812: Fix test_warnings, restore _showwarnmsg. bpo-26568, bpo-30812: Fix
-  test_showwarnmsg_missing(): restore the attribute after removing it.
-
-
-Python 2.7
-==========
-
-* Update gitignore from master.
-* gitignore: add rules for the PC/ directory
-* bpo-30258: regrtest handles child process crash
-* Fix "make tags" command.
-* Add Appveyor: a Windows CI for GitHub
-* bpo-30258: Fix handling of child error in regrtest. Don't stop the
-  worker thread if a child failed.
-* bpo-30342: Fix sysconfig.is_python_build() on VS9.0. Fix
-  sysconfig.is_python_build() if Python is built with Visual Studio 2008 (VS
-  9.0).
-* bpo-30764: support.SuppressCrashReport backported to 2.7, "ported" to Windows.
-  Add Windows support to test.support.SuppressCrashReport: call SetErrorMode()
-  and CrtSetReportMode(). _testcapi: add CrtSetReportMode() and
-  CrtSetReportFile() functions and CRT_xxx and CRTDBG_xxx constants needed by
-  SuppressCrashReport.
-* bpo-30705: Fix test_regrtest.test_crashed(). Add test.support._crash_python()
-  which triggers a crash but uses test.support.SuppressCrashReport() to prevent
-  a crash report from popping up. Modify
-  test_child_terminated_in_stopped_state() of test_subprocess and
-  test_crashed() of test_regrtest to use _crash_python().
-
-Backports
----------
-
-I also backported many fixes wrote by other developers, including fixes which
-are 3 years old and older, to fix 2.7. Sometimes **finding** the proper fix
-takes much more time than the cherry-pick itself which is usually
-straighforward (no conflict, nothing to do). I am always impressed that Git is
-able to detect that a file was renamed between Python 2 and Python 3, and
-applies cleanly the change!
-
-A few examples of backports:
-
-* 2.7: test_distutils: Use EnvironGuard on InstallTestCase, UtilTestCase, and
-  BuildExtTestCase  to prevent the following warning:
-  ``Warning -- os.environ was modified by test_distutils``
-* 2.7: Fix test_multprocessing: Relax test timing (bpo-29861) to avoid sporadic
-  failures.
-
-Backport old fixes
-------------------
-
-* [2.7] bpo-15526: test_startfile changes the cwd. Try to fix test_startfile's
-  inability to clean up after itself in time. Patch by Jeremy Kloth.
-  Fix the following support.rmtree() error while trying to remove the temporary
-  working directory used by Python tests:
-  "WindowsError: [Error 32] The process cannot access the file because it is
-  being used by another process: ...".
-  Original commit written in September 2012!
-* [2.7] bpo-6393: Fix locale.getprerredencoding() on macOS. Python crashes on OSX
-  when ``$LANG`` is set to some (but not all) invalid values due to an invalid
-  result from nl_langinfo(). Fix written in September 2009!
-* bpo-11790: Fix sporadic failures in
-  test_multiprocessing.WithProcessesTestCondition.
-  Fixed written in April 2011. This backported commit was tricky to identify!
-* bpo-8799, fix test_threading: Reduce timing sensitivity of condition test by
-  explicitly.  delaying the main thread so that it doesn't race ahead of the
-  workers.  Fix written in Nov 2013.
-
-
 GitHub migration (continued)
 ============================
 
@@ -736,6 +517,11 @@ Enhancements
 Bugfixes
 ========
 
+* bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
+  build directory, not in the source directory, since the source directory may
+  be read-only and must not be modified. Fallback on the source directory if
+  the build directory is not available (missing "abs_builddir" sysconfig
+  variable).
 * test_locale now ignores the DeprecationWarning, don't fail anymore if test
   run with ``python3 -Werror``. Fix also deprecation message: add a space.
 * Only define get_zone() and get_gmtoff() if needed, fix warnings on AIX.
