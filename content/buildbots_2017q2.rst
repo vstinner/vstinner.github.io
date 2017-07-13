@@ -8,16 +8,15 @@ Work on Python buildbots, 2017 Q2
 :slug: python-buildbots-2017q2
 :authors: Victor Stinner
 
-At the beginning of 2017, I decided to fix *all* buildbots issues: report *all*
-test failures especially tests failing randomly (fail then pass in the same
-build), report *all* warnings, and then fix everything!
-
 I spent the last 6 months on working on buildbots: reduce the failure rate,
 send email notitication on failure, fix random bugs, detect more bugs using
-warnings, backport fixes to older branches, etc.
+warnings, backport fixes to older branches, etc. I decided to fix *all*
+buildbots issues: fix all warnings and all unstable tests!
 
 The good news is that I made great progress, I fixed most random failures. A
-random fail now became the exception rather than the norm.
+random fail now became the exception rather than the norm. Some issues were not
+bugs in tests, but real race conditions in the code. It's always good to fix
+unlikely race conditions before users hit them on production!
 
 * Introduction: Python Buildbots
 * Orange Is The New Color
@@ -59,6 +58,12 @@ buildbot slaves:
   * PPC64, PPC64LE
   * s390x
 
+* 3 C compilers:
+
+  * GCC
+  * Clang (FreeBSD, macOS)
+  * Visual Studio (Windows)
+
 There are different kinds of tests:
 
 * Python test suite: the most common check
@@ -90,6 +95,10 @@ The buildbot configuration can be found in the `buildmaster-config project
 <https://github.com/python/buildmaster-config/>`_ (start with the
 ``master/master.cfg`` file).
 
+Note: Thanks to the migration to GitHub, Pull Requests are now tested on Linux,
+Windows and macOS by Travis CI and AppVeyor. It's the first time in the CPython
+development history that we have automated pre-commit tests!
+
 
 Orange Is The New Color
 =======================
@@ -98,7 +107,7 @@ A buildbot now becomes orange when tests contain warnings.
 
 My first change was to modify the buildbot configuration to extract warnings
 from the raw test output to create a new "warnings" report, to more easily
-detect warnings and tests failing randomly (test fail then pass).
+detect warnings and tests failing randomly (test fail then pass when re-run).
 
 Example of orange build, x86-64 El Capitain 3.x:
 
@@ -163,26 +172,31 @@ Example of typical buildbot waterfall:
    :alt: Buildbot waterfall
    :target: http://buildbot.python.org/all/waterfall?category=3.x.stable&category=3.x.unstable
 
+The screenshot is obviously truncated since the webpage is giant: I have to
+scroll in all directions... It's not convenient to check the status of all
+builds, detect random failures, etc.
+
 We also have an IRC bot reporting buildbot failures: when a green (success) or
 orange (warning) buildbot becomes red (failure). I wanted to have the same
 thing, but by email. Technically, it's trivial to enable email notification,
 but I never did it because buildbots were simply too unstable: most failures
-were not related to the new commits.
+were not related to the newly tested changes.
 
-But I decided to fix *all* buildbots issues, so I enabled email notification:
-see `bpo-30325 <https://bugs.python.org/issue30325>`_. Since May 2017,
+But I decided to fix *all* buildbots issues, so I enabled email notification
+(`bpo-30325 <https://bugs.python.org/issue30325>`_). Since May 2017,
 buildbots are now sending notifications to a new `buildbot-status mailing list
 <https://mail.python.org/mm3/mailman3/lists/buildbot-status.python.org/>`_.
 
-I use the mailing list to check if the failure is known or not. If the failure
-is known, I copy the link to the issue. Otherwise, I create a new issue and
-then copy the link to the new issue.
+I use the mailing list to check if the failure is known or not: I try to answer
+to all failure notification emails. If the failure is known, I copy the link to
+the issue. Otherwise, I create a new issue and then copy the link to the new
+issue.
 
 
 Hardware issues
 ===============
 
-Unit tests versus real life, or software versus hardware :-)
+Unit tests versus real life :-) (or "software versus hardware")
 
 The vacuum cleaner
 ------------------
@@ -195,7 +209,7 @@ bug. At June 25, Nick Coghlan wrote to the `python-buildbots
     and the FreeBSD 10 one may need a nudge to get back online (the
     FreeBSD Current one looks like it came back automatically).
 
-The reason is unexpected :-) `Kubilay Kocak answered
+The reason is unexpected :-) `Kubilay Kocak, owner of the buildbot, answered
 <https://mail.python.org/pipermail/python-buildbots/2017-June/000122.html>`_:
 
     Vacuum cleaner tripped RCD pulling too much current from the same circuit
@@ -246,24 +260,25 @@ and::
 
 Jeremy Kloth, owner the buildbot, answered:
 
-    "Watch this space, but I'm pretty sure that it is (was) bad memory."
+    Watch this space, but I'm pretty sure that it is (was) bad memory.
 
 He fixed the issue:
 
-    "That's the real problem, I'm not *sure* it's the memory, but it does have
+    That's the real problem, I'm not *sure* it's the memory, but it does have
     the symptoms. And that is why my buildbot was down earlier, I was
-    attempting to determine the bad stick and replace it."
+    attempting to determine the bad stick and replace it.
 
 
 Warnings
 ========
 
-To fix test warnings, I enhanced the test suite to report more information on a
-warning and to ease detection of failures:
+To fix test warnings, I enhanced the test suite to report more information when
+a warning is emitted and to ease detection of failures.
 
-A major change is the new ``--fail-env-changed`` option I added to regrtest:
-make tests fail if the "environment" is changed. This option is now used on
-buildbots, Travis CI and AppVeyor, but only for the *master* branch yet.
+A major change is the new ``--fail-env-changed`` option I added to regrtest
+(bpo-30764): make tests fail if the "environment" is changed. This option is
+now used on buildbots, Travis CI and AppVeyor, but only for the *master* branch
+yet.
 
 Other changes:
 
@@ -271,7 +286,6 @@ Other changes:
   test.support now log a warning if they fail to clenaup threads. The log may
   help to debug such other warning seen on the AMD64 FreeBSD CURRENT Non-Debug
   3.x buildbot: "Warning -- threading._dangling was modified by test_logging".
-* bpo-30764: regrtest: add --fail-env-changed option.
 * threading_cleanup() failure marks test as ENV_CHANGED. If threading_cleanup()
   fails to cleanup threads, set a a new support.environment_altered flag to
   true, flag uses by save_env which is used by regrtest to check if a test
@@ -290,16 +304,16 @@ As usual, I spent time our specialized test runner, regrtest:
 
 * bpo-30263: regrtest: log system load and the number of CPUs. I tried to find
   a relationship between race conditions and the system load. I failed to
-  find any correlation yet, but I still consider that the system load is
-  useful.
+  find any obvious correlation yet, but I still consider that the system load
+  is useful.
 * bpo-27103: regrtest disables -W if -R (reference hunting) is used. Workaround
   for a regrtest bug.
 
-But the most complex task was to backport *all* features and enhancements from
-master to 3.6, 3.5 and then 2.7 branches.
+But the most complex task was to backport *all* regrtest features and
+enhancements from master to regrtest of 3.6, 3.5 and then 2.7 branches.
 
 In Python 3.6, I rewrote regrtest.py file to split it into smaller files a in
-new Lib/test/libregrtest/ library. So it was painful to backport changes to 3.5
+new Lib/test/libregrtest/ library, so it was painful to backport changes to 3.5
 (bpo-30383) which still uses the single regrtest.py file.
 
 In Python 2.7 (bpo-30283), it is even worse. Lib/test/regrtest.py uses the old
@@ -308,18 +322,18 @@ used in 3.5 and newer. But I succeeded to backport all features and
 enhancements from master!
 
 Python 2.7, 3.5, 3.6 and master now have almost the same CLI for ``python -m
-test``, almost the same features (except of 1 or 2 missing feature), and should
-provide the same level of information on failures and warnings.
+test``, almost the same features (except of one or two missing feature), and
+should provide the same level of information on failures and warnings.
 
 By the way, the new ``test.bisect`` tool is now also available in all these
-branches. See the `New Python test.bisect tool
+branches. See my `New Python test.bisect tool
 <{filename}/python_test_bisect.rst>`_ article.
 
 
 Bug fixes
 =========
 
-As expected, the longest paragraph here is the list of fixes made to fix all
+As expected, the longest section here is the list of changes I wrote to fix all
 buildbot failures and warnings:
 
 * bpo-29972: Skip tests known to fail on AIX. See `[Python-Dev] Fix or drop AIX
@@ -420,22 +434,18 @@ Python 2.7
 ==========
 
 I wanted to fix *all* buildbot issues of *all* branches including 2.7, whereas
-I didn't touch much the Python 2.7 code base last months. The first six months
-of 2017, I backported dozens of commits from master to 2.7!
+I didn't touch much the Python 2.7 code base last months (last years???). The
+first six months of 2017, I backported dozens of commits from master to 2.7!
 
-For example, I added Appveyor on 2.7: a Windows CI for GitHub!
+For example, I added AppVeyor on 2.7: a Windows CI for GitHub!
 
-Python 2.7 is old and so requires more work. For example, on Windows we support
-multiple versions of Visual Studio. I use Visual Studio 2008, whereas most 2.7
-Windows buildbots use Visual Studio 2010 or newer. Example of fix, bpo-30342:
-Fix sysconfig.is_python_build() if Python is built with Visual Studio 2008 (VS
-9.0).
+On Windows we support multiple versions of Visual Studio. I use Visual Studio
+2008, whereas most 2.7 Windows buildbots use Visual Studio 2010 or newer.  I
+fixed sysconfig.is_python_build() if Python is built with Visual Studio 2008
+(VS 9.0) (bpo-30342).
 
-Other changes:
+Other Python 2.7 changes:
 
-* Update gitignore from master.
-* gitignore: add rules for the PC/ directory
-* bpo-30258: regrtest handles child process crash
 * Fix "make tags" command.
 * bpo-30764: support.SuppressCrashReport backported to 2.7 and "ported" to
   Windows.  Add Windows support to test.support.SuppressCrashReport: call
@@ -448,18 +458,19 @@ Other changes:
   test_child_terminated_in_stopped_state() of test_subprocess and
   test_crashed() of test_regrtest to use _crash_python().
 
-I also backported many fixes wrote by other developers, including fixes which
-are 3 years old and older, to fix 2.7. Sometimes **finding** the proper fix
-takes much more time than the cherry-pick itself which is usually
-straighforward (no conflict, nothing to do). I am always impressed that Git is
-able to detect that a file was renamed between Python 2 and Python 3, and
-applies cleanly the change!
+I also backported many fixes wrote by other developers, including old fixes up
+to 8 years old!
+
+Usually, **finding** the proper fix takes much more time than the cherry-pick
+itself which is usually straighforward (no conflict, nothing to do). I am
+always impressed that Git is able to detect that a file was renamed between
+Python 2 and Python 3, and applies cleanly the change!
 
 Example of backports from master to 2.7:
 
 * bpo-6393: Fix locale.getprerredencoding() on macOS. Python crashes on OSX
   when ``$LANG`` is set to some (but not all) invalid values due to an invalid
-  result from nl_langinfo(). Fix written in **September 2009**!
+  result from nl_langinfo(). Fix written in **September 2009** (8 years ago)!
 * bpo-15526: test_startfile changes the cwd. Try to fix test_startfile's
   inability to clean up after itself in time. Patch by **Jeremy Kloth**.
   Fix the following support.rmtree() error while trying to remove the temporary
@@ -469,10 +480,11 @@ Example of backports from master to 2.7:
   Original commit written in **September 2012**!
 * bpo-11790: Fix sporadic failures in
   test_multiprocessing.WithProcessesTestCondition.
-  Fixed written in April 2011. This backported commit was tricky to identify!
+  Fixed written in **April 2011**. This backported commit was tricky to
+  identify!
 * bpo-8799, fix test_threading: Reduce timing sensitivity of condition test by
   explicitly.  delaying the main thread so that it doesn't race ahead of the
-  workers.  Fix written in Nov 2013.
+  workers.  Fix written in **Nov 2013**.
 * test_distutils: Use EnvironGuard on InstallTestCase, UtilTestCase, and
   BuildExtTestCase  to prevent the following warning:
   ``Warning -- os.environ was modified by test_distutils``
