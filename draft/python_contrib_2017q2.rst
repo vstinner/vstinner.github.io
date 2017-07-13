@@ -22,11 +22,12 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q2
 * sigwaitinfo() race condition in test_eintr
 * FreeBSD test_subprocess core dump
 * Security
-* GitHub migration (continued)
-* Refleaks
 * Contributions
+* Enhancements
+* Refleaks
+* Bugfixes
 * Test fixes
-* Stars of the cpython GitHub project
+* Stars of the CPython GitHub project
 
 Previous report: `My contributions to CPython during 2017 Q1
 <{filename}/python_contrib_2017q1.rst>`_.
@@ -52,14 +53,13 @@ most (but not all) of the remaining 137 commits are cherry-picked backports to
 
 Note: I didn't use ``--no-merges`` since we don't use merge anymore, but ``git
 cherry-pick -x``, to *backport* fixes. Before GitHub, we used **forwardport**
-with Mercurial merges.
+with Mercurial merges (ex: commit into 3.6, then merge into master).
 
 
 Buildbots and test.bisect
 =========================
 
-Since this article became way too long, I splitted it into sub-articles. See
-also these two articles:
+Since this article became way too long, I splitted it into sub-articles:
 
 * `New Python test.bisect tool <{filename}/python_test_bisect.rst>`_
 * `Work on Python buildbots, 2017 Q2 <{filename}/buildbots_2017q2.rst>`_
@@ -89,7 +89,7 @@ Python 3.6.0 regression
 =======================
 
 I am ashamed, I introduced a tricky regression in Pyton 3.6.0 with my work on
-FASTCALL optimizations. A special way to call C builtin functions was broken::
+FASTCALL optimizations :-( A special way to call C builtin functions was broken::
 
     from datetime import datetime
     next(iter(datetime.now, None))
@@ -97,11 +97,11 @@ FASTCALL optimizations. A special way to call C builtin functions was broken::
 This code raises a ``StopIteration`` exception instead of formatting the
 current date and time.
 
-It's even worse: I was aware of the bug and already fixed it in master, but I
-just forgot to backport my fix: bpo-30524, fix _PyStack_UnpackDict().
+It's even worse. I was aware of the bug, it was already fixed it in master, but
+I just forgot to backport my fix: bpo-30524, fix _PyStack_UnpackDict().
 
-To prevent regressions, I now wrote exhaustive unit tests on all C functions
-calling functions: the commit `bpo-30524: Write unit tests for FASTCALL
+To prevent regressions, I wrote exhaustive unit tests on the 3 FASTCALL
+functions, commit: `bpo-30524: Write unit tests for FASTCALL
 <https://github.com/python/cpython/commit/3b5cf85edc188345668f987c824a2acb338a7816>`__
 
 
@@ -116,23 +116,23 @@ Jędrzejewski-Szmek** reported a bug on the ``format`` attribute of the
 I proposed to "just" change the attribute type in December 2014, but it was an
 incompatible change which would break the backward compatibility. **Martin
 Panter** agreed and wrote a patch. **Serhiy Storchaka** asked to discuss such
-incompatible change on python-dev, but then nothing happened during longer than
-2 years.
+incompatible change on python-dev, but then nothing happened during longer
+than...  2 years!
 
 In March 2017, I converted the old Martin's patch into a new GitHub pull
 request. **Serhiy** asked again to write to python-dev, so I wrote:
-[Python-Dev] `Issue #21071: change struct.Struct.format type from bytes to str
+`Issue #21071: change struct.Struct.format type from bytes to str
 <https://mail.python.org/pipermail/python-dev/2017-March/147688.html>`_. And...
 I got zero answer.
 
 Well, I didn't expect any, since it's a trivial change, and I don't expect that
 anyone rely on the exact ``format`` attribute type.  Moreover, the
-``struct.Struct`` constructor already accepts bytes and str types, if the
+``struct.Struct`` constructor already accepts bytes and str types. If the
 attribute is passed to the constructor: it just works.
 
 In June 2017, Serhiy Storchaka replied to my email: `If nobody opposed to this
 change it will be made in short time.
-<https://mail.python.org/pipermail/python-dev/2017-June/148360.html>`_.
+<https://mail.python.org/pipermail/python-dev/2017-June/148360.html>`_
 
 Since nobody replied, again, I just merged my pull request. So it took **3
 years and 3 months** to change the type of an uncommon attribute :-)
@@ -163,6 +163,9 @@ I started to look at bpo-23404, because the Python compilation failed on the
 "AMD64 FreeBSD 9.x 3.x" buildbot when trying to regenerate the
 ``Include/opcode.h`` file.
 
+Old broken make touch
+---------------------
+
 We had a ``make touch`` command to workaround this file timestamp issue, but
 the command uses Mercurial, whereas Python migrated to Git last february. The
 buildobt "touch" step was removed because ``make touch`` was broken.
@@ -180,6 +183,9 @@ The bug also annoyed me on FreeBSD which has no "python" command, only
 
 The bug was also a pain point when trying to cross-compile Python.
 
+New shiny make regen-all
+------------------------
+
 I decided to rewrite the Makefile to not regenerate generated files based on
 the file modification time anymore. Instead, I added a new ``make regen-all``
 command to regenerate explicitly all generated files. Basically, I replaced
@@ -187,29 +193,29 @@ command to regenerate explicitly all generated files. Basically, I replaced
 
 Changes:
 
-* Add a new "make regen-all" command to rebuild all generated files
+* Add a new ``make regen-all`` command to rebuild all generated files
 * Add subcommands to only generate specific files:
 
-  - regen-ast: Include/Python-ast.h and Python/Python-ast.c
-  - regen-grammar: Include/graminit.h and Python/graminit.c
-  - regen-importlib: Python/importlib_external.h and Python/importlib.h
-  - regen-opcode: Include/opcode.h
-  - regen-opcode-targets: Python/opcode_targets.h
-  - regen-typeslots: Objects/typeslots.inc
+  - ``regen-ast``: Include/Python-ast.h and Python/Python-ast.c
+  - ``regen-grammar``: Include/graminit.h and Python/graminit.c
+  - ``regen-importlib``: Python/importlib_external.h and Python/importlib.h
+  - ``regen-opcode``: Include/opcode.h
+  - ``regen-opcode-targets``: Python/opcode_targets.h
+  - ``regen-typeslots``: Objects/typeslots.inc
 
-* Rename PYTHON_FOR_GEN to PYTHON_FOR_REGEN
-* pgen is now only built by "make regen-grammar"
-* Add $(srcdir)/ prefix to paths to source files to handle correctly
+* Rename ``PYTHON_FOR_GEN`` to ``PYTHON_FOR_REGEN``
+* pgen is now only built by ``make regen-grammar``
+* Add ``$(srcdir)/`` prefix to paths to source files to handle correctly
   compilation outside the source directory
-* Remove "make touch", Tools/hg/hgtouch.py and .hgtouch
+* Remove ``make touch``, ``Tools/hg/hgtouch.py`` and ``.hgtouch``
 
-Note: By default, $(PYTHON_FOR_REGEN) is no more used nor needed by "make".
+Note: By default, ``$(PYTHON_FOR_REGEN)`` is no more used nor needed by "make".
 
 
 Trick bug: Clang 4.0, dtoa and strict aliasing
 ==============================================
 
-Aha, another funny story about compilers.
+Aha, another funny story about compilers: bpo-30104.
 
 I noticed that the following tests started to fail on the "AMD64 FreeBSD
 CURRENT Debug 3.x" buildbot:
@@ -278,10 +284,13 @@ migrating and I was unable to subscribe to get an account!
 
 In the meanwhile, **Dimitry Andric**, a FreeBSD developer, told me that he got
 *exactly* the same clang 4.0 issue with "dtoa.c" in the *julia* programming
-language. He reported the bug to FreeBSD: `lang/julia: fails to build with
-clang 4.0 <https://bugs.freebsd.org/216770>`_, and to clang: `After r280351:
-if/else blocks incorrectly optimized away?
-<https://bugs.llvm.org//show_bug.cgi?id=31928>`_. The "problem" is that clang
+language. Two months before I saw the same bug, he already reported the bug to
+FreeBSD: `lang/julia: fails to build with clang 4.0
+<https://bugs.freebsd.org/216770>`_, and to clang: `After r280351: if/else
+blocks incorrectly optimized away?
+<https://bugs.llvm.org//show_bug.cgi?id=31928>`_.
+
+The "problem" is that clang
 developers disagree that it's a bug. In short, the discussion was around the C
 standard: does clang respect C aliasing rules or not? At the end, clang
 developers consider that they are right to optimize. To summarize:
@@ -313,7 +322,8 @@ EINTR <https://www.python.org/dev/peps/pep-0475/>`_, I didn't expect so many
 annoying bugs of the newly written ``test_eintr`` unit test. This test calls
 system calls while sending signals every 100 ms. Usually the test tries to
 block on a system call during at least 200 ms, to make sure that the syscall
-was interrupted at least once by a signal.
+was interrupted at least once by a signal, to check that Python correctly
+retries the interrupted system call.
 
 Since the PEP was implemented, I already fixed many race conditions in
 ``test_eintr``, but there was still a race condition on the ``sigwaitinfo()``
@@ -326,8 +336,8 @@ First attempt
 My first attempt was the `bpo-25277 <http://bugs.python.org/issue25277>`_,
 opened at 2015-09-30. I added faulthandler to dump tracebacks if a test hangs
 longer than 10 minutes. Then I changed the sleep from 200 ms to 2 seconds in
-the ``sigwaitinfo()`` test... just to reduce the risk of race condition, but
-using a longer sleep doesn't fix the root issue.
+the ``sigwaitinfo()`` test... just to make the bug less likely, but using a
+longer sleep doesn't fix the root issue.
 
 Second attempt
 --------------
@@ -357,15 +367,15 @@ Third attempt
 -------------
 
 My third attempt is the bpo-30320, opened at 2017-05-09. This time, I really
-wanted to fix *all* buildbot random failures. Since I was able to reproduce the
-bug, I was able to write a fix but also to check that:
+wanted to fix *all* buildbot random failures. Since I was now able to reproduce
+the bug on my FreeBSD VM, I was able to write a fix but also to check that:
 
 * sigwaitinfo() and sigtimedwait() fail with EINTR and Python automatically
   restarts the interrupted syscall
-* running the test in a loop doesn't fail: I ran the test during 5 minutes in 10
-  shells (tests running 10 times in parallel) => no failure, the race condition
-  seems to be gone. I hacked the test file to only run the sigwaitinfo() and
-  sigtimedwait() unit tests.
+* I hacked the test file to only run the sigwaitinfo() and sigtimedwait() unit
+  tests. Running the test in a loop doesn't fail: I ran the test during 5
+  minutes in 10 shells (tests running 10 times in parallel) => no failure, the
+  race condition seems to be gone.
 
 So I `pushed my fix
 <https://github.com/python/cpython/commit/211a392cc15f9a7b1b8ce65d8f6c9f8237d1b77f>`_:
@@ -383,8 +393,8 @@ So I `pushed my fix
     instead of testing the timeout feature which is more unstable
     (especially regarding to clock resolution depending on the platform).
 
-To be honest, I wasn't really confident when I pushed my fix that blocking the
-waited signal is the proper fix.
+To be honest, I wasn't really confident, when I pushed my fix, that blocking
+the waited signal is the proper fix.
 
 So it took **1 year and 8 months** to really find and fix the root bug.
 
@@ -405,116 +415,135 @@ which started to annoy me, since I was trying to fix *all* buildbots warnings::
       After:  ['python.core']
 
 I tried and failed to reproduce the warning on my FreeBSD 11 VM. I also asked a
-friend who also failed to reproduce it. I was developping my ``test.bisect``
-tool and I wanted to guess access to a machine to reproduce the bug, but I
-failed to find such machine.
+friend to reproduce the bug, but he also failed. I was developping my
+``test.bisect`` tool and I wanted to get access to a machine to reproduce the
+bug!
 
 Later, **Kubilay Kocak** aka *koobs* gave me access to his FreeBSD buildbots
 and in a few seconds with my new test.bisect tool, I identified that the
 ``test_child_terminated_in_stopped_state()`` test triggers a deliberate crash,
 but doesn't disable core dump creation. The fix is simple, use
-``test.support.SuppressCrashReport`` context manager.
+``test.support.SuppressCrashReport`` context manager. Thanks *koobs* for the
+access!
 
 Maybe only FreeBSD 10 and older dump a core on this specific test, not FreeBSD
-11. I don't know why. The test is special, it tests a process which is traced
-using ``ptrace()``.
+11. I don't know why. The test is special, it tests a process which crashs
+while being traced with ``ptrace()``.
 
 
 Security
 ========
 
-expat 2.2
----------
+Backport fixes
+--------------
 
-See `CVE-2016-0718: expat 2.2, bug #537
+I am trying to fix all known security fixes in the 6 maintained Python
+branches: 2.7, 3.3, 3.4, 3.5, 3.6 and master.
+
+I created the `python-security.readthedocs.io
+<http://python-security.readthedocs.io/>`_ website to track these
+vulnerabilities, especially which Python versions are fixed, to identifiy
+missing backports.
+
+Python 2.7, 3.5, 3.6 and master are quite good, I am still working on
+backporting fixes into 3.4 and 3.3. Larry Hastings merged my 3.4 backports and
+other security fixes, and scheduled a new 3.4.7 release next weeks. Later, I
+will try to fix Python 3.3 as well, before its end-of-life, scheduled for the
+end of september.
+
+See also the `Status of Python branches
+<https://docs.python.org/devguide/#status-of-python-branches>`_ in the
+devguide.
+
+libexpat 2.2
+------------
+
+Python embeds a copy of libexpat to ease Python compilation on Windows and
+macOS. It means that we have to remind to upgrade it at each libexpat release.
+It is especially important when security vulerabilities are fixed in libexpat.
+
+libexpat 2.2 was released at 2016-06-21 and it contains such fixes for
+vulnerabilities, see: `CVE-2016-0718: expat 2.2, bug #537
 <http://python-security.readthedocs.io/vuln/cve-2016-0718_expat_2.2_bug_537.html>`_.
 
-2.2::
+Sadly, it took us a few months to upgrade libexpat. I wrote a short shell
+script to easily upgrade libexpat: recreate Modules/expat/ directory from a
+libexpat tarball.
+
+My commit:
 
     bpo-29591: Upgrade Modules/expat to libexpat 2.2 (#2164)
 
-    * bpo-29591: Upgrade Modules/expat to libexpat 2.2
+    Remove the configuration (``Modules/expat/*config.h``) of unsupported
+    platforms: Amiga, MacOS Classic on PPC32, Open Watcom.
 
-    * bpo-29591: Restore Python changes on expat
+    Remove XML_HAS_SET_HASH_SALT define: it became useless since our local
+    expat copy was upgrade to expat 2.1 (it's now expat 2.2.0).
 
-    * bpo-29591: Remove expat config of unsupported platforms
+I upgraded our libexpat copy to 2.2 in 2.7, 3.4, 3.5, 3.6 and master branches.
+I still have a pending pull request for 3.3.
 
-    Remove the configuration (Modules/expat/*config.h) of unsupported
-    platforms:
+libexpat 2.2.1
+--------------
 
-    * Amiga
-    * MacOS Classic on PPC32
-    * Open Watcom
-
-    * bpo-29591: Remove useless XML_HAS_SET_HASH_SALT
-
-    The XML_HAS_SET_HASH_SALT define of Modules/expat/expat.h became
-    useless since our local expat copy was upgrade to expat 2.1 (it's now
-    expat 2.2.0).
-
-Fixed in master, 3.6, 3.5, 2.7. Pending PR for 3.4 and 3.3: XXX.
-
-expat 2.2.1
------------
-
-See `CVE-2017-9233: Expat 2.2.1
+Just after I finally upgraded our libexpat copy to 2.2.0... libexpat 2.2.1 was
+released with new security fixes!  See `CVE-2017-9233: Expat 2.2.1
 <http://python-security.readthedocs.io/vuln/cve-2017-9233_expat_2.2.1.html>`_
 
-bpo-30694: Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
-of multiple security vulnerabilities including: CVE-2017-9233 (External
-entity infinite loop DoS), CVE-2016-9063 (Integer overflow, re-fix),
-CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)
-and CVE-2012-0876 (Counter hash flooding with SipHash).
-Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
-doesn't impact Python, since Python already gets entropy from the OS to set
-the expat secret using ``XML_SetHashSalt()``.
+Again, I upgraded libexpat to 2.2.1 in all branches (pending: 3.3), see
+bpo-30694.
 
-Fixed in master, 3.6, 3.5, 2.7. Pending PR for 3.4 and 3.3: XXX.
+    Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
+    of multiple security vulnerabilities including:
+
+    * CVE-2017-9233 (External entity infinite loop DoS),
+    * CVE-2016-9063 (Integer overflow, re-fix),
+    * CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)
+    * CVE-2012-0876 (Counter hash flooding with SipHash).
+
+    Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
+    doesn't impact Python, since Python already gets entropy from the OS to set
+    the expat secret using ``XML_SetHashSalt()``.
 
 urllib splithost() vulnerability
 --------------------------------
 
-See `bpo-30500: urllib connects to a wrong host
-<http://python-security.readthedocs.io/vuln/bpo-30500_urllib_connects_to_a_wrong_host.html>`_
-vulnerability.
+Vulnerability: `bpo-30500: urllib connects to a wrong host
+<http://python-security.readthedocs.io/vuln/bpo-30500_urllib_connects_to_a_wrong_host.html>`_.
 
-bpo-30500: Fix urllib.parse.splithost() to correctly parse fragments. For
-example, ``splithost('//127.0.0.1#@evil.com/')`` now correctly returns the
-``127.0.0.1`` host, instead of treating ``@evil.com`` as the host in an
-authentification (``login@host``).
+While it was quick to confirm the vulnerability, it was tricky to decide how to
+properly fix it without breaking backward compatibility. We had too few unit
+tests, and no obvious definition of the *expected* behaviour. I contributed to
+the discussed and to polish the fix:
 
-Fix applied to master, 3.6, 3.5 and 2.7. Pending PR for 3.4 and 3.3: XXX.
+Commit of bpo-30500:
+
+    Fix urllib.parse.splithost() to correctly parse fragments. For example,
+    ``splithost('//127.0.0.1#@evil.com/')`` now correctly returns the
+    ``127.0.0.1`` host, instead of treating ``@evil.com`` as the host in an
+    authentification (``login@host``).
+
+Fix applied to master, 3.6, 3.5, 3.4 and 2.7; pending pull request for 3.3.
 
 Travis CI
 ---------
 
-Pending PR adding Travis CI and AppVeyor to 3.4 and 3.3 branches.
+I also wrote a pull request to enable Travis CI and AppVeyor CI on Python 3.3
+and 3.4 branches, but these changes are complex and not merged yet. I am now
+confident that the CI will be enabled on 3.4!
+
+The PR for Python 3.4: `[3.4] Backport CI config from master
+<https://github.com/python/cpython/pull/2475>`_.
 
 
-GitHub migration (continued)
-============================
+Contributions
+=============
 
-SCM, backported to 2.7::
-
-    bpo-27593: Get SCM build info from git instead of hg (#1327)
-
-    Based on commit 5c4b0d063aba0a68c325073f5f312a2c9f40d178 by Ned
-    Deily, which is based on original patches by Brett Cannon and Steve
-    Dower.
-
-    Remove also the private _Py_svnversion() function and SVNVERSION
-    variable.
-
-    Note: Py_SubversionRevision() and Py_SubversionShortBranch() are
-    unchanged, they are part of the public API.
-
-::
-
-    bpo-30232: Support Git worktree in configure.ac (#1391)
-
-    Don't test if .git/HEAD file exists, but only if the .git file (or
-    directory) exists.
-
+* bpo-9850: Deprecate the macpath module. Co-Authored-By: **Chi Hsuan Yen**.
+* bpo-30595: Fix multiprocessing.Queue.get(timeout).
+  multiprocessing.Queue.get() with a timeout now polls its reader in
+  non-blocking mode if it succeeded to aquire the lock but the acquire took
+  longer than the timeout. Co-Authored-By: **Grzegorz Grzywacz**.
 
 Enhancements
 ============
@@ -524,33 +553,6 @@ Enhancements
 * bpo-30054: Expose tracemalloc C API: make PyTraceMalloc_Track() and
   PyTraceMalloc_Untrack() functions public. numpy is now able to use
   tracemalloc since numpy 1.13 (XXX check version XXX link to PR).
-
-
-Bugfixes
-========
-
-* bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
-  build directory, not in the source directory, since the source directory may
-  be read-only and must not be modified. Fallback on the source directory if
-  the build directory is not available (missing "abs_builddir" sysconfig
-  variable).
-* test_locale now ignores the DeprecationWarning, don't fail anymore if test
-  run with ``python3 -Werror``. Fix also deprecation message: add a space.
-* Only define get_zone() and get_gmtoff() if needed, fix warnings on AIX.
-* bpo-30125: On Windows, faulthandler.disable() now removes the exception
-  handler installed by faulthandler.enable().
-* tmtotuple(): use time_t for gmtoff.
-* bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
-  xml.sax.xmlreader now always closes the source: close the file object or the
-  urllib object if source is a string (not an open file-like object). The
-  change fixes a ResourceWarning on parsing error. Add
-  test_parse_close_source() unit test.
-* Fix SyntaxWarning on importing test_inspect. Fix the following warning when
-  test_inspect.py is compiled to test_inspect.pyc:
-  ``SyntaxWarning: tuple parameter unpacking has been removed in 3.x``
-* bpo-30418: Popen.communicate() always ignore EINVAL. On Windows,
-  subprocess.Popen.communicate() now also ignore EINVAL on stdin.write() if the
-  child process is still running but closed the pipe.
 
 
 Refleaks
@@ -642,14 +644,32 @@ bpo-30776: regrtest: reduce memleak false positive.
 Only report a leak if each run leaks at least one memory block.
 
 
-Contributions
-=============
+Bugfixes
+========
 
-* bpo-9850: Deprecate the macpath module. Co-Authored-By: **Chi Hsuan Yen**.
-* bpo-30595: Fix multiprocessing.Queue.get(timeout).
-  multiprocessing.Queue.get() with a timeout now polls its reader in
-  non-blocking mode if it succeeded to aquire the lock but the acquire took
-  longer than the timeout. Co-Authored-By: **Grzegorz Grzywacz**.
+* bpo-30284: Fix regrtest for out of tree build. Use a build/ directory in the
+  build directory, not in the source directory, since the source directory may
+  be read-only and must not be modified. Fallback on the source directory if
+  the build directory is not available (missing "abs_builddir" sysconfig
+  variable).
+* test_locale now ignores the DeprecationWarning, don't fail anymore if test
+  run with ``python3 -Werror``. Fix also deprecation message: add a space.
+* Only define get_zone() and get_gmtoff() if needed, fix warnings on AIX.
+* bpo-30125: On Windows, faulthandler.disable() now removes the exception
+  handler installed by faulthandler.enable().
+* tmtotuple(): use time_t for gmtoff.
+* bpo-30264: ExpatParser closes the source on error. ExpatParser.parse() of
+  xml.sax.xmlreader now always closes the source: close the file object or the
+  urllib object if source is a string (not an open file-like object). The
+  change fixes a ResourceWarning on parsing error. Add
+  test_parse_close_source() unit test.
+* Fix SyntaxWarning on importing test_inspect. Fix the following warning when
+  test_inspect.py is compiled to test_inspect.pyc:
+  ``SyntaxWarning: tuple parameter unpacking has been removed in 3.x``
+* bpo-30418: Popen.communicate() always ignore EINVAL. On Windows,
+  subprocess.Popen.communicate() now also ignore EINVAL on stdin.write() if the
+  child process is still running but closed the pipe.
+
 
 Test fixes
 ==========
@@ -664,7 +684,7 @@ Test fixes
   test_certfile_arg_warn() unit test for the certfile deprecation warning.
 
 
-Stars of the cpython GitHub project
+Stars of the CPython GitHub project
 ===================================
 
 At June 30, I wrote `an email to python-dev
@@ -689,6 +709,6 @@ Update, 2017-07-12: 11,467 stars, only 902 stars behind PHP ;-)
 
 Screenshot showing Ruby, PHP and CPython:
 
-.. image:: {filename}/images/buildbot_orange.png
+.. image:: {filename}/images/github_cpython_stars.png
    :alt: GitHub showcase: Programming languages
    :target: https://github.com/showcases/programming-languages
