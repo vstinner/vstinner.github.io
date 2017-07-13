@@ -18,8 +18,8 @@ This is the second part of my contributions to `CPython
 * Bugfixes
 * Stars of the CPython GitHub project
 
-Previous report: `My contributions to CPython during 2017 Q2 (part
-1) <{filename}/python_contrib_2017q2_part1.rst>`_.
+Previous report: `My contributions to CPython during 2017 Q2 (part 1)
+<{filename}/python_contrib_2017q2_part1.rst>`_.
 
 Next report: `My contributions to CPython during 2017 Q2 (part 3)
 <{filename}/python_contrib_2017q2_part3.rst>`_.

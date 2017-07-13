@@ -19,9 +19,9 @@ This is the third part of my contributions to `CPython
 Previous reports:
 
 * `My contributions to CPython during 2017 Q2 (part 1)
-  (part 2) <{filename}/python_contrib_2017q2_part1.rst>`_.
+  <{filename}/python_contrib_2017q2_part1.rst>`_.
 * `My contributions to CPython during 2017 Q2 (part 2)
-  (part 2) <{filename}/python_contrib_2017q2_part2.rst>`_.
+  <{filename}/python_contrib_2017q2_part2.rst>`_.
 
 
 Security
