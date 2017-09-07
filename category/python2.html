@@ -24,6 +24,39 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2016 Q4">My contributions to CPython during 2016 Q4</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-16T11:00:00+01:00">
+                Published: jeu. 16 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q4
+(october, november, december):</p>
+<pre class="literal-block">
+hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merges -u Stinner
+</pre>
+<p>Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a>.</p>
+<p>Table of Contents:</p>
+<ul class="simple">
+<li>Python startup performance regression</li>
+<li>Optimizations</li>
+<li>Code placement and …</li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q4.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://haypo.github.io/contrib-cpython-2016q3.html" rel="bookmark"
                            title="Permalink to My contributions to CPython during 2016 Q3">My contributions to CPython during 2016 Q3</a></h1>
                 </header>
@@ -67,7 +100,7 @@
 Instagram, Microsoft, and the PSF.</p>
 <p><strong>First little game:</strong> Many happy faces, but <em>Where is Victor?</em></p>
 <a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
-<p>IMHO it was the most productive CPython week ever :-) Having ...</p>
+<p>IMHO it was the most productive CPython week ever :-) Having …</p>
                 <a class="readmore" href="https://haypo.github.io/cpython-sprint-2016.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -95,7 +128,7 @@ Instagram, Microsoft, and the PSF.</p>
 generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
 changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
 available on Linux, Solaris, OpenBSD, etc.</p>
-<p>In 2013, <tt class="docutils literal">os.urandom ...</tt></p></div>
+<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened …</p></div>
                 <a class="readmore" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -126,7 +159,7 @@ hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merge
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>.</p>
 <div class="section" id="start-of-my-work-on-optimization">
 <h2>Start of my work on optimization</h2>
-<p>During 2016 Q2, I started ...</p></div>
+<p>During 2016 Q2, I started …</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -157,7 +190,7 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>.</p>
 <div class="section" id="summary">
 <h2>Summary</h2>
-<p>Since this report is much longer than I expected, here ...</p></div>
+<p>Since this report is much longer than I expected, here …</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -253,29 +286,6 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2015q3.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/pytime.html" rel="bookmark"
-                           title="Permalink to History of the Python private C API _PyTime">History of the Python private C API _PyTime</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-02-17T22:00:00+01:00">
-                Published: mer. 17 février 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">History of the Python private C API _PyTime</p>
-
-                <a class="readmore" href="https://haypo.github.io/pytime.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
         <a href="https://haypo.github.io/category/python.html">&laquo;</a>
@@ -285,7 +295,7 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
                 </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
-                        <h2>blogroll</h2>
+                        <h2>links</h2>
                         <ul>
                             <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
                         </ul>

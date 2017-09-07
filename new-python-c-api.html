@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>A New C API for CPython</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/new-python-c-api.html" rel="bookmark"
+           title="Permalink to A New C API for CPython">A New C API for CPython</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-09-07T18:00:00+02:00">
+                Published: jeu. 07 septembre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+of writing a new C API for CPython hiding implementation details and replacing
+macros with function calls.</p>
+<img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" />
+<p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
+<div class="section" id="c-api-prevents-further-optimizations">
+<h2>C API prevents further optimizations</h2>
+<p>The CPython <tt class="docutils literal">PyListObject</tt> type uses an array of <tt class="docutils literal">PyObject*</tt> objects. PyPy
+is able to use a C array of integers if the list only contains small integers.
+CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:</p>
+<pre class="literal-block">
+#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&gt;ob_item[i]
+</pre>
+<p>The macro relies on the <tt class="docutils literal">PyListObject</tt> structure:</p>
+<pre class="literal-block">
+typedef struct {
+    PyVarObject ob_base;
+    PyObject **ob_item;   // &lt;-- pointer to real data
+    Py_ssize_t allocated;
+} PyListObject;
+
+typedef struct {
+    PyObject ob_base;
+    Py_ssize_t ob_size; /* Number of items in variable part */
+} PyVarObject;
+
+typedef struct _object {
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+</pre>
+</div>
+<div class="section" id="api-and-abi">
+<h2>API and ABI</h2>
+<p>Compiling C extension code using <tt class="docutils literal">PyList_GET_ITEM()</tt> produces machine code
+accessing <tt class="docutils literal">PyListObject</tt> members. Something like (C pseudo code):</p>
+<pre class="literal-block">
+PyObject **items;
+PyObject *item;
+items = (PyObject **)(((char*)list) + 24);
+item = items[i];
+</pre>
+<p>The offset 24 is hardcoded in the C extension object file: the <strong>API</strong>
+(<strong>programming</strong> interface) becomes the <strong>ABI</strong> (<strong>binary</strong> interface).</p>
+<p>But debug builds use a different memory layout:</p>
+<pre class="literal-block">
+typedef struct _object {
+    struct _object *_ob_next;   // &lt;--- two new fields are added
+    struct _object *_ob_prev;   // &lt;--- for debug purpose
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+</pre>
+<p>The machine code becomes something like:</p>
+<pre class="literal-block">
+items = (PyObject **)(((char*)op) + 40);
+item = items[i];
+</pre>
+<p>The offset changes from 24 to 40 (+16, two pointers of 8 bytes).</p>
+<p>C extensions have to be recompiled to work on Python compiled in debug mode.</p>
+<p>Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
+Unicode string: the <tt class="docutils literal"><span class="pre">--with-wide-unicode</span></tt> configure option.</p>
+</div>
+<div class="section" id="stable-abi">
+<h2>Stable ABI</h2>
+<p>If the machine code doesn't use the offset, it would be able to only compile C
+extensions once.</p>
+<p>A solution is to replace PyList_GET_ITEM() <strong>macro</strong> with a <strong>function</strong>:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
+</pre>
+<p>defined as:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    return ((PyListObject *)list)-&gt;ob_item[i];
+}
+</pre>
+<p>The machine code becomes a <strong>function call</strong>:</p>
+<pre class="literal-block">
+PyObject *item;
+item = PyList_GET_ITEM(list, index);
+</pre>
+</div>
+<div class="section" id="specialized-list-for-small-integers">
+<h2>Specialized list for small integers</h2>
+<p>If C extension objects don't access structure members anymore, it becomes
+possible to modify the memory layout.</p>
+<p>For example, it's possible to design a specialized implementation of
+<tt class="docutils literal">PyListObject</tt> for small integers:</p>
+<pre class="literal-block">
+typedef struct {
+    PyVarObject ob_base;
+    int use_small_int;
+    PyObject **pyobject_array;
+    int32_t *small_int_array;   // &lt;-- new compact C array for integers
+    Py_ssize_t allocated;
+} PyListObject;
+
+PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
+{
+    PyListObject *list = (PyListObject *)op;
+    if (list-&gt;use_small_int) {
+        int32_t item = list-&gt;small_int_array[index];
+        /* create a new object at each call */
+        return PyLong_FromLong(item);
+    }
+    else {
+        return list-&gt;pyobject_array[index];
+    }
+}
+</pre>
+<p>It's just an example to show that it becomes possible to modify PyObject
+structures. I'm not sure that it's useful in practice.</p>
+</div>
+<div class="section" id="multiple-python-runtimes">
+<h2>Multiple Python &quot;runtimes&quot;</h2>
+<p>Assuming that all used C extensions use the new stable ABI, we can now imagine
+multiple specialized Python runtimes installed in parallel, instead of a single
+runtime:</p>
+<ul class="simple">
+<li>python3.7: regular/legacy CPython, backward compatible</li>
+<li>python3.7-dbg: runtime checks to ease debug</li>
+<li>fasterpython3.7: use specialized list</li>
+<li>etc.</li>
+</ul>
+<p>The <tt class="docutils literal">python3</tt> runtime would remain <strong>fully</strong> compatible since it would use
+the old C API with macros and full structures. So by default, everything will
+continue to work.</p>
+<p>But the other runtimes require that all imported C extensions were compiled
+with the new C API.</p>
+<p><tt class="docutils literal"><span class="pre">python3.7-dbg</span></tt> adds more checks tested at runtime. Example:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    assert(PyList_Check(list));
+    assert(0 &lt;= index &amp;&amp; index &lt; Py_SIZE(list));
+    return ((PyListObject *)list)-&gt;ob_item[i];
+}
+</pre>
+<p>Currently, some Linux distributions provide a <tt class="docutils literal"><span class="pre">python3-dbg</span></tt> binary, but may
+not provide <tt class="docutils literal"><span class="pre">-dbg</span></tt> binary packages of all C extensions. So all C extensions
+have to be recompiled manually which is quite painful (need to install build
+dependencies, wait until everthing is recompiled, etc.).</p>
+</div>
+<div class="section" id="experiment-optimizations">
+<h2>Experiment optimizations</h2>
+<p>With the new C API, it becomes possible to implement a new class of
+optimizations.</p>
+<div class="section" id="tagged-pointer">
+<h3>Tagged pointer</h3>
+<p>Store small integers directly into the pointer value. Reduce the memory usage,
+avoid expensive unboxing-boxing.</p>
+<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer">Wikipedia: Tagged pointer</a>.</p>
+</div>
+<div class="section" id="no-garbage-collector-gc-at-all">
+<h3>No garbage collector (GC) at all</h3>
+<p>Python runtime without GC at all. Remove the following header from objects
+tracked by the GC:</p>
+<pre class="literal-block">
+struct {
+    union _gc_head *gc_next;
+    union _gc_head *gc_prev;
+    Py_ssize_t gc_refs;
+} PyGC_Head;
+</pre>
+<p>It would remove 24 bytes per object tracked by the GC.</p>
+<p>For comparison, the smallest Python object is &quot;object()&quot; which only takes 16
+bytes.</p>
+</div>
+<div class="section" id="tracing-garbage-collector-without-reference-counting">
+<h3>Tracing garbage collector without reference counting</h3>
+<p>This idea is really the most complex and most experimental idea, but IMHO it's
+required to &quot;unlock&quot; Python performances.</p>
+<ul class="simple">
+<li>Write a new API to keep track of pointers:<ul>
+<li>Declare a variable storing a <tt class="docutils literal">PyObject*</tt> object</li>
+<li>Set a pointer</li>
+<li>Maybe also read a pointer?</li>
+</ul>
+</li>
+<li>Modify C extensions to use this new API</li>
+<li>Implement a tracing garbage collector which can move objects in memory
+to compact memory</li>
+<li>Remove reference counting</li>
+</ul>
+<p>It even seems possible to implement a tracing garbage collector <strong>and</strong> use
+reference counting. But I'm not an expert in this area, need to dig the topic.</p>
+<p>Questions:</p>
+<ul class="simple">
+<li>Is it possible to fix all C extensions to use the new API? Should be an
+opt-in option in a first stage.</li>
+<li>Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
+using an hash table which maintains a reference counter outside <tt class="docutils literal">PyObject</tt>?</li>
+<li>Do we need to fix all C extensions?</li>
+</ul>
+<p>Read also <a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Wikipedia: Tracing garbage collection</a>.</p>
+</div>
+<div class="section" id="gilectomy">
+<h3>Gilectomy</h3>
+<p>Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
+able to reemove the GIL.</p>
+<p>Removing reference counting would make Gilectomy much simpler.</p>
+</div>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

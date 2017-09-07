@@ -22,7 +22,236 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/fastcall-issues.html">FASTCALL issues</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/new-python-c-api.html">A New C API for CPython</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-09-07T18:00:00+02:00">
+                Published: jeu. 07 septembre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+of writing a new C API for CPython hiding implementation details and replacing
+macros with function calls.</p>
+<img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" />
+<p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
+<div class="section" id="c-api-prevents-further-optimizations">
+<h2>C API prevents further optimizations</h2>
+<p>The CPython <tt class="docutils literal">PyListObject</tt> type uses an array of <tt class="docutils literal">PyObject*</tt> objects. PyPy
+is able to use a C array of integers if the list only contains small integers.
+CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:</p>
+<pre class="literal-block">
+#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&gt;ob_item[i]
+</pre>
+<p>The macro relies on the <tt class="docutils literal">PyListObject</tt> structure:</p>
+<pre class="literal-block">
+typedef struct {
+    PyVarObject ob_base;
+    PyObject **ob_item;   // &lt;-- pointer to real data
+    Py_ssize_t allocated;
+} PyListObject;
+
+typedef struct {
+    PyObject ob_base;
+    Py_ssize_t ob_size; /* Number of items in variable part */
+} PyVarObject;
+
+typedef struct _object {
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+</pre>
+</div>
+<div class="section" id="api-and-abi">
+<h2>API and ABI</h2>
+<p>Compiling C extension code using <tt class="docutils literal">PyList_GET_ITEM()</tt> produces machine code
+accessing <tt class="docutils literal">PyListObject</tt> members. Something like (C pseudo code):</p>
+<pre class="literal-block">
+PyObject **items;
+PyObject *item;
+items = (PyObject **)(((char*)list) + 24);
+item = items[i];
+</pre>
+<p>The offset 24 is hardcoded in the C extension object file: the <strong>API</strong>
+(<strong>programming</strong> interface) becomes the <strong>ABI</strong> (<strong>binary</strong> interface).</p>
+<p>But debug builds use a different memory layout:</p>
+<pre class="literal-block">
+typedef struct _object {
+    struct _object *_ob_next;   // &lt;--- two new fields are added
+    struct _object *_ob_prev;   // &lt;--- for debug purpose
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+</pre>
+<p>The machine code becomes something like:</p>
+<pre class="literal-block">
+items = (PyObject **)(((char*)op) + 40);
+item = items[i];
+</pre>
+<p>The offset changes from 24 to 40 (+16, two pointers of 8 bytes).</p>
+<p>C extensions have to be recompiled to work on Python compiled in debug mode.</p>
+<p>Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
+Unicode string: the <tt class="docutils literal"><span class="pre">--with-wide-unicode</span></tt> configure option.</p>
+</div>
+<div class="section" id="stable-abi">
+<h2>Stable ABI</h2>
+<p>If the machine code doesn't use the offset, it would be able to only compile C
+extensions once.</p>
+<p>A solution is to replace PyList_GET_ITEM() <strong>macro</strong> with a <strong>function</strong>:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
+</pre>
+<p>defined as:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    return ((PyListObject *)list)-&gt;ob_item[i];
+}
+</pre>
+<p>The machine code becomes a <strong>function call</strong>:</p>
+<pre class="literal-block">
+PyObject *item;
+item = PyList_GET_ITEM(list, index);
+</pre>
+</div>
+<div class="section" id="specialized-list-for-small-integers">
+<h2>Specialized list for small integers</h2>
+<p>If C extension objects don't access structure members anymore, it becomes
+possible to modify the memory layout.</p>
+<p>For example, it's possible to design a specialized implementation of
+<tt class="docutils literal">PyListObject</tt> for small integers:</p>
+<pre class="literal-block">
+typedef struct {
+    PyVarObject ob_base;
+    int use_small_int;
+    PyObject **pyobject_array;
+    int32_t *small_int_array;   // &lt;-- new compact C array for integers
+    Py_ssize_t allocated;
+} PyListObject;
+
+PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
+{
+    PyListObject *list = (PyListObject *)op;
+    if (list-&gt;use_small_int) {
+        int32_t item = list-&gt;small_int_array[index];
+        /* create a new object at each call */
+        return PyLong_FromLong(item);
+    }
+    else {
+        return list-&gt;pyobject_array[index];
+    }
+}
+</pre>
+<p>It's just an example to show that it becomes possible to modify PyObject
+structures. I'm not sure that it's useful in practice.</p>
+</div>
+<div class="section" id="multiple-python-runtimes">
+<h2>Multiple Python &quot;runtimes&quot;</h2>
+<p>Assuming that all used C extensions use the new stable ABI, we can now imagine
+multiple specialized Python runtimes installed in parallel, instead of a single
+runtime:</p>
+<ul class="simple">
+<li>python3.7: regular/legacy CPython, backward compatible</li>
+<li>python3.7-dbg: runtime checks to ease debug</li>
+<li>fasterpython3.7: use specialized list</li>
+<li>etc.</li>
+</ul>
+<p>The <tt class="docutils literal">python3</tt> runtime would remain <strong>fully</strong> compatible since it would use
+the old C API with macros and full structures. So by default, everything will
+continue to work.</p>
+<p>But the other runtimes require that all imported C extensions were compiled
+with the new C API.</p>
+<p><tt class="docutils literal"><span class="pre">python3.7-dbg</span></tt> adds more checks tested at runtime. Example:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    assert(PyList_Check(list));
+    assert(0 &lt;= index &amp;&amp; index &lt; Py_SIZE(list));
+    return ((PyListObject *)list)-&gt;ob_item[i];
+}
+</pre>
+<p>Currently, some Linux distributions provide a <tt class="docutils literal"><span class="pre">python3-dbg</span></tt> binary, but may
+not provide <tt class="docutils literal"><span class="pre">-dbg</span></tt> binary packages of all C extensions. So all C extensions
+have to be recompiled manually which is quite painful (need to install build
+dependencies, wait until everthing is recompiled, etc.).</p>
+</div>
+<div class="section" id="experiment-optimizations">
+<h2>Experiment optimizations</h2>
+<p>With the new C API, it becomes possible to implement a new class of
+optimizations.</p>
+<div class="section" id="tagged-pointer">
+<h3>Tagged pointer</h3>
+<p>Store small integers directly into the pointer value. Reduce the memory usage,
+avoid expensive unboxing-boxing.</p>
+<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer">Wikipedia: Tagged pointer</a>.</p>
+</div>
+<div class="section" id="no-garbage-collector-gc-at-all">
+<h3>No garbage collector (GC) at all</h3>
+<p>Python runtime without GC at all. Remove the following header from objects
+tracked by the GC:</p>
+<pre class="literal-block">
+struct {
+    union _gc_head *gc_next;
+    union _gc_head *gc_prev;
+    Py_ssize_t gc_refs;
+} PyGC_Head;
+</pre>
+<p>It would remove 24 bytes per object tracked by the GC.</p>
+<p>For comparison, the smallest Python object is &quot;object()&quot; which only takes 16
+bytes.</p>
+</div>
+<div class="section" id="tracing-garbage-collector-without-reference-counting">
+<h3>Tracing garbage collector without reference counting</h3>
+<p>This idea is really the most complex and most experimental idea, but IMHO it's
+required to &quot;unlock&quot; Python performances.</p>
+<ul class="simple">
+<li>Write a new API to keep track of pointers:<ul>
+<li>Declare a variable storing a <tt class="docutils literal">PyObject*</tt> object</li>
+<li>Set a pointer</li>
+<li>Maybe also read a pointer?</li>
+</ul>
+</li>
+<li>Modify C extensions to use this new API</li>
+<li>Implement a tracing garbage collector which can move objects in memory
+to compact memory</li>
+<li>Remove reference counting</li>
+</ul>
+<p>It even seems possible to implement a tracing garbage collector <strong>and</strong> use
+reference counting. But I'm not an expert in this area, need to dig the topic.</p>
+<p>Questions:</p>
+<ul class="simple">
+<li>Is it possible to fix all C extensions to use the new API? Should be an
+opt-in option in a first stage.</li>
+<li>Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
+using an hash table which maintains a reference counter outside <tt class="docutils literal">PyObject</tt>?</li>
+<li>Do we need to fix all C extensions?</li>
+</ul>
+<p>Read also <a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Wikipedia: Tracing garbage collection</a>.</p>
+</div>
+<div class="section" id="gilectomy">
+<h3>Gilectomy</h3>
+<p>Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
+able to reemove the GIL.</p>
+<p>Removing reference counting would make Gilectomy much simpler.</p>
+</div>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/fastcall-issues.html" rel="bookmark"
+                           title="Permalink to FASTCALL issues">FASTCALL issues</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-02-25T00:00:00+01:00">
                 Published: sam. 25 février 2017
@@ -33,84 +262,13 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+</footer><!-- /.post-info -->                <p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
-Python 3.7, the few remaining issues are still open.</p>
-<div class="section" id="id1">
-<h2>27 FASTCALL issues</h2>
-<ul class="simple">
-<li>2016-04-21: <a class="reference external" href="http://bugs.python.org/issue26814">[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments</a></li>
-<li>2016-05-26: <a class="reference external" href="http://bugs.python.org/issue27128">Add _PyObject_FastCall()</a></li>
-<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27809">Add _PyFunction_FastCallDict(): fast call with keyword arguments as a dict</a></li>
-<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27810">Add METH_FASTCALL: new calling convention for C functions</a></li>
-<li>2016-08-22: <a class="reference external" href="http://bugs.python.org/issue27830">Add _PyObject_FastCallKeywords(): avoid the creation of a temporary dictionary for keyword arguments</a></li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27840">functools.partial: don't copy keywoard arguments in partial_call()?</a> [<strong>REJECTED</strong>]</li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27841">Use fast call in method_call() and slot_tp_new()</a></li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27845">Optimize update_keyword_args() function</a></li>
-<li>2016-11-22: <a class="reference external" href="http://bugs.python.org/issue28770">Update python-gdb.py for fastcalls</a></li>
-<li>2016-11-30: <a class="reference external" href="http://bugs.python.org/issue28839">_PyFunction_FastCallDict(): replace PyTuple_New() with PyMem_Malloc()</a> [<strong>REJECTED</strong>]</li>
-<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28855">Compiler warnings in _PyObject_CallArg1()</a></li>
-<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28858">Fastcall uses more C stack</a></li>
-<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28915">Modify PyObject_CallFunction() to use fast call internally</a></li>
-<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29227">Reduce C stack consumption in function calls</a></li>
-<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29233">call_method(): call _PyObject_FastCall() rather than _PyObject_VaCallFunctionObjArgs()</a></li>
-<li>2017-01-11: <a class="reference external" href="http://bugs.python.org/issue29234">Disable inlining of _PyStack_AsTuple() to reduce the stack consumption</a></li>
-<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29259">Add tp_fastcall to PyTypeObject: support FASTCALL calling convention for all callable objects</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29263">Implement LOAD_METHOD/CALL_METHOD for C functions</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29306">Check usage of Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() in new FASTCALL functions</a></li>
-<li>2017-01-19: <a class="reference external" href="http://bugs.python.org/issue29318">Optimize _PyFunction_FastCallDict() for **kwargs</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29358">Add tp_fastnew and tp_fastinit to PyTypeObject, 15-20% faster object instanciation</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29360">_PyStack_AsDict(): Don't check if all keys are strings nor if keys are unique</a></li>
-<li>2017-01-25: <a class="reference external" href="http://bugs.python.org/issue29367">python-gdb: display wrapper_call()</a></li>
-<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29451">Use _PyArg_Parser for _PyArg_ParseStack(): support positional only arguments</a></li>
-<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29465">Modify _PyObject_FastCall() to reduce stack consumption</a></li>
-<li>2017-02-09: <a class="reference external" href="http://bugs.python.org/issue29507">Use FASTCALL in call_method() to avoid temporary tuple</a></li>
-<li>2017-02-10: <a class="reference external" href="http://bugs.python.org/issue29524">Move functions to call objects into a new Objects/call.c file</a></li>
-</ul>
-</div>
-<div class="section" id="issues-converting-functions-to-fastcall">
-<h2>3 issues converting functions to FASTCALL</h2>
-<ul class="simple">
-<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29286">Use METH_FASTCALL in str methods</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29312">Use FASTCALL in dict.update()</a> [<strong>REJECTED</strong>]</li>
-<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29452">Use FASTCALL for collections.deque methods: index, insert, rotate</a></li>
-</ul>
-</div>
-<div class="section" id="argument-clinic-issues">
-<h2>6 Argument Clinic issues</h2>
-<p>Converting code to Argument Clinic converts METH_VARARGS methods to
-METH_FASTCALL.</p>
-<ul class="simple">
-<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29289">Convert OrderedDict methods to Argument Clinic</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29299">Argument Clinic: Fix signature of optional positional-only arguments</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29300">Modify the _struct module to use FASTCALL and Argument Clinic</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29301">decimal: Use FASTCALL and/or Argument Clinic</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29311">Argument Clinic: convert dict methods</a></li>
-<li>2017-02-02: <a class="reference external" href="http://bugs.python.org/issue29419">Argument Clinic: inline PyArg_UnpackTuple and PyArg_ParseStack(AndKeyword)?</a></li>
-</ul>
-</div>
-<div class="section" id="other-optimization-issues">
-<h2>10 other optimization issues</h2>
-<ul class="simple">
-<li>2016-08-24: <a class="reference external" href="http://bugs.python.org/issue27848">C function calls: use Py_ssize_t rather than C int for number of arguments</a></li>
-<li>2016-09-07: <a class="reference external" href="http://bugs.python.org/issue28004">Optimize bytes.join(sequence)</a> [<strong>REJECTED</strong>]</li>
-<li>2016-11-05: <a class="reference external" href="http://bugs.python.org/issue28618">Decorate hot functions using __attribute__((hot)) to optimize Python</a></li>
-<li>2016-11-07: <a class="reference external" href="http://bugs.python.org/issue28637">Python startup performance regression</a></li>
-<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28800">Add RETURN_NONE bytecode instruction</a> [<strong>REJECTED</strong>]</li>
-<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28799">Drop CALL_PROFILE special build?</a></li>
-<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28924">Inline PyEval_EvalFrameEx() in callers</a> [<strong>REJECTED</strong>]</li>
-<li>2016-12-15: <a class="reference external" href="http://bugs.python.org/issue28977">Document PyObject_CallFunction() special case more explicitly</a></li>
-<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29461">Experiment usage of likely/unlikely in CPython core</a></li>
-<li>2017-02-08: <a class="reference external" href="http://bugs.python.org/issue29502">Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?</a></li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Python 3.7, the few remaining issues are still …</p>
+                <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -133,7 +291,7 @@ METH_FASTCALL.</p>
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
-that I abandon ...</p>
+that I abandon a …</p>
                 <a class="readmore" href="https://haypo.github.io/fastcall-microbenchmarks.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -164,7 +322,7 @@ understand why!</p>
 </div>
 <div class="section" id="work-on-benchmarks">
 <h2>Work on benchmarks</h2>
-<p>During four months, I worked on making ...</p></div>
+<p>During four months, I worked on making …</p></div>
                 <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -192,7 +350,7 @@ analying results, I noticed a temporary peak on the <tt class="docutils literal"
 benchmark at October 19th:</p>
 <img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" />
 <p>The graphic shows the performance of the <tt class="docutils literal">call_method</tt> microbenchmark between
-Feb 29, 2016 ...</p>
+Feb 29, 2016 …</p>
                 <a class="readmore" href="https://haypo.github.io/analysis-python-performance-issue.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -311,29 +469,6 @@ Feb 29, 2016 ...</p>
                 <a class="readmore" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="bookmark"
-                           title="Permalink to Status of the FAT Python project, January 12, 2016">Status of the FAT Python project, January 12, 2016</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-01-12T13:42:00+01:00">
-                Published: mar. 12 janvier 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/fatpython.html">fatpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">Status of the FAT Python project, January 12, 2016</p>
-
-                <a class="readmore" href="https://haypo.github.io/fat-python-status-janv12-2016.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
     Page 1 / 2
@@ -342,7 +477,7 @@ Feb 29, 2016 ...</p>
                 </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
-                        <h2>blogroll</h2>
+                        <h2>links</h2>
                         <ul>
                             <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
                         </ul>

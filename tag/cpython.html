@@ -22,7 +22,236 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 (part 3)</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/new-python-c-api.html">A New C API for CPython</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-09-07T18:00:00+02:00">
+                Published: jeu. 07 septembre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+of writing a new C API for CPython hiding implementation details and replacing
+macros with function calls.</p>
+<img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" />
+<p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
+<div class="section" id="c-api-prevents-further-optimizations">
+<h2>C API prevents further optimizations</h2>
+<p>The CPython <tt class="docutils literal">PyListObject</tt> type uses an array of <tt class="docutils literal">PyObject*</tt> objects. PyPy
+is able to use a C array of integers if the list only contains small integers.
+CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:</p>
+<pre class="literal-block">
+#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&gt;ob_item[i]
+</pre>
+<p>The macro relies on the <tt class="docutils literal">PyListObject</tt> structure:</p>
+<pre class="literal-block">
+typedef struct {
+    PyVarObject ob_base;
+    PyObject **ob_item;   // &lt;-- pointer to real data
+    Py_ssize_t allocated;
+} PyListObject;
+
+typedef struct {
+    PyObject ob_base;
+    Py_ssize_t ob_size; /* Number of items in variable part */
+} PyVarObject;
+
+typedef struct _object {
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+</pre>
+</div>
+<div class="section" id="api-and-abi">
+<h2>API and ABI</h2>
+<p>Compiling C extension code using <tt class="docutils literal">PyList_GET_ITEM()</tt> produces machine code
+accessing <tt class="docutils literal">PyListObject</tt> members. Something like (C pseudo code):</p>
+<pre class="literal-block">
+PyObject **items;
+PyObject *item;
+items = (PyObject **)(((char*)list) + 24);
+item = items[i];
+</pre>
+<p>The offset 24 is hardcoded in the C extension object file: the <strong>API</strong>
+(<strong>programming</strong> interface) becomes the <strong>ABI</strong> (<strong>binary</strong> interface).</p>
+<p>But debug builds use a different memory layout:</p>
+<pre class="literal-block">
+typedef struct _object {
+    struct _object *_ob_next;   // &lt;--- two new fields are added
+    struct _object *_ob_prev;   // &lt;--- for debug purpose
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+</pre>
+<p>The machine code becomes something like:</p>
+<pre class="literal-block">
+items = (PyObject **)(((char*)op) + 40);
+item = items[i];
+</pre>
+<p>The offset changes from 24 to 40 (+16, two pointers of 8 bytes).</p>
+<p>C extensions have to be recompiled to work on Python compiled in debug mode.</p>
+<p>Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
+Unicode string: the <tt class="docutils literal"><span class="pre">--with-wide-unicode</span></tt> configure option.</p>
+</div>
+<div class="section" id="stable-abi">
+<h2>Stable ABI</h2>
+<p>If the machine code doesn't use the offset, it would be able to only compile C
+extensions once.</p>
+<p>A solution is to replace PyList_GET_ITEM() <strong>macro</strong> with a <strong>function</strong>:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
+</pre>
+<p>defined as:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    return ((PyListObject *)list)-&gt;ob_item[i];
+}
+</pre>
+<p>The machine code becomes a <strong>function call</strong>:</p>
+<pre class="literal-block">
+PyObject *item;
+item = PyList_GET_ITEM(list, index);
+</pre>
+</div>
+<div class="section" id="specialized-list-for-small-integers">
+<h2>Specialized list for small integers</h2>
+<p>If C extension objects don't access structure members anymore, it becomes
+possible to modify the memory layout.</p>
+<p>For example, it's possible to design a specialized implementation of
+<tt class="docutils literal">PyListObject</tt> for small integers:</p>
+<pre class="literal-block">
+typedef struct {
+    PyVarObject ob_base;
+    int use_small_int;
+    PyObject **pyobject_array;
+    int32_t *small_int_array;   // &lt;-- new compact C array for integers
+    Py_ssize_t allocated;
+} PyListObject;
+
+PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
+{
+    PyListObject *list = (PyListObject *)op;
+    if (list-&gt;use_small_int) {
+        int32_t item = list-&gt;small_int_array[index];
+        /* create a new object at each call */
+        return PyLong_FromLong(item);
+    }
+    else {
+        return list-&gt;pyobject_array[index];
+    }
+}
+</pre>
+<p>It's just an example to show that it becomes possible to modify PyObject
+structures. I'm not sure that it's useful in practice.</p>
+</div>
+<div class="section" id="multiple-python-runtimes">
+<h2>Multiple Python &quot;runtimes&quot;</h2>
+<p>Assuming that all used C extensions use the new stable ABI, we can now imagine
+multiple specialized Python runtimes installed in parallel, instead of a single
+runtime:</p>
+<ul class="simple">
+<li>python3.7: regular/legacy CPython, backward compatible</li>
+<li>python3.7-dbg: runtime checks to ease debug</li>
+<li>fasterpython3.7: use specialized list</li>
+<li>etc.</li>
+</ul>
+<p>The <tt class="docutils literal">python3</tt> runtime would remain <strong>fully</strong> compatible since it would use
+the old C API with macros and full structures. So by default, everything will
+continue to work.</p>
+<p>But the other runtimes require that all imported C extensions were compiled
+with the new C API.</p>
+<p><tt class="docutils literal"><span class="pre">python3.7-dbg</span></tt> adds more checks tested at runtime. Example:</p>
+<pre class="literal-block">
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    assert(PyList_Check(list));
+    assert(0 &lt;= index &amp;&amp; index &lt; Py_SIZE(list));
+    return ((PyListObject *)list)-&gt;ob_item[i];
+}
+</pre>
+<p>Currently, some Linux distributions provide a <tt class="docutils literal"><span class="pre">python3-dbg</span></tt> binary, but may
+not provide <tt class="docutils literal"><span class="pre">-dbg</span></tt> binary packages of all C extensions. So all C extensions
+have to be recompiled manually which is quite painful (need to install build
+dependencies, wait until everthing is recompiled, etc.).</p>
+</div>
+<div class="section" id="experiment-optimizations">
+<h2>Experiment optimizations</h2>
+<p>With the new C API, it becomes possible to implement a new class of
+optimizations.</p>
+<div class="section" id="tagged-pointer">
+<h3>Tagged pointer</h3>
+<p>Store small integers directly into the pointer value. Reduce the memory usage,
+avoid expensive unboxing-boxing.</p>
+<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer">Wikipedia: Tagged pointer</a>.</p>
+</div>
+<div class="section" id="no-garbage-collector-gc-at-all">
+<h3>No garbage collector (GC) at all</h3>
+<p>Python runtime without GC at all. Remove the following header from objects
+tracked by the GC:</p>
+<pre class="literal-block">
+struct {
+    union _gc_head *gc_next;
+    union _gc_head *gc_prev;
+    Py_ssize_t gc_refs;
+} PyGC_Head;
+</pre>
+<p>It would remove 24 bytes per object tracked by the GC.</p>
+<p>For comparison, the smallest Python object is &quot;object()&quot; which only takes 16
+bytes.</p>
+</div>
+<div class="section" id="tracing-garbage-collector-without-reference-counting">
+<h3>Tracing garbage collector without reference counting</h3>
+<p>This idea is really the most complex and most experimental idea, but IMHO it's
+required to &quot;unlock&quot; Python performances.</p>
+<ul class="simple">
+<li>Write a new API to keep track of pointers:<ul>
+<li>Declare a variable storing a <tt class="docutils literal">PyObject*</tt> object</li>
+<li>Set a pointer</li>
+<li>Maybe also read a pointer?</li>
+</ul>
+</li>
+<li>Modify C extensions to use this new API</li>
+<li>Implement a tracing garbage collector which can move objects in memory
+to compact memory</li>
+<li>Remove reference counting</li>
+</ul>
+<p>It even seems possible to implement a tracing garbage collector <strong>and</strong> use
+reference counting. But I'm not an expert in this area, need to dig the topic.</p>
+<p>Questions:</p>
+<ul class="simple">
+<li>Is it possible to fix all C extensions to use the new API? Should be an
+opt-in option in a first stage.</li>
+<li>Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
+using an hash table which maintains a reference counter outside <tt class="docutils literal">PyObject</tt>?</li>
+<li>Do we need to fix all C extensions?</li>
+</ul>
+<p>Read also <a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Wikipedia: Tracing garbage collection</a>.</p>
+</div>
+<div class="section" id="gilectomy">
+<h3>Gilectomy</h3>
+<p>Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
+able to reemove the GIL.</p>
+<p>Removing reference counting would make Gilectomy much simpler.</p>
+</div>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q2-part3.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q2 (part 3)">My contributions to CPython during 2017 Q2 (part 3)</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-07-13T17:00:00+02:00">
                 Published: jeu. 13 juillet 2017
@@ -33,7 +262,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>This is the third part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
+</footer><!-- /.post-info -->                <p>This is the third part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
 <ul class="simple">
 <li>Security</li>
 <li>Trick bug: Clang 4.0, dtoa and strict aliasing</li>
@@ -43,283 +272,10 @@
 <p>Previous reports:</p>
 <ul class="simple">
 <li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part 1)</a>.</li>
-<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">My contributions to CPython during 2017 Q2 (part 2)</a>.</li>
-</ul>
-<div class="section" id="security">
-<h2>Security</h2>
-<div class="section" id="backport-fixes">
-<h3>Backport fixes</h3>
-<p>I am trying to fix all known security fixes in the 6 maintained Python
-branches: 2.7, 3.3, 3.4, 3.5, 3.6 and master.</p>
-<p>I created the <a class="reference external" href="http://python-security.readthedocs.io/">python-security.readthedocs.io</a> website to track these
-vulnerabilities, especially which Python versions are fixed, to identifiy
-missing backports.</p>
-<p>Python 2.7, 3.5, 3.6 and master are quite good, I am still working on
-backporting fixes into 3.4 and 3.3. Larry Hastings merged my 3.4 backports and
-other security fixes, and scheduled a new 3.4.7 release next weeks. Later, I
-will try to fix Python 3.3 as well, before its end-of-life, scheduled for the
-end of september.</p>
-<p>See the <a class="reference external" href="https://docs.python.org/devguide/#status-of-python-branches">Status of Python branches</a> in the
-devguide.</p>
-</div>
-<div class="section" id="libexpat-2-2">
-<h3>libexpat 2.2</h3>
-<p>Python embeds a copy of libexpat to ease Python compilation on Windows and
-macOS. It means that we have to remind to upgrade it at each libexpat release.
-It is especially important when security vulerabilities are fixed in libexpat.</p>
-<p>libexpat 2.2 was released at 2016-06-21 and it contains such fixes for
-vulnerabilities, see: <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2016-0718_expat_2.2_bug_537.html">CVE-2016-0718: expat 2.2, bug #537</a>.</p>
-<p>Sadly, it took us a few months to upgrade libexpat. I wrote a short shell
-script to easily upgrade libexpat: recreate the <tt class="docutils literal">Modules/expat/</tt> directory
-from a libexpat tarball.</p>
-<p>My commit:</p>
-<blockquote>
-<p>bpo-29591: Upgrade Modules/expat to libexpat 2.2 (#2164)</p>
-<p>Remove the configuration (<tt class="docutils literal"><span class="pre">Modules/expat/*config.h</span></tt>) of unsupported
-platforms: Amiga, MacOS Classic on PPC32, Open Watcom.</p>
-<p>Remove XML_HAS_SET_HASH_SALT define: it became useless since our local
-expat copy was upgrade to expat 2.1 (it's now expat 2.2.0).</p>
-</blockquote>
-<p>I upgraded libexpat to 2.2 in Pytohn 2.7, 3.4, 3.5, 3.6 and master branches.
-I still have a pending pull request for 3.3.</p>
-</div>
-<div class="section" id="libexpat-2-2-1">
-<h3>libexpat 2.2.1</h3>
-<p>Just after I finally upgraded our libexpat copy to 2.2.0... libexpat 2.2.1 was
-released with new security fixes!  See <a class="reference external" href="http://python-security.readthedocs.io/vuln/cve-2017-9233_expat_2.2.1.html">CVE-2017-9233: Expat 2.2.1</a></p>
-<p>Again, I upgraded libexpat to 2.2.1 in all branches (pending: 3.3), see
-bpo-30694. My commit:</p>
-<blockquote>
-<p>Upgrade expat copy from 2.2.0 to 2.2.1 to get fixes
-of multiple security vulnerabilities including:</p>
-<ul class="simple">
-<li>CVE-2017-9233 (External entity infinite loop DoS),</li>
-<li>CVE-2016-9063 (Integer overflow, re-fix),</li>
-<li>CVE-2016-0718 (Fix regression bugs from 2.2.0's fix to CVE-2016-0718)</li>
-<li>CVE-2012-0876 (Counter hash flooding with SipHash).</li>
-</ul>
-<p>Note: the CVE-2016-5300 (Use os-specific entropy sources like getrandom)
-doesn't impact Python, since Python already gets entropy from the OS to set
-the expat secret using <tt class="docutils literal">XML_SetHashSalt()</tt>.</p>
-</blockquote>
-</div>
-<div class="section" id="urllib-splithost-vulnerability">
-<h3>urllib splithost() vulnerability</h3>
-<p>Vulnerability: <a class="reference external" href="http://python-security.readthedocs.io/vuln/bpo-30500_urllib_connects_to_a_wrong_host.html">bpo-30500: urllib connects to a wrong host</a>.</p>
-<p>While it was quick to confirm the vulnerability, it was tricky to decide how to
-properly <strong>fix it without breaking backward compatibility</strong>. We had too few
-unit tests, and no obvious definition of the <em>expected</em> behaviour. I
-contributed to the discussed and to polish the fix:</p>
-<p>bpo-30500 commit:</p>
-<blockquote>
-Fix urllib.parse.splithost() to correctly parse fragments. For example,
-<tt class="docutils literal"><span class="pre">splithost('//127.0.0.1#&#64;evil.com/')</span></tt> now correctly returns the
-<tt class="docutils literal">127.0.0.1</tt> host, instead of treating <tt class="docutils literal">&#64;evil.com</tt> as the host in an
-authentification (<tt class="docutils literal">login&#64;host</tt>).</blockquote>
-<p>Fix applied to master, 3.6, 3.5, 3.4 and 2.7; pending pull request for 3.3.</p>
-</div>
-<div class="section" id="travis-ci">
-<h3>Travis CI</h3>
-<p>I also wrote a pull request to enable Travis CI and AppVeyor CI on Python 3.3
-and 3.4 branches, to test security on CI. These changes are complex and not
-merged yet, but I am now confident that the CI will be enabled on 3.4!</p>
-<p>My PR for Python 3.4: <a class="reference external" href="https://github.com/python/cpython/pull/2475">[3.4] Backport CI config from master</a>.</p>
-</div>
-</div>
-<div class="section" id="tricky-bug-clang-4-0-dtoa-and-strict-aliasing">
-<h2>Tricky bug: Clang 4.0, dtoa and strict aliasing</h2>
-<p>Aha, another funny story about compilers: bpo-30104.</p>
-<p>I noticed that the following tests started to fail on the &quot;AMD64 FreeBSD
-CURRENT Debug 3.x&quot; buildbot:</p>
-<ul class="simple">
-<li>test_cmath</li>
-<li>test_float</li>
-<li>test_json</li>
-<li>test_marshal</li>
-<li>test_math</li>
-<li>test_statistics</li>
-<li>test_strtod</li>
-</ul>
-<p>First, I bet on a libc change on FreeBSD. Then, I found that test_strtod fails
-on FreeBSD using clang 4.0, but pass on FreeBSD using clang 3.8.</p>
-<p>I started to bisect the code on Linux using a subset of <tt class="docutils literal">Python/dtoa.c</tt>:</p>
-<ul class="simple">
-<li>Start (integrated in CPython code base): 2,876 lines</li>
-<li>dtoa2.c (standalone): 2,865 lines</li>
-<li>dtoa5.c: 50 lines</li>
-</ul>
-<p>Extract of dtoa5.c:</p>
-<pre class="literal-block">
-typedef union { double d; uint32_t L[2]; } U;
-
-struct Bigint { int wds; };
-
-static double
-ratio(struct Bigint *a)
-{
-    U da, db;
-    int k, ka, kb;
-    double r;
-
-    da.d = 1.682;
-    ka = 6;
-    db.d = 1.0;
-    kb = 5;
-    k = ka - kb + 32 * (a-&gt;wds - 12);
-    printf(&quot;k=%i\n&quot;, k);
-
-    if (k &gt; 0)
-        da.L[1] += k * 0x100000;
-    else {
-        k = -k;
-        db.L[1] += k * 0x100000;
-    }
-    r = da.d / db.d;
-    /* r == 3.364 */
-    return r;
-}
-</pre>
-<p>Even if I had a very short C code (50 lines) reproducing the bug, I was still
-unable to understand the bug. I read many articles about aliasing, and I still
-don't understand fully the bug... I suggest you these two good articles:</p>
-<ul class="simple">
-<li><a class="reference external" href="http://cellperformance.beyond3d.com/articles/2006/06/understanding-strict-aliasing.html">Understanding Strict Aliasing</a>
-(Mike Acton, June 1, 2006)</li>
-<li><a class="reference external" href="http://cellperformance.beyond3d.com/articles/2006/05/demystifying-the-restrict-keyword.html">Demystifying The Restrict Keyword</a>
-(Mike Acton, May 29, 2006)</li>
-</ul>
-<p>Anyway, I wanted to report the bug to clang (LLVM), but the LLVM bug tracker was
-migrating and I was unable to subscribe to get an account!</p>
-<p>In the meanwhile, <strong>Dimitry Andric</strong>, a FreeBSD developer, told me that he got
-<em>exactly</em> the same clang 4.0 issue with &quot;dtoa.c&quot; in the <em>julia</em> programming
-language. Two months before I saw the same bug, he already reported the bug to
-FreeBSD: <a class="reference external" href="https://bugs.freebsd.org/216770">lang/julia: fails to build with clang 4.0</a>, and to clang: <a class="reference external" href="https://bugs.llvm.org//show_bug.cgi?id=31928">After r280351: if/else
-blocks incorrectly optimized away?</a>.</p>
-<p>The &quot;problem&quot; is that clang
-developers disagree that it's a bug. In short, the discussion was around the C
-standard: does clang respect C aliasing rules or not? At the end, clang
-developers consider that they are right to optimize. To summarize:</p>
-<blockquote>
-It's a bug in the code, not in the compiler</blockquote>
-<p>So I made a first change to use the <tt class="docutils literal"><span class="pre">-fno-strict-aliasing</span></tt> flag when Python
-is compiled with clang:</p>
-<blockquote>
-Python/dtoa.c is not compiled correctly with clang 4.0 and
-optimization level -O2 or higher, because of an aliasing issue on
-the double/ULong[2] union.</blockquote>
-<p>But this change can make Python slower when compiled on clang, so I was asked
-to only compile <tt class="docutils literal">Python/dtoa.c</tt> with this flag:</p>
-<blockquote>
-On clang, only compile dtoa.c with -fno-strict-aliasing, use strict
-aliasing to compile all other C files.</blockquote>
-</div>
-<div class="section" id="sigwaitinfo-race-condition-in-test-eintr">
-<h2>sigwaitinfo() race condition in test_eintr</h2>
-<div class="section" id="the-tricky-test-eintr">
-<h3>The tricky test_eintr</h3>
-<p>When I wrote and implemented the <a class="reference external" href="https://www.python.org/dev/peps/pep-0475/">PEP 475, Retry system calls failing with
-EINTR</a>, I didn't expect so many
-annoying bugs of the newly written <tt class="docutils literal">test_eintr</tt> unit test. This test calls
-system calls while sending signals every 100 ms. Usually the test tries to
-block on a system call during at least 200 ms, to make sure that the syscall
-was interrupted at least once by a signal, to check that Python correctly
-retries the interrupted system call.</p>
-<p>Since the PEP was implemented, I already fixed many race conditions in
-<tt class="docutils literal">test_eintr</tt>, but there was still a race condition on the <tt class="docutils literal">sigwaitinfo()</tt>
-unit test. <em>Sometimes</em> on a <em>few specific buildbots</em> (FreeBSD), the test fails
-randomly.</p>
-</div>
-<div class="section" id="first-attempt">
-<h3>First attempt</h3>
-<p>My first attempt was the <a class="reference external" href="http://bugs.python.org/issue25277">bpo-25277</a>,
-opened at 2015-09-30. I added faulthandler to dump tracebacks if a test hangs
-longer than 10 minutes. Then I changed the sleep from 200 ms to 2 seconds in
-the <tt class="docutils literal">sigwaitinfo()</tt> test... just to make the bug less likely, but using a
-longer sleep doesn't fix the root issue.</p>
-</div>
-<div class="section" id="second-attempt">
-<h3>Second attempt</h3>
-<p>My second attempt was the <a class="reference external" href="http://bugs.python.org/issue25868">bpo-25868</a>,
-opened at 2015-12-15. I added a pipe to &quot;synchronize the parent and the child
-processes&quot;, to try to make the sigwaitinfo() test a little bit more reliable. I
-also reduced the sleep from 2 seconds to 100 ms.</p>
-<p>7 minutes after my fix, <strong>Martin Panter</strong> wrote:</p>
-<blockquote>
-<p>With the pipe, there is still a potential race after the parent writes to
-the pipe and before sigwaitinfo() is invoked, versus the child sleep()
-call.</p>
-<p>What do you think of my suggestion to block the signal? Then (in theory) it
-should be robust, rather than relying on timing.</p>
-</blockquote>
-<p>I replied that I wasn't sure that sigwaitinfo() EINTR error was still tested if
-we make his proposed change.</p>
-<p>One month later, Martin wrote a patch but I was unable to take a decision on
-his change. In september 2016, Martin noticed a new test failure on the FreeBSD
-9 buildbot.</p>
-</div>
-<div class="section" id="third-attempt">
-<h3>Third attempt</h3>
-<p>My third attempt is the bpo-30320, opened at 2017-05-09. This time, I really
-wanted to fix <em>all</em> buildbot random failures. Since I was now able to reproduce
-the bug on my FreeBSD VM, I was able to write a fix but also to check that:</p>
-<ul class="simple">
-<li>sigwaitinfo() and sigtimedwait() fail with EINTR and Python automatically
-restarts the interrupted syscall</li>
-<li>I hacked the test file to only run the sigwaitinfo() and sigtimedwait() unit
-tests. Running the test in a loop doesn't fail: I ran the test during 5
-minutes in 10 shells (tests running 10 times in parallel) =&gt; no failure, the
-race condition seems to be gone.</li>
-</ul>
-<p>So I <a class="reference external" href="https://github.com/python/cpython/commit/211a392cc15f9a7b1b8ce65d8f6c9f8237d1b77f">pushed my fix</a>:</p>
-<blockquote>
-<p>bpo-30320: test_eintr now uses pthread_sigmask()</p>
-<p>Rewrite sigwaitinfo() and sigtimedwait() unit tests for EINTR using
-pthread_sigmask() to fix a race condition between the child and the
-parent process.</p>
-<p>Remove the pipe which was used as a weak workaround against the race
-condition.</p>
-<p>sigtimedwait() is now tested with a child process sending a signal
-instead of testing the timeout feature which is more unstable
-(especially regarding to clock resolution depending on the platform).</p>
-</blockquote>
-<p>To be honest, I wasn't really confident, when I pushed my fix, that blocking
-the waited signal is the proper fix.</p>
-<p>So it took <strong>1 year and 8 months</strong> to really find and fix the root bug.</p>
-<p>Sadly, while I was working on dozens of other bugs, I completely lost track of
-Martin's patch, even if I opened the bpo-25868. Sorry Martin for forgotting to
-review your patch! But when you wrote it, I was unable to test that
-sigwaitinfo() was still failing with EINTR.</p>
-</div>
-</div>
-<div class="section" id="freebsd-test-subprocess-core-dump">
-<h2>FreeBSD test_subprocess core dump</h2>
-<p>bpo-30448: During one month, some FreeBSD buildbots was emitting this warning
-which started to annoy me, since I was trying to fix <em>all</em> buildbots warnings:</p>
-<pre class="literal-block">
-Warning -- files was modified by test_subprocess
-  Before: []
-  After:  ['python.core']
-</pre>
-<p>I tried and failed to reproduce the warning on my FreeBSD 11 VM. I also asked a
-friend to reproduce the bug, but he also failed. I was developping my
-<tt class="docutils literal">test.bisect</tt> tool and I wanted to get access to a machine to reproduce the
-bug!</p>
-<p>Later, <strong>Kubilay Kocak</strong> aka <em>koobs</em> gave me access to his FreeBSD buildbots
-and in a few seconds with my new test.bisect tool, I identified that the
-<tt class="docutils literal">test_child_terminated_in_stopped_state()</tt> test triggers a deliberate crash,
-but doesn't disable core dump creation. The fix is simple, use
-<tt class="docutils literal">test.support.SuppressCrashReport</tt> context manager. Thanks <em>koobs</em> for the
-access!</p>
-<p>Maybe only FreeBSD 10 and older dump a core on this specific test, not FreeBSD
-11. I don't know why. The test is special, it tests a process which crashs
-while being traced with <tt class="docutils literal">ptrace()</tt>.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">My contributions to CPython …</a></li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -348,7 +304,7 @@ while being traced with <tt class="docutils literal">ptrace()</tt>.</p>
 <li>Stars of the CPython GitHub project</li>
 </ul>
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part 1)</a>.</p>
-<p>Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 ...</a></p>
+<p>Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 …</a></p>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -380,7 +336,7 @@ while being traced with <tt class="docutils literal">ptrace()</tt>.</p>
 <li>make regen-all</li>
 </ul>
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a>.</p>
-<p>Next reports ...</p>
+<p>Next reports …</p>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -406,7 +362,7 @@ while being traced with <tt class="docutils literal">ptrace()</tt>.</p>
 send email notitication on failure, fix random bugs, detect more bugs using
 warnings, backport fixes to older branches, etc. I decided to fix <em>all</em>
 buildbots issues: fix all warnings and all unstable tests!</p>
-<p>The good news ...</p>
+<p>The good news …</p>
                 <a class="readmore" href="https://haypo.github.io/python-buildbots-2017q2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -433,7 +389,7 @@ identify failing tests in the CPython test suite.</p>
 <div class="section" id="modify-manually-a-test-file">
 <h2>Modify manually a test file</h2>
 <p>I am fixing reference leaks since many years. When the test file contains more
-than 200 tests and is longer than 5,000 lines ...</p></div>
+than 200 tests and is longer than 5,000 lines …</p></div>
                 <a class="readmore" href="https://haypo.github.io/python-test-bisect.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -476,7 +432,7 @@ than 200 tests and is longer than 5,000 lines ...</p></div>
 <h2>Statistics</h2>
 <pre class="literal-block">
 # All commits
-$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches ...</pre></div>
+$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches …</pre></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -501,7 +457,7 @@ $ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches ...</pre><
 </footer><!-- /.post-info -->                <p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
-Python 3.7, the few remaining issues are still ...</p>
+Python 3.7, the few remaining issues are still …</p>
                 <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -527,7 +483,7 @@ Python 3.7, the few remaining issues are still ...</p>
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
-that I abandon ...</p>
+that I abandon a …</p>
                 <a class="readmore" href="https://haypo.github.io/fastcall-microbenchmarks.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -558,41 +514,8 @@ understand why!</p>
 </div>
 <div class="section" id="work-on-benchmarks">
 <h2>Work on benchmarks</h2>
-<p>During four months, I worked on making ...</p></div>
+<p>During four months, I worked on making …</p></div>
                 <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2016 Q4">My contributions to CPython during 2016 Q4</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-16T11:00:00+01:00">
-                Published: jeu. 16 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q4
-(october, november, december):</p>
-<pre class="literal-block">
-hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merges -u Stinner
-</pre>
-<p>Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a>.</p>
-<p>Table of Contents:</p>
-<ul class="simple">
-<li>Python startup performance regression</li>
-<li>Optimizations</li>
-<li>Code placement and ...</li></ul>
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q4.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
@@ -603,7 +526,7 @@ hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merge
                 </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
-                        <h2>blogroll</h2>
+                        <h2>links</h2>
                         <ul>
                             <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
                         </ul>

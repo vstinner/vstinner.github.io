@@ -1,5 +1,226 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-07-13T17:00:00+02:00</updated><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-09-07T18:00:00+02:00</updated><entry><title>A New C API for CPython</title><link href="https://haypo.github.io/new-python-c-api.html" rel="alternate"></link><published>2017-09-07T18:00:00+02:00</published><updated>2017-09-07T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-09-07:/new-python-c-api.html</id><summary type="html">&lt;p&gt;I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+of writing a new C API for CPython hiding implementation details and replacing
+macros with function calls.&lt;/p&gt;
+&lt;img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" /&gt;
+&lt;p&gt;This article tries to explain why the CPython C API needs to &lt;strong&gt;evolve&lt;/strong&gt;.&lt;/p&gt;
+&lt;div class="section" id="c-api-prevents-further-optimizations"&gt;
+&lt;h2&gt;C API prevents further optimizations …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+of writing a new C API for CPython hiding implementation details and replacing
+macros with function calls.&lt;/p&gt;
+&lt;img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" /&gt;
+&lt;p&gt;This article tries to explain why the CPython C API needs to &lt;strong&gt;evolve&lt;/strong&gt;.&lt;/p&gt;
+&lt;div class="section" id="c-api-prevents-further-optimizations"&gt;
+&lt;h2&gt;C API prevents further optimizations&lt;/h2&gt;
+&lt;p&gt;The CPython &lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; type uses an array of &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; objects. PyPy
+is able to use a C array of integers if the list only contains small integers.
+CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&amp;gt;ob_item[i]
+&lt;/pre&gt;
+&lt;p&gt;The macro relies on the &lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; structure:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+typedef struct {
+    PyVarObject ob_base;
+    PyObject **ob_item;   // &amp;lt;-- pointer to real data
+    Py_ssize_t allocated;
+} PyListObject;
+
+typedef struct {
+    PyObject ob_base;
+    Py_ssize_t ob_size; /* Number of items in variable part */
+} PyVarObject;
+
+typedef struct _object {
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-and-abi"&gt;
+&lt;h2&gt;API and ABI&lt;/h2&gt;
+&lt;p&gt;Compiling C extension code using &lt;tt class="docutils literal"&gt;PyList_GET_ITEM()&lt;/tt&gt; produces machine code
+accessing &lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; members. Something like (C pseudo code):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject **items;
+PyObject *item;
+items = (PyObject **)(((char*)list) + 24);
+item = items[i];
+&lt;/pre&gt;
+&lt;p&gt;The offset 24 is hardcoded in the C extension object file: the &lt;strong&gt;API&lt;/strong&gt;
+(&lt;strong&gt;programming&lt;/strong&gt; interface) becomes the &lt;strong&gt;ABI&lt;/strong&gt; (&lt;strong&gt;binary&lt;/strong&gt; interface).&lt;/p&gt;
+&lt;p&gt;But debug builds use a different memory layout:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+typedef struct _object {
+    struct _object *_ob_next;   // &amp;lt;--- two new fields are added
+    struct _object *_ob_prev;   // &amp;lt;--- for debug purpose
+    Py_ssize_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+&lt;/pre&gt;
+&lt;p&gt;The machine code becomes something like:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+items = (PyObject **)(((char*)op) + 40);
+item = items[i];
+&lt;/pre&gt;
+&lt;p&gt;The offset changes from 24 to 40 (+16, two pointers of 8 bytes).&lt;/p&gt;
+&lt;p&gt;C extensions have to be recompiled to work on Python compiled in debug mode.&lt;/p&gt;
+&lt;p&gt;Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
+Unicode string: the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--with-wide-unicode&lt;/span&gt;&lt;/tt&gt; configure option.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="stable-abi"&gt;
+&lt;h2&gt;Stable ABI&lt;/h2&gt;
+&lt;p&gt;If the machine code doesn't use the offset, it would be able to only compile C
+extensions once.&lt;/p&gt;
+&lt;p&gt;A solution is to replace PyList_GET_ITEM() &lt;strong&gt;macro&lt;/strong&gt; with a &lt;strong&gt;function&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
+&lt;/pre&gt;
+&lt;p&gt;defined as:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    return ((PyListObject *)list)-&amp;gt;ob_item[i];
+}
+&lt;/pre&gt;
+&lt;p&gt;The machine code becomes a &lt;strong&gt;function call&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject *item;
+item = PyList_GET_ITEM(list, index);
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="specialized-list-for-small-integers"&gt;
+&lt;h2&gt;Specialized list for small integers&lt;/h2&gt;
+&lt;p&gt;If C extension objects don't access structure members anymore, it becomes
+possible to modify the memory layout.&lt;/p&gt;
+&lt;p&gt;For example, it's possible to design a specialized implementation of
+&lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; for small integers:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+typedef struct {
+    PyVarObject ob_base;
+    int use_small_int;
+    PyObject **pyobject_array;
+    int32_t *small_int_array;   // &amp;lt;-- new compact C array for integers
+    Py_ssize_t allocated;
+} PyListObject;
+
+PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
+{
+    PyListObject *list = (PyListObject *)op;
+    if (list-&amp;gt;use_small_int) {
+        int32_t item = list-&amp;gt;small_int_array[index];
+        /* create a new object at each call */
+        return PyLong_FromLong(item);
+    }
+    else {
+        return list-&amp;gt;pyobject_array[index];
+    }
+}
+&lt;/pre&gt;
+&lt;p&gt;It's just an example to show that it becomes possible to modify PyObject
+structures. I'm not sure that it's useful in practice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="multiple-python-runtimes"&gt;
+&lt;h2&gt;Multiple Python &amp;quot;runtimes&amp;quot;&lt;/h2&gt;
+&lt;p&gt;Assuming that all used C extensions use the new stable ABI, we can now imagine
+multiple specialized Python runtimes installed in parallel, instead of a single
+runtime:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;python3.7: regular/legacy CPython, backward compatible&lt;/li&gt;
+&lt;li&gt;python3.7-dbg: runtime checks to ease debug&lt;/li&gt;
+&lt;li&gt;fasterpython3.7: use specialized list&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;python3&lt;/tt&gt; runtime would remain &lt;strong&gt;fully&lt;/strong&gt; compatible since it would use
+the old C API with macros and full structures. So by default, everything will
+continue to work.&lt;/p&gt;
+&lt;p&gt;But the other runtimes require that all imported C extensions were compiled
+with the new C API.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;python3.7-dbg&lt;/span&gt;&lt;/tt&gt; adds more checks tested at runtime. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
+{
+    assert(PyList_Check(list));
+    assert(0 &amp;lt;= index &amp;amp;&amp;amp; index &amp;lt; Py_SIZE(list));
+    return ((PyListObject *)list)-&amp;gt;ob_item[i];
+}
+&lt;/pre&gt;
+&lt;p&gt;Currently, some Linux distributions provide a &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;python3-dbg&lt;/span&gt;&lt;/tt&gt; binary, but may
+not provide &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-dbg&lt;/span&gt;&lt;/tt&gt; binary packages of all C extensions. So all C extensions
+have to be recompiled manually which is quite painful (need to install build
+dependencies, wait until everthing is recompiled, etc.).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="experiment-optimizations"&gt;
+&lt;h2&gt;Experiment optimizations&lt;/h2&gt;
+&lt;p&gt;With the new C API, it becomes possible to implement a new class of
+optimizations.&lt;/p&gt;
+&lt;div class="section" id="tagged-pointer"&gt;
+&lt;h3&gt;Tagged pointer&lt;/h3&gt;
+&lt;p&gt;Store small integers directly into the pointer value. Reduce the memory usage,
+avoid expensive unboxing-boxing.&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer"&gt;Wikipedia: Tagged pointer&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="no-garbage-collector-gc-at-all"&gt;
+&lt;h3&gt;No garbage collector (GC) at all&lt;/h3&gt;
+&lt;p&gt;Python runtime without GC at all. Remove the following header from objects
+tracked by the GC:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+struct {
+    union _gc_head *gc_next;
+    union _gc_head *gc_prev;
+    Py_ssize_t gc_refs;
+} PyGC_Head;
+&lt;/pre&gt;
+&lt;p&gt;It would remove 24 bytes per object tracked by the GC.&lt;/p&gt;
+&lt;p&gt;For comparison, the smallest Python object is &amp;quot;object()&amp;quot; which only takes 16
+bytes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="tracing-garbage-collector-without-reference-counting"&gt;
+&lt;h3&gt;Tracing garbage collector without reference counting&lt;/h3&gt;
+&lt;p&gt;This idea is really the most complex and most experimental idea, but IMHO it's
+required to &amp;quot;unlock&amp;quot; Python performances.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Write a new API to keep track of pointers:&lt;ul&gt;
+&lt;li&gt;Declare a variable storing a &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; object&lt;/li&gt;
+&lt;li&gt;Set a pointer&lt;/li&gt;
+&lt;li&gt;Maybe also read a pointer?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Modify C extensions to use this new API&lt;/li&gt;
+&lt;li&gt;Implement a tracing garbage collector which can move objects in memory
+to compact memory&lt;/li&gt;
+&lt;li&gt;Remove reference counting&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It even seems possible to implement a tracing garbage collector &lt;strong&gt;and&lt;/strong&gt; use
+reference counting. But I'm not an expert in this area, need to dig the topic.&lt;/p&gt;
+&lt;p&gt;Questions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Is it possible to fix all C extensions to use the new API? Should be an
+opt-in option in a first stage.&lt;/li&gt;
+&lt;li&gt;Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
+using an hash table which maintains a reference counter outside &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt;?&lt;/li&gt;
+&lt;li&gt;Do we need to fix all C extensions?&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Read also &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection"&gt;Wikipedia: Tracing garbage collection&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gilectomy"&gt;
+&lt;h3&gt;Gilectomy&lt;/h3&gt;
+&lt;p&gt;Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
+able to reemove the GIL.&lt;/p&gt;
+&lt;p&gt;Removing reference counting would make Gilectomy much simpler.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</content><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><updated>2017-07-13T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:/contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Security&lt;/li&gt;
+&lt;li&gt;Trick bug: Clang 4.0, dtoa and strict aliasing&lt;/li&gt;
+&lt;li&gt;sigwaitinfo() race condition in test_eintr&lt;/li&gt;
+&lt;li&gt;FreeBSD test_subprocess core dump&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Previous reports:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part 1)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html"&gt;My contributions to CPython …&lt;/a&gt;&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Security&lt;/li&gt;
 &lt;li&gt;Trick bug: Clang 4.0, dtoa and strict aliasing&lt;/li&gt;
@@ -280,7 +501,17 @@ access!&lt;/p&gt;
 11. I don't know why. The test is special, it tests a process which crashs
 while being traced with &lt;tt class="docutils literal"&gt;ptrace()&lt;/tt&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 2)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part2.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part2.html</id><summary type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 2)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part2.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><updated>2017-07-13T16:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:/contrib-cpython-2017q2-part2.html</id><summary type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Mentoring&lt;/li&gt;
+&lt;li&gt;Reference and memory leaks&lt;/li&gt;
+&lt;li&gt;Contributions&lt;/li&gt;
+&lt;li&gt;Enhancements&lt;/li&gt;
+&lt;li&gt;Bugfixes&lt;/li&gt;
+&lt;li&gt;Stars of the CPython GitHub project&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part 1)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html"&gt;My contributions to CPython during 2017 Q2 …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Mentoring&lt;/li&gt;
 &lt;li&gt;Reference and memory leaks&lt;/li&gt;
@@ -468,7 +699,17 @@ where it got a bit of traction. Terry Jan Reedy also &lt;a class="reference exte
 &lt;a class="reference external image-reference" href="https://github.com/showcases/programming-languages"&gt;&lt;img alt="GitHub showcase: Programming languages" src="https://haypo.github.io/images/github_cpython_stars.png" /&gt;&lt;/a&gt;
 &lt;p&gt;CPython now has 11,512 stars, only 861 stars behind PHP ;-)&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 1)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part1.html" rel="alternate"></link><published>2017-07-13T16:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:contrib-cpython-2017q2-part1.html</id><summary type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 1)</title><link href="https://haypo.github.io/contrib-cpython-2017q2-part1.html" rel="alternate"></link><published>2017-07-13T16:00:00+02:00</published><updated>2017-07-13T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:/contrib-cpython-2017q2-part1.html</id><summary type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Statistics&lt;/li&gt;
+&lt;li&gt;Buidbots and test.bisect&lt;/li&gt;
+&lt;li&gt;Python 3.6.0 regression&lt;/li&gt;
+&lt;li&gt;struct.Struct.format type&lt;/li&gt;
+&lt;li&gt;Optimization: one less syscall per open() call&lt;/li&gt;
+&lt;li&gt;make regen-all&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html"&gt;My contributions to CPython during 2017 Q1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next reports …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Statistics&lt;/li&gt;
 &lt;li&gt;Buidbots and test.bisect&lt;/li&gt;
@@ -609,7 +850,11 @@ compilation outside the source directory&lt;/li&gt;
 &lt;p&gt;Note: By default, &lt;tt class="docutils literal"&gt;$(PYTHON_FOR_REGEN)&lt;/tt&gt; is no more used nor needed by &amp;quot;make&amp;quot;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>Work on Python buildbots, 2017 Q2</title><link href="https://haypo.github.io/python-buildbots-2017q2.html" rel="alternate"></link><published>2017-07-13T09:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:python-buildbots-2017q2.html</id><summary type="html">&lt;p&gt;I spent the last 6 months on working on buildbots: reduce the failure rate,
+</content><category term="cpython"></category></entry><entry><title>Work on Python buildbots, 2017 Q2</title><link href="https://haypo.github.io/python-buildbots-2017q2.html" rel="alternate"></link><published>2017-07-13T09:00:00+02:00</published><updated>2017-07-13T09:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-13:/python-buildbots-2017q2.html</id><summary type="html">&lt;p&gt;I spent the last 6 months on working on buildbots: reduce the failure rate,
+send email notitication on failure, fix random bugs, detect more bugs using
+warnings, backport fixes to older branches, etc. I decided to fix &lt;em&gt;all&lt;/em&gt;
+buildbots issues: fix all warnings and all unstable tests!&lt;/p&gt;
+&lt;p&gt;The good news …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I spent the last 6 months on working on buildbots: reduce the failure rate,
 send email notitication on failure, fix random bugs, detect more bugs using
 warnings, backport fixes to older branches, etc. I decided to fix &lt;em&gt;all&lt;/em&gt;
 buildbots issues: fix all warnings and all unstable tests!&lt;/p&gt;
@@ -1050,7 +1295,12 @@ failures.&lt;/li&gt;
 &lt;li&gt;June 29: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148511.html"&gt;Buildbot report (almost July)&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>New Python test.bisect tool</title><link href="https://haypo.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-12:python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
+</content><category term="cpython"></category></entry><entry><title>New Python test.bisect tool</title><link href="https://haypo.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><updated>2017-07-12T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-12:/python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
+identify failing tests in the CPython test suite.&lt;/p&gt;
+&lt;div class="section" id="modify-manually-a-test-file"&gt;
+&lt;h2&gt;Modify manually a test file&lt;/h2&gt;
+&lt;p&gt;I am fixing reference leaks since many years. When the test file contains more
+than 200 tests and is longer than 5,000 lines …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
 identify failing tests in the CPython test suite.&lt;/p&gt;
 &lt;div class="section" id="modify-manually-a-test-file"&gt;
 &lt;h2&gt;Modify manually a test file&lt;/h2&gt;
@@ -1231,7 +1481,28 @@ Tests result: ENV CHANGED
 &lt;p&gt;Ok right, there is something wrong with test_keywords(). I just opened
 the &lt;a class="reference external" href="http://bugs.python.org/issue30908"&gt;bpo-30908&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category><category term="tests"></category></entry><entry><title>My contributions to CPython during 2017 Q1</title><link href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="alternate"></link><published>2017-07-05T12:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-05:contrib-cpython-2017q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
+</content><category term="cpython"></category><category term="tests"></category></entry><entry><title>My contributions to CPython during 2017 Q1</title><link href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="alternate"></link><published>2017-07-05T12:00:00+02:00</published><updated>2017-07-05T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-07-05:/contrib-cpython-2017q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
+(january, februrary, march):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Statistics&lt;/li&gt;
+&lt;li&gt;Optimization&lt;/li&gt;
+&lt;li&gt;Tricky bug&lt;/li&gt;
+&lt;li&gt;FASTCALL optimizations&lt;/li&gt;
+&lt;li&gt;Stack consumption&lt;/li&gt;
+&lt;li&gt;Contributions&lt;/li&gt;
+&lt;li&gt;os.urandom() and getrandom()&lt;/li&gt;
+&lt;li&gt;Migration to GitHub&lt;/li&gt;
+&lt;li&gt;Enhancements&lt;/li&gt;
+&lt;li&gt;Security&lt;/li&gt;
+&lt;li&gt;regrtest&lt;/li&gt;
+&lt;li&gt;Bugfixes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to CPython during 2016 Q4&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="statistics"&gt;
+&lt;h2&gt;Statistics&lt;/h2&gt;
+&lt;pre class="literal-block"&gt;
+# All commits
+$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches …&lt;/pre&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Statistics&lt;/li&gt;
@@ -1752,7 +2023,13 @@ test_timestamp_limits().&lt;/li&gt;
 using unsigned integers to support very large inodes (larger than 2^31).&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>speed.python.org results: March 2017</title><link href="https://haypo.github.io/speed-python-org-march-2017.html" rel="alternate"></link><published>2017-03-29T00:40:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-03-29:speed-python-org-march-2017.html</id><summary type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
+</content><category term="cpython"></category></entry><entry><title>speed.python.org results: March 2017</title><link href="https://haypo.github.io/speed-python-org-march-2017.html" rel="alternate"></link><published>2017-03-29T00:40:00+02:00</published><updated>2017-03-29T00:40:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-03-29:/speed-python-org-march-2017.html</id><summary type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
+Git: read &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html"&gt;[Python-Dev] CPython is now on GitHub&lt;/a&gt; by
+Brett Cannon.&lt;/p&gt;
+&lt;p&gt;In 2016, I worked on speed.python.org to automate running benchmarks and make
+benchmarks more stable. At the end, I had a single command to:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;tune …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
 Git: read &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html"&gt;[Python-Dev] CPython is now on GitHub&lt;/a&gt; by
 Brett Cannon.&lt;/p&gt;
 &lt;p&gt;In 2016, I worked on speed.python.org to automate running benchmarks and make
@@ -1874,7 +2151,10 @@ to see the size of previous tempoary performance spikes.&lt;/p&gt;
 &lt;p&gt;xml_etre_iterparse:&lt;/p&gt;
 &lt;img alt="xml_etre_iterparse" src="https://haypo.github.io/images/speed2017/xml_etre_iterparse.png" /&gt;
 &lt;/div&gt;
-</summary><category term="benchmark"></category></entry><entry><title>FASTCALL issues</title><link href="https://haypo.github.io/fastcall-issues.html" rel="alternate"></link><published>2017-02-25T00:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-25:fastcall-issues.html</id><summary type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+</content><category term="benchmark"></category></entry><entry><title>FASTCALL issues</title><link href="https://haypo.github.io/fastcall-issues.html" rel="alternate"></link><published>2017-02-25T00:00:00+01:00</published><updated>2017-02-25T00:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-25:/fastcall-issues.html</id><summary type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
+are already part of Python 3.6.0, some are already merged into the future
+Python 3.7, the few remaining issues are still …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
 Python 3.7, the few remaining issues are still open.&lt;/p&gt;
@@ -1946,7 +2226,11 @@ METH_FASTCALL.&lt;/p&gt;
 &lt;li&gt;2017-02-08: &lt;a class="reference external" href="http://bugs.python.org/issue29502"&gt;Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>FASTCALL microbenchmarks</title><link href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-24:fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
+</content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>FASTCALL microbenchmarks</title><link href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><updated>2017-02-24T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-24:/fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
+dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
+them into a new Git repository: &lt;a class="reference external" href="https://github.com/haypo/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
+CPython developers to prove that an optimization is worth it. It's not uncommon
+that I abandon a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: &lt;a class="reference external" href="https://github.com/haypo/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
@@ -2139,7 +2423,16 @@ implemented in Python:&lt;/p&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Benchmarks were run on &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;speed-python&lt;/span&gt;&lt;/tt&gt;, server used to run CPython benchmarks.&lt;/p&gt;
-</summary><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>The start of the FASTCALL project</title><link href="https://haypo.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
+</content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>The start of the FASTCALL project</title><link href="https://haypo.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><updated>2017-02-16T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:/start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
+&lt;h2&gt;False start&lt;/h2&gt;
+&lt;p&gt;In April 2016, I experimented a Python change to avoid temporary tuple to call
+functions. Builtin functions were between 20 and 50% faster!&lt;/p&gt;
+&lt;p&gt;Sadly, some benchmarks were randomy slower. It will take me four months to
+understand why!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="work-on-benchmarks"&gt;
+&lt;h2&gt;Work on benchmarks&lt;/h2&gt;
+&lt;p&gt;During four months, I worked on making …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="false-start"&gt;
 &lt;h2&gt;False start&lt;/h2&gt;
 &lt;p&gt;In April 2016, I experimented a Python change to avoid temporary tuple to call
 functions. Builtin functions were between 20 and 50% faster!&lt;/p&gt;
@@ -2221,7 +2514,18 @@ review.&lt;/blockquote&gt;
 patches adding new private functions and then modify code to call these new
 functions.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
+</content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><updated>2017-02-16T11:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-16:/contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
+(october, november, december):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to CPython during 2016 Q3&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Table of Contents:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Python startup performance regression&lt;/li&gt;
+&lt;li&gt;Optimizations&lt;/li&gt;
+&lt;li&gt;Code placement and …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
 (october, november, december):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
@@ -2562,7 +2866,8 @@ this is suboptimal. Update the documentation to suggest to reuse the
 &lt;tt class="docutils literal"&gt;hash()&lt;/tt&gt; function on a tuple, with an example.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q3</title><link href="https://haypo.github.io/contrib-cpython-2016q3.html" rel="alternate"></link><published>2017-02-14T19:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:contrib-cpython-2016q3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q3
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q3</title><link href="https://haypo.github.io/contrib-cpython-2016q3.html" rel="alternate"></link><published>2017-02-14T19:00:00+01:00</published><updated>2017-02-14T19:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:/contrib-cpython-2016q3.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2016 Q3&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q3
 (july, august, september):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-07-01&amp;quot;):date(&amp;quot;2016-09-30&amp;quot;)' --no-merges -u Stinner
@@ -2875,7 +3180,12 @@ Python performance is too important. &lt;tt class="docutils literal"&gt;DEBUG_PY
 &lt;tt class="docutils literal"&gt;gcc &lt;span class="pre"&gt;-D&lt;/span&gt; DEBUG_PYDICT&lt;/tt&gt;) to check also dictionaries content.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>CPython sprint, september 2016</title><link href="https://haypo.github.io/cpython-sprint-2016.html" rel="alternate"></link><published>2017-02-14T18:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:cpython-sprint-2016.html</id><summary type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
+</content><category term="cpython"></category></entry><entry><title>CPython sprint, september 2016</title><link href="https://haypo.github.io/cpython-sprint-2016.html" rel="alternate"></link><published>2017-02-14T18:00:00+01:00</published><updated>2017-02-14T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:/cpython-sprint-2016.html</id><summary type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
+5-9, at Instagram office in California, USA. The sprint was sponsored by
+Instagram, Microsoft, and the PSF.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;First little game:&lt;/strong&gt; Many happy faces, but &lt;em&gt;Where is Victor?&lt;/em&gt;&lt;/p&gt;
+&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;&lt;img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;IMHO it was the most productive CPython week ever :-) Having …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
 5-9, at Instagram office in California, USA. The sprint was sponsored by
 Instagram, Microsoft, and the PSF.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;First little game:&lt;/strong&gt; Many happy faces, but &lt;em&gt;Where is Victor?&lt;/em&gt;&lt;/p&gt;
@@ -2955,7 +3265,13 @@ specific case.&lt;/p&gt;
 &lt;p&gt;Read also the official report: &lt;a class="reference external" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;Python Core Development Sprint 2016: 3.6 and
 beyond!&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>PEP 524: os.urandom() now blocks on Linux in Python 3.6</title><link href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
+</content><category term="cpython"></category></entry><entry><title>PEP 524: os.urandom() now blocks on Linux in Python 3.6</title><link href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><updated>2017-02-14T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-14:/pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
+&lt;h2&gt;getrandom() avoids file descriptors&lt;/h2&gt;
+&lt;p&gt;Last years, I'm making sometimes enhancements in the Python code used to
+generate random numbers, the C implementation of &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;. My main two
+changes were to use the new &lt;tt class="docutils literal"&gt;getentropy()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;getrandom()&lt;/tt&gt; functions when
+available on Linux, Solaris, OpenBSD, etc.&lt;/p&gt;
+&lt;p&gt;In 2013, &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt; opened …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
 &lt;h2&gt;getrandom() avoids file descriptors&lt;/h2&gt;
 &lt;p&gt;Last years, I'm making sometimes enhancements in the Python code used to
 generate random numbers, the C implementation of &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;. My main two
@@ -3059,7 +3375,16 @@ until the system urandom entropy pool is initialized to increase the security.&l
 &lt;li&gt;&lt;a class="reference external" href="https://lwn.net/Articles/711013/"&gt;The long road to getrandom() in glibc&lt;/a&gt; (January 2017)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category><category term="security"></category></entry><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-12:contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
+</content><category term="cpython"></category><category term="security"></category></entry><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://haypo.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><updated>2017-02-12T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-12:/contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
+(april, may, june):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to CPython during 2016 Q1&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="start-of-my-work-on-optimization"&gt;
+&lt;h2&gt;Start of my work on optimization&lt;/h2&gt;
+&lt;p&gt;During 2016 Q2, I started …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
 (april, may, june):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner
@@ -3212,7 +3537,16 @@ written by &lt;strong&gt;Michał Bednarski&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Issue #26647: Fix typo in test_grammar. Patch written by &lt;strong&gt;Demur Rumed&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q1</title><link href="https://haypo.github.io/contrib-cpython-2016q1.html" rel="alternate"></link><published>2017-02-09T17:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-09:contrib-cpython-2016q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q1</title><link href="https://haypo.github.io/contrib-cpython-2016q1.html" rel="alternate"></link><published>2017-02-09T17:00:00+01:00</published><updated>2017-02-09T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-09:/contrib-cpython-2016q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
+(january, februrary, march):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+hg log -r 'date(&amp;quot;2016-01-01&amp;quot;):date(&amp;quot;2016-03-31&amp;quot;)' --no-merges -u Stinner
+&lt;/pre&gt;
+&lt;p&gt;Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html"&gt;My contributions to CPython during 2015 Q4&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="summary"&gt;
+&lt;h2&gt;Summary&lt;/h2&gt;
+&lt;p&gt;Since this report is much longer than I expected, here …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-01-01&amp;quot;):date(&amp;quot;2016-03-31&amp;quot;)' --no-merges -u Stinner
@@ -3736,7 +4070,13 @@ up to 80% faster. Patch written by &lt;strong&gt;Josh Snider&lt;/strong&gt;.&lt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>Analysis of a Python performance issue</title><link href="https://haypo.github.io/analysis-python-performance-issue.html" rel="alternate"></link><published>2016-11-19T00:30:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-11-19:analysis-python-performance-issue.html</id><summary type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
+</content><category term="cpython"></category></entry><entry><title>Analysis of a Python performance issue</title><link href="https://haypo.github.io/analysis-python-performance-issue.html" rel="alternate"></link><published>2016-11-19T00:30:00+01:00</published><updated>2016-11-19T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-11-19:/analysis-python-performance-issue.html</id><summary type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
+upload results to &lt;a class="reference external" href="http://speed.python.org/"&gt;speed.python.org&lt;/a&gt;. While
+analying results, I noticed a temporary peak on the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt;
+benchmark at October 19th:&lt;/p&gt;
+&lt;img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" /&gt;
+&lt;p&gt;The graphic shows the performance of the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt; microbenchmark between
+Feb 29, 2016 …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
 upload results to &lt;a class="reference external" href="http://speed.python.org/"&gt;speed.python.org&lt;/a&gt;. While
 analying results, I noticed a temporary peak on the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt;
 benchmark at October 19th:&lt;/p&gt;
@@ -4069,7 +4409,8 @@ He describes well &amp;quot;performance swings&amp;quot; like the one described 
 and explains how CPUs work internally and how code placement impacts CPU
 performances.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</title><link href="https://haypo.github.io/intel-cpus-part2.html" rel="alternate"></link><published>2016-09-23T23:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-09-23:intel-cpus-part2.html</id><summary type="html">&lt;p&gt;My first article &lt;a class="reference external" href="https://haypo.github.io/intel-cpus.html"&gt;Intel CPUs&lt;/a&gt; is a general
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</title><link href="https://haypo.github.io/intel-cpus-part2.html" rel="alternate"></link><published>2016-09-23T23:00:00+02:00</published><updated>2016-09-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-09-23:/intel-cpus-part2.html</id><summary type="html">&lt;p class="first last"&gt;Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;My first article &lt;a class="reference external" href="https://haypo.github.io/intel-cpus.html"&gt;Intel CPUs&lt;/a&gt; is a general
 introduction on modern CPU technologies having an impact on benchmarks.&lt;/p&gt;
 &lt;p&gt;This second article is much more concrete with numbers and a concrete bug
 having a major impact on benchmarks: a benchmark suddenly becomes 2x faster!&lt;/p&gt;
@@ -4247,7 +4588,8 @@ It seems like nothing can reduce the frequency of a CPU below its minimum.&lt;/p
 &lt;p&gt;&lt;strong&gt;When running benchmarks, raw timings and CPU performance don't matter. Only
 comparisons between benchmark results and stable performances matter.&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</title><link href="https://haypo.github.io/intel-cpus.html" rel="alternate"></link><published>2016-07-15T12:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-07-15:intel-cpus.html</id><summary type="html">&lt;p&gt;Ten years ago, most computers were desktop computers designed for best
+</content><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</title><link href="https://haypo.github.io/intel-cpus.html" rel="alternate"></link><published>2016-07-15T12:00:00+02:00</published><updated>2016-07-15T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-07-15:/intel-cpus.html</id><summary type="html">&lt;p class="first last"&gt;Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;Ten years ago, most computers were desktop computers designed for best
 performances and their CPU frequency was fixed. Nowadays, most devices are
 embedded and use &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Low-power_electronics"&gt;low power consumption&lt;/a&gt; processors like ARM
 CPUs. The power consumption now matters more than performance peaks.&lt;/p&gt;
@@ -4609,7 +4951,11 @@ more information on the coprocessor.&lt;/p&gt;
 &lt;p&gt;More recently, the Intel Xeon Phi CPU (2016) also includes a coprocessor for
 power management. I didn't understand if it is the same coprocessor or not.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
+</content><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><updated>2016-06-16T13:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:/perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
+stable benchmarks, give fine control on benchmark parameters and compute
+statistics on results. With such tool, it becomes simple to &lt;em&gt;visualize&lt;/em&gt;
+sources of noise. The CPU isolation will be used to visualize the system noise.
+Running a benchmark on isolated CPUs …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
 stable benchmarks, give fine control on benchmark parameters and compute
 statistics on results. With such tool, it becomes simple to &lt;em&gt;visualize&lt;/em&gt;
 sources of noise. The CPU isolation will be used to visualize the system noise.
@@ -4732,7 +5078,8 @@ compared to results with CPU isolation:&lt;/p&gt;
 &lt;/ul&gt;
 &lt;p&gt;It explains why CPU isolation helps to make benchmarks more stable.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><published>2016-05-23T23:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:journey-to-stable-benchmark-average.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
+</content><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><published>2016-05-23T23:00:00+02:00</published><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:/journey-to-stable-benchmark-average.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 3 (average)&lt;/p&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Stable benchmarks are so close, but ...&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="address-space-layout-randomization"&gt;
 &lt;h2&gt;Address Space Layout Randomization&lt;/h2&gt;
@@ -4955,7 +5302,8 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 &lt;/pre&gt;
 &lt;p&gt;Always the same timing!&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><published>2016-05-22T22:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><published>2016-05-22T22:00:00+02:00</published><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:/journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 2 (deadcode)&lt;/p&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
 expected to get very stable benchmarks and so I started to benchmark seriously
 my &lt;a class="reference external" href="https://bugs.python.org/issue26814"&gt;FASTCALL branch&lt;/a&gt; of CPython (a new
@@ -5045,7 +5393,8 @@ execution of the Python test suite.&lt;/p&gt;
 time, no? ... No, sorry, not yet. We will see more sources of noise in
 following articles ;-)&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><published>2016-05-21T16:50:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:journey-to-stable-benchmark-system.html</id><summary type="html">&lt;div class="section" id="background"&gt;
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><published>2016-05-21T16:50:00+02:00</published><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:/journey-to-stable-benchmark-system.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 1&lt;/p&gt;
+</summary><content type="html">&lt;div class="section" id="background"&gt;
 &lt;h2&gt;Background&lt;/h2&gt;
 &lt;p&gt;In the CPython development, it became common to require the result of the
 &lt;a class="reference external" href="https://hg.python.org/benchmarks"&gt;CPython benchmark suite&lt;/a&gt; (&amp;quot;The Grand
@@ -5182,7 +5531,8 @@ idle system! CPU isolation removes most of the noise of the system.&lt;/p&gt;
 I found a lot of other sources of &amp;quot;noise&amp;quot;.  We will see them in the following
 articles ;-)&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><published>2016-03-02T14:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:openstack_mitaka_python3.html</id><summary type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://haypo.github.io/openstack_mitaka_python3.html" rel="alternate"></link><published>2016-03-02T14:00:00+01:00</published><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-02:/openstack_mitaka_python3.html</id><summary type="html">&lt;p class="first last"&gt;Status of Python 3 in OpenStack Mitaka&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
 cycle (November 2015-April 2016), it's time to look back on the progress made
 for Python 3 support.&lt;/p&gt;
 &lt;p&gt;Previous status update: &lt;a class="reference external" href="http://techs.enovance.com/7807/python-3-status-openstack-liberty"&gt;Python 3 Status in OpenStack Liberty&lt;/a&gt;
@@ -5294,7 +5644,8 @@ a lot of information about adding Python 3 support to Python 2 code.&lt;/p&gt;
 &lt;p&gt;Join us in the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;#openstack-python3&lt;/span&gt;&lt;/tt&gt; IRC channel on Freenode to discuss
 Python 3!&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://haypo.github.io/pybyteswriter.html" rel="alternate"></link><published>2016-03-01T16:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:pybyteswriter.html</id><summary type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
+</content><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://haypo.github.io/pybyteswriter.html" rel="alternate"></link><published>2016-03-01T16:00:00+01:00</published><updated>2016-03-01T16:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:/pybyteswriter.html</id><summary type="html">&lt;p class="first last"&gt;_PyBytesWriter API&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
 CPython. These APIs are design to optimize code producing strings when the
 ouput size is not known in advance.&lt;/p&gt;
 &lt;p&gt;I created the _PyUnicodeWriter API to reply to complains that Python 3 was much
@@ -5522,7 +5873,8 @@ faster on a microbenchmark.&lt;/p&gt;
 &lt;p&gt;Later, I replaced &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; type with &lt;tt class="docutils literal"&gt;void*&lt;/tt&gt; to avoid compiler warnings
 in functions using &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;unsigned char*&lt;/tt&gt;, unsigned types.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:contrib-cpython-2015q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2015 Q4
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-03-01:/contrib-cpython-2015q4.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2015 Q4&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2015 Q4
 (october, november, december):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2015-10-01&amp;quot;):date(&amp;quot;2015-12-31&amp;quot;)' --no-merges -u Stinner
@@ -5666,7 +6018,8 @@ to FAT Python ;-)&lt;/li&gt;
 &lt;li&gt;Issue #25696: Fix installation of Python on UNIX with make -j9.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><published>2016-02-18T01:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:contrib-cpython-2015q3.html</id><summary type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><published>2016-02-18T01:00:00+01:00</published><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-18:/contrib-cpython-2015q3.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2015 Q3&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
 perfect, there are no more bugs, right?&amp;quot;. The article list most of my
 contributions to CPython during 2015 Q3 (july, august, september). It gives an
 idea of which areas of Python are not perfect yet :-)&lt;/p&gt;
@@ -5785,7 +6138,8 @@ becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.&lt;/li&gt;
 function instead of the getentropy() function.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><published>2016-02-17T22:00:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:pytime.html</id><summary type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
+</content><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://haypo.github.io/pytime.html" rel="alternate"></link><published>2016-02-17T22:00:00+01:00</published><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-02-17:/pytime.html</id><summary type="html">&lt;p class="first last"&gt;History of the Python private C API _PyTime&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
 various formats. I expected to spend a few days, at the end I spent 3 years
 (2012-2015) on them!&lt;/p&gt;
 &lt;div class="section" id="python-3-3"&gt;
@@ -5850,7 +6204,8 @@ locale timestamp for example. Timezones are still an hot topic: the
 &lt;a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig"&gt;datetime-sig mailing list&lt;/a&gt; was created to
 enhance timezone support in Python.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><published>2016-01-12T13:42:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:fat-python-status-janv12-2016.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://haypo.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><published>2016-01-12T13:42:00+01:00</published><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-01-12:/fat-python-status-janv12-2016.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, January 12, 2016&lt;/p&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: &lt;a class="reference external" href="https://haypo.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
@@ -6063,7 +6418,8 @@ reference to simplify the code&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><published>2015-11-26T17:30:00+01:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:fat-python-status-nov26-2015.html</id><summary type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
+</content><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://haypo.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><published>2015-11-26T17:30:00+01:00</published><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-11-26:/fat-python-status-nov26-2015.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, November 26, 2015&lt;/p&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://haypo.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
 &lt;div class="section" id="documentation"&gt;
@@ -6184,7 +6540,8 @@ instead of a &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
 the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type (and the &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; type is removed).&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</summary><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><published>2015-06-16T15:00:00+02:00</published><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:python3-sixer.html</id><summary type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
+</content><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://haypo.github.io/python3-sixer.html" rel="alternate"></link><published>2015-06-16T15:00:00+02:00</published><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2015-06-16:/python3-sixer.html</id><summary type="html">&lt;p class="first last"&gt;Port your Python 2 applications to Python 3 with sixer&lt;/p&gt;
+</summary><content type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
 &lt;h2&gt;From 2to3 to 2to6&lt;/h2&gt;
 &lt;p&gt;When Python 3.0 was released, the official statement was to port your
 application using &lt;a class="reference external" href="https://docs.python.org/3.5/library/2to3.html"&gt;2to3&lt;/a&gt; and
@@ -6331,4 +6688,4 @@ for to port OpenStack, it saved me hours.&lt;/p&gt;
 &lt;p&gt;I hope that the tool will now be useful to others! Don't hesitate to give me
 feedback.&lt;/p&gt;
 &lt;/div&gt;
-</summary><category term="python3"></category><category term="sixer"></category></entry></feed>
+</content><category term="python3"></category><category term="sixer"></category></entry></feed>

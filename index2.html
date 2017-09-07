@@ -24,6 +24,37 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://haypo.github.io/start-fastcall-project.html" rel="bookmark"
+                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-16T17:00:00+01:00">
+                Published: jeu. 16 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <div class="section" id="false-start">
+<h2>False start</h2>
+<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
+functions. Builtin functions were between 20 and 50% faster!</p>
+<p>Sadly, some benchmarks were randomy slower. It will take me four months to
+understand why!</p>
+</div>
+<div class="section" id="work-on-benchmarks">
+<h2>Work on benchmarks</h2>
+<p>During four months, I worked on making …</p></div>
+                <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="bookmark"
                            title="Permalink to My contributions to CPython during 2016 Q4">My contributions to CPython during 2016 Q4</a></h1>
                 </header>
@@ -50,7 +81,7 @@ hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merge
 <ul class="simple">
 <li>Python startup performance regression</li>
 <li>Optimizations</li>
-<li>Code placement and ...</li></ul>
+<li>Code placement and …</li></ul>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q4.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -100,7 +131,7 @@ hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merge
 Instagram, Microsoft, and the PSF.</p>
 <p><strong>First little game:</strong> Many happy faces, but <em>Where is Victor?</em></p>
 <a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://haypo.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
-<p>IMHO it was the most productive CPython week ever :-) Having ...</p>
+<p>IMHO it was the most productive CPython week ever :-) Having …</p>
                 <a class="readmore" href="https://haypo.github.io/cpython-sprint-2016.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -128,7 +159,7 @@ Instagram, Microsoft, and the PSF.</p>
 generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
 changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
 available on Linux, Solaris, OpenBSD, etc.</p>
-<p>In 2013, <tt class="docutils literal">os.urandom ...</tt></p></div>
+<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened …</p></div>
                 <a class="readmore" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -159,7 +190,7 @@ hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merge
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>.</p>
 <div class="section" id="start-of-my-work-on-optimization">
 <h2>Start of my work on optimization</h2>
-<p>During 2016 Q2, I started ...</p></div>
+<p>During 2016 Q2, I started …</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -190,7 +221,7 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
 <p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>.</p>
 <div class="section" id="summary">
 <h2>Summary</h2>
-<p>Since this report is much longer than I expected, here ...</p></div>
+<p>Since this report is much longer than I expected, here …</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -218,7 +249,7 @@ analying results, I noticed a temporary peak on the <tt class="docutils literal"
 benchmark at October 19th:</p>
 <img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" />
 <p>The graphic shows the performance of the <tt class="docutils literal">call_method</tt> microbenchmark between
-Feb 29, 2016 ...</p>
+Feb 29, 2016 …</p>
                 <a class="readmore" href="https://haypo.github.io/analysis-python-performance-issue.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -268,32 +299,6 @@ Feb 29, 2016 ...</p>
                 <a class="readmore" href="https://haypo.github.io/intel-cpus.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="bookmark"
-                           title="Permalink to Visualize the system noise using perf and CPU isolation">Visualize the system noise using perf and CPU isolation</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-06-16T13:30:00+02:00">
-                Published: jeu. 16 juin 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->                <p>I developed a new <a class="reference external" href="http://perf.readthedocs.io/">perf module</a> designed to run
-stable benchmarks, give fine control on benchmark parameters and compute
-statistics on results. With such tool, it becomes simple to <em>visualize</em>
-sources of noise. The CPU isolation will be used to visualize the system noise.
-Running a benchmark on isolated CPUs ...</p>
-                <a class="readmore" href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
         <a href="https://haypo.github.io/index.html">&laquo;</a>
@@ -303,7 +308,7 @@ Running a benchmark on isolated CPUs ...</p>
                 </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
-                        <h2>blogroll</h2>
+                        <h2>links</h2>
                         <ul>
                             <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
                         </ul>
