@@ -25,6 +25,9 @@ test_logging threads
 * Manual bisection: continue to bisect until the bug occurs
 * Cancel bisection (go backward) if the warning is no more emitted
 
+https://bugs.python.org/issue30830
+https://bugs.python.org/issue31233
+
 Bug in socketserver.
 
 Bug only occurs on FreeBSD 10 because the buildbot is slow. threading_cleanup()
