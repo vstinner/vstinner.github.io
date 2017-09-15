@@ -22,7 +22,136 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/new-python-c-api.html">A New C API for CPython</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/python-security.html">Python Security</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-09-15T22:00:00+02:00">
+                Published: ven. 15 septembre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/security.html">security</a> <a href="https://haypo.github.io/tag/python.html">python</a> </p>
+</footer><!-- /.post-info --><p>I am working on the Python security for years, but I never wrote anything about
+that. Let's fix this!</p>
+<div class="section" id="psrt">
+<h2>PSRT</h2>
+<p>I am part of the Python Security Response Team (PSRT): I get emails sent to
+<a class="reference external" href="mailto:security&#64;python.org">security&#64;python.org</a>. I try to analyze each report to validate that the bug
+is reproductible, find impacted Python versions and start to discuss how to fix
+the vulnerability. In some cases, the reported issue is not a security
+vulnerability, is not related to CPython, or sometimes is already fixed.  We
+also get reports about CPython, but also the web sites and other projects
+related to Python.</p>
+<p>Warning: I don't represent the PSRT, I speak for my own!</p>
+</div>
+<div class="section" id="vulnerabilities-sent-to-psrt">
+<h2>Vulnerabilities sent to PSRT</h2>
+<p>In this article, I will focus on vulnerabilities impacting CPython: the C and
+Python code of CPython core and the standard library.</p>
+<p>When vulnerabilities are obvious bugs, they are quickly fixed. Done.</p>
+<p>But it's not uncommon that fixing a vulnerability impacts the backward
+compatibility which is a major concern of CPython core developers. There is
+also a risk of rejecting legit input data because the added checks are too
+strict. We have to be very careful and so fixing vulnerabilities can take
+weeks, if not months in the worst case.</p>
+<p>While CPython has few active core developers, the PSRT has even lesser active
+members to handle incoming reports. We are volunteers, so please be kind and
+patient...</p>
+</div>
+<div class="section" id="example-of-a-complex-fix">
+<h2>Example of a complex fix</h2>
+<p>The <a class="reference external" href="https://python-security.readthedocs.io/vuln/urllib_ftp_protocol_stream_injection.html">urllib FTP protocol stream injection</a>
+vulnerability was reported to the PSRT at 2016-01-15. The fix was only merged
+at 2017-07-26.</p>
+<p>First, it was not obvious how the vulnerability can be exploited, nor if it
+should be fixed.</p>
+<p>Then it was not obvious if the vulnerability should be fixed in the urllib
+module or in the ftplib module.</p>
+<p>Even if the bug was public, it didn't get much attention. Since I don't know
+well how the urllib module, I wrote an email to the python-dev mailing
+list: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148699.html">Need help to fix urllib(.parse) vulnerabilities</a>.</p>
+<p>I proposed a fix for the urllib module: <a class="reference external" href="https://bugs.python.org/issue30713">Reject newline character (U+000A) in
+URLs in urllib.parse</a>. But it was
+rejected, since it was the wrong approach and my checks were too strict in many
+cases (rejected legit requests).</p>
+<p>The final fix rejects <tt class="docutils literal">\b</tt> and <tt class="docutils literal">\r</tt> newline characters in the putline()
+method of the ftplib module.</p>
+</div>
+<div class="section" id="track-known-and-fixed-cpython-vulnerabilities">
+<h2>Track known and fixed CPython vulnerabilities</h2>
+<p>Currently, not least that six branches still get security fixes!</p>
+<ul class="simple">
+<li>Python 2.7</li>
+<li>Python 3.3</li>
+<li>Python 3.4</li>
+<li>Python 3.5</li>
+<li>Python 3.6</li>
+<li>master: the development branch</li>
+</ul>
+<p>Last year, I added a table to the Python developer guide to help me to track
+the status of each branch: see the <a class="reference external" href="https://devguide.python.org/#status-of-python-branches">Status of Python branches</a>.</p>
+<p>This year, I created a tool to help me to track known CPython vulnerabilities:
+<a class="reference external" href="https://github.com/haypo/python-security">python-security project</a> (hosted
+at GitHub). The <a class="reference external" href="https://github.com/haypo/python-security/blob/master/vulnerabilities.yaml">vulnerabilities.yaml file</a>
+is a YAML file with one section per vulnerability. Each vulnerability has
+a title, link to the Python bug, disclosure date, reported date, commits, etc.</p>
+<p>The tool gets the date of commits and the Git tags which contains the commit
+to infer the first Python versions of each branch which contain the fix. It
+also build a timeline to help to understand how the vulnerability was handled.</p>
+<p>I also wanted to be more transparent on how we handle vulnerabilities and our
+velocity to fix them.</p>
+<p>Honestly, I was disappointed that it took so long to fix some vulnerabilities
+in the past. Hopefully, it seems like we are more reactive nowadays!</p>
+</div>
+<div class="section" id="example-of-a-fixed-vulnerability">
+<h2>Example of a fixed vulnerability</h2>
+<p>Example: <a class="reference external" href="https://python-security.readthedocs.io/vuln/cve-2016-5699_http_header_injection.html">CVE-2016-5699: HTTP header injection</a>.</p>
+<p>Right now, Python 3.3 is still vulnerable (my fix was commited, I am now
+waiting Python 3.3.7 which is coming at the end of september).</p>
+<p>Since the vulnerability was reported, it took 108 days to merge the fix, 72
+more days (total 180 days) for the first release including the fix (Python
+2.7.10).</p>
+<p>Sadly, the PSRT doesn't compute a severity of vulnerabilities yet.</p>
+<p>Hopefully, for this vulnerability, web frameworks were able to workaround the
+vulnerability by input sanitization.</p>
+</div>
+<div class="section" id="backport-all-fixes">
+<h2>Backport all fixes</h2>
+<p>Last months, I backported fixes to the six branches which still accept security
+fixes, to respect the contract with our users: we are doing our best to protect
+you!</p>
+<p>The good news is that with Python 2.7.14 and Python 3.3.7 releases scheduled
+this month, all major security vulnerabilities will be fixed in all maintained
+Python branches!</p>
+<p>Some fixes were not backported on purpose. For example, the <a class="reference external" href="https://python-security.readthedocs.io/vuln/cve-2013-7040_hash_not_properly_randomized.html#cve-2013-7040-hash-not-properly-randomized">CVE-2013-7040:
+Hash not properly randomized</a>
+vulnerability requires to change the hash algorithm and we decided to not touch
+Python 2.7 and 3.3 for backward compatibility reasons (don't break code relying
+on the exact hash function). The issue was fixed in Python 3.4 by using the
+SipHash hash algorithm which uses a hash secret (generated randomly by Python
+at startup).</p>
+</div>
+<div class="section" id="python-security-documentation">
+<h2>Python security documentation</h2>
+<p>Last months, I also started to collect random notes about the Python security.</p>
+<p>Explore my <a class="reference external" href="https://python-security.readthedocs.io/">python-security.readthedocs.io</a> documentation and send me feedback!</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/new-python-c-api.html" rel="bookmark"
+                           title="Permalink to A New C API for CPython">A New C API for CPython</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-09-07T18:00:00+02:00">
                 Published: jeu. 07 septembre 2017
@@ -33,217 +162,16 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+</footer><!-- /.post-info -->                <p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
 of writing a new C API for CPython hiding implementation details and replacing
 macros with function calls.</p>
 <img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" />
 <p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
 <div class="section" id="c-api-prevents-further-optimizations">
-<h2>C API prevents further optimizations</h2>
-<p>The CPython <tt class="docutils literal">PyListObject</tt> type uses an array of <tt class="docutils literal">PyObject*</tt> objects. PyPy
-is able to use a C array of integers if the list only contains small integers.
-CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:</p>
-<pre class="literal-block">
-#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&gt;ob_item[i]
-</pre>
-<p>The macro relies on the <tt class="docutils literal">PyListObject</tt> structure:</p>
-<pre class="literal-block">
-typedef struct {
-    PyVarObject ob_base;
-    PyObject **ob_item;   // &lt;-- pointer to real data
-    Py_ssize_t allocated;
-} PyListObject;
-
-typedef struct {
-    PyObject ob_base;
-    Py_ssize_t ob_size; /* Number of items in variable part */
-} PyVarObject;
-
-typedef struct _object {
-    Py_ssize_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
-</pre>
-</div>
-<div class="section" id="api-and-abi">
-<h2>API and ABI</h2>
-<p>Compiling C extension code using <tt class="docutils literal">PyList_GET_ITEM()</tt> produces machine code
-accessing <tt class="docutils literal">PyListObject</tt> members. Something like (C pseudo code):</p>
-<pre class="literal-block">
-PyObject **items;
-PyObject *item;
-items = (PyObject **)(((char*)list) + 24);
-item = items[i];
-</pre>
-<p>The offset 24 is hardcoded in the C extension object file: the <strong>API</strong>
-(<strong>programming</strong> interface) becomes the <strong>ABI</strong> (<strong>binary</strong> interface).</p>
-<p>But debug builds use a different memory layout:</p>
-<pre class="literal-block">
-typedef struct _object {
-    struct _object *_ob_next;   // &lt;--- two new fields are added
-    struct _object *_ob_prev;   // &lt;--- for debug purpose
-    Py_ssize_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
-</pre>
-<p>The machine code becomes something like:</p>
-<pre class="literal-block">
-items = (PyObject **)(((char*)op) + 40);
-item = items[i];
-</pre>
-<p>The offset changes from 24 to 40 (+16, two pointers of 8 bytes).</p>
-<p>C extensions have to be recompiled to work on Python compiled in debug mode.</p>
-<p>Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
-Unicode string: the <tt class="docutils literal"><span class="pre">--with-wide-unicode</span></tt> configure option.</p>
-</div>
-<div class="section" id="stable-abi">
-<h2>Stable ABI</h2>
-<p>If the machine code doesn't use the offset, it would be able to only compile C
-extensions once.</p>
-<p>A solution is to replace PyList_GET_ITEM() <strong>macro</strong> with a <strong>function</strong>:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
-</pre>
-<p>defined as:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
-{
-    return ((PyListObject *)list)-&gt;ob_item[i];
-}
-</pre>
-<p>The machine code becomes a <strong>function call</strong>:</p>
-<pre class="literal-block">
-PyObject *item;
-item = PyList_GET_ITEM(list, index);
-</pre>
-</div>
-<div class="section" id="specialized-list-for-small-integers">
-<h2>Specialized list for small integers</h2>
-<p>If C extension objects don't access structure members anymore, it becomes
-possible to modify the memory layout.</p>
-<p>For example, it's possible to design a specialized implementation of
-<tt class="docutils literal">PyListObject</tt> for small integers:</p>
-<pre class="literal-block">
-typedef struct {
-    PyVarObject ob_base;
-    int use_small_int;
-    PyObject **pyobject_array;
-    int32_t *small_int_array;   // &lt;-- new compact C array for integers
-    Py_ssize_t allocated;
-} PyListObject;
-
-PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
-{
-    PyListObject *list = (PyListObject *)op;
-    if (list-&gt;use_small_int) {
-        int32_t item = list-&gt;small_int_array[index];
-        /* create a new object at each call */
-        return PyLong_FromLong(item);
-    }
-    else {
-        return list-&gt;pyobject_array[index];
-    }
-}
-</pre>
-<p>It's just an example to show that it becomes possible to modify PyObject
-structures. I'm not sure that it's useful in practice.</p>
-</div>
-<div class="section" id="multiple-python-runtimes">
-<h2>Multiple Python &quot;runtimes&quot;</h2>
-<p>Assuming that all used C extensions use the new stable ABI, we can now imagine
-multiple specialized Python runtimes installed in parallel, instead of a single
-runtime:</p>
-<ul class="simple">
-<li>python3.7: regular/legacy CPython, backward compatible</li>
-<li>python3.7-dbg: runtime checks to ease debug</li>
-<li>fasterpython3.7: use specialized list</li>
-<li>etc.</li>
-</ul>
-<p>The <tt class="docutils literal">python3</tt> runtime would remain <strong>fully</strong> compatible since it would use
-the old C API with macros and full structures. So by default, everything will
-continue to work.</p>
-<p>But the other runtimes require that all imported C extensions were compiled
-with the new C API.</p>
-<p><tt class="docutils literal"><span class="pre">python3.7-dbg</span></tt> adds more checks tested at runtime. Example:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
-{
-    assert(PyList_Check(list));
-    assert(0 &lt;= index &amp;&amp; index &lt; Py_SIZE(list));
-    return ((PyListObject *)list)-&gt;ob_item[i];
-}
-</pre>
-<p>Currently, some Linux distributions provide a <tt class="docutils literal"><span class="pre">python3-dbg</span></tt> binary, but may
-not provide <tt class="docutils literal"><span class="pre">-dbg</span></tt> binary packages of all C extensions. So all C extensions
-have to be recompiled manually which is quite painful (need to install build
-dependencies, wait until everthing is recompiled, etc.).</p>
-</div>
-<div class="section" id="experiment-optimizations">
-<h2>Experiment optimizations</h2>
-<p>With the new C API, it becomes possible to implement a new class of
-optimizations.</p>
-<div class="section" id="tagged-pointer">
-<h3>Tagged pointer</h3>
-<p>Store small integers directly into the pointer value. Reduce the memory usage,
-avoid expensive unboxing-boxing.</p>
-<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer">Wikipedia: Tagged pointer</a>.</p>
-</div>
-<div class="section" id="no-garbage-collector-gc-at-all">
-<h3>No garbage collector (GC) at all</h3>
-<p>Python runtime without GC at all. Remove the following header from objects
-tracked by the GC:</p>
-<pre class="literal-block">
-struct {
-    union _gc_head *gc_next;
-    union _gc_head *gc_prev;
-    Py_ssize_t gc_refs;
-} PyGC_Head;
-</pre>
-<p>It would remove 24 bytes per object tracked by the GC.</p>
-<p>For comparison, the smallest Python object is &quot;object()&quot; which only takes 16
-bytes.</p>
-</div>
-<div class="section" id="tracing-garbage-collector-without-reference-counting">
-<h3>Tracing garbage collector without reference counting</h3>
-<p>This idea is really the most complex and most experimental idea, but IMHO it's
-required to &quot;unlock&quot; Python performances.</p>
-<ul class="simple">
-<li>Write a new API to keep track of pointers:<ul>
-<li>Declare a variable storing a <tt class="docutils literal">PyObject*</tt> object</li>
-<li>Set a pointer</li>
-<li>Maybe also read a pointer?</li>
-</ul>
-</li>
-<li>Modify C extensions to use this new API</li>
-<li>Implement a tracing garbage collector which can move objects in memory
-to compact memory</li>
-<li>Remove reference counting</li>
-</ul>
-<p>It even seems possible to implement a tracing garbage collector <strong>and</strong> use
-reference counting. But I'm not an expert in this area, need to dig the topic.</p>
-<p>Questions:</p>
-<ul class="simple">
-<li>Is it possible to fix all C extensions to use the new API? Should be an
-opt-in option in a first stage.</li>
-<li>Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
-using an hash table which maintains a reference counter outside <tt class="docutils literal">PyObject</tt>?</li>
-<li>Do we need to fix all C extensions?</li>
-</ul>
-<p>Read also <a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Wikipedia: Tracing garbage collection</a>.</p>
-</div>
-<div class="section" id="gilectomy">
-<h3>Gilectomy</h3>
-<p>Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
-able to reemove the GIL.</p>
-<p>Removing reference counting would make Gilectomy much simpler.</p>
-</div>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<h2>C API prevents further optimizations …</h2></div>
+                <a class="readmore" href="https://haypo.github.io/new-python-c-api.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -487,32 +415,6 @@ benchmarks more stable. At the end, I had a single command to:</p>
 are already part of Python 3.6.0, some are already merged into the future
 Python 3.7, the few remaining issues are still …</p>
                 <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="bookmark"
-                           title="Permalink to FASTCALL microbenchmarks">FASTCALL microbenchmarks</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-24T22:00:00+01:00">
-                Published: ven. 24 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
-dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
-them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
-CPython developers to prove that an optimization is worth it. It's not uncommon
-that I abandon a …</p>
-                <a class="readmore" href="https://haypo.github.io/fastcall-microbenchmarks.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

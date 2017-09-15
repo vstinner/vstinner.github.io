@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
-        <title>Haypo blog 2 - security</title>
+        <title>Python Security</title>
         <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
         <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
 
@@ -16,13 +16,18 @@
                 <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
                 <nav><ul>
                     <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/python-security.html" rel="bookmark"
+           title="Permalink to Python Security">Python Security</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/python-security.html">Python Security</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-09-15T22:00:00+02:00">
                 Published: ven. 15 septembre 2017
@@ -33,7 +38,7 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/security.html">security</a> <a href="https://haypo.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info --><p>I am working on the Python security for years, but I never wrote anything about
+</footer><!-- /.post-info -->      <p>I am working on the Python security for years, but I never wrote anything about
 that. Let's fix this!</p>
 <div class="section" id="psrt">
 <h2>PSRT</h2>
@@ -138,42 +143,11 @@ at startup).</p>
 <p>Last months, I also started to collect random notes about the Python security.</p>
 <p>Explore my <a class="reference external" href="https://python-security.readthedocs.io/">python-security.readthedocs.io</a> documentation and send me feedback!</p>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/pep-524-os-urandom-blocking.html" rel="bookmark"
-                           title="Permalink to PEP 524: os.urandom() now blocks on Linux in Python 3.6">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-14T12:00:00+01:00">
-                Published: mar. 14 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> <a href="https://haypo.github.io/tag/security.html">security</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="getrandom-avoids-file-descriptors">
-<h2>getrandom() avoids file descriptors</h2>
-<p>Last years, I'm making sometimes enhancements in the Python code used to
-generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
-changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
-available on Linux, Solaris, OpenBSD, etc.</p>
-<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened …</p></div>
-                <a class="readmore" href="https://haypo.github.io/pep-524-os-urandom-blocking.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>
