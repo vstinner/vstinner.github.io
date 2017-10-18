@@ -34,7 +34,8 @@ fill lineno and col_offset of "arg" node when compiling AST from Python
 objects.
 
 Previous report: `My contributions to CPython during 2015 Q3
-<{filename}/python_contrib_2015q3.rst>`_.
+<{filename}/python_contrib_2015q3.rst>`_. Next report: `My contributions to
+CPython during 2016 Q1 <{filename}/python_contrib_2016q1.rst>`_.
 
 
 

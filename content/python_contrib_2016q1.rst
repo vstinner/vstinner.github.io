@@ -16,7 +16,8 @@ My contributions to `CPython <https://www.python.org/>`_ during 2016 Q1
 Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).
 
 Previous report: `My contributions to CPython during 2015 Q4
-<{filename}/python_contrib_2015q4.rst>`_.
+<{filename}/python_contrib_2015q4.rst>`_. Next report: `My contributions to
+CPython during 2016 Q2 <{filename}/python_contrib_2016q2.rst>`_.
 
 
 Summary

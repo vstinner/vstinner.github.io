@@ -26,6 +26,9 @@ The major event in Python of this quarter was the release of Python 3.5.0.
 As usual, I helped various contributors to refine their changes and I pushed
 their final changes.
 
+Next report: `My contributions to CPython during 2015 Q4
+<{filename}/python_contrib_2015q4.rst>`_.
+
 
 FreeBSD kernel bug
 ==================

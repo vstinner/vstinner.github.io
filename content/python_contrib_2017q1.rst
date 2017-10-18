@@ -25,7 +25,8 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q1
 * Bugfixes
 
 Previous report: `My contributions to CPython during 2016 Q4
-<{filename}/python_contrib_2016q4.rst>`_.
+<{filename}/python_contrib_2016q4.rst>`_. Next report: `My contributions to
+CPython during 2017 Q2 (part 1) <{filename}/python_contrib_2017q2_part1.rst>`_.
 
 
 Statistics
