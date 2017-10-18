@@ -1,3 +1,15 @@
+ttk
+===
+
+ttk: fix LabeledScale and OptionMenu destroy() method (#3025)
+
+bpo-31135: Call the parent destroy() method even if the used
+attribute doesn't exist.
+
+The LabeledScale.destroy() method now also explicitly clears label
+and scale attributes to help the garbage collector to destroy all
+widgets.
+
 tkinter hangs randomly
 ======================
 

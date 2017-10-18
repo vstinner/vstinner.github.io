@@ -105,105 +105,18 @@ Our macOS Open Source Offering
 confirms that the situation is not going to evolve quickly.
 
 
-Tests
-=====
+FreeBSD minor() device bug
+==========================
 
-* bpo-30822: Exclude tzdata from regrtest --all. When running the test suite
-  using ``--use=all`` / ``-u all``, exclude ``tzdata`` since it makes
-  test_datetime too slow (15-20 min on some buildbots) which then times out on
-  some buildbots. ``-u tzdata`` must now be enabled explicitly.
-* bpo-30188: test_nntplib catch also ssl.SSLEOFError. Catch also
-  ssl.SSLEOFError in NetworkedNNTPTests setUpClass().  EOFError was already
-  catched. Sadly, test_nntplib still fails *randomly* with EOFError or
-  SSLEOFError...
-* bpo-31009: Fix support.fd_count() on Windows. Call msvcrt.CrtSetReportMode()
-  to not kill the process nor log any error on stderr on os.dup(fd) if the file
-  descriptor is invalid.
-* bpo-31034: Reliable signal handler for test_asyncio. Don't rely on the
-  current SIGHUP signal handler, make sure that it's set to the "default"
-  signal handler: SIG_DFL. A colleague reported me that the Python test suite
-  hangs on running test_subprocess_send_signal() of test_asyncio. After
-  analysing the issue, it seems like the test hangs becaues the RPM package
-  builder ignores SIGHUP.
-* bpo-31028: Fix test_pydoc when run directly. Fix get_pydoc_link() fix
-  ``./python Lib/test/test_pydoc.py``: get the absolute path to __file__ to
-  prevent relative directories.
-* bpo-31066: Fix test_httpservers.test_last_modified(). Write the temporary
-  file on disk and then get its modification time.
-* bpo-31173: Rewrite WSTOPSIG test of test_subprocess.
+bpo-31044: Skip test_posix.test_makedev() on FreeBSD if ``dev_t`` is larger
+than 32-bit.
 
-  The current test_child_terminated_in_stopped_state() function test creates a
-  child process which calls ptrace(PTRACE_TRACEME, 0, 0) and then crash
-  (SIGSEGV). The problem is that calling os.waitpid() in the parent process is
-  not enough to close the process: the child process remains alive and so the
-  unit test leaks a child process in a strange state. Closing the child process
-  requires non-trivial code, maybe platform specific.
-
-  Remove the functional test and replaces it with an unit test which mocks
-  os.waitpid() using a new _testcapi.W_STOPCODE() function to test the
-  WIFSTOPPED() path.
-* bpo-31008: Fix asyncio test_wait_for_handle on Windows.
-* bpo-31235: Fix ResourceWarning in test_logging: always close all asyncore
-  dispatchers (ignoring errors if any).
-* bpo-30121: Add test_subprocess.test_nonexisting_with_pipes(). Test the Popen
-  failure when Popen was created with pipes. Create also NONEXISTING_CMD
-  variable in test_subprocess.py.
-* bpo-31250, test_asyncio: fix EventLoopTestsMixin.tearDown(). Call
-  doCleanups() to close the loop after calling executor.shutdown(wait=True):
-  see TestCase.set_event_loop() of asyncio.test_utils.
-* bpo-31323: Fix reference leak in test_ssl. Store exceptions as string rather
-  than object to prevent reference cycles which cause leaking dangling threads.
-* test_ssl: Implement timeout in ssl_io_loop(). The timeout parameter was not
-  used.
-* bpo-31448, test_poplib: Call POP3.close(), don't close close directly the
-  sock attribute, to fix a ResourceWarning.
-* os.test_utime_current(): tolerate 50 ms delta.
-
-
-* bpo-31479: Always reset the signal alarm in tests. Use
-  the ``try: ... finally: signal.signal(0)`` pattern to make sure that tests
-  don't "leak" a pending fatal signal alarm. Move some signal.alarm() calls
-  into the try block.
-
-
-regrtest
-========
-
-::
-
-    bpo-31217: Fix regrtest -R for small integer (#3260)
-
-    Use a pool of integer objects toprevent false alarm when checking for
-    memory block leaks. Fill the pool with values in -1000..1000 which
-    are the most common (reference, memory block, file descriptor)
-    differences.
-
-    Co-Authored-By: Antoine Pitrou <pitrou@free.fr>
-
-
-Crazy random bug
-================
-
-ttk: fix LabeledScale and OptionMenu destroy() method (#3025)
-
-bpo-31135: Call the parent destroy() method even if the used
-attribute doesn't exist.
-
-The LabeledScale.destroy() method now also explicitly clears label
-and scale attributes to help the garbage collector to destroy all
-widgets.
-
-
-FreeBSD bug
-===========
-
-bpo-31044: Skip test_posix.test_makedev() on FreeBSD. There is a bug in FreeBSD
-CURRENT with 64-bit dev_t. Skip the test if ``dev_t`` is larger than 32-bit,
-until the bug is fixed in FreeBSD CURRENT.
-
-At May 23, the dev_t type changed from 32 bits to 64 bits on FreeBSD in the
-kernel, but minor() wasn't updated. I reported a bug to FreeBSD:
-https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048
+In FreeBSD, at May 23, the dev_t type changed from 32 bits to 64 bits in the
+kernel, but the ``minor()`` function wasn't updated. I reported a bug to
+FreeBSD: `Bug 221048 - minor() truncates device number to 32 bits, whereas
+dev_t type was extended to 64 bits
+<https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048>`_. The bug was
+quickly fixed.
 
 
 Bugfixes
@@ -212,7 +125,7 @@ Bugfixes
 Reference cycles
 ----------------
 
-* bpo-31234, socket.create_connection(): Fix ref cycle (#3546)
+* bpo-31234, socket.create_connection(): Fix reference cycle.
 * bpo-31247: xmlrpc.server now explicitly breaks reference cycles when using
   sys.exc_info() in code handling exceptions.
 * bpo-31238: pydoc ServerThread.stop() now joins itself to wait until
@@ -226,67 +139,73 @@ Reference cycles
 I also started a discussion on reference cycles because by exceptions:
 `[Python-Dev] Evil reference cycles caused Exception.__traceback__
 <https://mail.python.org/pipermail/python-dev/2017-September/149586.html>`_.
-No action was taken (yet?).
+Sadly, no action was taken since no obvious fix was found.
 
-Other fixes
------------
+Other bugfixes
+--------------
 
 * bpo-30892: Fix _elementtree module initialization. Handle
   ``getattr(copy, 'deepcopy')`` error in ``_elementtree`` module
   initialization.
-* bpo-30891: Fix again importlib _find_and_load(). Use ``sys.modules.get()`` in
-  the ``with _ModuleLockManager(name):`` block to protect the dictionary key
-  with the module lock and use an atomic get to prevent race condition.
+* bpo-30891: Fix again importlib ``_find_and_load()``. Call
+  ``sys.modules.get()`` in the ``with _ModuleLockManager(name):`` block to
+  protect the dictionary key with the module lock and use an atomic get to
+  prevent race conditions.
 * bpo-31019:  multiprocessing.Process.is_alive() now removes the process from
   the _children set if the process completed. The change prevents leaking
   "dangling" processes.
 * bpo-31326, concurrent.futures: ProcessPoolExecutor.shutdown() now explicitly
-  closes the call queue. Moreover, shutdown(wait=True) now also join the call
+  closes the call queue. Moreover, shutdown(wait=True) now also joins the call
   queue thread, to prevent leaking a dangling thread.
 * bpo-31170: Update libexpat from 2.2.3 to 2.2.4. Fix copying of partial
-  characters for UTF-8 input (libexpat bug 115):
-  https://github.com/libexpat/libexpat/issues/115
-  Later, I also wrote non-regression tests for this bug.
+  characters for UTF-8 input (`libexpat bug 115
+  <https://github.com/libexpat/libexpat/issues/115>`_). Later, I also wrote
+  non-regression tests for this bug.
 * bpo-31499, xml.etree: xmlparser_gc_clear() now sets self.parser to NULL to
   prevent a crash in xmlparser_dealloc() if xmlparser_gc_clear() was called
   previously by the garbage collector, because the parser was part of a
-  reference cycle. Co-Authored-By: **Serhiy Storchaka**.
+  reference cycle. Fix co-written with **Serhiy Storchaka**.
 
 
 test.pythoninfo
 ===============
 
-bpo-29854: test_readline logs versions. test_readline now logs the versions of
-libreadline when run in verbose mode. Add also
-readline._READLINE_LIBRARY_VERSION. The version was added to debug the
-"Segfault when readline history is more then 2 * history size" crash.
+To understand the "Segfault when readline history is more then 2 * history
+size" crash (bpo-29854), I modified test_readline to log libreadline  versions.
+I also added readline._READLINE_LIBRARY_VERSION. My colleague **Nir Soffer**
+wrote the final readline fix: skip the test on old readline versions.
 
-The final readline fix was written by my colleague Nir Soffer (skip the test on
-old readline versions).
+As a follow-up of this issue, I added a new ``test.pythoninfo`` program to log
+many information to debug Python tests (bpo-30871). pythoninfo is now run on
+Travis CI, AppVeyor and buildbots.
 
-I added the test.pythoninfo utility as a follow-up of this issue to log many
-informations to debug Python, not only the readline version: see bpo-30871.
+Example of output::
 
-bpo-30871: Add test.pythoninfo (#3075)
+    $ ./python -m test.pythoninfo
+    (...)
+    _decimal.__libmpdec_version__: 2.4.2
+    expat.EXPAT_VERSION: expat_2.2.4
+    gdb_version: GNU gdb (GDB) Fedora 8.0.1-26.fc26
+    locale.encoding: UTF-8
+    os.cpu_count: 4
+    (...)
+    time.timezone: -3600
+    time.tzname: ('CET', 'CEST')
+    tkinter.TCL_VERSION: 8.6
+    tkinter.TK_VERSION: 8.6
+    tkinter.info_patchlevel: 8.6.6
+    zlib.ZLIB_RUNTIME_VERSION: 1.2.11
+    zlib.ZLIB_VERSION: 1.2.11
 
-* Add Lib/test/pythoninfo.py: script collecting various informations
-  about Python to help debugging test failures.
-* regrtest: remove sys.hash_info and sys.flags from header.
-* Travis CI, Appveyor: run pythoninfo before tests
 
-bpo-30871: Add "make pythoninfo" (#3120)
+Revert commits if buildbots are broken
+======================================
 
-pythoninfo: ignore OSError(ENOSYS) on getrandom() (#3655)
+Thanks to my work done last months on the Python test suite, the buildbots are
+now very reliable. When a buildbot fails, it becomes very likely that it's a
+real regression, and not a random failure caused by a bug in the test itself.
 
-
-Revert on buildbot failure
-==========================
-
-test_datetime
--------------
-
-`[python-committers] Revert changes which break too many buildbots
-<https://mail.python.org/pipermail/python-committers/2017-June/004588.html>`__.
+So I proposed a new rule: **revert a change if it breaks builbots**:
 
     So I would like to set a new rule: if I'm unable to fix buildbots
     failures caused by a recent change quickly (say, in less than 2
@@ -297,10 +216,13 @@ test_datetime
     and it shouldn't impact other pending changes, to keep a sane master
     branch.
 
-Revert test_datetime: `[python-committers] Revert changes which break too many buildbots
-<https://mail.python.org/pipermail/python-committers/2017-July/004673.html>`__.
+`[python-committers] Revert changes which break too many buildbots
+<https://mail.python.org/pipermail/python-committers/2017-June/004588.html>`__.
 
-Revert "bpo-30822: Fix testing of datetime module. Revert::
+test_datetime
+-------------
+
+The first revert was an enhancement of test_datetime::
 
     commit 98b6bc3bf72532b784a1c1fa76eaa6026a663e44
     Author: Utkarsh Upadhyay <mail@musicallyut.in>
@@ -309,6 +231,11 @@ Revert "bpo-30822: Fix testing of datetime module. Revert::
         bpo-30822: Fix testing of datetime module. (#2530)
 
         Only C implementation was tested.
+
+Revert test_datetime: `[python-committers] Revert changes which break too many buildbots
+<https://mail.python.org/pipermail/python-committers/2017-July/004673.html>`__.
+
+Revert "bpo-30822: Fix testing of datetime module. Revert::
 
 Eval frame
 ----------
@@ -404,6 +331,84 @@ fix::
         Fix SocketHandlerTest.tearDown(): close the socket handler before
         stopping the server, so the server can join threads.
 
+
+
+Tests
+=====
+
+* bpo-30822: Exclude ``tzdata`` from ``regrtest --all``. When running the test suite
+  using ``--use=all`` / ``-u all``, exclude ``tzdata`` since it makes
+  test_datetime too slow (15-20 min on some buildbots) which then times out on
+  some buildbots. ``-u tzdata`` must now be enabled explicitly.
+* bpo-30188: test_nntplib catch also ssl.SSLEOFError. Catch also
+  ssl.SSLEOFError in NetworkedNNTPTests setUpClass().  EOFError was already
+  catched. Sadly, test_nntplib still fails *randomly* with EOFError or
+  SSLEOFError...
+* bpo-31009: Fix support.fd_count() on Windows. Call msvcrt.CrtSetReportMode()
+  to not kill the process nor log any error on stderr on os.dup(fd) if the file
+  descriptor is invalid.
+* bpo-31034: Reliable signal handler for test_asyncio. Don't rely on the
+  current SIGHUP signal handler, make sure that it's set to the "default"
+  signal handler: SIG_DFL. A colleague reported me that the Python test suite
+  hangs on running test_subprocess_send_signal() of test_asyncio. After
+  analysing the issue, it seems like the test hangs becaues the RPM package
+  builder ignores SIGHUP.
+* bpo-31028: Fix test_pydoc when run directly. Fix get_pydoc_link() fix
+  ``./python Lib/test/test_pydoc.py``: get the absolute path to __file__ to
+  prevent relative directories.
+* bpo-31066: Fix test_httpservers.test_last_modified(). Write the temporary
+  file on disk and then get its modification time.
+* bpo-31173: Rewrite WSTOPSIG test of test_subprocess.
+
+  The current test_child_terminated_in_stopped_state() function test creates a
+  child process which calls ptrace(PTRACE_TRACEME, 0, 0) and then crash
+  (SIGSEGV). The problem is that calling os.waitpid() in the parent process is
+  not enough to close the process: the child process remains alive and so the
+  unit test leaks a child process in a strange state. Closing the child process
+  requires non-trivial code, maybe platform specific.
+
+  Remove the functional test and replaces it with an unit test which mocks
+  os.waitpid() using a new _testcapi.W_STOPCODE() function to test the
+  WIFSTOPPED() path.
+* bpo-31008: Fix asyncio test_wait_for_handle on Windows.
+* bpo-31235: Fix ResourceWarning in test_logging: always close all asyncore
+  dispatchers (ignoring errors if any).
+* bpo-30121: Add test_subprocess.test_nonexisting_with_pipes(). Test the Popen
+  failure when Popen was created with pipes. Create also NONEXISTING_CMD
+  variable in test_subprocess.py.
+* bpo-31250, test_asyncio: fix EventLoopTestsMixin.tearDown(). Call
+  doCleanups() to close the loop after calling executor.shutdown(wait=True):
+  see TestCase.set_event_loop() of asyncio.test_utils.
+* bpo-31323: Fix reference leak in test_ssl. Store exceptions as string rather
+  than object to prevent reference cycles which cause leaking dangling threads.
+* test_ssl: Implement timeout in ssl_io_loop(). The timeout parameter was not
+  used.
+* bpo-31448, test_poplib: Call POP3.close(), don't close close directly the
+  sock attribute, to fix a ResourceWarning.
+* os.test_utime_current(): tolerate 50 ms delta.
+* bpo-31135: ttk: fix LabeledScale and OptionMenu destroy() method. Call the
+  parent destroy() method even if the used attribute doesn't exist. The
+  LabeledScale.destroy() method now also explicitly clears label and scale
+  attributes to help the garbage collector to destroy all widgets.
+* bpo-31479: Always reset the signal alarm in tests. Use
+  the ``try: ... finally: signal.signal(0)`` pattern to make sure that tests
+  don't "leak" a pending fatal signal alarm. Move some signal.alarm() calls
+  into the try block.
+
+
+regrtest
+========
+
+::
+
+    bpo-31217: Fix regrtest -R for small integer (#3260)
+
+    Use a pool of integer objects toprevent false alarm when checking for
+    memory block leaks. Fill the pool with values in -1000..1000 which
+    are the most common (reference, memory block, file descriptor)
+    differences.
+
+    Co-Authored-By: Antoine Pitrou <pitrou@free.fr>
 
 
 Environment altered and dangling threads
