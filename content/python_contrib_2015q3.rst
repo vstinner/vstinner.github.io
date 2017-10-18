@@ -74,7 +74,10 @@ the first look, the rounding method doesn't look natural nor logical::
     2
 
 See my previous article on the _PyTime API for the long story of rounding
-methods between Python 3.2 and Python 3.6.
+methods between Python 3.2 and Python 3.6: `History of the Python private C API
+_PyTime <{filename}/pytime.rst>`_.
+
+
 
 
 Enhancements

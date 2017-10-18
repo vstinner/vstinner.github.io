@@ -28,42 +28,81 @@ Statistics
     $ git log --after=2017-06-30 --before=2017-10-01 --reverse --author=Stinner origin/master|grep '^commit ' -c
     97
 
-Statistics: **97** commits in the master branch, a **total of 209 commits**,
-remaining: 112 commits in other branches (backports, fixes specific to Python
-2.7, security fixes in Python 3.3 and 3.4, etc.)
+Statistics: I pushed **97** commits in the master branch on a **total of 209
+commits**, remaining: 112 commits in the other branches (backports, fixes
+specific to Python 2.7, security fixes in Python 3.3 and 3.4, etc.)
 
 
 Security
 ========
 
 * bpo-30947: Update libexpat from 2.2.1 to 2.2.3. Fix applied to master, 3.6,
-  3.5, 3.4, 3.3 and 2.7 branches!
+  3.5, 3.4, 3.3 and 2.7 branches! Expat 2.2.2 and 2.2.3 fixed multiple security
+  vulnerabilities.
   http://python-security.readthedocs.io/vuln/expat_2.2.3.html
-* _pickle: Fix whichmodule(). _PyUnicode_FromId() can return NULL: replace
+* Fix whichmodule() of _pickle: : _PyUnicode_FromId() can return NULL, replace
   Py_INCREF() with Py_XINCREF(). Fix coverity report: CID 1417269.
-* bpo-30860: Fix deadcode in obmalloc.c. Fix Coverity CID 1417587:
-  ``_PyMem_Initialize()`` contains code which is never executed. Replace the
-  runtime check with a build assertion.
+* bpo-30860: ``_PyMem_Initialize()`` contains code which is never executed.
+  Replace the runtime check with a build assertion. Fix Coverity CID 1417587.
 
 
-macOS job of Travis CI
-======================
+Enhancement: socket.close() now ignores ECONNRESET
+==================================================
 
-[python-committers] macOS Travis CI job became mandatory?
-https://mail.python.org/pipermail/python-committers/2017-June/004661.html
+bpo-30319: socket.close() now ignores ECONNRESET. Previously, many network
+tests failed randomly with ConnectionResetError on socket.close().
 
-[python-committers] Travis CI: macOS is now blocking -- remove macOS from Travis CI?
-https://mail.python.org/pipermail/python-committers/2017-September/004824.html
+Patching all functions calling socket.close() would require a lot of work, and
+it was surprising to get a "connection reset" when closing a socket.
 
-Wednesday, Sep 6 2017, middle of the CPython sprint: I removed the macOS job of
-Travis CI (bpo-31355).
+Who cares that the peer closed the connection, since we are already closing
+it!?
+
+Note: socket.close() was modified in Python 3.6 to raise OSError on failure
+(bpo-26685).
 
 
-Enhancements
-============
+Removal of the macOS job of Travis CI
+=====================================
 
-* bpo-30319: socket.close() now ignores ECONNRESET. socket.close() was modified
-  in Python 3.6 to raise OSError on failure: see bpo-26685.
+.. image:: {filename}/images/travis-ci.png
+   :alt: call_method microbenchmark
+   :align: right
+   :target: https://travis-ci.org/
+
+While the Linux jobs of Travis CI usually takes 15 minutes, up to 30 minutes in
+the worst case, the macOS job of Travis CI regulary took longer than 30
+minutes, sometimes longer than 1 hour.
+
+While the macOS job was optional, sometimes it gone mad and prevented a PR to
+be merged. Cancelling the job marked Travis CI as failed on a PR, so it was
+still not possible to merge the PR, whereas, again, the job is marked as
+optional ("Allowed Failure").
+
+Moreover, when the macOS job failed, the failure was not reported on the PR,
+since the job was marked as optional. The only way to notify a failure was to
+go to Travis CI and wait at least 30 minutes (whereas the Linux jobs already
+completed and it was already possible merge a PR...).
+
+I sent a first mail in June: `[python-committers] macOS Travis CI job became
+mandatory?
+<https://mail.python.org/pipermail/python-committers/2017-June/004661.html>`_
+
+In september, we decided to remove the macOS job during the CPython sprint at
+Instagram (see my previous `New C API <{filename}/new_python_c_api.rst>`_
+article), to not slowdown our development speed (bpo-31355). I sent another
+email to announce the change: `[python-committers] Travis CI: macOS is now
+blocking -- remove macOS from Travis CI?
+<https://mail.python.org/pipermail/python-committers/2017-September/004824.html>`_.
+
+After the sprint, it was decided to not add again the macOS job, since we have
+3 macOS buildbots. It's enough to detect regressions specific to macOS.
+
+After the removal of the macOS end, at the end of september, Travis CI
+published an article about the bad performances of their macOS fleet: `Updating
+Our macOS Open Source Offering
+<https://blog.travis-ci.com/2017-09-22-macos-update>`_. Sadly, the article
+confirms that the situation is not going to evolve quickly.
 
 
 Tests
@@ -170,7 +209,8 @@ https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048
 Bugfixes
 ========
 
-Reference cycles:
+Reference cycles
+----------------
 
 * bpo-31234, socket.create_connection(): Fix ref cycle (#3546)
 * bpo-31247: xmlrpc.server now explicitly breaks reference cycles when using
@@ -183,7 +223,13 @@ Reference cycles:
   WorkItem object. ThreadPoolExecutor.shutdown() now also clears its threads
   set.
 
-Others:
+I also started a discussion on reference cycles because by exceptions:
+`[Python-Dev] Evil reference cycles caused Exception.__traceback__
+<https://mail.python.org/pipermail/python-dev/2017-September/149586.html>`_.
+No action was taken (yet?).
+
+Other fixes
+-----------
 
 * bpo-30892: Fix _elementtree module initialization. Handle
   ``getattr(copy, 'deepcopy')`` error in ``_elementtree`` module
@@ -363,9 +409,10 @@ fix::
 Environment altered and dangling threads
 ========================================
 
-XXX group by multiprocessing, concurrent, threads, etc.
+Fix "dangling threads" and "zombie processes" bugs in tests.
 
-env changed:
+env changed
+-----------
 
 * buildbot, AppVeyor: run tests with --fail-env-changed. Make tests fail if a
   test altered the environment.
@@ -373,23 +420,27 @@ env changed:
   a test changes the environment.
 * Travis CI: run coverage test using --fail-env-changed.
 
-Fix "dangling threads" and "zombie processes" bugs in tests.
+test.support and regrtest
+-------------------------
 
-* test_urllib2_localnet: clear server variable. Set the server attribute to
-  None in cleanup to avoid dangling threads.
-* bpo-30818: test_ftplib calls asyncore.close_all(). Always clear asyncore
-  socket map using asyncore.close_all(ignore_all=True) in tearDown() method.
-* bpo-30845: reap_children() now logs warnings
-* bpo-30845: Enhance test_concurrent_futures cleanup. Make sure that tests
-  don't leak threads nor processes. Clear explicitly the reference to the
-  executor to make it that it's destroyed.
+* Enhance support.reap_children() now sets environment_altered
+  to ``True`` to detect bugs using ``python3 -m test --fail-env-changed``.
+* regrtest: count also "env changed" as failures in the test progress.
+* bpo-31234: support.threading_cleanup() waits for 1 second before emitting a
+  warning if there are threads running in the background. With this change, it
+  now emits the warning immediately, to be able to catch bugs more easily.
+* bpo-31234: Add test.support.wait_threads_exit(). Use _thread.count() to wait
+  until threads exit. The new context manager prevents the "dangling thread"
+  warning.
+* bpo-31234: Add support.join_thread() helper. join_thread() joins a thread but
+  raises an AssertionError if the thread is still alive after timeout seconds.
+
+multiprocessing
+---------------
+
 * multiprocessing.Queue.join_thread() now waits until the thread
   completes, even if the thread was started by the same process which
   created the queue.
-* bpo-30908: Fix dangling thread in test_os.TestSendfile. tearDown() now clears
-  explicitly the self.server variable to make sure that the thread is
-  completely cleared when tearDownClass() checks if all threads have been
-  cleaned up.
 * bpo-26762: Avoid daemon processes in _test_multiprocessing. test_level() of
   _test_multiprocessing._TestLogging now uses regular processes rather than
   daemon processes to prevent zombi processes (to not "leak" processes).
@@ -402,44 +453,32 @@ Fix "dangling threads" and "zombie processes" bugs in tests.
   make sure that we don't leave dangling threads. test_queue_in_process():
   remove unused queue. test_access() joins also the process to fix a random
   warning.
-* bpo-31067: test_subprocess now also calls reap_children() in tearDown(), not
-  only on setUp().
-* bpo-31160: Fix test_builtin for zombie process. PtyTests.run_child() now calls
-  os.waitpid() to read the exit status of the child process to avoid creating
-  zombie process and leaking processes in the background.
-* bpo-31160: regrtest now always reaps child processes after running a test
-  file. Add a post_test_cleanup() function which currently only calls
-  support.reap_children().
-* bpo-31160: Fix test_random for zombie process. TestModule.test_after_fork()
-  now calls os.waitpid() to read the exit status of the child process to avoid
-  creating a zombie process.
-* bpo-31160: test_tempfile: TestRandomNameSequence.test_process_awareness() now
-  calls os.waitpid() to avoid leaking a zombie process.
-* Enhance support.reap_children() now sets environment_altered
-  to ``True`` to detect bugs using ``python3 -m test --fail-env-changed``.
-* regrtest: count also "env changed" as failures in the test progress.
 * bpo-26762: _test_multiprocessing now marks the test as ENV_CHANGED on
   dangling process or thread.
 * bpo-31069, Fix a warning about dangling processes in test_rapid_restart() of
   _test_multiprocessing: join the process.
-* bpo-31234: fork_wait.py tests now joins threads, to not leak running threads
-  in the background.
-* bpo-30830: test_logging uses threading_setup/cleanup. Replace
-  @support.reap_threads on some methods with support.threading_setup() in
-  setUp() and support.threading_cleanup() in tearDown() in BaseTest.
-* bpo-31234: test_threading: test_bare_raise_in_brand_new_thread() now
-  explicitly breaks a reference cycle to not leak a dangling thread.
+* bpo-31234: test_multiprocessing: wait 30 seconds. Give 30 seconds to
+  join_process(), instead of 5 or 10 seconds, to wait until the process
+  completes.
+
+concurrent.futures
+------------------
+
+* bpo-30845: Enhance test_concurrent_futures cleanup. Make sure that tests
+  don't leak threads nor processes. Clear explicitly the reference to the
+  executor to make it that it's destroyed.
 * bpo-31249: test_concurrent_futures checks dangling threads. Add a
   BaseTestCase class to test_concurrent_futures to check for dangling threads
   and processes on all tests, not only tests using ExecutorMixin.
-* bpo-31234: test_httpservers joins the server thread.
+* bpo-31249: Fix test_concurrent_futures dangling thread.
+  ProcessPoolShutdownTest.test_del_shutdown() now closes the call queue and
+  joins its thread, to prevent leaking a dangling thread.
+
+test_threading and test_thread
+------------------------------
+
 * bpo-31234: test_threaded_import: fix test_side_effect_import().
   Don't leak the module into sys.modules. Avoid dangling thread.
-* bpo-31250, test_asyncio: fix dangling threads. Explicitly call
-  shutdown(wait=True) on executors to wait until all threads complete to
-  prevent side effects between tests. Fix test_loop_self_reading_exception():
-  don't mock loop.close().  Previously, the original close() method was called
-  rather than the mock, because how set_event_loop() registered loop.close().
 * bpo-31234: Enhance test_thread.test_forkinthread():
 
   * test_thread.test_forkinthread() now waits until the thread completes.
@@ -452,45 +491,59 @@ Fix "dangling threads" and "zombie processes" bugs in tests.
   * test_forkinthread(): test if os.fork() exists rather than testing
     the platform.
 
-* bpo-31249: Fix test_concurrent_futures dangling thread.
-  ProcessPoolShutdownTest.test_del_shutdown() now closes the call queue and
-  joins its thread, to prevent leaking a dangling thread.
-* bpo-31234: Explicitly clear the server attribute in test_ftplib and
-  test_poplib to prevent dangling thread. Clear also self.server_thread
-  attribute in TestTimeouts.tearDown().
-* bpo-31234: support.threading_cleanup() waits for 1 second before emitting a
-  warning if there are threads running in the background. With this change, it
-  now emits the warning immediately, to be able to catch bugs more easily.
 * bpo-31234: Try to fix lock_tests warning. Try to fix the "Warning --
   threading_cleanup() failed to cleanup 1 threads" warning in test.lock_tests:
   wait a little bit longer to give time to the threads to complete. Warning
   seen on test_thread and test_importlib.
+* bpo-31234: Join threads in test_threading. Call thread.join() to prevent the
+  "dangling thread" warning.
+* bpo-31234: Join timers in test_threading. Call the .join() method of
+  threading.Timer timers to prevent the "threading_cleanup() failed to cleanup
+  1 threads" warning.
+
+Other fixes
+-----------
+
+* test_urllib2_localnet: clear server variable. Set the server attribute to
+  None in cleanup to avoid dangling threads.
+* bpo-30818: test_ftplib calls asyncore.close_all(). Always clear asyncore
+  socket map using asyncore.close_all(ignore_all=True) in tearDown() method.
+* bpo-30845: reap_children() now logs warnings
+* bpo-30908: Fix dangling thread in test_os.TestSendfile. tearDown() now clears
+  explicitly the self.server variable to make sure that the thread is
+  completely cleared when tearDownClass() checks if all threads have been
+  cleaned up.
+* bpo-31067: test_subprocess now also calls reap_children() in tearDown(), not
+  only on setUp().
+* bpo-31160: Fix test_builtin for zombie process. PtyTests.run_child() now calls
+  os.waitpid() to read the exit status of the child process to avoid creating
+  zombie process and leaking processes in the background.
+* bpo-31160: Fix test_random for zombie process. TestModule.test_after_fork()
+  now calls os.waitpid() to read the exit status of the child process to avoid
+  creating a zombie process.
+* bpo-31160: test_tempfile: TestRandomNameSequence.test_process_awareness() now
+  calls os.waitpid() to avoid leaking a zombie process.
+* bpo-31234: fork_wait.py tests now joins threads, to not leak running threads
+  in the background.
+* bpo-30830: test_logging uses threading_setup/cleanup. Replace
+  @support.reap_threads on some methods with support.threading_setup() in
+  setUp() and support.threading_cleanup() in tearDown() in BaseTest.
+* bpo-31234: test_httpservers joins the server thread.
+* bpo-31250, test_asyncio: fix dangling threads. Explicitly call
+  shutdown(wait=True) on executors to wait until all threads complete to
+  prevent side effects between tests. Fix test_loop_self_reading_exception():
+  don't mock loop.close().  Previously, the original close() method was called
+  rather than the mock, because how set_event_loop() registered loop.close().
+* bpo-31234: Explicitly clear the server attribute in test_ftplib and
+  test_poplib to prevent dangling thread. Clear also self.server_thread
+  attribute in TestTimeouts.tearDown().
 * bpo-31234: Join threads in tests. Call thread.join() on threads to prevent
   the "dangling threads" warning.
 * bpo-31234: Join threads in test_hashlib: use thread.join() to wait until the
   parallel hash tasks complete rather than using events. Calling thread.join()
   prevent "dangling thread" warnings.
-* bpo-31234: Join threads in test_threading. Call thread.join() to prevent the
-  "dangling thread" warning.
-* bpo-31234: Add test.support.wait_threads_exit(). Use _thread.count() to wait
-  until threads exit. The new context manager prevents the "dangling thread"
-  warning.
 * bpo-31234: Join threads in test_queue. Call thread.join() to prevent the
   "dangling thread" warning.
-* bpo-31234: Add support.join_thread() helper. join_thread() joins a thread but
-  raises an AssertionError if the thread is still alive after timeout seconds.
-* bpo-31234: Join timers in test_threading. Call the .join() method of
-  threading.Timer timers to prevent the "threading_cleanup() failed to cleanup
-  1 threads" warning.
-* bpo-31234: test_multiprocessing: wait 30 seconds. Give 30 seconds to
-  join_process(), instead of 5 or 10 seconds, to wait until the process
-  completes.
-
-
-I also started a discussion on reference cycles because by exceptions:
-`[Python-Dev] Evil reference cycles caused Exception.__traceback__
-<https://mail.python.org/pipermail/python-dev/2017-September/149586.html>`_.
-No action was taken (yet?).
 
 
 Misc
