@@ -27,8 +27,8 @@ Next reports:
   <{filename}/python_contrib_2017q2_part2.rst>`_.
 * `My contributions to CPython during 2017 Q2 (part 3)
   <{filename}/python_contrib_2017q2_part3.rst>`_.
-* `My contributions to CPython during 2017 Q3
-  <{filename}/python_contrib_2017q3.rst>`_.
+* `My contributions to CPython during 2017 Q3: Part 1
+  <{filename}/python_contrib_2017q3_part1.rst>`_.
 
 Next parts
 
