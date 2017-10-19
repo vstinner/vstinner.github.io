@@ -24,6 +24,88 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://haypo.github.io/fastcall-issues.html" rel="bookmark"
+                           title="Permalink to FASTCALL issues">FASTCALL issues</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-25T00:00:00+01:00">
+                Published: sam. 25 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
+are already part of Python 3.6.0, some are already merged into the future
+Python 3.7, the few remaining issues are still …</p>
+                <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="bookmark"
+                           title="Permalink to FASTCALL microbenchmarks">FASTCALL microbenchmarks</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-24T22:00:00+01:00">
+                Published: ven. 24 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
+dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
+them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
+CPython developers to prove that an optimization is worth it. It's not uncommon
+that I abandon a …</p>
+                <a class="readmore" href="https://haypo.github.io/fastcall-microbenchmarks.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/start-fastcall-project.html" rel="bookmark"
+                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-02-16T17:00:00+01:00">
+                Published: jeu. 16 février 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <div class="section" id="false-start">
+<h2>False start</h2>
+<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
+functions. Builtin functions were between 20 and 50% faster!</p>
+<p>Sadly, some benchmarks were randomy slower. It will take me four months to
+understand why!</p>
+</div>
+<div class="section" id="work-on-benchmarks">
+<h2>Work on benchmarks</h2>
+<p>During four months, I worked on making …</p></div>
+                <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="bookmark"
                            title="Permalink to My contributions to CPython during 2016 Q4">My contributions to CPython during 2016 Q4</a></h1>
                 </header>
@@ -45,12 +127,9 @@
 hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merges -u Stinner
 </pre>
 <p>Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a>.</p>
-<p>Table of Contents:</p>
-<ul class="simple">
-<li>Python startup performance regression</li>
-<li>Optimizations</li>
-<li>Code placement and …</li></ul>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to
+CPython during 2017 Q1</a>.</p>
+<p>Table of …</p>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q4.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -156,10 +235,10 @@ available on Linux, Solaris, OpenBSD, etc.</p>
 hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merges -u Stinner
 </pre>
 <p>Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html">My contributions to CPython during 2016 Q1</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to
+CPython during 2016 Q3</a>.</p>
 <div class="section" id="start-of-my-work-on-optimization">
-<h2>Start of my work on optimization</h2>
-<p>During 2016 Q2, I started …</p></div>
+<h2>Start of …</h2></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q2.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -187,10 +266,11 @@ hg log -r 'date(&quot;2016-04-01&quot;):date(&quot;2016-06-30&quot;)' --no-merge
 hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merges -u Stinner
 </pre>
 <p>Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html">My contributions to CPython during 2015 Q4</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q2.html">My contributions to
+CPython during 2016 Q2</a>.</p>
 <div class="section" id="summary">
 <h2>Summary</h2>
-<p>Since this report is much longer than I expected, here …</p></div>
+<p>Since …</p></div>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2016q1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
@@ -217,79 +297,11 @@ hg log -r 'date(&quot;2016-01-01&quot;):date(&quot;2016-03-31&quot;)' --no-merge
                 <a class="readmore" href="https://haypo.github.io/pybyteswriter.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2015q4.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2015 Q4">My contributions to CPython during 2015 Q4</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-03-01T15:00:00+01:00">
-                Published: mar. 01 mars 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">My contributions to CPython during 2015 Q4</p>
-
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2015q4.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2015q3.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2015 Q3">My contributions to CPython during 2015 Q3</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-02-18T01:00:00+01:00">
-                Published: jeu. 18 février 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">My contributions to CPython during 2015 Q3</p>
-
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2015q3.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/pytime.html" rel="bookmark"
-                           title="Permalink to History of the Python private C API _PyTime">History of the Python private C API _PyTime</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-02-17T22:00:00+01:00">
-                Published: mer. 17 février 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">History of the Python private C API _PyTime</p>
-
-                <a class="readmore" href="https://haypo.github.io/pytime.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
         <a href="https://haypo.github.io/tag/cpython.html">&laquo;</a>
-    Page 2 / 2
+    Page 2 / 3
+        <a href="https://haypo.github.io/tag/cpython3.html">&raquo;</a>
 </p>
                 </section><!-- /#content -->
         <section id="extras" class="body">

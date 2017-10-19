@@ -22,7 +22,220 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/new-python-c-api.html">A New C API for CPython</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-10-19T16:00:00+02:00">
+                Published: jeu. 19 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 3 (funny bugs).</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)</a>.</p>
+<p>Summary:</p>
+<ul class="simple">
+<li>FreeBSD bug: minor() device regression</li>
+<li>regrtest snowball effect when hunting memory leaks</li>
+<li>Bugfixes</li>
+<li>Other Changes</li>
+</ul>
+<div class="section" id="freebsd-bug-minor-device-regression">
+<h2>FreeBSD bug: minor() device regression</h2>
+<a class="reference external image-reference" href="https://www.freebsd.org/"><img alt="Logo of the FreeBSD project" src="https://haypo.github.io/images/freebsd.png" /></a>
+<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The test_makedev() of
+test_posix started to fail in the build 632 (Wed Jul 26 10:47:01 2017) of AMD64
+FreeBSD CURRENT. The test failed on Debug, but also Non-Debug buildbots, in
+master and 3.6 branches. It looks more like a change on the buildbot, maybe a
+FreeBSD upgrade?</p>
+<p>Thanks to <strong>koobs</strong>, I have a SSH access to the buildbot. I was able to
+reproduce the bug manually. I noticed that minor() truncates most significant
+bits.</p>
+<p>I continued my analysis and I found that, at May 23, the FreeBSD <tt class="docutils literal">dev_t</tt> type
+changed from 32 bits to 64 bits in the kernel, but the <tt class="docutils literal">minor()</tt> userland
+function was not updated.</p>
+<p>I reported a bug to FreeBSD: <a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048">Bug 221048 - minor() truncates device number to
+32 bits, whereas dev_t type was extended to 64 bits</a>.</p>
+<p>In the meanwhile, I skipped test_posix.test_makedev() on FreeBSD if <tt class="docutils literal">dev_t</tt>
+is larger than 32-bit.</p>
+<p>Hopefully, the FreeBSD bug was quickly fixed!</p>
+</div>
+<div class="section" id="regrtest-snowball-effect-when-hunting-memory-leaks">
+<h2>regrtest snowball effect when hunting memory leaks</h2>
+<p>While trying to fix all reference leaks on the new Windows and Linux &quot;Refleaks&quot;
+buildbots, I reported the bug <a class="reference external" href="https://bugs.python.org/issue31217">bpo-31217</a>:</p>
+<pre class="literal-block">
+test_code leaked [1, 1, 1] memory blocks, sum=3
+</pre>
+<p>Two weeks after reporting the bug, I was able to reproduce the bug, but <strong>only
+with Python compiled in 32-bit mode</strong>. Strange.</p>
+<p>I spent one day to understand the bug. I removed as much as possible while
+making sure that I can still reproduce the bug. At the end, I wrote <a class="reference external" href="https://bugs.python.org/file47114/leak2.py">leak2.py</a> which reproduces the bug with a
+single import: <tt class="docutils literal">import sys</tt>. Even if the script is only 86 lines long, I was
+still unable to understand the bug.</p>
+<p>My first hypothesis:</p>
+<blockquote>
+It seems like the &quot;leak&quot; is the call to <tt class="docutils literal">sys.getallocatedblocks()</tt> which
+creates a new integer, and the integer is kept alive between two loop
+iterations.</blockquote>
+<p><strong>Antoine Pitrou</strong> rejected it:</p>
+<blockquote>
+I doubt it. If that was the case, the reference count would increase as
+well.</blockquote>
+<p>It was Antoine Pitrou who understood the bug:</p>
+<pre class="literal-block">
+Ahah.
+Actually, it's quite simple :-) On 64-bit Python:
+
+&gt;&gt;&gt; id(82914 - 82913) == id(1)
+True
+
+On 32-bit Python:
+
+&gt;&gt;&gt; id(82914 - 82913) == id(1)
+False
+
+So the first non-zero alloc_delta really has a snowball effect, as it
+creates new memory block which will produce a non-zero alloc_delta on the
+next run, etc.
+</pre>
+<p>I implemented Antoine's idea to fix the bug, <a class="reference external" href="https://github.com/python/cpython/commit/6c2feabc5dac2f3049b15134669e9ad5af573193">commit</a>:</p>
+<pre class="literal-block">
+Use a pool of integer objects to prevent false alarm when checking for
+memory block leaks. Fill the pool with values in -1000..1000 which
+are the most common (reference, memory block, file descriptor)
+differences.
+
+Co-Authored-By: Antoine Pitrou &lt;pitrou&#64;free.fr&gt;
+</pre>
+<p>The bug is probably as old as the code hunting memory leaks.</p>
+</div>
+<div class="section" id="bugfixes">
+<h2>Bugfixes</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30891">bpo-30891</a>: Second fix for
+importlib <tt class="docutils literal">_find_and_load()</tt> to handle correctly parallelism with threads.
+Call <tt class="docutils literal">sys.modules.get()</tt> in the <tt class="docutils literal">with _ModuleLockManager(name):</tt> block to
+protect the dictionary key with the module lock and use an atomic get to
+prevent race conditions.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31019">bpo-31019</a>:
+<tt class="docutils literal">multiprocessing.Process.is_alive()</tt> now removes the process from the
+<tt class="docutils literal">_children set</tt> if the process completed. The change prevents leaking
+&quot;dangling&quot; processes.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31326">bpo-31326</a>, <tt class="docutils literal">concurrent.futures</tt>:
+<tt class="docutils literal">ProcessPoolExecutor.shutdown()</tt> now explicitly closes the call queue.
+Moreover, <tt class="docutils literal">shutdown(wait=True)</tt> now also joins the call queue thread, to
+prevent leaking a dangling thread.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31170">bpo-31170</a>: Update libexpat from
+2.2.3 to 2.2.4: fix copying of partial characters for UTF-8 input (<a class="reference external" href="https://github.com/libexpat/libexpat/issues/115">libexpat
+bug 115</a>). Later, I also
+wrote non-regression tests for this bug (libexpat doesn't have any test
+for this bug).</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31499">bpo-31499</a>, <tt class="docutils literal">xml.etree</tt>:
+<tt class="docutils literal">xmlparser_gc_clear()</tt> now sets self.parser to <tt class="docutils literal">NULL</tt> to prevent a crash
+in <tt class="docutils literal">xmlparser_dealloc()</tt> if <tt class="docutils literal">xmlparser_gc_clear()</tt> was called previously
+by the garbage collector, because the parser was part of a reference cycle.
+Fix co-written with <strong>Serhiy Storchaka</strong>.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30892">bpo-30892</a>: Fix <tt class="docutils literal">_elementtree</tt>
+module initialization (accelerator of <tt class="docutils literal">xml.etree</tt>), handle correctly
+<tt class="docutils literal">getattr(copy, 'deepcopy')</tt> failure to not fail with an assertion error.</li>
+</ul>
+</div>
+<div class="section" id="other-changes">
+<h2>Other Changes</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30866">bpo-30866</a>: Add _testcapi.stack_pointer(). I used it to write the &quot;Stack
+consumption&quot; section of a previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython
+during 2017 Q1</a></li>
+<li>_ssl_: Fix compiler warning. Cast Py_buffer.len (Py_ssize_t, signed) to
+size_t (unsigned) to prevent the &quot;comparison between signed and unsigned
+integer expressions&quot; warning.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30486">bpo-30486</a>: Make cell_set_contents() symbol private. Don't export the
+<tt class="docutils literal">cell_set_contents()</tt> symbol in the C API.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q3-part2.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q3: Part 2 (dangling threads)">My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-10-19T15:00:00+02:00">
+                Published: jeu. 19 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 2: &quot;Dangling threads&quot;.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html">My contributions to CPython during 2017 Q3: Part 1</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions
+to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</p>
+<p>Summary:</p>
+<ul class="simple">
+<li>Bugfixes: Reference cycles</li>
+<li>socketserver leaking threads and processes<ul>
+<li>test_logging random bug …</li></ul></li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q3-part1.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q3: Part 1">My contributions to CPython during 2017 Q3: Part 1</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-10-18T15:00:00+02:00">
+                Published: mer. 18 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 1.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part1)</a>.</p>
+<p>Next reports:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)</a>.</li>
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
+</ul>
+<p>Summary:</p>
+<ul class="simple">
+<li>Statistics</li>
+<li>Security fixes …</li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/new-python-c-api.html" rel="bookmark"
+                           title="Permalink to A New C API for CPython">A New C API for CPython</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-09-07T18:00:00+02:00">
                 Published: jeu. 07 septembre 2017
@@ -33,217 +246,16 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+</footer><!-- /.post-info -->                <p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
 of writing a new C API for CPython hiding implementation details and replacing
 macros with function calls.</p>
 <img alt="CPython sprint at Facebook, september 2017" src="https://haypo.github.io/images/cpython_sprint_sept2017.jpg" />
 <p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
 <div class="section" id="c-api-prevents-further-optimizations">
-<h2>C API prevents further optimizations</h2>
-<p>The CPython <tt class="docutils literal">PyListObject</tt> type uses an array of <tt class="docutils literal">PyObject*</tt> objects. PyPy
-is able to use a C array of integers if the list only contains small integers.
-CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:</p>
-<pre class="literal-block">
-#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&gt;ob_item[i]
-</pre>
-<p>The macro relies on the <tt class="docutils literal">PyListObject</tt> structure:</p>
-<pre class="literal-block">
-typedef struct {
-    PyVarObject ob_base;
-    PyObject **ob_item;   // &lt;-- pointer to real data
-    Py_ssize_t allocated;
-} PyListObject;
-
-typedef struct {
-    PyObject ob_base;
-    Py_ssize_t ob_size; /* Number of items in variable part */
-} PyVarObject;
-
-typedef struct _object {
-    Py_ssize_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
-</pre>
-</div>
-<div class="section" id="api-and-abi">
-<h2>API and ABI</h2>
-<p>Compiling C extension code using <tt class="docutils literal">PyList_GET_ITEM()</tt> produces machine code
-accessing <tt class="docutils literal">PyListObject</tt> members. Something like (C pseudo code):</p>
-<pre class="literal-block">
-PyObject **items;
-PyObject *item;
-items = (PyObject **)(((char*)list) + 24);
-item = items[i];
-</pre>
-<p>The offset 24 is hardcoded in the C extension object file: the <strong>API</strong>
-(<strong>programming</strong> interface) becomes the <strong>ABI</strong> (<strong>binary</strong> interface).</p>
-<p>But debug builds use a different memory layout:</p>
-<pre class="literal-block">
-typedef struct _object {
-    struct _object *_ob_next;   // &lt;--- two new fields are added
-    struct _object *_ob_prev;   // &lt;--- for debug purpose
-    Py_ssize_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
-</pre>
-<p>The machine code becomes something like:</p>
-<pre class="literal-block">
-items = (PyObject **)(((char*)op) + 40);
-item = items[i];
-</pre>
-<p>The offset changes from 24 to 40 (+16, two pointers of 8 bytes).</p>
-<p>C extensions have to be recompiled to work on Python compiled in debug mode.</p>
-<p>Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
-Unicode string: the <tt class="docutils literal"><span class="pre">--with-wide-unicode</span></tt> configure option.</p>
-</div>
-<div class="section" id="stable-abi">
-<h2>Stable ABI</h2>
-<p>If the machine code doesn't use the offset, it would be able to only compile C
-extensions once.</p>
-<p>A solution is to replace PyList_GET_ITEM() <strong>macro</strong> with a <strong>function</strong>:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
-</pre>
-<p>defined as:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
-{
-    return ((PyListObject *)list)-&gt;ob_item[i];
-}
-</pre>
-<p>The machine code becomes a <strong>function call</strong>:</p>
-<pre class="literal-block">
-PyObject *item;
-item = PyList_GET_ITEM(list, index);
-</pre>
-</div>
-<div class="section" id="specialized-list-for-small-integers">
-<h2>Specialized list for small integers</h2>
-<p>If C extension objects don't access structure members anymore, it becomes
-possible to modify the memory layout.</p>
-<p>For example, it's possible to design a specialized implementation of
-<tt class="docutils literal">PyListObject</tt> for small integers:</p>
-<pre class="literal-block">
-typedef struct {
-    PyVarObject ob_base;
-    int use_small_int;
-    PyObject **pyobject_array;
-    int32_t *small_int_array;   // &lt;-- new compact C array for integers
-    Py_ssize_t allocated;
-} PyListObject;
-
-PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
-{
-    PyListObject *list = (PyListObject *)op;
-    if (list-&gt;use_small_int) {
-        int32_t item = list-&gt;small_int_array[index];
-        /* create a new object at each call */
-        return PyLong_FromLong(item);
-    }
-    else {
-        return list-&gt;pyobject_array[index];
-    }
-}
-</pre>
-<p>It's just an example to show that it becomes possible to modify PyObject
-structures. I'm not sure that it's useful in practice.</p>
-</div>
-<div class="section" id="multiple-python-runtimes">
-<h2>Multiple Python &quot;runtimes&quot;</h2>
-<p>Assuming that all used C extensions use the new stable ABI, we can now imagine
-multiple specialized Python runtimes installed in parallel, instead of a single
-runtime:</p>
-<ul class="simple">
-<li>python3.7: regular/legacy CPython, backward compatible</li>
-<li>python3.7-dbg: runtime checks to ease debug</li>
-<li>fasterpython3.7: use specialized list</li>
-<li>etc.</li>
-</ul>
-<p>The <tt class="docutils literal">python3</tt> runtime would remain <strong>fully</strong> compatible since it would use
-the old C API with macros and full structures. So by default, everything will
-continue to work.</p>
-<p>But the other runtimes require that all imported C extensions were compiled
-with the new C API.</p>
-<p><tt class="docutils literal"><span class="pre">python3.7-dbg</span></tt> adds more checks tested at runtime. Example:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
-{
-    assert(PyList_Check(list));
-    assert(0 &lt;= index &amp;&amp; index &lt; Py_SIZE(list));
-    return ((PyListObject *)list)-&gt;ob_item[i];
-}
-</pre>
-<p>Currently, some Linux distributions provide a <tt class="docutils literal"><span class="pre">python3-dbg</span></tt> binary, but may
-not provide <tt class="docutils literal"><span class="pre">-dbg</span></tt> binary packages of all C extensions. So all C extensions
-have to be recompiled manually which is quite painful (need to install build
-dependencies, wait until everthing is recompiled, etc.).</p>
-</div>
-<div class="section" id="experiment-optimizations">
-<h2>Experiment optimizations</h2>
-<p>With the new C API, it becomes possible to implement a new class of
-optimizations.</p>
-<div class="section" id="tagged-pointer">
-<h3>Tagged pointer</h3>
-<p>Store small integers directly into the pointer value. Reduce the memory usage,
-avoid expensive unboxing-boxing.</p>
-<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer">Wikipedia: Tagged pointer</a>.</p>
-</div>
-<div class="section" id="no-garbage-collector-gc-at-all">
-<h3>No garbage collector (GC) at all</h3>
-<p>Python runtime without GC at all. Remove the following header from objects
-tracked by the GC:</p>
-<pre class="literal-block">
-struct {
-    union _gc_head *gc_next;
-    union _gc_head *gc_prev;
-    Py_ssize_t gc_refs;
-} PyGC_Head;
-</pre>
-<p>It would remove 24 bytes per object tracked by the GC.</p>
-<p>For comparison, the smallest Python object is &quot;object()&quot; which only takes 16
-bytes.</p>
-</div>
-<div class="section" id="tracing-garbage-collector-without-reference-counting">
-<h3>Tracing garbage collector without reference counting</h3>
-<p>This idea is really the most complex and most experimental idea, but IMHO it's
-required to &quot;unlock&quot; Python performances.</p>
-<ul class="simple">
-<li>Write a new API to keep track of pointers:<ul>
-<li>Declare a variable storing a <tt class="docutils literal">PyObject*</tt> object</li>
-<li>Set a pointer</li>
-<li>Maybe also read a pointer?</li>
-</ul>
-</li>
-<li>Modify C extensions to use this new API</li>
-<li>Implement a tracing garbage collector which can move objects in memory
-to compact memory</li>
-<li>Remove reference counting</li>
-</ul>
-<p>It even seems possible to implement a tracing garbage collector <strong>and</strong> use
-reference counting. But I'm not an expert in this area, need to dig the topic.</p>
-<p>Questions:</p>
-<ul class="simple">
-<li>Is it possible to fix all C extensions to use the new API? Should be an
-opt-in option in a first stage.</li>
-<li>Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
-using an hash table which maintains a reference counter outside <tt class="docutils literal">PyObject</tt>?</li>
-<li>Do we need to fix all C extensions?</li>
-</ul>
-<p>Read also <a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Wikipedia: Tracing garbage collection</a>.</p>
-</div>
-<div class="section" id="gilectomy">
-<h3>Gilectomy</h3>
-<p>Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
-able to reemove the GIL.</p>
-<p>Removing reference counting would make Gilectomy much simpler.</p>
-</div>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<h2>C API prevents further optimizations …</h2></div>
+                <a class="readmore" href="https://haypo.github.io/new-python-c-api.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -427,100 +439,14 @@ than 200 tests and is longer than 5,000 lines …</p></div>
 <li>regrtest</li>
 <li>Bugfixes</li>
 </ul>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html">My contributions to CPython during 2016 Q4</a>.</p>
-<div class="section" id="statistics">
-<h2>Statistics</h2>
-<pre class="literal-block">
-# All commits
-$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches …</pre></div>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html">My contributions to CPython during 2016 Q4</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to
+CPython during 2017 Q2 (part 1 …</a></p>
                 <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q1.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fastcall-issues.html" rel="bookmark"
-                           title="Permalink to FASTCALL issues">FASTCALL issues</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-25T00:00:00+01:00">
-                Published: sam. 25 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
-2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
-are already part of Python 3.6.0, some are already merged into the future
-Python 3.7, the few remaining issues are still …</p>
-                <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="bookmark"
-                           title="Permalink to FASTCALL microbenchmarks">FASTCALL microbenchmarks</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-24T22:00:00+01:00">
-                Published: ven. 24 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
-dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
-them into a new Git repository: <a class="reference external" href="https://github.com/haypo/pymicrobench">pymicrobench</a>.  Benchmark results are required by
-CPython developers to prove that an optimization is worth it. It's not uncommon
-that I abandon a …</p>
-                <a class="readmore" href="https://haypo.github.io/fastcall-microbenchmarks.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/start-fastcall-project.html" rel="bookmark"
-                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-16T17:00:00+01:00">
-                Published: jeu. 16 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="false-start">
-<h2>False start</h2>
-<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
-functions. Builtin functions were between 20 and 50% faster!</p>
-<p>Sadly, some benchmarks were randomy slower. It will take me four months to
-understand why!</p>
-</div>
-<div class="section" id="work-on-benchmarks">
-<h2>Work on benchmarks</h2>
-<p>During four months, I worked on making …</p></div>
-                <a class="readmore" href="https://haypo.github.io/start-fastcall-project.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
-    Page 1 / 2
+    Page 1 / 3
         <a href="https://haypo.github.io/tag/cpython2.html">&raquo;</a>
 </p>
                 </section><!-- /#content -->

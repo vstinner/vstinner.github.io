@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>My contributions to CPython during 2017 Q3: Part 1</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/contrib-cpython-2017q3-part1.html" rel="bookmark"
+           title="Permalink to My contributions to CPython during 2017 Q3: Part 1">My contributions to CPython during 2017 Q3: Part 1</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-10-18T15:00:00+02:00">
+                Published: mer. 18 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 1.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part1)</a>.</p>
+<p>Next reports:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)</a>.</li>
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
+</ul>
+<p>Summary:</p>
+<ul class="simple">
+<li>Statistics</li>
+<li>Security fixes</li>
+<li>Enhancement: socket.close() now ignores ECONNRESET</li>
+<li>Removal of the macOS job of Travis CI</li>
+<li>New test.pythoninfo utility</li>
+<li>Revert commits if buildbots are broken</li>
+<li>Fix the Python test suite</li>
+</ul>
+<div class="section" id="statistics">
+<h2>Statistics</h2>
+<pre class="literal-block">
+# All branches
+$ git log --after=2017-06-30 --before=2017-10-01 --reverse --branches='*' --author=Stinner|grep '^commit ' -c
+209
+
+# Master branch only
+$ git log --after=2017-06-30 --before=2017-10-01 --reverse --author=Stinner origin/master|grep '^commit ' -c
+97
+</pre>
+<p>Statistics: I pushed <strong>97</strong> commits in the master branch on a <strong>total of 209
+commits</strong>, remaining: 112 commits in the other branches (backports, fixes
+specific to Python 2.7, security fixes in Python 3.3 and 3.4, etc.)</p>
+</div>
+<div class="section" id="security-fixes">
+<h2>Security fixes</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30947">bpo-30947</a>: Update libexpat from 2.2.1 to 2.2.3. Fix applied to master, 3.6,
+3.5, 3.4, 3.3 and 2.7 branches! Expat 2.2.2 and 2.2.3 fixed multiple security
+vulnerabilities.
+<a class="reference external" href="http://python-security.readthedocs.io/vuln/expat_2.2.3.html">http://python-security.readthedocs.io/vuln/expat_2.2.3.html</a></li>
+<li>Fix whichmodule() of _pickle: : _PyUnicode_FromId() can return NULL, replace
+Py_INCREF() with Py_XINCREF(). Fix coverity report: CID 1417269.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30860">bpo-30860</a>: <tt class="docutils literal">_PyMem_Initialize()</tt> contains code which is never executed.
+Replace the runtime check with a build assertion. Fix Coverity CID 1417587.</li>
+</ul>
+<p>See also my <a class="reference external" href="http://python-security.readthedocs.io/">python-security website</a>.</p>
+</div>
+<div class="section" id="enhancement-socket-close-now-ignores-econnreset">
+<h2>Enhancement: socket.close() now ignores ECONNRESET</h2>
+<p><a class="reference external" href="https://bugs.python.org/issue30319">bpo-30319</a>: socket.close() now ignores ECONNRESET. Previously, many network
+tests failed randomly with ConnectionResetError on socket.close().</p>
+<p>Patching all functions calling socket.close() would require a lot of work, and
+it was surprising to get a &quot;connection reset&quot; when closing a socket.</p>
+<p>Who cares that the peer closed the connection, since we are already closing
+it!?</p>
+<p>Note: socket.close() was modified in Python 3.6 to raise OSError on failure
+(<a class="reference external" href="https://bugs.python.org/issue26685">bpo-26685</a>).</p>
+</div>
+<div class="section" id="removal-of-the-macos-job-of-travis-ci">
+<h2>Removal of the macOS job of Travis CI</h2>
+<a class="reference external image-reference" href="https://travis-ci.org/"><img alt="call_method microbenchmark" class="align-right" src="https://haypo.github.io/images/travis-ci.png" /></a>
+<p>While the Linux jobs of Travis CI usually takes 15 minutes, up to 30 minutes in
+the worst case, the macOS job of Travis CI regulary took longer than 30
+minutes, sometimes longer than 1 hour.</p>
+<p>While the macOS job was optional, sometimes it gone mad and prevented a PR to
+be merged. Cancelling the job marked Travis CI as failed on a PR, so it was
+still not possible to merge the PR, whereas, again, the job is marked as
+optional (&quot;Allowed Failure&quot;).</p>
+<p>Moreover, when the macOS job failed, the failure was not reported on the PR,
+since the job was marked as optional. The only way to notify a failure was to
+go to Travis CI and wait at least 30 minutes (whereas the Linux jobs already
+completed and it was already possible merge a PR...).</p>
+<p>I sent a first mail in June: <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-June/004661.html">[python-committers] macOS Travis CI job became
+mandatory?</a></p>
+<p>In september, we decided to remove the macOS job during the CPython sprint at
+Instagram (see my previous <a class="reference external" href="https://haypo.github.io/new-python-c-api.html">New C API</a>
+article), to not slowdown our development speed (<a class="reference external" href="https://bugs.python.org/issue31355">bpo-31355</a>). I sent another
+email to announce the change: <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-September/004824.html">[python-committers] Travis CI: macOS is now
+blocking -- remove macOS from Travis CI?</a>.</p>
+<p>After the sprint, it was decided to not add again the macOS job, since we have
+3 macOS buildbots. It's enough to detect regressions specific to macOS.</p>
+<p>After the removal of the macOS end, at the end of september, Travis CI
+published an article about the bad performances of their macOS fleet: <a class="reference external" href="https://blog.travis-ci.com/2017-09-22-macos-update">Updating
+Our macOS Open Source Offering</a>. Sadly, the article
+confirms that the situation is not going to evolve quickly.</p>
+</div>
+<div class="section" id="new-test-pythoninfo-utility">
+<h2>New test.pythoninfo utility</h2>
+<p>To understand the &quot;Segfault when readline history is more then 2 * history
+size&quot; crash of <a class="reference external" href="https://bugs.python.org/issue29854">bpo-29854</a>, I modified
+<tt class="docutils literal">test_readline</tt> to log libreadline  versions.  I also added
+<tt class="docutils literal">readline._READLINE_LIBRARY_VERSION</tt>. My colleague <strong>Nir Soffer</strong> wrote the
+final readline fix: skip the test on old readline versions.</p>
+<p>As a follow-up of this issue, I added a new <tt class="docutils literal">test.pythoninfo</tt> program to log
+many information to debug Python tests (<a class="reference external" href="https://bugs.python.org/issue30871">bpo-30871</a>). pythoninfo is now run on
+Travis CI, AppVeyor and buildbots.</p>
+<p>Example of output:</p>
+<pre class="literal-block">
+$ ./python -m test.pythoninfo
+(...)
+_decimal.__libmpdec_version__: 2.4.2
+expat.EXPAT_VERSION: expat_2.2.4
+gdb_version: GNU gdb (GDB) Fedora 8.0.1-26.fc26
+locale.encoding: UTF-8
+os.cpu_count: 4
+(...)
+time.timezone: -3600
+time.tzname: ('CET', 'CEST')
+tkinter.TCL_VERSION: 8.6
+tkinter.TK_VERSION: 8.6
+tkinter.info_patchlevel: 8.6.6
+zlib.ZLIB_RUNTIME_VERSION: 1.2.11
+zlib.ZLIB_VERSION: 1.2.11
+</pre>
+<p><tt class="docutils literal">test.pythoninfo</tt> can be easily extended to log more information, without
+polluting the output of the Python test suite which is already too verbose and
+very long.</p>
+</div>
+<div class="section" id="revert-commits-if-buildbots-are-broken">
+<h2>Revert commits if buildbots are broken</h2>
+<p>Thanks to my work done last months on the Python test suite, the buildbots are
+now very reliable. When a buildbot fails, it becomes very likely that it's a
+real regression, and not a random failure caused by a bug in the Python test
+suite.</p>
+<p>I proposed a new rule: <strong>revert a change if it breaks builbots and the but
+cannot be fixed easily</strong>:</p>
+<blockquote>
+<p>So I would like to set a new rule: if I'm unable to fix buildbots
+failures caused by a recent change quickly (say, in less than 2
+hours), I propose to revert the change.</p>
+<p>It doesn't mean that the commit is bad and must not be merged ever.
+No. It would just mean that we need time to work on fixing the issue,
+and it shouldn't impact other pending changes, to keep a sane master
+branch.</p>
+</blockquote>
+<p><a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-June/004588.html">[python-committers] Revert changes which break too many buildbots</a>.</p>
+<div class="section" id="test-datetime">
+<h3>test_datetime</h3>
+<p>The first revert was an enhancement of test_datetime, <a class="reference external" href="https://bugs.python.org/issue30822">bpo-30822</a>:</p>
+<pre class="literal-block">
+commit 98b6bc3bf72532b784a1c1fa76eaa6026a663e44
+Author: Utkarsh Upadhyay &lt;mail&#64;musicallyut.in&gt;
+Date:   Sun Jul 2 14:46:04 2017 +0200
+
+    bpo-30822: Fix testing of datetime module. (#2530)
+
+    Only C implementation was tested.
+</pre>
+<p>I wrote an email to announce the revert: <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-July/004673.html">[python-committers] Revert changes
+which break too many buildbots</a>.</p>
+<p>It took 15 days to decide how to fix properly the issue (exclude <tt class="docutils literal">tzdata</tt>
+from test resources). I don't regret my revert, since having broken buildbots
+for 15 days would be very annoying.</p>
+</div>
+<div class="section" id="python-gdb-py-fix">
+<h3>python-gdb.py fix</h3>
+<p>I also reverted this commit of <a class="reference external" href="https://bugs.python.org/issue30983">bpo-30983</a>:</p>
+<pre class="literal-block">
+commit 2e0f4db114424a00354eab889ba8f7334a2ab8f0
+Author: Bruno &quot;Polaco&quot; Penteado &lt;polaco&#64;gmail.com&gt;
+Date:   Mon Aug 14 23:14:17 2017 +0100
+
+    bpo-30983: eval frame rename in pep 0523 broke gdb's python extension (#2803)
+
+    pep 0523 renames PyEval_EvalFrameEx to _PyEval_EvalFrameDefault while the gdb python extension only looks for PyEval_EvalFrameEx to understand if it is dealing with a frame.
+
+    Final effect is that attaching gdb to a python3.6 process doesnt resolve python objects. Eg. py-list and py-bt dont work properly.
+
+    This patch fixes that. Tested locally on python3.6
+</pre>
+<p>My comment on the issue:</p>
+<blockquote>
+<p>I chose to revert the change because I don't have the bandwidth right now
+to investigate why the change broke test_gdb.</p>
+<p>I'm surprised that a change affecting python-gdb.py wasn't properly tested
+manually using test_gdb.py :-( I understand that Travis CI doesn't have gdb
+and/or that the test pass in some cases?</p>
+<p>The revert only gives us more time to design the proper solution.</p>
+</blockquote>
+<p>Hopefully, a new fixed commit was pushed 4 days later and this one didn't break
+buildbots!</p>
+</div>
+</div>
+<div class="section" id="fix-the-python-test-suite">
+<h2>Fix the Python test suite</h2>
+<p>As usual, I spent a significant part of my time to fix bugs in the Python test
+suite to make it more reliable and more &quot;usable&quot;.</p>
+<ul>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue30822">bpo-30822</a>: Exclude <tt class="docutils literal">tzdata</tt> from <tt class="docutils literal">regrtest <span class="pre">--all</span></tt>. When running the test suite
+using <tt class="docutils literal"><span class="pre">--use=all</span></tt> / <tt class="docutils literal"><span class="pre">-u</span> all</tt>, exclude <tt class="docutils literal">tzdata</tt> since it makes
+test_datetime too slow (15-20 min on some buildbots, just this single test
+file) which then times out on some buildbots. <tt class="docutils literal"><span class="pre">-u</span> tzdata</tt> must now be
+enabled explicitly.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue30188">bpo-30188</a>, test_nntplib: Catch also
+ssl.SSLEOFError in NetworkedNNTPTests.setUpClass(), not only EOFError.
+(<em>Sadly, test_nntplib still fails randomly with EOFError or SSLEOFError...</em>)</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31009">bpo-31009</a>: Fix
+<tt class="docutils literal">support.fd_count()</tt> on Windows. Call <tt class="docutils literal">msvcrt.CrtSetReportMode()</tt> to not
+kill the process nor log any error on stderr on os.dup(fd) if the file
+descriptor is invalid.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31034">bpo-31034</a>: Reliable signal handler for test_asyncio. Don't rely on the
+current SIGHUP signal handler, make sure that it's set to the &quot;default&quot;
+signal handler: SIG_DFL. A colleague reported me that the Python test suite
+hangs on running test_subprocess_send_signal() of test_asyncio. After
+analysing the issue, it seems like the test hangs because the RPM package
+builder ignores SIGHUP.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31028">bpo-31028</a>: Fix test_pydoc when run
+directly. Fix <tt class="docutils literal">get_pydoc_link()</tt>: get the absolute path to <tt class="docutils literal">__file__</tt> to
+prevent relative directories.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31066">bpo-31066</a>: Fix
+<tt class="docutils literal">test_httpservers.test_last_modified()</tt>. Write the temporary file on disk
+and then get its modification time.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31173">bpo-31173</a>: Rewrite WSTOPSIG test of test_subprocess.</p>
+<p>The current <tt class="docutils literal">test_child_terminated_in_stopped_state()</tt> function test creates a
+child process which calls <tt class="docutils literal">ptrace(PTRACE_TRACEME, 0, 0)</tt> and then crash
+(SIGSEGV). The problem is that calling <tt class="docutils literal">os.waitpid()</tt> in the parent process is
+not enough to close the process: the child process remains alive and so the
+unit test leaks a child process in a strange state. Closing the child process
+requires non-trivial code, maybe platform specific.</p>
+<p>Remove the functional test and replaces it with an unit test which mocks
+<tt class="docutils literal">os.waitpid()</tt> using a new <tt class="docutils literal">_testcapi.W_STOPCODE()</tt> function to test the
+<tt class="docutils literal">WIFSTOPPED()</tt> path.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31008">bpo-31008</a>: Fix asyncio
+test_wait_for_handle on Windows, tolerate a difference of 50 ms.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31235">bpo-31235</a>: Fix ResourceWarning in
+test_logging: always close all asyncore dispatchers (ignoring errors if any).</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue30121">bpo-30121</a>: Add test_subprocess.test_nonexisting_with_pipes(). Test the Popen
+failure when Popen was created with pipes. Create also NONEXISTING_CMD
+variable in test_subprocess.py.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31250">bpo-31250</a>, test_asyncio: fix EventLoopTestsMixin.tearDown(). Call
+doCleanups() to close the loop after calling executor.shutdown(wait=True).</p>
+</li>
+<li><p class="first">test_ssl: Implement timeout in ssl_io_loop(). The timeout parameter was not
+used.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31448">bpo-31448</a>, test_poplib: Call POP3.close(), don't close close directly the
+sock attribute to fix a ResourceWarning.</p>
+</li>
+<li><p class="first">os.test_utime_current(): tolerate 50 ms delta.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31135">bpo-31135</a>: ttk: fix LabeledScale and OptionMenu destroy() method. Call the
+parent destroy() method even if the used attribute doesn't exist. The
+LabeledScale.destroy() method now also explicitly clears label and scale
+attributes to help the garbage collector to destroy all widgets.</p>
+</li>
+<li><p class="first"><a class="reference external" href="https://bugs.python.org/issue31479">bpo-31479</a>: Always reset the signal alarm in tests. Use
+the <tt class="docutils literal">try: ... finally: signal.signal(0)</tt> pattern to make sure that tests
+don't &quot;leak&quot; a pending fatal signal alarm. Move some signal.alarm() calls
+into the try block.</p>
+</li>
+</ul>
+<p><strong>Next report:</strong> <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)</a>.</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

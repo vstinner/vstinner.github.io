@@ -1,5 +1,772 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-09-15T22:00:00+02:00</updated><entry><title>Python Security</title><link href="https://haypo.github.io/python-security.html" rel="alternate"></link><published>2017-09-15T22:00:00+02:00</published><updated>2017-09-15T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-09-15:/python-security.html</id><summary type="html">&lt;p&gt;I am working on the Python security for years, but I never wrote anything about
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Haypo blog 2</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/all.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-10-19T16:00:00+02:00</updated><entry><title>My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</title><link href="https://haypo.github.io/contrib-cpython-2017q3-part3.html" rel="alternate"></link><published>2017-10-19T16:00:00+02:00</published><updated>2017-10-19T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-10-19:/contrib-cpython-2017q3-part3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+(july, august, september), Part 3 (funny bugs).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Summary:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;FreeBSD bug: minor() device regression&lt;/li&gt;
+&lt;li&gt;regrtest snowball effect when hunting memory leaks&lt;/li&gt;
+&lt;li&gt;Bugfixes&lt;/li&gt;
+&lt;li&gt;Other Changes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="freebsd-bug-minor-device-regression"&gt;
+&lt;h2&gt;FreeBSD bug: minor() device regression&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://www.freebsd.org/"&gt;&lt;img alt="Logo of the FreeBSD project" src="https://haypo.github.io/images/freebsd.png" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31044"&gt;bpo-31044&lt;/a&gt;: The …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+(july, august, september), Part 3 (funny bugs).&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Summary:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;FreeBSD bug: minor() device regression&lt;/li&gt;
+&lt;li&gt;regrtest snowball effect when hunting memory leaks&lt;/li&gt;
+&lt;li&gt;Bugfixes&lt;/li&gt;
+&lt;li&gt;Other Changes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="freebsd-bug-minor-device-regression"&gt;
+&lt;h2&gt;FreeBSD bug: minor() device regression&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://www.freebsd.org/"&gt;&lt;img alt="Logo of the FreeBSD project" src="https://haypo.github.io/images/freebsd.png" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31044"&gt;bpo-31044&lt;/a&gt;: The test_makedev() of
+test_posix started to fail in the build 632 (Wed Jul 26 10:47:01 2017) of AMD64
+FreeBSD CURRENT. The test failed on Debug, but also Non-Debug buildbots, in
+master and 3.6 branches. It looks more like a change on the buildbot, maybe a
+FreeBSD upgrade?&lt;/p&gt;
+&lt;p&gt;Thanks to &lt;strong&gt;koobs&lt;/strong&gt;, I have a SSH access to the buildbot. I was able to
+reproduce the bug manually. I noticed that minor() truncates most significant
+bits.&lt;/p&gt;
+&lt;p&gt;I continued my analysis and I found that, at May 23, the FreeBSD &lt;tt class="docutils literal"&gt;dev_t&lt;/tt&gt; type
+changed from 32 bits to 64 bits in the kernel, but the &lt;tt class="docutils literal"&gt;minor()&lt;/tt&gt; userland
+function was not updated.&lt;/p&gt;
+&lt;p&gt;I reported a bug to FreeBSD: &lt;a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048"&gt;Bug 221048 - minor() truncates device number to
+32 bits, whereas dev_t type was extended to 64 bits&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In the meanwhile, I skipped test_posix.test_makedev() on FreeBSD if &lt;tt class="docutils literal"&gt;dev_t&lt;/tt&gt;
+is larger than 32-bit.&lt;/p&gt;
+&lt;p&gt;Hopefully, the FreeBSD bug was quickly fixed!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regrtest-snowball-effect-when-hunting-memory-leaks"&gt;
+&lt;h2&gt;regrtest snowball effect when hunting memory leaks&lt;/h2&gt;
+&lt;p&gt;While trying to fix all reference leaks on the new Windows and Linux &amp;quot;Refleaks&amp;quot;
+buildbots, I reported the bug &lt;a class="reference external" href="https://bugs.python.org/issue31217"&gt;bpo-31217&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+test_code leaked [1, 1, 1] memory blocks, sum=3
+&lt;/pre&gt;
+&lt;p&gt;Two weeks after reporting the bug, I was able to reproduce the bug, but &lt;strong&gt;only
+with Python compiled in 32-bit mode&lt;/strong&gt;. Strange.&lt;/p&gt;
+&lt;p&gt;I spent one day to understand the bug. I removed as much as possible while
+making sure that I can still reproduce the bug. At the end, I wrote &lt;a class="reference external" href="https://bugs.python.org/file47114/leak2.py"&gt;leak2.py&lt;/a&gt; which reproduces the bug with a
+single import: &lt;tt class="docutils literal"&gt;import sys&lt;/tt&gt;. Even if the script is only 86 lines long, I was
+still unable to understand the bug.&lt;/p&gt;
+&lt;p&gt;My first hypothesis:&lt;/p&gt;
+&lt;blockquote&gt;
+It seems like the &amp;quot;leak&amp;quot; is the call to &lt;tt class="docutils literal"&gt;sys.getallocatedblocks()&lt;/tt&gt; which
+creates a new integer, and the integer is kept alive between two loop
+iterations.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Antoine Pitrou&lt;/strong&gt; rejected it:&lt;/p&gt;
+&lt;blockquote&gt;
+I doubt it. If that was the case, the reference count would increase as
+well.&lt;/blockquote&gt;
+&lt;p&gt;It was Antoine Pitrou who understood the bug:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Ahah.
+Actually, it's quite simple :-) On 64-bit Python:
+
+&amp;gt;&amp;gt;&amp;gt; id(82914 - 82913) == id(1)
+True
+
+On 32-bit Python:
+
+&amp;gt;&amp;gt;&amp;gt; id(82914 - 82913) == id(1)
+False
+
+So the first non-zero alloc_delta really has a snowball effect, as it
+creates new memory block which will produce a non-zero alloc_delta on the
+next run, etc.
+&lt;/pre&gt;
+&lt;p&gt;I implemented Antoine's idea to fix the bug, &lt;a class="reference external" href="https://github.com/python/cpython/commit/6c2feabc5dac2f3049b15134669e9ad5af573193"&gt;commit&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Use a pool of integer objects to prevent false alarm when checking for
+memory block leaks. Fill the pool with values in -1000..1000 which
+are the most common (reference, memory block, file descriptor)
+differences.
+
+Co-Authored-By: Antoine Pitrou &amp;lt;pitrou&amp;#64;free.fr&amp;gt;
+&lt;/pre&gt;
+&lt;p&gt;The bug is probably as old as the code hunting memory leaks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bugfixes"&gt;
+&lt;h2&gt;Bugfixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30891"&gt;bpo-30891&lt;/a&gt;: Second fix for
+importlib &lt;tt class="docutils literal"&gt;_find_and_load()&lt;/tt&gt; to handle correctly parallelism with threads.
+Call &lt;tt class="docutils literal"&gt;sys.modules.get()&lt;/tt&gt; in the &lt;tt class="docutils literal"&gt;with _ModuleLockManager(name):&lt;/tt&gt; block to
+protect the dictionary key with the module lock and use an atomic get to
+prevent race conditions.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31019"&gt;bpo-31019&lt;/a&gt;:
+&lt;tt class="docutils literal"&gt;multiprocessing.Process.is_alive()&lt;/tt&gt; now removes the process from the
+&lt;tt class="docutils literal"&gt;_children set&lt;/tt&gt; if the process completed. The change prevents leaking
+&amp;quot;dangling&amp;quot; processes.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31326"&gt;bpo-31326&lt;/a&gt;, &lt;tt class="docutils literal"&gt;concurrent.futures&lt;/tt&gt;:
+&lt;tt class="docutils literal"&gt;ProcessPoolExecutor.shutdown()&lt;/tt&gt; now explicitly closes the call queue.
+Moreover, &lt;tt class="docutils literal"&gt;shutdown(wait=True)&lt;/tt&gt; now also joins the call queue thread, to
+prevent leaking a dangling thread.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31170"&gt;bpo-31170&lt;/a&gt;: Update libexpat from
+2.2.3 to 2.2.4: fix copying of partial characters for UTF-8 input (&lt;a class="reference external" href="https://github.com/libexpat/libexpat/issues/115"&gt;libexpat
+bug 115&lt;/a&gt;). Later, I also
+wrote non-regression tests for this bug (libexpat doesn't have any test
+for this bug).&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31499"&gt;bpo-31499&lt;/a&gt;, &lt;tt class="docutils literal"&gt;xml.etree&lt;/tt&gt;:
+&lt;tt class="docutils literal"&gt;xmlparser_gc_clear()&lt;/tt&gt; now sets self.parser to &lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt; to prevent a crash
+in &lt;tt class="docutils literal"&gt;xmlparser_dealloc()&lt;/tt&gt; if &lt;tt class="docutils literal"&gt;xmlparser_gc_clear()&lt;/tt&gt; was called previously
+by the garbage collector, because the parser was part of a reference cycle.
+Fix co-written with &lt;strong&gt;Serhiy Storchaka&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30892"&gt;bpo-30892&lt;/a&gt;: Fix &lt;tt class="docutils literal"&gt;_elementtree&lt;/tt&gt;
+module initialization (accelerator of &lt;tt class="docutils literal"&gt;xml.etree&lt;/tt&gt;), handle correctly
+&lt;tt class="docutils literal"&gt;getattr(copy, 'deepcopy')&lt;/tt&gt; failure to not fail with an assertion error.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="other-changes"&gt;
+&lt;h2&gt;Other Changes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30866"&gt;bpo-30866&lt;/a&gt;: Add _testcapi.stack_pointer(). I used it to write the &amp;quot;Stack
+consumption&amp;quot; section of a previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html"&gt;My contributions to CPython
+during 2017 Q1&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;_ssl_: Fix compiler warning. Cast Py_buffer.len (Py_ssize_t, signed) to
+size_t (unsigned) to prevent the &amp;quot;comparison between signed and unsigned
+integer expressions&amp;quot; warning.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30486"&gt;bpo-30486&lt;/a&gt;: Make cell_set_contents() symbol private. Don't export the
+&lt;tt class="docutils literal"&gt;cell_set_contents()&lt;/tt&gt; symbol in the C API.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</title><link href="https://haypo.github.io/contrib-cpython-2017q3-part2.html" rel="alternate"></link><published>2017-10-19T15:00:00+02:00</published><updated>2017-10-19T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-10-19:/contrib-cpython-2017q3-part2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+(july, august, september), Part 2: &amp;quot;Dangling threads&amp;quot;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions
+to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Summary:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Bugfixes: Reference cycles&lt;/li&gt;
+&lt;li&gt;socketserver leaking threads and processes&lt;ul&gt;
+&lt;li&gt;test_logging random bug …&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+(july, august, september), Part 2: &amp;quot;Dangling threads&amp;quot;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions
+to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Summary:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Bugfixes: Reference cycles&lt;/li&gt;
+&lt;li&gt;socketserver leaking threads and processes&lt;ul&gt;
+&lt;li&gt;test_logging random bug&lt;/li&gt;
+&lt;li&gt;Skip failing tests&lt;/li&gt;
+&lt;li&gt;Fix socketserver for processes&lt;/li&gt;
+&lt;li&gt;Fix socketserver for threads&lt;/li&gt;
+&lt;li&gt;Issue not done yet&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Environment altered and dangling threads&lt;ul&gt;
+&lt;li&gt;Environment changed&lt;/li&gt;
+&lt;li&gt;test.support and regrtest enhancements&lt;/li&gt;
+&lt;li&gt;multiprocessing bug fixes&lt;/li&gt;
+&lt;li&gt;concurrent.futures bug fixes&lt;/li&gt;
+&lt;li&gt;test_threading and test_thread&lt;/li&gt;
+&lt;li&gt;Other fixes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="bugfixes-reference-cycles"&gt;
+&lt;h2&gt;Bugfixes: Reference cycles&lt;/h2&gt;
+&lt;p&gt;While fixing &amp;quot;dangling threads&amp;quot; (see below), I found and fixed 4 reference
+cycles which caused memory leaks and objects to live longer than expected. I
+was surprised that the bug in the common &lt;tt class="docutils literal"&gt;socket.create_connection()&lt;/tt&gt;
+function was not noticed before! So my work on dangling threads was useful!&lt;/p&gt;
+&lt;p&gt;The typical pattern of such reference cycle is:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def func():
+    err = None
+    try:
+        do_something()
+    except Exception as exc:
+        err = exc
+    if err is not None:
+        handle_error(exc)
+    # the exception is stored in the 'err' variable
+
+func()
+# surprise, surprise, the exception is still alive at this point!
+&lt;/pre&gt;
+&lt;p&gt;Or the variant:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def func():
+    try:
+        do_something()
+    except Exception as exc:
+        exc_info = sys.exc_info()
+        handle_error(exc_info)
+    # the exception is stored in the 'exc_info' variable
+
+func()
+# surprise, surprise, the exception is still alive at this point!
+&lt;/pre&gt;
+&lt;p&gt;It's not easy to spot the bug, the bug is subtle. An exception object in Python
+3 has a &lt;tt class="docutils literal"&gt;__traceback__&lt;/tt&gt; attribute which contains frames. If a frame stores
+the exception in a variable, like &lt;tt class="docutils literal"&gt;err&lt;/tt&gt; in the first example, or &lt;tt class="docutils literal"&gt;exc_info&lt;/tt&gt;
+in the second example, a cycle exists between the exception and frames. In this
+case, the exception, the traceback, the frames, &lt;strong&gt;and all variables of all
+frames are kept alive&lt;/strong&gt; by the reference cycle, &lt;strong&gt;until the cycle is break by
+the garbage collector&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;The problem is that the garbage collector is only called infrequently, so the
+cycle may stay alive for a long time.&lt;/p&gt;
+&lt;p&gt;Sometimes, the reference cycle is even more subtle than the simple examples
+above.&lt;/p&gt;
+&lt;p&gt;Fixed reference cycles:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;,
+&lt;tt class="docutils literal"&gt;socket.create_connection()&lt;/tt&gt;: Fix reference cycle.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31247"&gt;bpo-31247&lt;/a&gt;: &lt;tt class="docutils literal"&gt;xmlrpc.server&lt;/tt&gt; now explicitly breaks reference cycles when using
+&lt;tt class="docutils literal"&gt;sys.exc_info()&lt;/tt&gt; in code handling exceptions.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31249"&gt;bpo-31249&lt;/a&gt;, &lt;tt class="docutils literal"&gt;concurrent.futures&lt;/tt&gt;:
+&lt;tt class="docutils literal"&gt;WorkItem.run()&lt;/tt&gt; used by ThreadPoolExecutor now explicitly breaks a
+reference cycle between an exception object and the &lt;tt class="docutils literal"&gt;WorkItem&lt;/tt&gt; object.
+&lt;tt class="docutils literal"&gt;ThreadPoolExecutor.shutdown()&lt;/tt&gt; now also clears its threads set.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31238"&gt;bpo-31238&lt;/a&gt;: &lt;tt class="docutils literal"&gt;pydoc&lt;/tt&gt;:
+&lt;tt class="docutils literal"&gt;ServerThread.stop()&lt;/tt&gt; now joins itself to wait until
+&lt;tt class="docutils literal"&gt;DocServer.serve_until_quit()&lt;/tt&gt; completes and then explicitly sets its
+docserver attribute to None to break a reference cycle. This change was made
+to fix &lt;tt class="docutils literal"&gt;test_doc&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31323"&gt;bpo-31323&lt;/a&gt;: Fix reference leak in
+test_ssl. Store exceptions as string rather than object to prevent reference
+cycles which cause leaking dangling threads.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I also started a discussion on reference cycles caused by exceptions:
+&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-September/149586.html"&gt;[Python-Dev] Evil reference cycles caused Exception.__traceback__&lt;/a&gt;.
+Sadly, no action was taken, no obvious solution was found.&lt;/p&gt;
+&lt;p&gt;I found the &lt;tt class="docutils literal"&gt;socket.create_connection()&lt;/tt&gt; reference cycle because of an
+unrelated change in test.support:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+bpo-29639: change test.support.HOST to &amp;quot;localhost&amp;quot;
+&lt;/pre&gt;
+&lt;p&gt;Read &lt;a class="reference external" href="https://bugs.python.org/issue29639#msg302087"&gt;my message&lt;/a&gt; on bpo-29639
+for the full story. Extract:&lt;/p&gt;
+&lt;blockquote&gt;
+Modifying support.HOST to &amp;quot;localhost&amp;quot; triggered a reference cycle!?&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="socketserver-leaking-threads-and-processes"&gt;
+&lt;h2&gt;socketserver leaking threads and processes&lt;/h2&gt;
+&lt;div class="section" id="test-logging-random-bug"&gt;
+&lt;h3&gt;test_logging random bug&lt;/h3&gt;
+&lt;p&gt;This story starts at July, 3, with test_logging failing randomly on FreeBSD,
+&lt;a class="reference external" href="https://bugs.python.org/issue30830"&gt;bpo-30830&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+test_output (test.test_logging.HTTPHandlerTest) ... ok
+Warning -- threading_cleanup() failed to cleanup -1 threads after 3 sec (count: 0, dangling: 1)
+&lt;/pre&gt;
+&lt;p&gt;I failed to reproduce the bug on my FreeBSD VM, nor on Linux. The bug only
+occurred on one specific FreeBSD buildbot. I even got access to the buildbot...
+and I still failed to reproduce the bug! I tried to run test_logging multiple
+times in parallel, increase the system load, etc. I felt disappointed. I used
+my &lt;tt class="docutils literal"&gt;system_load.py&lt;/tt&gt; script which spawns Python processes running &lt;tt class="docutils literal"&gt;while 1:
+pass&lt;/tt&gt; to stress the CPU.&lt;/p&gt;
+&lt;p&gt;After one month, I succeeded to reproduce the bug by running two commands in
+parallel.&lt;/p&gt;
+&lt;p&gt;Command 1 to trigger the bug:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+./python -m test -v test_logging \
+    --fail-env-changed \
+    --forever \
+    -m test.test_logging.DatagramHandlerTest.test_output \
+    -m test.test_logging.ConfigDictTest.test_listen_config_10_ok \
+    -m test.test_logging.SocketHandlerTest.test_output
+&lt;/pre&gt;
+&lt;p&gt;Command 2 to stress the system:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+./python -m test -j4
+&lt;/pre&gt;
+&lt;p&gt;It seems like the Python test suite is a very good tool to stress a system to
+trigger a race condition!&lt;/p&gt;
+&lt;p&gt;Finally, I was able to identify the bug:&lt;/p&gt;
+&lt;blockquote&gt;
+The problem is that &lt;tt class="docutils literal"&gt;socketserver.ThreadingMixIn&lt;/tt&gt; spawns threads without
+waiting for their completion in server_close().&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="skip-failing-tests"&gt;
+&lt;h3&gt;Skip failing tests&lt;/h3&gt;
+&lt;p&gt;To stabilize the buildbots and to be able to work on other bugs, I decided to
+first skip all tests using &lt;tt class="docutils literal"&gt;socketserver.ThreadingMixIn&lt;/tt&gt; until this class was
+fixed to prevent &amp;quot;dangling threads&amp;quot;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-socketserver-for-processes"&gt;
+&lt;h3&gt;Fix socketserver for processes&lt;/h3&gt;
+&lt;p&gt;While trying to see how to fix &lt;tt class="docutils literal"&gt;socketserver.ThreadingMixIn&lt;/tt&gt;, I understood
+that &lt;a class="reference external" href="https://bugs.python.org/issue31151"&gt;bpo-31151&lt;/a&gt; was a similar bug in
+the &lt;tt class="docutils literal"&gt;socketserver&lt;/tt&gt; module but for processes:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+test_ForkingUDPServer (test.test_socketserver.SocketServerTest) ... creating server
+(...)
+Warning -- reap_children() reaped child process 18281
+&lt;/pre&gt;
+&lt;p&gt;My analysis:&lt;/p&gt;
+&lt;blockquote&gt;
+The problem is that &lt;tt class="docutils literal"&gt;socketserver.ForkinMixin&lt;/tt&gt; doesn't wait until all
+children completes. It only calls &lt;tt class="docutils literal"&gt;os.waitpid()&lt;/tt&gt; in non-blocking module
+(using &lt;tt class="docutils literal"&gt;os.WNOHANG&lt;/tt&gt;) after each loop iteration. If a child process
+completes after the last call to &lt;tt class="docutils literal"&gt;ForkingMixIn.collect_children()&lt;/tt&gt;, the
+server leaks zombie processes.&lt;/blockquote&gt;
+&lt;p&gt;I fixed &lt;tt class="docutils literal"&gt;socketserver.ForkingMixIn&lt;/tt&gt; by modifying the &lt;tt class="docutils literal"&gt;server_close()&lt;/tt&gt;
+method to &lt;strong&gt;block&lt;/strong&gt; until all child processes complete: &lt;a class="reference external" href="https://github.com/python/cpython/commit/aa8ec34ad52bb3b274ce91169e1bc4a598655049"&gt;commit&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Just after pushing my fix, I understood that my fix changed the
+&lt;tt class="docutils literal"&gt;ForkingMixIn&lt;/tt&gt; behaviour. I wrote an email to ask if it's the good behaviour
+or if a change was needed: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-August/148826.html"&gt;[Python-Dev] socketserver ForkingMixin waiting for
+child processes&lt;/a&gt;.
+The answer is that not everybody wants this behaviour. Sadly, I didn't have
+time yet to let the user chooses the behaviour.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-socketserver-for-threads"&gt;
+&lt;h3&gt;Fix socketserver for threads&lt;/h3&gt;
+&lt;p&gt;Fixing &lt;tt class="docutils literal"&gt;socketserver.ForkinMixin&lt;/tt&gt; was simple because the code already tracked
+the (identifier of) child processes and already had code to wait for child
+completion.&lt;/p&gt;
+&lt;p&gt;Fixing &lt;tt class="docutils literal"&gt;socketserver.ThreadingMixIn&lt;/tt&gt; (&lt;a class="reference external" href="https://bugs.python.org/issue31233"&gt;bpo-31233&lt;/a&gt;) was more complicated since it didn't
+keep track of spawned threads.&lt;/p&gt;
+&lt;p&gt;I chose to keep a list of &lt;tt class="docutils literal"&gt;threading.Thread&lt;/tt&gt; objects, but only for
+non-daemonic threads. &lt;tt class="docutils literal"&gt;socketserver.ThreadingMixIn.server_close()&lt;/tt&gt; now joins
+all threads: &lt;a class="reference external" href="https://github.com/python/cpython/commit/b8f4163da30e16c7cd58fe04f4b17e38d53cd57e"&gt;commit&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="issue-not-done-yet"&gt;
+&lt;h3&gt;Issue not done yet&lt;/h3&gt;
+&lt;p&gt;As I wrote above, the &lt;tt class="docutils literal"&gt;socketserver&lt;/tt&gt; still needs to be reworked to let the
+user decides if the server must gracefully wait for child completion or not.
+Maybe expose also a method to explicitly wait for children, maybe with a
+timeout?&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="environment-altered-and-dangling-threads"&gt;
+&lt;h2&gt;Environment altered and dangling threads&lt;/h2&gt;
+&lt;p&gt;This part kept me busy for the whole quarter. While trying to fix &amp;quot;all bugs&amp;quot;, I
+looked at two specific &amp;quot;environment changes&amp;quot;: &amp;quot;dangling threads&amp;quot; and &amp;quot;zombie
+processes&amp;quot;. A dangling thread comes from a test spawning a thread but doesn't
+proper &amp;quot;clean&amp;quot; the thread.&lt;/p&gt;
+&lt;p&gt;Leaking threads or processes is a very bad side effect since it is likely to
+cause random bugs in following tests.&lt;/p&gt;
+&lt;p&gt;At the beginning, I expected that only 2 or 3 bugs should be fixed. At the end,
+it was closer to 100 bugs. I don't regret, I'm now sure that I made the Python
+test suite more reliable, and this work allowed me to catch &lt;strong&gt;and fix&lt;/strong&gt; old
+reference cycles bugs (see above).&lt;/p&gt;
+&lt;div class="section" id="environment-changed"&gt;
+&lt;h3&gt;Environment changed&lt;/h3&gt;
+&lt;p&gt;To detect bugs, I modified Travis CI jobs, AppVeyor and buildbots to run tests
+with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--fail-env-changed&lt;/span&gt;&lt;/tt&gt;. With this option, if a test alters the
+environment, the full test suite is marked as failed with &amp;quot;ENV_CHANGED&amp;quot;.&lt;/p&gt;
+&lt;p&gt;I also fixed &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-m&lt;/span&gt; test &lt;span class="pre"&gt;--fail-env-changed&lt;/span&gt; &lt;span class="pre"&gt;--forever&lt;/span&gt;&lt;/tt&gt; in &lt;a class="reference external" href="https://bugs.python.org/issue30764"&gt;bpo-30764&lt;/a&gt;: --forever now stops if a test alters
+the environment.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="test-support-and-regrtest-enhancements"&gt;
+&lt;h3&gt;test.support and regrtest enhancements&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30845"&gt;bpo-30845&lt;/a&gt;: reap_children() now logs
+warnings.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;support.reap_children()&lt;/tt&gt; now sets environment_altered to &lt;tt class="docutils literal"&gt;True&lt;/tt&gt; if a
+test leaked a zombie process, to detect bugs using &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-m&lt;/span&gt; test
+&lt;span class="pre"&gt;--fail-env-changed&lt;/span&gt;&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;regrtest: count also &amp;quot;env changed&amp;quot; tests as failed tests in the test
+progress.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;:
+&lt;tt class="docutils literal"&gt;support.threading_cleanup()&lt;/tt&gt; now emits a warning immediately if there are
+threads running in the background, to be able to catch bugs more easily.
+Previously, the warning was only emitted if the function failed to cleanup
+these threads after 1 second.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Add
+&lt;tt class="docutils literal"&gt;test.support.wait_threads_exit()&lt;/tt&gt;. Use &lt;tt class="docutils literal"&gt;_thread.count()&lt;/tt&gt; to wait until
+threads exit. The new context manager prevents the &amp;quot;dangling thread&amp;quot; warning.
+Add also &lt;tt class="docutils literal"&gt;support.join_thread()&lt;/tt&gt; helper: joins a thread but raises an
+AssertionError if the thread is still alive after &lt;em&gt;timeout&lt;/em&gt; seconds.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="multiprocessing-bug-fixes"&gt;
+&lt;h3&gt;multiprocessing bug fixes&lt;/h3&gt;
+&lt;p&gt;The multiprocessing module is very complex. multiprocessing tests are failing
+randomly for years, but nobody seems able to fix them. I can only hope that my
+following fixes will help to make these tests more reliable.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;multiprocessing.Queue.join_thread() now waits until the thread
+completes, even if the thread was started by the same process which
+created the queue.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26762"&gt;bpo-26762&lt;/a&gt;: Avoid daemon processes in _test_multiprocessing. test_level() of
+_test_multiprocessing._TestLogging now uses regular processes rather than
+daemon processes to prevent zombi processes (to not &amp;quot;leak&amp;quot; processes).&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26762"&gt;bpo-26762&lt;/a&gt;: Fix more dangling processes and threads in test_multiprocessing.
+Queue: call close() followed by join_thread(). Process: call join() or
+self.addCleanup(p.join).&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26762"&gt;bpo-26762&lt;/a&gt;: test_multiprocessing now detects dangling processes and threads
+per test case classes.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26762"&gt;bpo-26762&lt;/a&gt;: test_multiprocessing close more queues. Close explicitly queues to
+make sure that we don't leave dangling threads. test_queue_in_process():
+remove unused queue. test_access() joins also the process to fix a random
+warning.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue26762"&gt;bpo-26762&lt;/a&gt;: _test_multiprocessing now marks the test as ENV_CHANGED on
+dangling process or thread.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31069"&gt;bpo-31069&lt;/a&gt;, Fix a warning about dangling processes in test_rapid_restart() of
+_test_multiprocessing: join the process.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;, test_multiprocessing:
+Give 30 seconds to join_process(), instead of 5 or 10 seconds, to wait until
+the process completes.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="concurrent-futures-bug-fixes"&gt;
+&lt;h3&gt;concurrent.futures bug fixes&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30845"&gt;bpo-30845&lt;/a&gt;: Enhance test_concurrent_futures cleanup. Make sure that tests
+don't leak threads nor processes. Clear explicitly the reference to the
+executor to make sure that it's destroyed.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31249"&gt;bpo-31249&lt;/a&gt;: test_concurrent_futures checks dangling threads. Add a
+BaseTestCase class to test_concurrent_futures to check for dangling threads
+and processes on all tests, not only tests using ExecutorMixin.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31249"&gt;bpo-31249&lt;/a&gt;: Fix test_concurrent_futures dangling thread.
+ProcessPoolShutdownTest.test_del_shutdown() now closes the call queue and
+joins its thread, to prevent leaking a dangling thread.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="test-threading-and-test-thread"&gt;
+&lt;h3&gt;test_threading and test_thread&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: test_threaded_import: fix
+test_side_effect_import().  Don't leak the module into sys.modules. Avoid
+also dangling threads.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;:
+test_thread.test_forkinthread() now waits until the thread completes.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Try to fix the
+threading_cleanup() warning in test.lock_tests: wait a little bit longer to
+give time to the threads to complete. Warning seen on test_thread and
+test_importlib.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Join threads in test_threading. Call thread.join() to prevent the
+&amp;quot;dangling thread&amp;quot; warning.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Join timers in
+test_threading. Call the .join() method of threading.Timer timers to prevent
+the threading_cleanup() warning.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="other-fixes"&gt;
+&lt;h3&gt;Other fixes&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;test_urllib2_localnet: clear server variable. Set the server attribute to
+None in cleanup to avoid dangling threads.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30818"&gt;bpo-30818&lt;/a&gt;: test_ftplib calls asyncore.close_all(). Always clear asyncore
+socket map using asyncore.close_all(ignore_all=True) in tearDown() method.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30908"&gt;bpo-30908&lt;/a&gt;: Fix dangling thread in test_os.TestSendfile. tearDown() now clears
+explicitly the self.server variable to make sure that the thread is
+completely cleared when tearDownClass() checks if all threads have been
+cleaned up.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31067"&gt;bpo-31067&lt;/a&gt;: test_subprocess now also calls reap_children() in tearDown(), not
+only on setUp().&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31160"&gt;bpo-31160&lt;/a&gt;: Fix test_builtin for zombie process. PtyTests.run_child() now calls
+os.waitpid() to read the exit status of the child process to avoid creating
+zombie process and leaking processes in the background.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31160"&gt;bpo-31160&lt;/a&gt;: Fix test_random for zombie process. TestModule.test_after_fork()
+now calls os.waitpid() to read the exit status of the child process to avoid
+creating a zombie process.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31160"&gt;bpo-31160&lt;/a&gt;: test_tempfile: TestRandomNameSequence.test_process_awareness() now
+calls os.waitpid() to avoid leaking a zombie process.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: fork_wait.py tests now joins threads, to not leak running threads
+in the background.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30830"&gt;bpo-30830&lt;/a&gt;: test_logging uses threading_setup/cleanup. Replace
+&amp;#64;support.reap_threads on some methods with support.threading_setup() in
+setUp() and support.threading_cleanup() in tearDown() in BaseTest.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: test_httpservers joins the server thread.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31250"&gt;bpo-31250&lt;/a&gt;, test_asyncio: fix dangling threads. Explicitly call
+shutdown(wait=True) on executors to wait until all threads complete to
+prevent side effects between tests. Fix test_loop_self_reading_exception():
+don't mock loop.close().  Previously, the original close() method was called
+rather than the mock, because how set_event_loop() registered loop.close().&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Explicitly clear the server attribute in test_ftplib and
+test_poplib to prevent dangling thread. Clear also self.server_thread
+attribute in TestTimeouts.tearDown().&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Join threads in tests. Call thread.join() on threads to prevent
+the &amp;quot;dangling threads&amp;quot; warning.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Join threads in test_hashlib: use thread.join() to wait until the
+parallel hash tasks complete rather than using events. Calling thread.join()
+prevent &amp;quot;dangling thread&amp;quot; warnings.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31234"&gt;bpo-31234&lt;/a&gt;: Join threads in test_queue. Call thread.join() to prevent the
+&amp;quot;dangling thread&amp;quot; warning.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Next report:&lt;/strong&gt; &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions to CPython during 2017 Q3: Part 3 (funny
+bugs)&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 1</title><link href="https://haypo.github.io/contrib-cpython-2017q3-part1.html" rel="alternate"></link><published>2017-10-18T15:00:00+02:00</published><updated>2017-10-18T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-10-18:/contrib-cpython-2017q3-part1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+(july, august, september), Part 1.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part1)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next reports:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Summary:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Statistics&lt;/li&gt;
+&lt;li&gt;Security fixes …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+(july, august, september), Part 1.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part1)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next reports:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Summary:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Statistics&lt;/li&gt;
+&lt;li&gt;Security fixes&lt;/li&gt;
+&lt;li&gt;Enhancement: socket.close() now ignores ECONNRESET&lt;/li&gt;
+&lt;li&gt;Removal of the macOS job of Travis CI&lt;/li&gt;
+&lt;li&gt;New test.pythoninfo utility&lt;/li&gt;
+&lt;li&gt;Revert commits if buildbots are broken&lt;/li&gt;
+&lt;li&gt;Fix the Python test suite&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="statistics"&gt;
+&lt;h2&gt;Statistics&lt;/h2&gt;
+&lt;pre class="literal-block"&gt;
+# All branches
+$ git log --after=2017-06-30 --before=2017-10-01 --reverse --branches='*' --author=Stinner|grep '^commit ' -c
+209
+
+# Master branch only
+$ git log --after=2017-06-30 --before=2017-10-01 --reverse --author=Stinner origin/master|grep '^commit ' -c
+97
+&lt;/pre&gt;
+&lt;p&gt;Statistics: I pushed &lt;strong&gt;97&lt;/strong&gt; commits in the master branch on a &lt;strong&gt;total of 209
+commits&lt;/strong&gt;, remaining: 112 commits in the other branches (backports, fixes
+specific to Python 2.7, security fixes in Python 3.3 and 3.4, etc.)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="security-fixes"&gt;
+&lt;h2&gt;Security fixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30947"&gt;bpo-30947&lt;/a&gt;: Update libexpat from 2.2.1 to 2.2.3. Fix applied to master, 3.6,
+3.5, 3.4, 3.3 and 2.7 branches! Expat 2.2.2 and 2.2.3 fixed multiple security
+vulnerabilities.
+&lt;a class="reference external" href="http://python-security.readthedocs.io/vuln/expat_2.2.3.html"&gt;http://python-security.readthedocs.io/vuln/expat_2.2.3.html&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Fix whichmodule() of _pickle: : _PyUnicode_FromId() can return NULL, replace
+Py_INCREF() with Py_XINCREF(). Fix coverity report: CID 1417269.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30860"&gt;bpo-30860&lt;/a&gt;: &lt;tt class="docutils literal"&gt;_PyMem_Initialize()&lt;/tt&gt; contains code which is never executed.
+Replace the runtime check with a build assertion. Fix Coverity CID 1417587.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See also my &lt;a class="reference external" href="http://python-security.readthedocs.io/"&gt;python-security website&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="enhancement-socket-close-now-ignores-econnreset"&gt;
+&lt;h2&gt;Enhancement: socket.close() now ignores ECONNRESET&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30319"&gt;bpo-30319&lt;/a&gt;: socket.close() now ignores ECONNRESET. Previously, many network
+tests failed randomly with ConnectionResetError on socket.close().&lt;/p&gt;
+&lt;p&gt;Patching all functions calling socket.close() would require a lot of work, and
+it was surprising to get a &amp;quot;connection reset&amp;quot; when closing a socket.&lt;/p&gt;
+&lt;p&gt;Who cares that the peer closed the connection, since we are already closing
+it!?&lt;/p&gt;
+&lt;p&gt;Note: socket.close() was modified in Python 3.6 to raise OSError on failure
+(&lt;a class="reference external" href="https://bugs.python.org/issue26685"&gt;bpo-26685&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="removal-of-the-macos-job-of-travis-ci"&gt;
+&lt;h2&gt;Removal of the macOS job of Travis CI&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://travis-ci.org/"&gt;&lt;img alt="call_method microbenchmark" class="align-right" src="https://haypo.github.io/images/travis-ci.png" /&gt;&lt;/a&gt;
+&lt;p&gt;While the Linux jobs of Travis CI usually takes 15 minutes, up to 30 minutes in
+the worst case, the macOS job of Travis CI regulary took longer than 30
+minutes, sometimes longer than 1 hour.&lt;/p&gt;
+&lt;p&gt;While the macOS job was optional, sometimes it gone mad and prevented a PR to
+be merged. Cancelling the job marked Travis CI as failed on a PR, so it was
+still not possible to merge the PR, whereas, again, the job is marked as
+optional (&amp;quot;Allowed Failure&amp;quot;).&lt;/p&gt;
+&lt;p&gt;Moreover, when the macOS job failed, the failure was not reported on the PR,
+since the job was marked as optional. The only way to notify a failure was to
+go to Travis CI and wait at least 30 minutes (whereas the Linux jobs already
+completed and it was already possible merge a PR...).&lt;/p&gt;
+&lt;p&gt;I sent a first mail in June: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-June/004661.html"&gt;[python-committers] macOS Travis CI job became
+mandatory?&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;In september, we decided to remove the macOS job during the CPython sprint at
+Instagram (see my previous &lt;a class="reference external" href="https://haypo.github.io/new-python-c-api.html"&gt;New C API&lt;/a&gt;
+article), to not slowdown our development speed (&lt;a class="reference external" href="https://bugs.python.org/issue31355"&gt;bpo-31355&lt;/a&gt;). I sent another
+email to announce the change: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-September/004824.html"&gt;[python-committers] Travis CI: macOS is now
+blocking -- remove macOS from Travis CI?&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;After the sprint, it was decided to not add again the macOS job, since we have
+3 macOS buildbots. It's enough to detect regressions specific to macOS.&lt;/p&gt;
+&lt;p&gt;After the removal of the macOS end, at the end of september, Travis CI
+published an article about the bad performances of their macOS fleet: &lt;a class="reference external" href="https://blog.travis-ci.com/2017-09-22-macos-update"&gt;Updating
+Our macOS Open Source Offering&lt;/a&gt;. Sadly, the article
+confirms that the situation is not going to evolve quickly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-test-pythoninfo-utility"&gt;
+&lt;h2&gt;New test.pythoninfo utility&lt;/h2&gt;
+&lt;p&gt;To understand the &amp;quot;Segfault when readline history is more then 2 * history
+size&amp;quot; crash of &lt;a class="reference external" href="https://bugs.python.org/issue29854"&gt;bpo-29854&lt;/a&gt;, I modified
+&lt;tt class="docutils literal"&gt;test_readline&lt;/tt&gt; to log libreadline  versions.  I also added
+&lt;tt class="docutils literal"&gt;readline._READLINE_LIBRARY_VERSION&lt;/tt&gt;. My colleague &lt;strong&gt;Nir Soffer&lt;/strong&gt; wrote the
+final readline fix: skip the test on old readline versions.&lt;/p&gt;
+&lt;p&gt;As a follow-up of this issue, I added a new &lt;tt class="docutils literal"&gt;test.pythoninfo&lt;/tt&gt; program to log
+many information to debug Python tests (&lt;a class="reference external" href="https://bugs.python.org/issue30871"&gt;bpo-30871&lt;/a&gt;). pythoninfo is now run on
+Travis CI, AppVeyor and buildbots.&lt;/p&gt;
+&lt;p&gt;Example of output:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test.pythoninfo
+(...)
+_decimal.__libmpdec_version__: 2.4.2
+expat.EXPAT_VERSION: expat_2.2.4
+gdb_version: GNU gdb (GDB) Fedora 8.0.1-26.fc26
+locale.encoding: UTF-8
+os.cpu_count: 4
+(...)
+time.timezone: -3600
+time.tzname: ('CET', 'CEST')
+tkinter.TCL_VERSION: 8.6
+tkinter.TK_VERSION: 8.6
+tkinter.info_patchlevel: 8.6.6
+zlib.ZLIB_RUNTIME_VERSION: 1.2.11
+zlib.ZLIB_VERSION: 1.2.11
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;test.pythoninfo&lt;/tt&gt; can be easily extended to log more information, without
+polluting the output of the Python test suite which is already too verbose and
+very long.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="revert-commits-if-buildbots-are-broken"&gt;
+&lt;h2&gt;Revert commits if buildbots are broken&lt;/h2&gt;
+&lt;p&gt;Thanks to my work done last months on the Python test suite, the buildbots are
+now very reliable. When a buildbot fails, it becomes very likely that it's a
+real regression, and not a random failure caused by a bug in the Python test
+suite.&lt;/p&gt;
+&lt;p&gt;I proposed a new rule: &lt;strong&gt;revert a change if it breaks builbots and the but
+cannot be fixed easily&lt;/strong&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;So I would like to set a new rule: if I'm unable to fix buildbots
+failures caused by a recent change quickly (say, in less than 2
+hours), I propose to revert the change.&lt;/p&gt;
+&lt;p&gt;It doesn't mean that the commit is bad and must not be merged ever.
+No. It would just mean that we need time to work on fixing the issue,
+and it shouldn't impact other pending changes, to keep a sane master
+branch.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-June/004588.html"&gt;[python-committers] Revert changes which break too many buildbots&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="test-datetime"&gt;
+&lt;h3&gt;test_datetime&lt;/h3&gt;
+&lt;p&gt;The first revert was an enhancement of test_datetime, &lt;a class="reference external" href="https://bugs.python.org/issue30822"&gt;bpo-30822&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 98b6bc3bf72532b784a1c1fa76eaa6026a663e44
+Author: Utkarsh Upadhyay &amp;lt;mail&amp;#64;musicallyut.in&amp;gt;
+Date:   Sun Jul 2 14:46:04 2017 +0200
+
+    bpo-30822: Fix testing of datetime module. (#2530)
+
+    Only C implementation was tested.
+&lt;/pre&gt;
+&lt;p&gt;I wrote an email to announce the revert: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-July/004673.html"&gt;[python-committers] Revert changes
+which break too many buildbots&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;It took 15 days to decide how to fix properly the issue (exclude &lt;tt class="docutils literal"&gt;tzdata&lt;/tt&gt;
+from test resources). I don't regret my revert, since having broken buildbots
+for 15 days would be very annoying.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-gdb-py-fix"&gt;
+&lt;h3&gt;python-gdb.py fix&lt;/h3&gt;
+&lt;p&gt;I also reverted this commit of &lt;a class="reference external" href="https://bugs.python.org/issue30983"&gt;bpo-30983&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 2e0f4db114424a00354eab889ba8f7334a2ab8f0
+Author: Bruno &amp;quot;Polaco&amp;quot; Penteado &amp;lt;polaco&amp;#64;gmail.com&amp;gt;
+Date:   Mon Aug 14 23:14:17 2017 +0100
+
+    bpo-30983: eval frame rename in pep 0523 broke gdb's python extension (#2803)
+
+    pep 0523 renames PyEval_EvalFrameEx to _PyEval_EvalFrameDefault while the gdb python extension only looks for PyEval_EvalFrameEx to understand if it is dealing with a frame.
+
+    Final effect is that attaching gdb to a python3.6 process doesnt resolve python objects. Eg. py-list and py-bt dont work properly.
+
+    This patch fixes that. Tested locally on python3.6
+&lt;/pre&gt;
+&lt;p&gt;My comment on the issue:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I chose to revert the change because I don't have the bandwidth right now
+to investigate why the change broke test_gdb.&lt;/p&gt;
+&lt;p&gt;I'm surprised that a change affecting python-gdb.py wasn't properly tested
+manually using test_gdb.py :-( I understand that Travis CI doesn't have gdb
+and/or that the test pass in some cases?&lt;/p&gt;
+&lt;p&gt;The revert only gives us more time to design the proper solution.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Hopefully, a new fixed commit was pushed 4 days later and this one didn't break
+buildbots!&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-the-python-test-suite"&gt;
+&lt;h2&gt;Fix the Python test suite&lt;/h2&gt;
+&lt;p&gt;As usual, I spent a significant part of my time to fix bugs in the Python test
+suite to make it more reliable and more &amp;quot;usable&amp;quot;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30822"&gt;bpo-30822&lt;/a&gt;: Exclude &lt;tt class="docutils literal"&gt;tzdata&lt;/tt&gt; from &lt;tt class="docutils literal"&gt;regrtest &lt;span class="pre"&gt;--all&lt;/span&gt;&lt;/tt&gt;. When running the test suite
+using &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--use=all&lt;/span&gt;&lt;/tt&gt; / &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-u&lt;/span&gt; all&lt;/tt&gt;, exclude &lt;tt class="docutils literal"&gt;tzdata&lt;/tt&gt; since it makes
+test_datetime too slow (15-20 min on some buildbots, just this single test
+file) which then times out on some buildbots. &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-u&lt;/span&gt; tzdata&lt;/tt&gt; must now be
+enabled explicitly.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30188"&gt;bpo-30188&lt;/a&gt;, test_nntplib: Catch also
+ssl.SSLEOFError in NetworkedNNTPTests.setUpClass(), not only EOFError.
+(&lt;em&gt;Sadly, test_nntplib still fails randomly with EOFError or SSLEOFError...&lt;/em&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31009"&gt;bpo-31009&lt;/a&gt;: Fix
+&lt;tt class="docutils literal"&gt;support.fd_count()&lt;/tt&gt; on Windows. Call &lt;tt class="docutils literal"&gt;msvcrt.CrtSetReportMode()&lt;/tt&gt; to not
+kill the process nor log any error on stderr on os.dup(fd) if the file
+descriptor is invalid.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31034"&gt;bpo-31034&lt;/a&gt;: Reliable signal handler for test_asyncio. Don't rely on the
+current SIGHUP signal handler, make sure that it's set to the &amp;quot;default&amp;quot;
+signal handler: SIG_DFL. A colleague reported me that the Python test suite
+hangs on running test_subprocess_send_signal() of test_asyncio. After
+analysing the issue, it seems like the test hangs because the RPM package
+builder ignores SIGHUP.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31028"&gt;bpo-31028&lt;/a&gt;: Fix test_pydoc when run
+directly. Fix &lt;tt class="docutils literal"&gt;get_pydoc_link()&lt;/tt&gt;: get the absolute path to &lt;tt class="docutils literal"&gt;__file__&lt;/tt&gt; to
+prevent relative directories.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31066"&gt;bpo-31066&lt;/a&gt;: Fix
+&lt;tt class="docutils literal"&gt;test_httpservers.test_last_modified()&lt;/tt&gt;. Write the temporary file on disk
+and then get its modification time.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31173"&gt;bpo-31173&lt;/a&gt;: Rewrite WSTOPSIG test of test_subprocess.&lt;/p&gt;
+&lt;p&gt;The current &lt;tt class="docutils literal"&gt;test_child_terminated_in_stopped_state()&lt;/tt&gt; function test creates a
+child process which calls &lt;tt class="docutils literal"&gt;ptrace(PTRACE_TRACEME, 0, 0)&lt;/tt&gt; and then crash
+(SIGSEGV). The problem is that calling &lt;tt class="docutils literal"&gt;os.waitpid()&lt;/tt&gt; in the parent process is
+not enough to close the process: the child process remains alive and so the
+unit test leaks a child process in a strange state. Closing the child process
+requires non-trivial code, maybe platform specific.&lt;/p&gt;
+&lt;p&gt;Remove the functional test and replaces it with an unit test which mocks
+&lt;tt class="docutils literal"&gt;os.waitpid()&lt;/tt&gt; using a new &lt;tt class="docutils literal"&gt;_testcapi.W_STOPCODE()&lt;/tt&gt; function to test the
+&lt;tt class="docutils literal"&gt;WIFSTOPPED()&lt;/tt&gt; path.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31008"&gt;bpo-31008&lt;/a&gt;: Fix asyncio
+test_wait_for_handle on Windows, tolerate a difference of 50 ms.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31235"&gt;bpo-31235&lt;/a&gt;: Fix ResourceWarning in
+test_logging: always close all asyncore dispatchers (ignoring errors if any).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue30121"&gt;bpo-30121&lt;/a&gt;: Add test_subprocess.test_nonexisting_with_pipes(). Test the Popen
+failure when Popen was created with pipes. Create also NONEXISTING_CMD
+variable in test_subprocess.py.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31250"&gt;bpo-31250&lt;/a&gt;, test_asyncio: fix EventLoopTestsMixin.tearDown(). Call
+doCleanups() to close the loop after calling executor.shutdown(wait=True).&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;test_ssl: Implement timeout in ssl_io_loop(). The timeout parameter was not
+used.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31448"&gt;bpo-31448&lt;/a&gt;, test_poplib: Call POP3.close(), don't close close directly the
+sock attribute to fix a ResourceWarning.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;os.test_utime_current(): tolerate 50 ms delta.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31135"&gt;bpo-31135&lt;/a&gt;: ttk: fix LabeledScale and OptionMenu destroy() method. Call the
+parent destroy() method even if the used attribute doesn't exist. The
+LabeledScale.destroy() method now also explicitly clears label and scale
+attributes to help the garbage collector to destroy all widgets.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p class="first"&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31479"&gt;bpo-31479&lt;/a&gt;: Always reset the signal alarm in tests. Use
+the &lt;tt class="docutils literal"&gt;try: ... finally: signal.signal(0)&lt;/tt&gt; pattern to make sure that tests
+don't &amp;quot;leak&amp;quot; a pending fatal signal alarm. Move some signal.alarm() calls
+into the try block.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Next report:&lt;/strong&gt; &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python Security</title><link href="https://haypo.github.io/python-security.html" rel="alternate"></link><published>2017-09-15T22:00:00+02:00</published><updated>2017-09-15T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-09-15:/python-security.html</id><summary type="html">&lt;p&gt;I am working on the Python security for years, but I never wrote anything about
 that. Let's fix this!&lt;/p&gt;
 &lt;div class="section" id="psrt"&gt;
 &lt;h2&gt;PSRT&lt;/h2&gt;
@@ -342,6 +1109,10 @@ able to reemove the GIL.&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part 1)&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html"&gt;My contributions to CPython during 2017 Q2 (part 2)&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Next report:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="security"&gt;
 &lt;h2&gt;Security&lt;/h2&gt;
@@ -834,6 +1605,7 @@ where it got a bit of traction. Terry Jan Reedy also &lt;a class="reference exte
 &lt;ul class="simple"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part2.html"&gt;My contributions to CPython during 2017 Q2 (part 2)&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part3.html"&gt;My contributions to CPython during 2017 Q2 (part 3)&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Next parts&lt;/p&gt;
 &lt;div class="section" id="statistics"&gt;
@@ -1608,12 +2380,8 @@ the &lt;a class="reference external" href="http://bugs.python.org/issue30908"&gt
 &lt;li&gt;regrtest&lt;/li&gt;
 &lt;li&gt;Bugfixes&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to CPython during 2016 Q4&lt;/a&gt;.&lt;/p&gt;
-&lt;div class="section" id="statistics"&gt;
-&lt;h2&gt;Statistics&lt;/h2&gt;
-&lt;pre class="literal-block"&gt;
-# All commits
-$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches …&lt;/pre&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to CPython during 2016 Q4&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to
+CPython during 2017 Q2 (part 1 …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Statistics&lt;/li&gt;
@@ -1629,7 +2397,8 @@ $ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches …&lt;/pr
 &lt;li&gt;regrtest&lt;/li&gt;
 &lt;li&gt;Bugfixes&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to CPython during 2016 Q4&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to CPython during 2016 Q4&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to
+CPython during 2017 Q2 (part 1)&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="statistics"&gt;
 &lt;h2&gt;Statistics&lt;/h2&gt;
 &lt;pre class="literal-block"&gt;
@@ -2631,18 +3400,16 @@ functions.&lt;/p&gt;
 hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to CPython during 2016 Q3&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;Table of Contents:&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;Python startup performance regression&lt;/li&gt;
-&lt;li&gt;Optimizations&lt;/li&gt;
-&lt;li&gt;Code placement and …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to CPython during 2016 Q3&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html"&gt;My contributions to
+CPython during 2017 Q1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Table of …&lt;/p&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
 (october, november, december):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to CPython during 2016 Q3&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to CPython during 2016 Q3&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html"&gt;My contributions to
+CPython during 2017 Q1&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Table of Contents:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Python startup performance regression&lt;/li&gt;
@@ -2984,7 +3751,8 @@ this is suboptimal. Update the documentation to suggest to reuse the
 hg log -r 'date(&amp;quot;2016-07-01&amp;quot;):date(&amp;quot;2016-09-30&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 161 non-merge commits + 29 merge commits (total: 190 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q2.html"&gt;My contributions to CPython during 2016 Q2&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q2.html"&gt;My contributions to CPython during 2016 Q2&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to
+CPython during 2016 Q4&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Table of Contents:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Two new core developers&lt;/li&gt;
@@ -3492,16 +4260,17 @@ until the system urandom entropy pool is initialized to increase the security.&l
 hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to CPython during 2016 Q1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to CPython during 2016 Q1&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to
+CPython during 2016 Q3&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="start-of-my-work-on-optimization"&gt;
-&lt;h2&gt;Start of my work on optimization&lt;/h2&gt;
-&lt;p&gt;During 2016 Q2, I started …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
+&lt;h2&gt;Start of …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
 (april, may, june):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 52 non-merge commits + 22 merge commits (total: 74 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to CPython during 2016 Q1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to CPython during 2016 Q1&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html"&gt;My contributions to
+CPython during 2016 Q3&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="start-of-my-work-on-optimization"&gt;
 &lt;h2&gt;Start of my work on optimization&lt;/h2&gt;
 &lt;p&gt;During 2016 Q2, I started to spend more time on optimizing CPython.&lt;/p&gt;
@@ -3654,16 +4423,18 @@ written by &lt;strong&gt;Michał Bednarski&lt;/strong&gt;.&lt;/li&gt;
 hg log -r 'date(&amp;quot;2016-01-01&amp;quot;):date(&amp;quot;2016-03-31&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html"&gt;My contributions to CPython during 2015 Q4&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html"&gt;My contributions to CPython during 2015 Q4&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q2.html"&gt;My contributions to
+CPython during 2016 Q2&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
-&lt;p&gt;Since this report is much longer than I expected, here …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
+&lt;p&gt;Since …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-01-01&amp;quot;):date(&amp;quot;2016-03-31&amp;quot;)' --no-merges -u Stinner
 &lt;/pre&gt;
 &lt;p&gt;Statistics: 196 non-merge commits + 33 merge commits (total: 229 commits).&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html"&gt;My contributions to CPython during 2015 Q4&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html"&gt;My contributions to CPython during 2015 Q4&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q2.html"&gt;My contributions to
+CPython during 2016 Q2&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
 &lt;p&gt;Since this report is much longer than I expected, here are the highlights:&lt;/p&gt;
@@ -6003,7 +6774,8 @@ writer API&amp;quot;.&lt;/p&gt;
 &lt;p&gt;I pushed my first change related to &lt;a class="reference external" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;FAT Python&lt;/a&gt;! Fix parser and AST:
 fill lineno and col_offset of &amp;quot;arg&amp;quot; node when compiling AST from Python
 objects.&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q3.html"&gt;My contributions to CPython during 2015 Q3&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q3.html"&gt;My contributions to CPython during 2015 Q3&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q1.html"&gt;My contributions to
+CPython during 2016 Q1&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="recursion-error"&gt;
 &lt;h2&gt;Recursion error&lt;/h2&gt;
 &lt;div class="section" id="the-bug-issue-25274"&gt;
@@ -6143,6 +6915,7 @@ hg log -r 'date(&amp;quot;2015-07-01&amp;quot;):date(&amp;quot;2015-09-30&amp;qu
 &lt;p&gt;The major event in Python of this quarter was the release of Python 3.5.0.&lt;/p&gt;
 &lt;p&gt;As usual, I helped various contributors to refine their changes and I pushed
 their final changes.&lt;/p&gt;
+&lt;p&gt;Next report: &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2015q4.html"&gt;My contributions to CPython during 2015 Q4&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="freebsd-kernel-bug"&gt;
 &lt;h2&gt;FreeBSD kernel bug&lt;/h2&gt;
 &lt;p&gt;It took me a while to polish the implementation of the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0475/"&gt;PEP 475 (retry syscall
@@ -6180,7 +6953,8 @@ the first look, the rounding method doesn't look natural nor logical:&lt;/p&gt;
 2
 &lt;/pre&gt;
 &lt;p&gt;See my previous article on the _PyTime API for the long story of rounding
-methods between Python 3.2 and Python 3.6.&lt;/p&gt;
+methods between Python 3.2 and Python 3.6: &lt;a class="reference external" href="https://haypo.github.io/pytime.html"&gt;History of the Python private C API
+_PyTime&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="enhancements"&gt;
 &lt;h2&gt;Enhancements&lt;/h2&gt;

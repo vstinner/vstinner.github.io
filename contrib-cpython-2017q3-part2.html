@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</title>
+        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
+        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Haypo blog 2 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://haypo.github.io/">Haypo blog 2 </a></h1>
+                <nav><ul>
+                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://haypo.github.io/contrib-cpython-2017q3-part2.html" rel="bookmark"
+           title="Permalink to My contributions to CPython during 2017 Q3: Part 2 (dangling threads)">My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-10-19T15:00:00+02:00">
+                Published: jeu. 19 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 2: &quot;Dangling threads&quot;.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html">My contributions to CPython during 2017 Q3: Part 1</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions
+to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</p>
+<p>Summary:</p>
+<ul class="simple">
+<li>Bugfixes: Reference cycles</li>
+<li>socketserver leaking threads and processes<ul>
+<li>test_logging random bug</li>
+<li>Skip failing tests</li>
+<li>Fix socketserver for processes</li>
+<li>Fix socketserver for threads</li>
+<li>Issue not done yet</li>
+</ul>
+</li>
+<li>Environment altered and dangling threads<ul>
+<li>Environment changed</li>
+<li>test.support and regrtest enhancements</li>
+<li>multiprocessing bug fixes</li>
+<li>concurrent.futures bug fixes</li>
+<li>test_threading and test_thread</li>
+<li>Other fixes</li>
+</ul>
+</li>
+</ul>
+<div class="section" id="bugfixes-reference-cycles">
+<h2>Bugfixes: Reference cycles</h2>
+<p>While fixing &quot;dangling threads&quot; (see below), I found and fixed 4 reference
+cycles which caused memory leaks and objects to live longer than expected. I
+was surprised that the bug in the common <tt class="docutils literal">socket.create_connection()</tt>
+function was not noticed before! So my work on dangling threads was useful!</p>
+<p>The typical pattern of such reference cycle is:</p>
+<pre class="literal-block">
+def func():
+    err = None
+    try:
+        do_something()
+    except Exception as exc:
+        err = exc
+    if err is not None:
+        handle_error(exc)
+    # the exception is stored in the 'err' variable
+
+func()
+# surprise, surprise, the exception is still alive at this point!
+</pre>
+<p>Or the variant:</p>
+<pre class="literal-block">
+def func():
+    try:
+        do_something()
+    except Exception as exc:
+        exc_info = sys.exc_info()
+        handle_error(exc_info)
+    # the exception is stored in the 'exc_info' variable
+
+func()
+# surprise, surprise, the exception is still alive at this point!
+</pre>
+<p>It's not easy to spot the bug, the bug is subtle. An exception object in Python
+3 has a <tt class="docutils literal">__traceback__</tt> attribute which contains frames. If a frame stores
+the exception in a variable, like <tt class="docutils literal">err</tt> in the first example, or <tt class="docutils literal">exc_info</tt>
+in the second example, a cycle exists between the exception and frames. In this
+case, the exception, the traceback, the frames, <strong>and all variables of all
+frames are kept alive</strong> by the reference cycle, <strong>until the cycle is break by
+the garbage collector</strong>.</p>
+<p>The problem is that the garbage collector is only called infrequently, so the
+cycle may stay alive for a long time.</p>
+<p>Sometimes, the reference cycle is even more subtle than the simple examples
+above.</p>
+<p>Fixed reference cycles:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>,
+<tt class="docutils literal">socket.create_connection()</tt>: Fix reference cycle.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31247">bpo-31247</a>: <tt class="docutils literal">xmlrpc.server</tt> now explicitly breaks reference cycles when using
+<tt class="docutils literal">sys.exc_info()</tt> in code handling exceptions.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31249">bpo-31249</a>, <tt class="docutils literal">concurrent.futures</tt>:
+<tt class="docutils literal">WorkItem.run()</tt> used by ThreadPoolExecutor now explicitly breaks a
+reference cycle between an exception object and the <tt class="docutils literal">WorkItem</tt> object.
+<tt class="docutils literal">ThreadPoolExecutor.shutdown()</tt> now also clears its threads set.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31238">bpo-31238</a>: <tt class="docutils literal">pydoc</tt>:
+<tt class="docutils literal">ServerThread.stop()</tt> now joins itself to wait until
+<tt class="docutils literal">DocServer.serve_until_quit()</tt> completes and then explicitly sets its
+docserver attribute to None to break a reference cycle. This change was made
+to fix <tt class="docutils literal">test_doc</tt>.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31323">bpo-31323</a>: Fix reference leak in
+test_ssl. Store exceptions as string rather than object to prevent reference
+cycles which cause leaking dangling threads.</li>
+</ul>
+<p>I also started a discussion on reference cycles caused by exceptions:
+<a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-September/149586.html">[Python-Dev] Evil reference cycles caused Exception.__traceback__</a>.
+Sadly, no action was taken, no obvious solution was found.</p>
+<p>I found the <tt class="docutils literal">socket.create_connection()</tt> reference cycle because of an
+unrelated change in test.support:</p>
+<pre class="literal-block">
+bpo-29639: change test.support.HOST to &quot;localhost&quot;
+</pre>
+<p>Read <a class="reference external" href="https://bugs.python.org/issue29639#msg302087">my message</a> on bpo-29639
+for the full story. Extract:</p>
+<blockquote>
+Modifying support.HOST to &quot;localhost&quot; triggered a reference cycle!?</blockquote>
+</div>
+<div class="section" id="socketserver-leaking-threads-and-processes">
+<h2>socketserver leaking threads and processes</h2>
+<div class="section" id="test-logging-random-bug">
+<h3>test_logging random bug</h3>
+<p>This story starts at July, 3, with test_logging failing randomly on FreeBSD,
+<a class="reference external" href="https://bugs.python.org/issue30830">bpo-30830</a>:</p>
+<pre class="literal-block">
+test_output (test.test_logging.HTTPHandlerTest) ... ok
+Warning -- threading_cleanup() failed to cleanup -1 threads after 3 sec (count: 0, dangling: 1)
+</pre>
+<p>I failed to reproduce the bug on my FreeBSD VM, nor on Linux. The bug only
+occurred on one specific FreeBSD buildbot. I even got access to the buildbot...
+and I still failed to reproduce the bug! I tried to run test_logging multiple
+times in parallel, increase the system load, etc. I felt disappointed. I used
+my <tt class="docutils literal">system_load.py</tt> script which spawns Python processes running <tt class="docutils literal">while 1:
+pass</tt> to stress the CPU.</p>
+<p>After one month, I succeeded to reproduce the bug by running two commands in
+parallel.</p>
+<p>Command 1 to trigger the bug:</p>
+<pre class="literal-block">
+./python -m test -v test_logging \
+    --fail-env-changed \
+    --forever \
+    -m test.test_logging.DatagramHandlerTest.test_output \
+    -m test.test_logging.ConfigDictTest.test_listen_config_10_ok \
+    -m test.test_logging.SocketHandlerTest.test_output
+</pre>
+<p>Command 2 to stress the system:</p>
+<pre class="literal-block">
+./python -m test -j4
+</pre>
+<p>It seems like the Python test suite is a very good tool to stress a system to
+trigger a race condition!</p>
+<p>Finally, I was able to identify the bug:</p>
+<blockquote>
+The problem is that <tt class="docutils literal">socketserver.ThreadingMixIn</tt> spawns threads without
+waiting for their completion in server_close().</blockquote>
+</div>
+<div class="section" id="skip-failing-tests">
+<h3>Skip failing tests</h3>
+<p>To stabilize the buildbots and to be able to work on other bugs, I decided to
+first skip all tests using <tt class="docutils literal">socketserver.ThreadingMixIn</tt> until this class was
+fixed to prevent &quot;dangling threads&quot;.</p>
+</div>
+<div class="section" id="fix-socketserver-for-processes">
+<h3>Fix socketserver for processes</h3>
+<p>While trying to see how to fix <tt class="docutils literal">socketserver.ThreadingMixIn</tt>, I understood
+that <a class="reference external" href="https://bugs.python.org/issue31151">bpo-31151</a> was a similar bug in
+the <tt class="docutils literal">socketserver</tt> module but for processes:</p>
+<pre class="literal-block">
+test_ForkingUDPServer (test.test_socketserver.SocketServerTest) ... creating server
+(...)
+Warning -- reap_children() reaped child process 18281
+</pre>
+<p>My analysis:</p>
+<blockquote>
+The problem is that <tt class="docutils literal">socketserver.ForkinMixin</tt> doesn't wait until all
+children completes. It only calls <tt class="docutils literal">os.waitpid()</tt> in non-blocking module
+(using <tt class="docutils literal">os.WNOHANG</tt>) after each loop iteration. If a child process
+completes after the last call to <tt class="docutils literal">ForkingMixIn.collect_children()</tt>, the
+server leaks zombie processes.</blockquote>
+<p>I fixed <tt class="docutils literal">socketserver.ForkingMixIn</tt> by modifying the <tt class="docutils literal">server_close()</tt>
+method to <strong>block</strong> until all child processes complete: <a class="reference external" href="https://github.com/python/cpython/commit/aa8ec34ad52bb3b274ce91169e1bc4a598655049">commit</a>.</p>
+<p>Just after pushing my fix, I understood that my fix changed the
+<tt class="docutils literal">ForkingMixIn</tt> behaviour. I wrote an email to ask if it's the good behaviour
+or if a change was needed: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-August/148826.html">[Python-Dev] socketserver ForkingMixin waiting for
+child processes</a>.
+The answer is that not everybody wants this behaviour. Sadly, I didn't have
+time yet to let the user chooses the behaviour.</p>
+</div>
+<div class="section" id="fix-socketserver-for-threads">
+<h3>Fix socketserver for threads</h3>
+<p>Fixing <tt class="docutils literal">socketserver.ForkinMixin</tt> was simple because the code already tracked
+the (identifier of) child processes and already had code to wait for child
+completion.</p>
+<p>Fixing <tt class="docutils literal">socketserver.ThreadingMixIn</tt> (<a class="reference external" href="https://bugs.python.org/issue31233">bpo-31233</a>) was more complicated since it didn't
+keep track of spawned threads.</p>
+<p>I chose to keep a list of <tt class="docutils literal">threading.Thread</tt> objects, but only for
+non-daemonic threads. <tt class="docutils literal">socketserver.ThreadingMixIn.server_close()</tt> now joins
+all threads: <a class="reference external" href="https://github.com/python/cpython/commit/b8f4163da30e16c7cd58fe04f4b17e38d53cd57e">commit</a>.</p>
+</div>
+<div class="section" id="issue-not-done-yet">
+<h3>Issue not done yet</h3>
+<p>As I wrote above, the <tt class="docutils literal">socketserver</tt> still needs to be reworked to let the
+user decides if the server must gracefully wait for child completion or not.
+Maybe expose also a method to explicitly wait for children, maybe with a
+timeout?</p>
+</div>
+</div>
+<div class="section" id="environment-altered-and-dangling-threads">
+<h2>Environment altered and dangling threads</h2>
+<p>This part kept me busy for the whole quarter. While trying to fix &quot;all bugs&quot;, I
+looked at two specific &quot;environment changes&quot;: &quot;dangling threads&quot; and &quot;zombie
+processes&quot;. A dangling thread comes from a test spawning a thread but doesn't
+proper &quot;clean&quot; the thread.</p>
+<p>Leaking threads or processes is a very bad side effect since it is likely to
+cause random bugs in following tests.</p>
+<p>At the beginning, I expected that only 2 or 3 bugs should be fixed. At the end,
+it was closer to 100 bugs. I don't regret, I'm now sure that I made the Python
+test suite more reliable, and this work allowed me to catch <strong>and fix</strong> old
+reference cycles bugs (see above).</p>
+<div class="section" id="environment-changed">
+<h3>Environment changed</h3>
+<p>To detect bugs, I modified Travis CI jobs, AppVeyor and buildbots to run tests
+with <tt class="docutils literal"><span class="pre">--fail-env-changed</span></tt>. With this option, if a test alters the
+environment, the full test suite is marked as failed with &quot;ENV_CHANGED&quot;.</p>
+<p>I also fixed <tt class="docutils literal">python3 <span class="pre">-m</span> test <span class="pre">--fail-env-changed</span> <span class="pre">--forever</span></tt> in <a class="reference external" href="https://bugs.python.org/issue30764">bpo-30764</a>: --forever now stops if a test alters
+the environment.</p>
+</div>
+<div class="section" id="test-support-and-regrtest-enhancements">
+<h3>test.support and regrtest enhancements</h3>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30845">bpo-30845</a>: reap_children() now logs
+warnings.</li>
+<li><tt class="docutils literal">support.reap_children()</tt> now sets environment_altered to <tt class="docutils literal">True</tt> if a
+test leaked a zombie process, to detect bugs using <tt class="docutils literal">python3 <span class="pre">-m</span> test
+<span class="pre">--fail-env-changed</span></tt>.</li>
+<li>regrtest: count also &quot;env changed&quot; tests as failed tests in the test
+progress.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>:
+<tt class="docutils literal">support.threading_cleanup()</tt> now emits a warning immediately if there are
+threads running in the background, to be able to catch bugs more easily.
+Previously, the warning was only emitted if the function failed to cleanup
+these threads after 1 second.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Add
+<tt class="docutils literal">test.support.wait_threads_exit()</tt>. Use <tt class="docutils literal">_thread.count()</tt> to wait until
+threads exit. The new context manager prevents the &quot;dangling thread&quot; warning.
+Add also <tt class="docutils literal">support.join_thread()</tt> helper: joins a thread but raises an
+AssertionError if the thread is still alive after <em>timeout</em> seconds.</li>
+</ul>
+</div>
+<div class="section" id="multiprocessing-bug-fixes">
+<h3>multiprocessing bug fixes</h3>
+<p>The multiprocessing module is very complex. multiprocessing tests are failing
+randomly for years, but nobody seems able to fix them. I can only hope that my
+following fixes will help to make these tests more reliable.</p>
+<ul class="simple">
+<li>multiprocessing.Queue.join_thread() now waits until the thread
+completes, even if the thread was started by the same process which
+created the queue.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue26762">bpo-26762</a>: Avoid daemon processes in _test_multiprocessing. test_level() of
+_test_multiprocessing._TestLogging now uses regular processes rather than
+daemon processes to prevent zombi processes (to not &quot;leak&quot; processes).</li>
+<li><a class="reference external" href="https://bugs.python.org/issue26762">bpo-26762</a>: Fix more dangling processes and threads in test_multiprocessing.
+Queue: call close() followed by join_thread(). Process: call join() or
+self.addCleanup(p.join).</li>
+<li><a class="reference external" href="https://bugs.python.org/issue26762">bpo-26762</a>: test_multiprocessing now detects dangling processes and threads
+per test case classes.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue26762">bpo-26762</a>: test_multiprocessing close more queues. Close explicitly queues to
+make sure that we don't leave dangling threads. test_queue_in_process():
+remove unused queue. test_access() joins also the process to fix a random
+warning.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue26762">bpo-26762</a>: _test_multiprocessing now marks the test as ENV_CHANGED on
+dangling process or thread.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31069">bpo-31069</a>, Fix a warning about dangling processes in test_rapid_restart() of
+_test_multiprocessing: join the process.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>, test_multiprocessing:
+Give 30 seconds to join_process(), instead of 5 or 10 seconds, to wait until
+the process completes.</li>
+</ul>
+</div>
+<div class="section" id="concurrent-futures-bug-fixes">
+<h3>concurrent.futures bug fixes</h3>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30845">bpo-30845</a>: Enhance test_concurrent_futures cleanup. Make sure that tests
+don't leak threads nor processes. Clear explicitly the reference to the
+executor to make sure that it's destroyed.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31249">bpo-31249</a>: test_concurrent_futures checks dangling threads. Add a
+BaseTestCase class to test_concurrent_futures to check for dangling threads
+and processes on all tests, not only tests using ExecutorMixin.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31249">bpo-31249</a>: Fix test_concurrent_futures dangling thread.
+ProcessPoolShutdownTest.test_del_shutdown() now closes the call queue and
+joins its thread, to prevent leaking a dangling thread.</li>
+</ul>
+</div>
+<div class="section" id="test-threading-and-test-thread">
+<h3>test_threading and test_thread</h3>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: test_threaded_import: fix
+test_side_effect_import().  Don't leak the module into sys.modules. Avoid
+also dangling threads.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>:
+test_thread.test_forkinthread() now waits until the thread completes.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Try to fix the
+threading_cleanup() warning in test.lock_tests: wait a little bit longer to
+give time to the threads to complete. Warning seen on test_thread and
+test_importlib.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Join threads in test_threading. Call thread.join() to prevent the
+&quot;dangling thread&quot; warning.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Join timers in
+test_threading. Call the .join() method of threading.Timer timers to prevent
+the threading_cleanup() warning.</li>
+</ul>
+</div>
+<div class="section" id="other-fixes">
+<h3>Other fixes</h3>
+<ul class="simple">
+<li>test_urllib2_localnet: clear server variable. Set the server attribute to
+None in cleanup to avoid dangling threads.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30818">bpo-30818</a>: test_ftplib calls asyncore.close_all(). Always clear asyncore
+socket map using asyncore.close_all(ignore_all=True) in tearDown() method.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30908">bpo-30908</a>: Fix dangling thread in test_os.TestSendfile. tearDown() now clears
+explicitly the self.server variable to make sure that the thread is
+completely cleared when tearDownClass() checks if all threads have been
+cleaned up.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31067">bpo-31067</a>: test_subprocess now also calls reap_children() in tearDown(), not
+only on setUp().</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31160">bpo-31160</a>: Fix test_builtin for zombie process. PtyTests.run_child() now calls
+os.waitpid() to read the exit status of the child process to avoid creating
+zombie process and leaking processes in the background.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31160">bpo-31160</a>: Fix test_random for zombie process. TestModule.test_after_fork()
+now calls os.waitpid() to read the exit status of the child process to avoid
+creating a zombie process.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31160">bpo-31160</a>: test_tempfile: TestRandomNameSequence.test_process_awareness() now
+calls os.waitpid() to avoid leaking a zombie process.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: fork_wait.py tests now joins threads, to not leak running threads
+in the background.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30830">bpo-30830</a>: test_logging uses threading_setup/cleanup. Replace
+&#64;support.reap_threads on some methods with support.threading_setup() in
+setUp() and support.threading_cleanup() in tearDown() in BaseTest.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: test_httpservers joins the server thread.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31250">bpo-31250</a>, test_asyncio: fix dangling threads. Explicitly call
+shutdown(wait=True) on executors to wait until all threads complete to
+prevent side effects between tests. Fix test_loop_self_reading_exception():
+don't mock loop.close().  Previously, the original close() method was called
+rather than the mock, because how set_event_loop() registered loop.close().</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Explicitly clear the server attribute in test_ftplib and
+test_poplib to prevent dangling thread. Clear also self.server_thread
+attribute in TestTimeouts.tearDown().</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Join threads in tests. Call thread.join() on threads to prevent
+the &quot;dangling threads&quot; warning.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Join threads in test_hashlib: use thread.join() to wait until the
+parallel hash tasks complete rather than using events. Calling thread.join()
+prevent &quot;dangling thread&quot; warnings.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31234">bpo-31234</a>: Join threads in test_queue. Call thread.join() to prevent the
+&quot;dangling thread&quot; warning.</li>
+</ul>
+<p><strong>Next report:</strong> <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny
+bugs)</a>.</p>
+</div>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://haypo-notes.readthedocs.org/">Haypo's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

@@ -22,7 +22,220 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/python-security.html">Python Security</a></h1>
+                    <h1 class="entry-title"><a href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2017-10-19T16:00:00+02:00">
+                Published: jeu. 19 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 3 (funny bugs).</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)</a>.</p>
+<p>Summary:</p>
+<ul class="simple">
+<li>FreeBSD bug: minor() device regression</li>
+<li>regrtest snowball effect when hunting memory leaks</li>
+<li>Bugfixes</li>
+<li>Other Changes</li>
+</ul>
+<div class="section" id="freebsd-bug-minor-device-regression">
+<h2>FreeBSD bug: minor() device regression</h2>
+<a class="reference external image-reference" href="https://www.freebsd.org/"><img alt="Logo of the FreeBSD project" src="https://haypo.github.io/images/freebsd.png" /></a>
+<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The test_makedev() of
+test_posix started to fail in the build 632 (Wed Jul 26 10:47:01 2017) of AMD64
+FreeBSD CURRENT. The test failed on Debug, but also Non-Debug buildbots, in
+master and 3.6 branches. It looks more like a change on the buildbot, maybe a
+FreeBSD upgrade?</p>
+<p>Thanks to <strong>koobs</strong>, I have a SSH access to the buildbot. I was able to
+reproduce the bug manually. I noticed that minor() truncates most significant
+bits.</p>
+<p>I continued my analysis and I found that, at May 23, the FreeBSD <tt class="docutils literal">dev_t</tt> type
+changed from 32 bits to 64 bits in the kernel, but the <tt class="docutils literal">minor()</tt> userland
+function was not updated.</p>
+<p>I reported a bug to FreeBSD: <a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048">Bug 221048 - minor() truncates device number to
+32 bits, whereas dev_t type was extended to 64 bits</a>.</p>
+<p>In the meanwhile, I skipped test_posix.test_makedev() on FreeBSD if <tt class="docutils literal">dev_t</tt>
+is larger than 32-bit.</p>
+<p>Hopefully, the FreeBSD bug was quickly fixed!</p>
+</div>
+<div class="section" id="regrtest-snowball-effect-when-hunting-memory-leaks">
+<h2>regrtest snowball effect when hunting memory leaks</h2>
+<p>While trying to fix all reference leaks on the new Windows and Linux &quot;Refleaks&quot;
+buildbots, I reported the bug <a class="reference external" href="https://bugs.python.org/issue31217">bpo-31217</a>:</p>
+<pre class="literal-block">
+test_code leaked [1, 1, 1] memory blocks, sum=3
+</pre>
+<p>Two weeks after reporting the bug, I was able to reproduce the bug, but <strong>only
+with Python compiled in 32-bit mode</strong>. Strange.</p>
+<p>I spent one day to understand the bug. I removed as much as possible while
+making sure that I can still reproduce the bug. At the end, I wrote <a class="reference external" href="https://bugs.python.org/file47114/leak2.py">leak2.py</a> which reproduces the bug with a
+single import: <tt class="docutils literal">import sys</tt>. Even if the script is only 86 lines long, I was
+still unable to understand the bug.</p>
+<p>My first hypothesis:</p>
+<blockquote>
+It seems like the &quot;leak&quot; is the call to <tt class="docutils literal">sys.getallocatedblocks()</tt> which
+creates a new integer, and the integer is kept alive between two loop
+iterations.</blockquote>
+<p><strong>Antoine Pitrou</strong> rejected it:</p>
+<blockquote>
+I doubt it. If that was the case, the reference count would increase as
+well.</blockquote>
+<p>It was Antoine Pitrou who understood the bug:</p>
+<pre class="literal-block">
+Ahah.
+Actually, it's quite simple :-) On 64-bit Python:
+
+&gt;&gt;&gt; id(82914 - 82913) == id(1)
+True
+
+On 32-bit Python:
+
+&gt;&gt;&gt; id(82914 - 82913) == id(1)
+False
+
+So the first non-zero alloc_delta really has a snowball effect, as it
+creates new memory block which will produce a non-zero alloc_delta on the
+next run, etc.
+</pre>
+<p>I implemented Antoine's idea to fix the bug, <a class="reference external" href="https://github.com/python/cpython/commit/6c2feabc5dac2f3049b15134669e9ad5af573193">commit</a>:</p>
+<pre class="literal-block">
+Use a pool of integer objects to prevent false alarm when checking for
+memory block leaks. Fill the pool with values in -1000..1000 which
+are the most common (reference, memory block, file descriptor)
+differences.
+
+Co-Authored-By: Antoine Pitrou &lt;pitrou&#64;free.fr&gt;
+</pre>
+<p>The bug is probably as old as the code hunting memory leaks.</p>
+</div>
+<div class="section" id="bugfixes">
+<h2>Bugfixes</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30891">bpo-30891</a>: Second fix for
+importlib <tt class="docutils literal">_find_and_load()</tt> to handle correctly parallelism with threads.
+Call <tt class="docutils literal">sys.modules.get()</tt> in the <tt class="docutils literal">with _ModuleLockManager(name):</tt> block to
+protect the dictionary key with the module lock and use an atomic get to
+prevent race conditions.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31019">bpo-31019</a>:
+<tt class="docutils literal">multiprocessing.Process.is_alive()</tt> now removes the process from the
+<tt class="docutils literal">_children set</tt> if the process completed. The change prevents leaking
+&quot;dangling&quot; processes.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31326">bpo-31326</a>, <tt class="docutils literal">concurrent.futures</tt>:
+<tt class="docutils literal">ProcessPoolExecutor.shutdown()</tt> now explicitly closes the call queue.
+Moreover, <tt class="docutils literal">shutdown(wait=True)</tt> now also joins the call queue thread, to
+prevent leaking a dangling thread.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31170">bpo-31170</a>: Update libexpat from
+2.2.3 to 2.2.4: fix copying of partial characters for UTF-8 input (<a class="reference external" href="https://github.com/libexpat/libexpat/issues/115">libexpat
+bug 115</a>). Later, I also
+wrote non-regression tests for this bug (libexpat doesn't have any test
+for this bug).</li>
+<li><a class="reference external" href="https://bugs.python.org/issue31499">bpo-31499</a>, <tt class="docutils literal">xml.etree</tt>:
+<tt class="docutils literal">xmlparser_gc_clear()</tt> now sets self.parser to <tt class="docutils literal">NULL</tt> to prevent a crash
+in <tt class="docutils literal">xmlparser_dealloc()</tt> if <tt class="docutils literal">xmlparser_gc_clear()</tt> was called previously
+by the garbage collector, because the parser was part of a reference cycle.
+Fix co-written with <strong>Serhiy Storchaka</strong>.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30892">bpo-30892</a>: Fix <tt class="docutils literal">_elementtree</tt>
+module initialization (accelerator of <tt class="docutils literal">xml.etree</tt>), handle correctly
+<tt class="docutils literal">getattr(copy, 'deepcopy')</tt> failure to not fail with an assertion error.</li>
+</ul>
+</div>
+<div class="section" id="other-changes">
+<h2>Other Changes</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue30866">bpo-30866</a>: Add _testcapi.stack_pointer(). I used it to write the &quot;Stack
+consumption&quot; section of a previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to CPython
+during 2017 Q1</a></li>
+<li>_ssl_: Fix compiler warning. Cast Py_buffer.len (Py_ssize_t, signed) to
+size_t (unsigned) to prevent the &quot;comparison between signed and unsigned
+integer expressions&quot; warning.</li>
+<li><a class="reference external" href="https://bugs.python.org/issue30486">bpo-30486</a>: Make cell_set_contents() symbol private. Don't export the
+<tt class="docutils literal">cell_set_contents()</tt> symbol in the C API.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q3-part2.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q3: Part 2 (dangling threads)">My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-10-19T15:00:00+02:00">
+                Published: jeu. 19 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 2: &quot;Dangling threads&quot;.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html">My contributions to CPython during 2017 Q3: Part 1</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions
+to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</p>
+<p>Summary:</p>
+<ul class="simple">
+<li>Bugfixes: Reference cycles</li>
+<li>socketserver leaking threads and processes<ul>
+<li>test_logging random bug …</li></ul></li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q3-part1.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q3: Part 1">My contributions to CPython during 2017 Q3: Part 1</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-10-18T15:00:00+02:00">
+                Published: mer. 18 octobre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+(july, august, september), Part 1.</p>
+<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part1)</a>.</p>
+<p>Next reports:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+threads)</a>.</li>
+<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
+</ul>
+<p>Summary:</p>
+<ul class="simple">
+<li>Statistics</li>
+<li>Security fixes …</li></ul>
+                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q3-part1.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://haypo.github.io/python-security.html" rel="bookmark"
+                           title="Permalink to Python Security">Python Security</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-09-15T22:00:00+02:00">
                 Published: ven. 15 septembre 2017
@@ -33,117 +246,16 @@
         </address>
 <p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://haypo.github.io/tag/security.html">security</a> <a href="https://haypo.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info --><p>I am working on the Python security for years, but I never wrote anything about
+</footer><!-- /.post-info -->                <p>I am working on the Python security for years, but I never wrote anything about
 that. Let's fix this!</p>
 <div class="section" id="psrt">
 <h2>PSRT</h2>
 <p>I am part of the Python Security Response Team (PSRT): I get emails sent to
 <a class="reference external" href="mailto:security&#64;python.org">security&#64;python.org</a>. I try to analyze each report to validate that the bug
-is reproductible, find impacted Python versions and start to discuss how to fix
-the vulnerability. In some cases, the reported issue is not a security
-vulnerability, is not related to CPython, or sometimes is already fixed.  We
-also get reports about CPython, but also the web sites and other projects
-related to Python.</p>
-<p>Warning: I don't represent the PSRT, I speak for my own!</p>
-</div>
-<div class="section" id="vulnerabilities-sent-to-psrt">
-<h2>Vulnerabilities sent to PSRT</h2>
-<p>In this article, I will focus on vulnerabilities impacting CPython: the C and
-Python code of CPython core and the standard library.</p>
-<p>When vulnerabilities are obvious bugs, they are quickly fixed. Done.</p>
-<p>But it's not uncommon that fixing a vulnerability impacts the backward
-compatibility which is a major concern of CPython core developers. There is
-also a risk of rejecting legit input data because the added checks are too
-strict. We have to be very careful and so fixing vulnerabilities can take
-weeks, if not months in the worst case.</p>
-<p>While CPython has few active core developers, the PSRT has even lesser active
-members to handle incoming reports. We are volunteers, so please be kind and
-patient...</p>
-</div>
-<div class="section" id="example-of-a-complex-fix">
-<h2>Example of a complex fix</h2>
-<p>The <a class="reference external" href="https://python-security.readthedocs.io/vuln/urllib_ftp_protocol_stream_injection.html">urllib FTP protocol stream injection</a>
-vulnerability was reported to the PSRT at 2016-01-15. The fix was only merged
-at 2017-07-26.</p>
-<p>First, it was not obvious how the vulnerability can be exploited, nor if it
-should be fixed.</p>
-<p>Then it was not obvious if the vulnerability should be fixed in the urllib
-module or in the ftplib module.</p>
-<p>Even if the bug was public, it didn't get much attention. Since I don't know
-well how the urllib module, I wrote an email to the python-dev mailing
-list: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148699.html">Need help to fix urllib(.parse) vulnerabilities</a>.</p>
-<p>I proposed a fix for the urllib module: <a class="reference external" href="https://bugs.python.org/issue30713">Reject newline character (U+000A) in
-URLs in urllib.parse</a>. But it was
-rejected, since it was the wrong approach and my checks were too strict in many
-cases (rejected legit requests).</p>
-<p>The final fix rejects <tt class="docutils literal">\b</tt> and <tt class="docutils literal">\r</tt> newline characters in the putline()
-method of the ftplib module.</p>
-</div>
-<div class="section" id="track-known-and-fixed-cpython-vulnerabilities">
-<h2>Track known and fixed CPython vulnerabilities</h2>
-<p>Currently, not least that six branches still get security fixes!</p>
-<ul class="simple">
-<li>Python 2.7</li>
-<li>Python 3.3</li>
-<li>Python 3.4</li>
-<li>Python 3.5</li>
-<li>Python 3.6</li>
-<li>master: the development branch</li>
-</ul>
-<p>Last year, I added a table to the Python developer guide to help me to track
-the status of each branch: see the <a class="reference external" href="https://devguide.python.org/#status-of-python-branches">Status of Python branches</a>.</p>
-<p>This year, I created a tool to help me to track known CPython vulnerabilities:
-<a class="reference external" href="https://github.com/haypo/python-security">python-security project</a> (hosted
-at GitHub). The <a class="reference external" href="https://github.com/haypo/python-security/blob/master/vulnerabilities.yaml">vulnerabilities.yaml file</a>
-is a YAML file with one section per vulnerability. Each vulnerability has
-a title, link to the Python bug, disclosure date, reported date, commits, etc.</p>
-<p>The tool gets the date of commits and the Git tags which contains the commit
-to infer the first Python versions of each branch which contain the fix. It
-also build a timeline to help to understand how the vulnerability was handled.</p>
-<p>I also wanted to be more transparent on how we handle vulnerabilities and our
-velocity to fix them.</p>
-<p>Honestly, I was disappointed that it took so long to fix some vulnerabilities
-in the past. Hopefully, it seems like we are more reactive nowadays!</p>
-</div>
-<div class="section" id="example-of-a-fixed-vulnerability">
-<h2>Example of a fixed vulnerability</h2>
-<p>Example: <a class="reference external" href="https://python-security.readthedocs.io/vuln/cve-2016-5699_http_header_injection.html">CVE-2016-5699: HTTP header injection</a>.</p>
-<p>Right now, Python 3.3 is still vulnerable (my fix was commited, I am now
-waiting Python 3.3.7 which is coming at the end of september).</p>
-<p>Since the vulnerability was reported, it took 108 days to merge the fix, 72
-more days (total 180 days) for the first release including the fix (Python
-2.7.10).</p>
-<p>Sadly, the PSRT doesn't compute a severity of vulnerabilities yet.</p>
-<p>Hopefully, for this vulnerability, web frameworks were able to workaround the
-vulnerability by input sanitization.</p>
-</div>
-<div class="section" id="backport-all-fixes">
-<h2>Backport all fixes</h2>
-<p>Last months, I backported fixes to the six branches which still accept security
-fixes, to respect the contract with our users: we are doing our best to protect
-you!</p>
-<p>The good news is that with Python 2.7.14 and Python 3.3.7 releases scheduled
-this month, all major security vulnerabilities will be fixed in all maintained
-Python branches!</p>
-<p>Some fixes were not backported on purpose. For example, the <a class="reference external" href="https://python-security.readthedocs.io/vuln/cve-2013-7040_hash_not_properly_randomized.html#cve-2013-7040-hash-not-properly-randomized">CVE-2013-7040:
-Hash not properly randomized</a>
-vulnerability requires to change the hash algorithm and we decided to not touch
-Python 2.7 and 3.3 for backward compatibility reasons (don't break code relying
-on the exact hash function). The issue was fixed in Python 3.4 by using the
-SipHash hash algorithm which uses a hash secret (generated randomly by Python
-at startup).</p>
-</div>
-<div class="section" id="python-security-documentation">
-<h2>Python security documentation</h2>
-<p>Last months, I also started to collect random notes about the Python security.</p>
-<p>Explore my <a class="reference external" href="https://python-security.readthedocs.io/">python-security.readthedocs.io</a> documentation and send me feedback!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+is …</p></div>
+                <a class="readmore" href="https://haypo.github.io/python-security.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -319,102 +431,6 @@ identify failing tests in the CPython test suite.</p>
 <p>I am fixing reference leaks since many years. When the test file contains more
 than 200 tests and is longer than 5,000 lines …</p></div>
                 <a class="readmore" href="https://haypo.github.io/python-test-bisect.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/contrib-cpython-2017q1.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q1">My contributions to CPython during 2017 Q1</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-07-05T12:00:00+02:00">
-                Published: mer. 05 juillet 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q1
-(january, februrary, march):</p>
-<ul class="simple">
-<li>Statistics</li>
-<li>Optimization</li>
-<li>Tricky bug</li>
-<li>FASTCALL optimizations</li>
-<li>Stack consumption</li>
-<li>Contributions</li>
-<li>os.urandom() and getrandom()</li>
-<li>Migration to GitHub</li>
-<li>Enhancements</li>
-<li>Security</li>
-<li>regrtest</li>
-<li>Bugfixes</li>
-</ul>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html">My contributions to CPython during 2016 Q4</a>.</p>
-<div class="section" id="statistics">
-<h2>Statistics</h2>
-<pre class="literal-block">
-# All commits
-$ git log --after=2016-12-31 --before=2017-04-01 --reverse --branches …</pre></div>
-                <a class="readmore" href="https://haypo.github.io/contrib-cpython-2017q1.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/speed-python-org-march-2017.html" rel="bookmark"
-                           title="Permalink to speed.python.org results: March 2017">speed.python.org results: March 2017</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-03-29T00:40:00+02:00">
-                Published: mer. 29 mars 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->                <p>In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
-Git: read <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html">[Python-Dev] CPython is now on GitHub</a> by
-Brett Cannon.</p>
-<p>In 2016, I worked on speed.python.org to automate running benchmarks and make
-benchmarks more stable. At the end, I had a single command to:</p>
-<ul class="simple">
-<li>tune …</li></ul>
-                <a class="readmore" href="https://haypo.github.io/speed-python-org-march-2017.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://haypo.github.io/fastcall-issues.html" rel="bookmark"
-                           title="Permalink to FASTCALL issues">FASTCALL issues</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-25T00:00:00+01:00">
-                Published: sam. 25 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/fastcall.html">fastcall</a> <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
-2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
-are already part of Python 3.6.0, some are already merged into the future
-Python 3.7, the few remaining issues are still …</p>
-                <a class="readmore" href="https://haypo.github.io/fastcall-issues.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
