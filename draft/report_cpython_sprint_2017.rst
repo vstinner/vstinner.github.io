@@ -9,7 +9,7 @@ My "new C API" PEP
   an usable stable ABI
   https://mail.python.org/pipermail/python-dev/2017-September/149264.html
 * PEP explainted to the CPython core developers
-* New blog post to explain the PEP rationale in depth: https://github.com/haypo/misc/blob/master/python/pep_c_api.rst
+* New blog post to explain the PEP rationale in depth: https://github.com/vstinner/misc/blob/master/python/pep_c_api.rst
 * PEP draft written last june: https://haypo.github.io/new-python-c-api.html
 
 I used the whitebord to explain the changes I want to do, but also see how to
@@ -24,7 +24,7 @@ CPython tutorial for newcomers
 ==============================
 
 * https://cpython-core-tutorial.readthedocs.io/
-* https://github.com/haypo/cpython_core_tutorial/
+* https://github.com/vstinner/cpython_core_tutorial/
 * Tutorial introduced to Mariatta Wijaya and Ezio Metlotti who worked a lot
   on the existing CPython developer guide:
   https://devguide.python.org/

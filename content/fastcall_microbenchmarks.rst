@@ -11,7 +11,7 @@ FASTCALL microbenchmarks
 For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: `pymicrobench
-<https://github.com/haypo/pymicrobench>`_.  Benchmark results are required by
+<https://github.com/vstinner/pymicrobench>`_.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
 that I abandon a change because the speedup is not significant, makes CPython
 slower, or because the change is too complex. Last 12 months, I counted that I

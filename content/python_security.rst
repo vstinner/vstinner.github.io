@@ -89,9 +89,9 @@ the status of each branch: see the `Status of Python branches
 <https://devguide.python.org/#status-of-python-branches>`_.
 
 This year, I created a tool to help me to track known CPython vulnerabilities:
-`python-security project <https://github.com/haypo/python-security>`_ (hosted
+`python-security project <https://github.com/vstinner/python-security>`_ (hosted
 at GitHub). The `vulnerabilities.yaml file
-<https://github.com/haypo/python-security/blob/master/vulnerabilities.yaml>`_
+<https://github.com/vstinner/python-security/blob/master/vulnerabilities.yaml>`_
 is a YAML file with one section per vulnerability. Each vulnerability has
 a title, link to the Python bug, disclosure date, reported date, commits, etc.
 
