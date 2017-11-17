@@ -832,8 +832,8 @@ method of the ftplib module.&lt;/p&gt;
 &lt;p&gt;Last year, I added a table to the Python developer guide to help me to track
 the status of each branch: see the &lt;a class="reference external" href="https://devguide.python.org/#status-of-python-branches"&gt;Status of Python branches&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;This year, I created a tool to help me to track known CPython vulnerabilities:
-&lt;a class="reference external" href="https://github.com/haypo/python-security"&gt;python-security project&lt;/a&gt; (hosted
-at GitHub). The &lt;a class="reference external" href="https://github.com/haypo/python-security/blob/master/vulnerabilities.yaml"&gt;vulnerabilities.yaml file&lt;/a&gt;
+&lt;a class="reference external" href="https://github.com/vstinner/python-security"&gt;python-security project&lt;/a&gt; (hosted
+at GitHub). The &lt;a class="reference external" href="https://github.com/vstinner/python-security/blob/master/vulnerabilities.yaml"&gt;vulnerabilities.yaml file&lt;/a&gt;
 is a YAML file with one section per vulnerability. Each vulnerability has
 a title, link to the Python bug, disclosure date, reported date, commits, etc.&lt;/p&gt;
 &lt;p&gt;The tool gets the date of commits and the Git tags which contains the commit
@@ -2980,11 +2980,11 @@ METH_FASTCALL.&lt;/p&gt;
 &lt;/div&gt;
 </content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>FASTCALL microbenchmarks</title><link href="https://haypo.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><updated>2017-02-24T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-02-24:/fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
-them into a new Git repository: &lt;a class="reference external" href="https://github.com/haypo/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
+them into a new Git repository: &lt;a class="reference external" href="https://github.com/vstinner/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
 that I abandon a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
-them into a new Git repository: &lt;a class="reference external" href="https://github.com/haypo/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
+them into a new Git repository: &lt;a class="reference external" href="https://github.com/vstinner/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
 that I abandon a change because the speedup is not significant, makes CPython
 slower, or because the change is too complex. Last 12 months, I counted that I
