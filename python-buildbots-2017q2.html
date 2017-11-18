@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>Work on Python buildbots, 2017 Q2</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,17 +13,17 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
   <article>
     <header>
       <h1 class="entry-title">
-        <a href="https://haypo.github.io/python-buildbots-2017q2.html" rel="bookmark"
+        <a href="https://vstinner.github.io/python-buildbots-2017q2.html" rel="bookmark"
            title="Permalink to Work on Python buildbots, 2017 Q2">Work on Python buildbots, 2017 Q2</a></h1>
     </header>
 
@@ -34,10 +34,10 @@
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
 </footer><!-- /.post-info -->      <p>I spent the last 6 months on working on buildbots: reduce the failure rate,
 send email notitication on failure, fix random bugs, detect more bugs using
 warnings, backport fixes to older branches, etc. I decided to fix <em>all</em>
@@ -130,7 +130,7 @@ development history that we have automated pre-commit tests!</p>
 from the raw test output to create a new &quot;warnings&quot; report, to more easily
 detect warnings and tests failing randomly (test fail then pass when re-run).</p>
 <p>Example of orange build, x86-64 El Capitain 3.x:</p>
-<img alt="Buildbot: orange build" src="https://haypo.github.io/images/buildbot_orange.png" />
+<img alt="Buildbot: orange build" src="https://vstinner.github.io/images/buildbot_orange.png" />
 <p>Extract of the current <tt class="docutils literal">master/custom/steps.py</tt>:</p>
 <pre class="literal-block">
 class Test(BaseTest):
@@ -183,7 +183,7 @@ view of four Python branches: 2.7, 3.5, 3.6 and master (&quot;3.x&quot;).</p>
 <li><a class="reference external" href="http://buildbot.python.org/all/waterfall?category=2.7.stable&amp;category=2.7.unstable">Python 2.7</a></li>
 </ul>
 <p>Example of typical buildbot waterfall:</p>
-<a class="reference external image-reference" href="http://buildbot.python.org/all/waterfall?category=3.x.stable&amp;category=3.x.unstable"><img alt="Buildbot waterfall" src="https://haypo.github.io/images/buildbot_waterfall.png" /></a>
+<a class="reference external image-reference" href="http://buildbot.python.org/all/waterfall?category=3.x.stable&amp;category=3.x.unstable"><img alt="Buildbot waterfall" src="https://vstinner.github.io/images/buildbot_waterfall.png" /></a>
 <p>The screenshot is obviously truncated since the webpage is giant: I have to
 scroll in all directions... It's not convenient to check the status of all
 builds, detect random failures, etc.</p>
@@ -314,7 +314,7 @@ enhancements from master!</p>
 test</tt>, almost the same features (except of one or two missing feature), and
 should provide the same level of information on failures and warnings.</p>
 <p>By the way, the new <tt class="docutils literal">test.bisect</tt> tool is now also available in all these
-branches. See my <a class="reference external" href="https://haypo.github.io/python-test-bisect.html">New Python test.bisect tool</a> article.</p>
+branches. See my <a class="reference external" href="https://vstinner.github.io/python-test-bisect.html">New Python test.bisect tool</a> article.</p>
 </div>
 <div class="section" id="bug-fixes">
 <h2>Bug fixes</h2>
@@ -494,7 +494,7 @@ failures.</li>
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>

@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>My journey to stable benchmark, part 3 (average)</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,17 +13,17 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li class="active"><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
   <article>
     <header>
       <h1 class="entry-title">
-        <a href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="bookmark"
+        <a href="https://vstinner.github.io/journey-to-stable-benchmark-average.html" rel="bookmark"
            title="Permalink to My journey to stable benchmark, part 3 (average)">My journey to stable benchmark, part 3 (average)</a></h1>
     </header>
 
@@ -34,11 +34,11 @@
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->      <a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"><img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /></a>
+<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info -->      <a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"><img alt="Fog" src="https://vstinner.github.io/images/fog.jpg" /></a>
 <p><em>Stable benchmarks are so close, but ...</em></p>
 <div class="section" id="address-space-layout-randomization">
 <h2>Address Space Layout Randomization</h2>
@@ -78,8 +78,8 @@ sudo bash -c 'echo 2 &gt;| /proc/sys/kernel/randomize_va_space'
 </div>
 <div class="section" id="python-randomized-hash-function">
 <h2>Python randomized hash function</h2>
-<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">system tuning  (part 1)</a>, a
-<a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">Python compiled with PGO (part 2)</a>
+<p>With <a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-system.html">system tuning  (part 1)</a>, a
+<a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html">Python compiled with PGO (part 2)</a>
 and ASLR disabled, I still I failed to get the same result when running
 manually <tt class="docutils literal">bm_call_simple.py</tt>.</p>
 <p>On Python 3, the hash function is now randomized by default: <a class="reference external" href="http://bugs.python.org/issue13703">issue #13703</a>. The problem is that for a
@@ -276,7 +276,7 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>

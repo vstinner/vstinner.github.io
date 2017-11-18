@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>My contributions to CPython during 2016 Q4</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,17 +13,17 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
   <article>
     <header>
       <h1 class="entry-title">
-        <a href="https://haypo.github.io/contrib-cpython-2016q4.html" rel="bookmark"
+        <a href="https://vstinner.github.io/contrib-cpython-2016q4.html" rel="bookmark"
            title="Permalink to My contributions to CPython during 2016 Q4">My contributions to CPython during 2016 Q4</a></h1>
     </header>
 
@@ -34,17 +34,17 @@
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
 </footer><!-- /.post-info -->      <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2016 Q4
 (october, november, december):</p>
 <pre class="literal-block">
 hg log -r 'date(&quot;2016-10-01&quot;):date(&quot;2016-12-31&quot;)' --no-merges -u Stinner
 </pre>
 <p>Statistics: 105 non-merge commits + 31 merge commits (total: 136 commits).</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a>. Next report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q1.html">My contributions to
+<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2016q3.html">My contributions to CPython during 2016 Q3</a>. Next report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q1.html">My contributions to
 CPython during 2017 Q1</a>.</p>
 <p>Table of Contents:</p>
 <ul class="simple">
@@ -64,11 +64,11 @@ CPython during 2017 Q1</a>.</p>
 identified a performance slowdown on the <tt class="docutils literal">bm_python_startup</tt> benchmark
 (average time to start Python).</p>
 <p>Before September 2016, the start took around <strong>17.9 ms</strong>. At September 15,
-after the  <a class="reference external" href="https://haypo.github.io/cpython-sprint-2016.html">CPython sprint</a>, it was
+after the  <a class="reference external" href="https://vstinner.github.io/cpython-sprint-2016.html">CPython sprint</a>, it was
 better: <strong>13.4 ms</strong>. But suddenly, at september 19, it became much worse:
 <strong>22.8 ms</strong>. What happened?</p>
 <p>Timeline of Python startup performance on speed.python.org:</p>
-<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=python_startup&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of Python startup performance" src="https://haypo.github.io/images/python_startup_regression.png" /></a>
+<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=python_startup&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of Python startup performance" src="https://vstinner.github.io/images/python_startup_regression.png" /></a>
 <p>I looked at commits between September 15 and September 19, and I quickly
 identified the commit of the <a class="reference external" href="http://bugs.python.org/issue28082">convert re flags to (much
 friendlier) IntFlag constants (issue #28082)</a>. The <tt class="docutils literal">re</tt> module now imports the
@@ -101,7 +101,7 @@ was obvious (avoid an import at startup) and simple, it was quickly merged.</p>
 performance by default, the <tt class="docutils literal">enum</tt> change was restored at November 14.</p>
 <p>Sadly, the <tt class="docutils literal">enum</tt> change still have an impact on performance:
 <tt class="docutils literal">re.compile()</tt> became 1.2x slower (312 ms =&gt; 376 ms: +20%).</p>
-<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=regex_compile&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of re.compile() performance" src="https://haypo.github.io/images/regex_compile_perf.png" /></a>
+<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=regex_compile&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of re.compile() performance" src="https://vstinner.github.io/images/regex_compile_perf.png" /></a>
 <p>I think that it's ok since it is very easy to use precompiled regular
 expressions in an application: store and reuse the result of <tt class="docutils literal">re.compile()</tt>,
 instead of calling directly <tt class="docutils literal">re.match()</tt> for example.</p>
@@ -187,7 +187,7 @@ by Linux <tt class="docutils literal">perf record</tt> and <tt class="docutils l
 </ul>
 <p>I added a <tt class="docutils literal">_Py_HOT_FUNCTION</tt> macro which uses <tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> and
 used <tt class="docutils literal">_Py_HOT_FUNCTION</tt> on these functions (issue #28618).</p>
-<p>Read also my previous blog article <a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a> for a deeper analysis.</p>
+<p>Read also my previous blog article <a class="reference external" href="https://vstinner.github.io/analysis-python-performance-issue.html">Analysis of a Python performance issue</a> for a deeper analysis.</p>
 <p>Sadly, after I wrote this blog post and after more analysis of <tt class="docutils literal">call_simple</tt>
 benchmark results, I saw that <tt class="docutils literal"><span class="pre">__attribute__((hot))</span></tt> wasn't enough. I still
 had random major performance slowdown.</p>
@@ -395,7 +395,7 @@ this is suboptimal. Update the documentation to suggest to reuse the
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>

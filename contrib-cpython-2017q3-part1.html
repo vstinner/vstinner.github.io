@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>My contributions to CPython during 2017 Q3: Part 1</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,17 +13,17 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li class="active"><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
   <article>
     <header>
       <h1 class="entry-title">
-        <a href="https://haypo.github.io/contrib-cpython-2017q3-part1.html" rel="bookmark"
+        <a href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html" rel="bookmark"
            title="Permalink to My contributions to CPython during 2017 Q3: Part 1">My contributions to CPython during 2017 Q3: Part 1</a></h1>
     </header>
 
@@ -34,18 +34,18 @@
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/cpython.html">cpython</a> </p>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
 </footer><!-- /.post-info -->      <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
 (july, august, september), Part 1.</p>
-<p>Previous report: <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part1)</a>.</p>
+<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part1)</a>.</p>
 <p>Next reports:</p>
 <ul class="simple">
-<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads)</a>.</li>
-<li><a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
+<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
 </ul>
 <p>Summary:</p>
 <ul class="simple">
@@ -99,7 +99,7 @@ it!?</p>
 </div>
 <div class="section" id="removal-of-the-macos-job-of-travis-ci">
 <h2>Removal of the macOS job of Travis CI</h2>
-<a class="reference external image-reference" href="https://travis-ci.org/"><img alt="call_method microbenchmark" class="align-right" src="https://haypo.github.io/images/travis-ci.png" /></a>
+<a class="reference external image-reference" href="https://travis-ci.org/"><img alt="call_method microbenchmark" class="align-right" src="https://vstinner.github.io/images/travis-ci.png" /></a>
 <p>While the Linux jobs of Travis CI usually takes 15 minutes, up to 30 minutes in
 the worst case, the macOS job of Travis CI regulary took longer than 30
 minutes, sometimes longer than 1 hour.</p>
@@ -114,7 +114,7 @@ completed and it was already possible merge a PR...).</p>
 <p>I sent a first mail in June: <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-June/004661.html">[python-committers] macOS Travis CI job became
 mandatory?</a></p>
 <p>In september, we decided to remove the macOS job during the CPython sprint at
-Instagram (see my previous <a class="reference external" href="https://haypo.github.io/new-python-c-api.html">New C API</a>
+Instagram (see my previous <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">New C API</a>
 article), to not slowdown our development speed (<a class="reference external" href="https://bugs.python.org/issue31355">bpo-31355</a>). I sent another
 email to announce the change: <a class="reference external" href="https://mail.python.org/pipermail/python-committers/2017-September/004824.html">[python-committers] Travis CI: macOS is now
 blocking -- remove macOS from Travis CI?</a>.</p>
@@ -300,7 +300,7 @@ don't &quot;leak&quot; a pending fatal signal alarm. Move some signal.alarm() ca
 into the try block.</p>
 </li>
 </ul>
-<p><strong>Next report:</strong> <a class="reference external" href="https://haypo.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
+<p><strong>Next report:</strong> <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads)</a>.</p>
 </div>
 
@@ -318,7 +318,7 @@ threads)</a>.</p>
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>

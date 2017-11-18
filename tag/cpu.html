@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>Victor Stinner blog 2 - cpu</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,27 +13,27 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://haypo.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a></h1>
 <footer class="post-info">
         <abbr class="published" title="2016-09-23T23:00:00+02:00">
                 Published: ven. 23 septembre 2016
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> <a href="https://haypo.github.io/tag/cpu.html">cpu</a> </p>
-</footer><!-- /.post-info --><p>My first article <a class="reference external" href="https://haypo.github.io/intel-cpus.html">Intel CPUs</a> is a general
+<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> <a href="https://vstinner.github.io/tag/cpu.html">cpu</a> </p>
+</footer><!-- /.post-info --><p>My first article <a class="reference external" href="https://vstinner.github.io/intel-cpus.html">Intel CPUs</a> is a general
 introduction on modern CPU technologies having an impact on benchmarks.</p>
 <p>This second article is much more concrete with numbers and a concrete bug
 having a major impact on benchmarks: a benchmark suddenly becomes 2x faster!</p>
@@ -113,7 +113,7 @@ was disabled) and the CPU temperature is 66°C.</p>
 wanted to <a class="reference external" href="https://www.youtube.com/watch?v=Xf0VuRG7MN4">burn my CPU</a>! More
 seriously, I checked the CPU temperature every second using the <tt class="docutils literal">sensors</tt>
 command and was prepared to unblock the fan if sometimes gone wrong.</p>
-<img alt="Sheet of paper blocking the CPU fan" src="https://haypo.github.io/images/paper_blocks_cpu_fan.jpg" />
+<img alt="Sheet of paper blocking the CPU fan" src="https://vstinner.github.io/images/paper_blocks_cpu_fan.jpg" />
 <p>After one minute, the CPU reached 97°C. I expected a system crash, smoke or
 something worse, but I was disappointed. <strong>At 97°C, I was still able to use my
 computer as everything was fine. The CPU was slowly down automatically to the
@@ -130,7 +130,7 @@ protection against overheating!</p>
 <p>I used my system_load.py script to get a system load over 200. I also opened 4
 tabs in Firefox playing Youtube videos to stress also the GPU which is
 integrated into the CPU (IGP) on such laptop.</p>
-<img alt="Stress test playing Youtube videos in Firefox, CPU at 102°" src="https://haypo.github.io/images/burn_cpu_firefox.jpg" />
+<img alt="Stress test playing Youtube videos in Firefox, CPU at 102°" src="https://vstinner.github.io/images/burn_cpu_firefox.jpg" />
 <p>With such crazy stress test, the CPU temperature was &quot;only&quot; 83°C.</p>
 <p>Using a simple tissue, I closed the air hole used by the CPU fan. <strong>When the
 CPU temperature increased from 100°C to 101°C, the CPU frequency started slowly
@@ -220,7 +220,7 @@ comparisons between benchmark results and stable performances matter.</strong></
 
             <li><article class="hentry">
                 <header>
-                    <h1><a href="https://haypo.github.io/intel-cpus.html" rel="bookmark"
+                    <h1><a href="https://vstinner.github.io/intel-cpus.html" rel="bookmark"
                            title="Permalink to Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></h1>
                 </header>
 
@@ -231,13 +231,13 @@ comparisons between benchmark results and stable performances matter.</strong></
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> <a href="https://haypo.github.io/tag/cpu.html">cpu</a> </p>
+<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> <a href="https://vstinner.github.io/tag/cpu.html">cpu</a> </p>
 </footer><!-- /.post-info -->                <p class="first last">Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.</p>
 
-                <a class="readmore" href="https://haypo.github.io/intel-cpus.html">read more</a>
+                <a class="readmore" href="https://vstinner.github.io/intel-cpus.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
@@ -252,7 +252,7 @@ comparisons between benchmark results and stable performances matter.</strong></
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>

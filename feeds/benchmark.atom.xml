@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 2 - benchmark</title><link href="https://haypo.github.io/" rel="alternate"></link><link href="https://haypo.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://haypo.github.io/</id><updated>2017-03-29T00:40:00+02:00</updated><entry><title>speed.python.org results: March 2017</title><link href="https://haypo.github.io/speed-python-org-march-2017.html" rel="alternate"></link><published>2017-03-29T00:40:00+02:00</published><updated>2017-03-29T00:40:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2017-03-29:/speed-python-org-march-2017.html</id><summary type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 2 - benchmark</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2017-03-29T00:40:00+02:00</updated><entry><title>speed.python.org results: March 2017</title><link href="https://vstinner.github.io/speed-python-org-march-2017.html" rel="alternate"></link><published>2017-03-29T00:40:00+02:00</published><updated>2017-03-29T00:40:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-03-29:/speed-python-org-march-2017.html</id><summary type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
 Git: read &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html"&gt;[Python-Dev] CPython is now on GitHub&lt;/a&gt; by
 Brett Cannon.&lt;/p&gt;
 &lt;p&gt;In 2016, I worked on speed.python.org to automate running benchmarks and make
@@ -27,49 +27,49 @@ and I am not motivated to do that.&lt;/p&gt;
 &lt;div class="section" id="python-3-7-compared-to-python-2-7"&gt;
 &lt;h2&gt;Python 3.7 compared to Python 2.7&lt;/h2&gt;
 &lt;p&gt;Benchmarks where Python 3.7 is &lt;strong&gt;faster&lt;/strong&gt; than Python 2.7:&lt;/p&gt;
-&lt;img alt="python37_faster_py27" src="https://haypo.github.io/images/speed2017/python37_faster_py27.png" /&gt;
+&lt;img alt="python37_faster_py27" src="https://vstinner.github.io/images/speed2017/python37_faster_py27.png" /&gt;
 &lt;p&gt;Benchmarks where Python 3.7 is &lt;strong&gt;slower&lt;/strong&gt; than Python 2.7:&lt;/p&gt;
-&lt;img alt="python37_slower_py27" src="https://haypo.github.io/images/speed2017/python37_slower_py27.png" /&gt;
+&lt;img alt="python37_slower_py27" src="https://vstinner.github.io/images/speed2017/python37_slower_py27.png" /&gt;
 &lt;/div&gt;
 &lt;div class="section" id="significant-optimizations"&gt;
 &lt;h2&gt;Significant optimizations&lt;/h2&gt;
 &lt;p&gt;CPython became regulary faster in 2016 on the following benchmarks.&lt;/p&gt;
 &lt;p&gt;call_method, the main optimized was &lt;a class="reference external" href="https://bugs.python.org/issue26110"&gt;Speedup method calls 1.2x&lt;/a&gt;:&lt;/p&gt;
-&lt;img alt="call_method" src="https://haypo.github.io/images/speed2017/call_method.png" /&gt;
+&lt;img alt="call_method" src="https://vstinner.github.io/images/speed2017/call_method.png" /&gt;
 &lt;p&gt;float:&lt;/p&gt;
-&lt;img alt="float" src="https://haypo.github.io/images/speed2017/float.png" /&gt;
+&lt;img alt="float" src="https://vstinner.github.io/images/speed2017/float.png" /&gt;
 &lt;p&gt;hexiom:&lt;/p&gt;
-&lt;img alt="hexiom" src="https://haypo.github.io/images/speed2017/hexiom.png" /&gt;
+&lt;img alt="hexiom" src="https://vstinner.github.io/images/speed2017/hexiom.png" /&gt;
 &lt;p&gt;nqueens:&lt;/p&gt;
-&lt;img alt="nqueens" src="https://haypo.github.io/images/speed2017/nqueens.png" /&gt;
+&lt;img alt="nqueens" src="https://vstinner.github.io/images/speed2017/nqueens.png" /&gt;
 &lt;p&gt;pickle_list, something happened near September 2016:&lt;/p&gt;
-&lt;img alt="pickle_list" src="https://haypo.github.io/images/speed2017/pickle_list.png" /&gt;
+&lt;img alt="pickle_list" src="https://vstinner.github.io/images/speed2017/pickle_list.png" /&gt;
 &lt;p&gt;richards:&lt;/p&gt;
-&lt;img alt="richards" src="https://haypo.github.io/images/speed2017/richards.png" /&gt;
+&lt;img alt="richards" src="https://vstinner.github.io/images/speed2017/richards.png" /&gt;
 &lt;p&gt;scimark_lu, I like the latest dot!&lt;/p&gt;
-&lt;img alt="scimark_lu" src="https://haypo.github.io/images/speed2017/scimark_lu.png" /&gt;
+&lt;img alt="scimark_lu" src="https://vstinner.github.io/images/speed2017/scimark_lu.png" /&gt;
 &lt;p&gt;scimark_sor:&lt;/p&gt;
-&lt;img alt="scimark_sor" src="https://haypo.github.io/images/speed2017/scimark_sor.png" /&gt;
+&lt;img alt="scimark_sor" src="https://vstinner.github.io/images/speed2017/scimark_sor.png" /&gt;
 &lt;p&gt;sympy_sum:&lt;/p&gt;
-&lt;img alt="sympy_sum" src="https://haypo.github.io/images/speed2017/sympy_sum.png" /&gt;
+&lt;img alt="sympy_sum" src="https://vstinner.github.io/images/speed2017/sympy_sum.png" /&gt;
 &lt;p&gt;telco is one of the most impressive, it became regulary faster:&lt;/p&gt;
-&lt;img alt="telco" src="https://haypo.github.io/images/speed2017/telco.png" /&gt;
+&lt;img alt="telco" src="https://vstinner.github.io/images/speed2017/telco.png" /&gt;
 &lt;p&gt;unpickle_list, something happened between March and May 2016:&lt;/p&gt;
-&lt;img alt="unpickle_list" src="https://haypo.github.io/images/speed2017/unpickle_list.png" /&gt;
+&lt;img alt="unpickle_list" src="https://vstinner.github.io/images/speed2017/unpickle_list.png" /&gt;
 &lt;/div&gt;
 &lt;div class="section" id="the-enum-change"&gt;
 &lt;h2&gt;The enum change&lt;/h2&gt;
 &lt;p&gt;One change related to the &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; module had significant impact on the two
 following benchmarks.&lt;/p&gt;
 &lt;p&gt;python_startup:&lt;/p&gt;
-&lt;img alt="python_startup" src="https://haypo.github.io/images/speed2017/python_startup.png" /&gt;
-&lt;p&gt;See &amp;quot;Python startup performance regression&amp;quot; section of &lt;a class="reference external" href="https://haypo.github.io/contrib-cpython-2016q4.html"&gt;My contributions to
+&lt;img alt="python_startup" src="https://vstinner.github.io/images/speed2017/python_startup.png" /&gt;
+&lt;p&gt;See &amp;quot;Python startup performance regression&amp;quot; section of &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2016q4.html"&gt;My contributions to
 CPython during 2016 Q4&lt;/a&gt; for the
 explanation on changes around September 2016.&lt;/p&gt;
 &lt;p&gt;regex_compile became 1.2x slower (312 ms =&amp;gt; 376 ms: +20%) because constants
 of the &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; module became &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; objects: see &lt;a class="reference external" href="http://bugs.python.org/issue28082"&gt;convert re flags to (much
 friendlier) IntFlag constants (issue #28082)&lt;/a&gt;.&lt;/p&gt;
-&lt;img alt="regex_compile" src="https://haypo.github.io/images/speed2017/regex_compile.png" /&gt;
+&lt;img alt="regex_compile" src="https://vstinner.github.io/images/speed2017/regex_compile.png" /&gt;
 &lt;/div&gt;
 &lt;div class="section" id="benchmarks-became-stable"&gt;
 &lt;h2&gt;Benchmarks became stable&lt;/h2&gt;
@@ -78,9 +78,9 @@ external factors. It's hard to get stable results. I'm happy to see that
 results are stable. I would say very stable compared to results when I started
 to work on the project!&lt;/p&gt;
 &lt;p&gt;call_simple:&lt;/p&gt;
-&lt;img alt="call_simple" src="https://haypo.github.io/images/speed2017/call_simple.png" /&gt;
+&lt;img alt="call_simple" src="https://vstinner.github.io/images/speed2017/call_simple.png" /&gt;
 &lt;p&gt;spectral_norm:&lt;/p&gt;
-&lt;img alt="spectral_norm" src="https://haypo.github.io/images/speed2017/spectral_norm.png" /&gt;
+&lt;img alt="spectral_norm" src="https://vstinner.github.io/images/speed2017/spectral_norm.png" /&gt;
 &lt;/div&gt;
 &lt;div class="section" id="straight-line"&gt;
 &lt;h2&gt;Straight line&lt;/h2&gt;
@@ -88,56 +88,56 @@ to work on the project!&lt;/p&gt;
 benchmarks. You can also see that benchmarks became stable, so it's easier to
 detect performance regression or significant optimization.&lt;/p&gt;
 &lt;p&gt;dulwich_log:&lt;/p&gt;
-&lt;img alt="dulwich_log" src="https://haypo.github.io/images/speed2017/dulwich_log.png" /&gt;
+&lt;img alt="dulwich_log" src="https://vstinner.github.io/images/speed2017/dulwich_log.png" /&gt;
 &lt;p&gt;pidigits:&lt;/p&gt;
-&lt;img alt="pidigits" src="https://haypo.github.io/images/speed2017/pidigits.png" /&gt;
+&lt;img alt="pidigits" src="https://vstinner.github.io/images/speed2017/pidigits.png" /&gt;
 &lt;p&gt;sqlite_synth:&lt;/p&gt;
-&lt;img alt="sqlite_synth" src="https://haypo.github.io/images/speed2017/sqlite_synth.png" /&gt;
+&lt;img alt="sqlite_synth" src="https://vstinner.github.io/images/speed2017/sqlite_synth.png" /&gt;
 &lt;p&gt;Apart something around April 2016, tornado_http result is stable:&lt;/p&gt;
-&lt;img alt="tornado_http" src="https://haypo.github.io/images/speed2017/tornado_http.png" /&gt;
+&lt;img alt="tornado_http" src="https://vstinner.github.io/images/speed2017/tornado_http.png" /&gt;
 &lt;/div&gt;
 &lt;div class="section" id="unstable-benchmarks"&gt;
 &lt;h2&gt;Unstable benchmarks&lt;/h2&gt;
 &lt;p&gt;After months of efforts to make everything stable, some benchmarks are still
-unstable, even if temporary spikes are lower than before. See &lt;a class="reference external" href="https://haypo.github.io/analysis-python-performance-issue.html"&gt;Analysis of a
+unstable, even if temporary spikes are lower than before. See &lt;a class="reference external" href="https://vstinner.github.io/analysis-python-performance-issue.html"&gt;Analysis of a
 Python performance issue&lt;/a&gt;
 to see the size of previous tempoary performance spikes.&lt;/p&gt;
 &lt;p&gt;regex_v8:&lt;/p&gt;
-&lt;img alt="regex_v8" src="https://haypo.github.io/images/speed2017/regex_v8.png" /&gt;
+&lt;img alt="regex_v8" src="https://vstinner.github.io/images/speed2017/regex_v8.png" /&gt;
 &lt;p&gt;scimark_sparse_mat_mult:&lt;/p&gt;
-&lt;img alt="scimark_sparse_mat_mult" src="https://haypo.github.io/images/speed2017/scimark_sparse_mat_mult.png" /&gt;
+&lt;img alt="scimark_sparse_mat_mult" src="https://vstinner.github.io/images/speed2017/scimark_sparse_mat_mult.png" /&gt;
 &lt;p&gt;unpickle_pure_python:&lt;/p&gt;
-&lt;img alt="unpickle_pure_python" src="https://haypo.github.io/images/speed2017/unpickle_pure_python.png" /&gt;
+&lt;img alt="unpickle_pure_python" src="https://vstinner.github.io/images/speed2017/unpickle_pure_python.png" /&gt;
 &lt;/div&gt;
 &lt;div class="section" id="boring-results"&gt;
 &lt;h2&gt;Boring results&lt;/h2&gt;
 &lt;p&gt;There is nothing interesting to say on the following benchmark results.&lt;/p&gt;
 &lt;p&gt;2to3:&lt;/p&gt;
-&lt;img alt="2to3" src="https://haypo.github.io/images/speed2017/2to3.png" /&gt;
+&lt;img alt="2to3" src="https://vstinner.github.io/images/speed2017/2to3.png" /&gt;
 &lt;p&gt;crypto_pyaes:&lt;/p&gt;
-&lt;img alt="crypto_pyaes" src="https://haypo.github.io/images/speed2017/crypto_pyaes.png" /&gt;
+&lt;img alt="crypto_pyaes" src="https://vstinner.github.io/images/speed2017/crypto_pyaes.png" /&gt;
 &lt;p&gt;deltablue:&lt;/p&gt;
-&lt;img alt="deltablue" src="https://haypo.github.io/images/speed2017/deltablue.png" /&gt;
+&lt;img alt="deltablue" src="https://vstinner.github.io/images/speed2017/deltablue.png" /&gt;
 &lt;p&gt;logging_silent:&lt;/p&gt;
-&lt;img alt="logging_silent" src="https://haypo.github.io/images/speed2017/logging_silent.png" /&gt;
+&lt;img alt="logging_silent" src="https://vstinner.github.io/images/speed2017/logging_silent.png" /&gt;
 &lt;p&gt;mako:&lt;/p&gt;
-&lt;img alt="mako" src="https://haypo.github.io/images/speed2017/mako.png" /&gt;
+&lt;img alt="mako" src="https://vstinner.github.io/images/speed2017/mako.png" /&gt;
 &lt;p&gt;xml_etree_process:&lt;/p&gt;
-&lt;img alt="xml_etree_process" src="https://haypo.github.io/images/speed2017/xml_etree_process.png" /&gt;
+&lt;img alt="xml_etree_process" src="https://vstinner.github.io/images/speed2017/xml_etree_process.png" /&gt;
 &lt;p&gt;xml_etre_iterparse:&lt;/p&gt;
-&lt;img alt="xml_etre_iterparse" src="https://haypo.github.io/images/speed2017/xml_etre_iterparse.png" /&gt;
+&lt;img alt="xml_etre_iterparse" src="https://vstinner.github.io/images/speed2017/xml_etre_iterparse.png" /&gt;
 &lt;/div&gt;
-</content><category term="benchmark"></category></entry><entry><title>Analysis of a Python performance issue</title><link href="https://haypo.github.io/analysis-python-performance-issue.html" rel="alternate"></link><published>2016-11-19T00:30:00+01:00</published><updated>2016-11-19T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-11-19:/analysis-python-performance-issue.html</id><summary type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
+</content><category term="benchmark"></category></entry><entry><title>Analysis of a Python performance issue</title><link href="https://vstinner.github.io/analysis-python-performance-issue.html" rel="alternate"></link><published>2016-11-19T00:30:00+01:00</published><updated>2016-11-19T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-11-19:/analysis-python-performance-issue.html</id><summary type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
 upload results to &lt;a class="reference external" href="http://speed.python.org/"&gt;speed.python.org&lt;/a&gt;. While
 analying results, I noticed a temporary peak on the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt;
 benchmark at October 19th:&lt;/p&gt;
-&lt;img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" /&gt;
+&lt;img alt="call_method microbenchmark" src="https://vstinner.github.io/images/call_method.png" /&gt;
 &lt;p&gt;The graphic shows the performance of the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt; microbenchmark between
 Feb 29, 2016 …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I am working on the CPython benchmark suite (&lt;a class="reference external" href="https://github.com/python/performance"&gt;performance&lt;/a&gt;) and I run the benchmark suite to
 upload results to &lt;a class="reference external" href="http://speed.python.org/"&gt;speed.python.org&lt;/a&gt;. While
 analying results, I noticed a temporary peak on the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt;
 benchmark at October 19th:&lt;/p&gt;
-&lt;img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" /&gt;
+&lt;img alt="call_method microbenchmark" src="https://vstinner.github.io/images/call_method.png" /&gt;
 &lt;p&gt;The graphic shows the performance of the &lt;tt class="docutils literal"&gt;call_method&lt;/tt&gt; microbenchmark between
 Feb 29, 2016 and November 17, 2016 on the &lt;tt class="docutils literal"&gt;default&lt;/tt&gt; branch of CPython. The average
 is around 17.2 ms, whereas the peak is at 29.0 ms: &lt;strong&gt;68% slower&lt;/strong&gt;!&lt;/p&gt;
@@ -406,7 +406,7 @@ of the C code and so is more interesting.&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;_PyTraceback_Add()&lt;/tt&gt;, but &lt;tt class="docutils literal"&gt;perf report&lt;/tt&gt; didn't show these functions as &amp;quot;hot&amp;quot;.
 In fact, these functions are never called by the benchmark.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;The commit doesn't touch the C code used in the benchmark.&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;Unrelated C change impacting performances reminds me my previous &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html"&gt;deadcode
+&lt;p&gt;Unrelated C change impacting performances reminds me my previous &lt;a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html"&gt;deadcode
 horror story&lt;/a&gt;. The performance
 difference is probably caused by &lt;strong&gt;&amp;quot;code placement&amp;quot;&lt;/strong&gt;: &lt;tt class="docutils literal"&gt;perf stat&lt;/tt&gt; showed a
 significant increase of the cache miss rate on the L1 instruction cache.&lt;/p&gt;
@@ -466,8 +466,8 @@ He describes well &amp;quot;performance swings&amp;quot; like the one described 
 and explains how CPUs work internally and how code placement impacts CPU
 performances.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</title><link href="https://haypo.github.io/intel-cpus-part2.html" rel="alternate"></link><published>2016-09-23T23:00:00+02:00</published><updated>2016-09-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-09-23:/intel-cpus-part2.html</id><summary type="html">&lt;p class="first last"&gt;Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug&lt;/p&gt;
-</summary><content type="html">&lt;p&gt;My first article &lt;a class="reference external" href="https://haypo.github.io/intel-cpus.html"&gt;Intel CPUs&lt;/a&gt; is a general
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</title><link href="https://vstinner.github.io/intel-cpus-part2.html" rel="alternate"></link><published>2016-09-23T23:00:00+02:00</published><updated>2016-09-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-09-23:/intel-cpus-part2.html</id><summary type="html">&lt;p class="first last"&gt;Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug&lt;/p&gt;
+</summary><content type="html">&lt;p&gt;My first article &lt;a class="reference external" href="https://vstinner.github.io/intel-cpus.html"&gt;Intel CPUs&lt;/a&gt; is a general
 introduction on modern CPU technologies having an impact on benchmarks.&lt;/p&gt;
 &lt;p&gt;This second article is much more concrete with numbers and a concrete bug
 having a major impact on benchmarks: a benchmark suddenly becomes 2x faster!&lt;/p&gt;
@@ -547,7 +547,7 @@ was disabled) and the CPU temperature is 66°C.&lt;/p&gt;
 wanted to &lt;a class="reference external" href="https://www.youtube.com/watch?v=Xf0VuRG7MN4"&gt;burn my CPU&lt;/a&gt;! More
 seriously, I checked the CPU temperature every second using the &lt;tt class="docutils literal"&gt;sensors&lt;/tt&gt;
 command and was prepared to unblock the fan if sometimes gone wrong.&lt;/p&gt;
-&lt;img alt="Sheet of paper blocking the CPU fan" src="https://haypo.github.io/images/paper_blocks_cpu_fan.jpg" /&gt;
+&lt;img alt="Sheet of paper blocking the CPU fan" src="https://vstinner.github.io/images/paper_blocks_cpu_fan.jpg" /&gt;
 &lt;p&gt;After one minute, the CPU reached 97°C. I expected a system crash, smoke or
 something worse, but I was disappointed. &lt;strong&gt;At 97°C, I was still able to use my
 computer as everything was fine. The CPU was slowly down automatically to the
@@ -564,7 +564,7 @@ protection against overheating!&lt;/p&gt;
 &lt;p&gt;I used my system_load.py script to get a system load over 200. I also opened 4
 tabs in Firefox playing Youtube videos to stress also the GPU which is
 integrated into the CPU (IGP) on such laptop.&lt;/p&gt;
-&lt;img alt="Stress test playing Youtube videos in Firefox, CPU at 102°" src="https://haypo.github.io/images/burn_cpu_firefox.jpg" /&gt;
+&lt;img alt="Stress test playing Youtube videos in Firefox, CPU at 102°" src="https://vstinner.github.io/images/burn_cpu_firefox.jpg" /&gt;
 &lt;p&gt;With such crazy stress test, the CPU temperature was &amp;quot;only&amp;quot; 83°C.&lt;/p&gt;
 &lt;p&gt;Using a simple tissue, I closed the air hole used by the CPU fan. &lt;strong&gt;When the
 CPU temperature increased from 100°C to 101°C, the CPU frequency started slowly
@@ -645,7 +645,7 @@ It seems like nothing can reduce the frequency of a CPU below its minimum.&lt;/p
 &lt;p&gt;&lt;strong&gt;When running benchmarks, raw timings and CPU performance don't matter. Only
 comparisons between benchmark results and stable performances matter.&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</title><link href="https://haypo.github.io/intel-cpus.html" rel="alternate"></link><published>2016-07-15T12:00:00+02:00</published><updated>2016-07-15T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-07-15:/intel-cpus.html</id><summary type="html">&lt;p class="first last"&gt;Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.&lt;/p&gt;
+</content><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</title><link href="https://vstinner.github.io/intel-cpus.html" rel="alternate"></link><published>2016-07-15T12:00:00+02:00</published><updated>2016-07-15T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-07-15:/intel-cpus.html</id><summary type="html">&lt;p class="first last"&gt;Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;Ten years ago, most computers were desktop computers designed for best
 performances and their CPU frequency was fixed. Nowadays, most devices are
 embedded and use &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Low-power_electronics"&gt;low power consumption&lt;/a&gt; processors like ARM
@@ -1008,7 +1008,7 @@ more information on the coprocessor.&lt;/p&gt;
 &lt;p&gt;More recently, the Intel Xeon Phi CPU (2016) also includes a coprocessor for
 power management. I didn't understand if it is the same coprocessor or not.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://haypo.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><updated>2016-06-16T13:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-06-16:/perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
+</content><category term="optimization"></category><category term="benchmark"></category><category term="cpu"></category></entry><entry><title>Visualize the system noise using perf and CPU isolation</title><link href="https://vstinner.github.io/perf-visualize-system-noise-with-cpu-isolation.html" rel="alternate"></link><published>2016-06-16T13:30:00+02:00</published><updated>2016-06-16T13:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-06-16:/perf-visualize-system-noise-with-cpu-isolation.html</id><summary type="html">&lt;p&gt;I developed a new &lt;a class="reference external" href="http://perf.readthedocs.io/"&gt;perf module&lt;/a&gt; designed to run
 stable benchmarks, give fine control on benchmark parameters and compute
 statistics on results. With such tool, it becomes simple to &lt;em&gt;visualize&lt;/em&gt;
 sources of noise. The CPU isolation will be used to visualize the system noise.
@@ -1135,8 +1135,8 @@ compared to results with CPU isolation:&lt;/p&gt;
 &lt;/ul&gt;
 &lt;p&gt;It explains why CPU isolation helps to make benchmarks more stable.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><published>2016-05-23T23:00:00+02:00</published><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-23:/journey-to-stable-benchmark-average.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 3 (average)&lt;/p&gt;
-</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://haypo.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
+</content><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 3 (average)</title><link href="https://vstinner.github.io/journey-to-stable-benchmark-average.html" rel="alternate"></link><published>2016-05-23T23:00:00+02:00</published><updated>2016-05-23T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-05-23:/journey-to-stable-benchmark-average.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 3 (average)&lt;/p&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/stanzim/11100202065/"&gt;&lt;img alt="Fog" src="https://vstinner.github.io/images/fog.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Stable benchmarks are so close, but ...&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="address-space-layout-randomization"&gt;
 &lt;h2&gt;Address Space Layout Randomization&lt;/h2&gt;
@@ -1176,8 +1176,8 @@ sudo bash -c 'echo 2 &amp;gt;| /proc/sys/kernel/randomize_va_space'
 &lt;/div&gt;
 &lt;div class="section" id="python-randomized-hash-function"&gt;
 &lt;h2&gt;Python randomized hash function&lt;/h2&gt;
-&lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;system tuning  (part 1)&lt;/a&gt;, a
-&lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html"&gt;Python compiled with PGO (part 2)&lt;/a&gt;
+&lt;p&gt;With &lt;a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-system.html"&gt;system tuning  (part 1)&lt;/a&gt;, a
+&lt;a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html"&gt;Python compiled with PGO (part 2)&lt;/a&gt;
 and ASLR disabled, I still I failed to get the same result when running
 manually &lt;tt class="docutils literal"&gt;bm_call_simple.py&lt;/tt&gt;.&lt;/p&gt;
 &lt;p&gt;On Python 3, the hash function is now randomized by default: &lt;a class="reference external" href="http://bugs.python.org/issue13703"&gt;issue #13703&lt;/a&gt;. The problem is that for a
@@ -1359,9 +1359,9 @@ $ taskset -c 1 env -i PYTHONHASHSEED=3 ./python bm_call_simple.py -n 3
 &lt;/pre&gt;
 &lt;p&gt;Always the same timing!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><published>2016-05-22T22:00:00+02:00</published><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-22:/journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 2 (deadcode)&lt;/p&gt;
-</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
-&lt;p&gt;With &lt;a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 2 (deadcode)</title><link href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html" rel="alternate"></link><published>2016-05-22T22:00:00+02:00</published><updated>2016-05-22T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-05-22:/journey-to-stable-benchmark-deadcode.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 2 (deadcode)&lt;/p&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"&gt;&lt;img alt="Snail" src="https://vstinner.github.io/images/snail.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;With &lt;a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-system.html"&gt;the system tuning (part 1)&lt;/a&gt;, I
 expected to get very stable benchmarks and so I started to benchmark seriously
 my &lt;a class="reference external" href="https://bugs.python.org/issue26814"&gt;FASTCALL branch&lt;/a&gt; of CPython (a new
 calling convention avoiding temporary tuples).&lt;/p&gt;
@@ -1390,7 +1390,7 @@ seeing that it was already a builtin feature!&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="cachegrind"&gt;
 &lt;h2&gt;Cachegrind&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="http://valgrind.org/"&gt;&lt;img alt="Logo of the Valgrind project" src="https://haypo.github.io/images/valgrind.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://valgrind.org/"&gt;&lt;img alt="Logo of the Valgrind project" src="https://vstinner.github.io/images/valgrind.png" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;a class="reference external" href="http://valgrind.org/"&gt;Valgrind&lt;/a&gt; is a great tool known to detect memory
 leaks, but it also contains gems like the &lt;a class="reference external" href="http://valgrind.org/docs/manual/cg-manual.html"&gt;Cachegrind tool&lt;/a&gt; which &lt;em&gt;simulates&lt;/em&gt; the
 CPU caches.&lt;/p&gt;
@@ -1399,7 +1399,7 @@ obvious in cache misses between the reference python and the patched python.&lt;
 &lt;/div&gt;
 &lt;div class="section" id="strace-and-ltrace"&gt;
 &lt;h2&gt;strace and ltrace&lt;/h2&gt;
-&lt;img alt="strace and ltrace" src="https://haypo.github.io/images/strace_ltrace.png" /&gt;
+&lt;img alt="strace and ltrace" src="https://vstinner.github.io/images/strace_ltrace.png" /&gt;
 &lt;p&gt;I also tried &lt;tt class="docutils literal"&gt;strace&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;ltrace&lt;/tt&gt; tools to try to see a difference in the
 execution of the reference and the patched pythons. I saw different memory
 addresses, but no major difference which can explain a difference of the
@@ -1409,7 +1409,7 @@ function. It's pure CPU-bound code.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="compiler-options"&gt;
 &lt;h2&gt;Compiler options&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://gcc.gnu.org/"&gt;&lt;img alt="GCC logo" class="align-right" src="https://haypo.github.io/images/gcc.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://gcc.gnu.org/"&gt;&lt;img alt="GCC logo" class="align-right" src="https://vstinner.github.io/images/gcc.png" /&gt;&lt;/a&gt;
 &lt;p&gt;I used &lt;a class="reference external" href="https://gcc.gnu.org/"&gt;GCC&lt;/a&gt; to build to code. Just in case, I tried
 LLVM compiler, but it didn't &amp;quot;fix&amp;quot; the issue.&lt;/p&gt;
 &lt;p&gt;I also tried different optimization levels: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O0&lt;/span&gt;&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O1&lt;/span&gt;&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O2&lt;/span&gt;&lt;/tt&gt; and
@@ -1450,7 +1450,7 @@ execution of the Python test suite.&lt;/p&gt;
 time, no? ... No, sorry, not yet. We will see more sources of noise in
 following articles ;-)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://haypo.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><published>2016-05-21T16:50:00+02:00</published><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:haypo.github.io,2016-05-21:/journey-to-stable-benchmark-system.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 1&lt;/p&gt;
+</content><category term="optimization"></category><category term="benchmark"></category></entry><entry><title>My journey to stable benchmark, part 1 (system)</title><link href="https://vstinner.github.io/journey-to-stable-benchmark-system.html" rel="alternate"></link><published>2016-05-21T16:50:00+02:00</published><updated>2016-05-21T16:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-05-21:/journey-to-stable-benchmark-system.html</id><summary type="html">&lt;p class="first last"&gt;My journey to stable benchmark, part 1&lt;/p&gt;
 </summary><content type="html">&lt;div class="section" id="background"&gt;
 &lt;h2&gt;Background&lt;/h2&gt;
 &lt;p&gt;In the CPython development, it became common to require the result of the

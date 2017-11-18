@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>Analysis of a Python performance issue</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,17 +13,17 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li class="active"><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
   <article>
     <header>
       <h1 class="entry-title">
-        <a href="https://haypo.github.io/analysis-python-performance-issue.html" rel="bookmark"
+        <a href="https://vstinner.github.io/analysis-python-performance-issue.html" rel="bookmark"
            title="Permalink to Analysis of a Python performance issue">Analysis of a Python performance issue</a></h1>
     </header>
 
@@ -34,15 +34,15 @@
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
+<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> </p>
 </footer><!-- /.post-info -->      <p>I am working on the CPython benchmark suite (<a class="reference external" href="https://github.com/python/performance">performance</a>) and I run the benchmark suite to
 upload results to <a class="reference external" href="http://speed.python.org/">speed.python.org</a>. While
 analying results, I noticed a temporary peak on the <tt class="docutils literal">call_method</tt>
 benchmark at October 19th:</p>
-<img alt="call_method microbenchmark" src="https://haypo.github.io/images/call_method.png" />
+<img alt="call_method microbenchmark" src="https://vstinner.github.io/images/call_method.png" />
 <p>The graphic shows the performance of the <tt class="docutils literal">call_method</tt> microbenchmark between
 Feb 29, 2016 and November 17, 2016 on the <tt class="docutils literal">default</tt> branch of CPython. The average
 is around 17.2 ms, whereas the peak is at 29.0 ms: <strong>68% slower</strong>!</p>
@@ -311,7 +311,7 @@ of the C code and so is more interesting.</p>
 <tt class="docutils literal">_PyTraceback_Add()</tt>, but <tt class="docutils literal">perf report</tt> didn't show these functions as &quot;hot&quot;.
 In fact, these functions are never called by the benchmark.</p>
 <p><strong>The commit doesn't touch the C code used in the benchmark.</strong></p>
-<p>Unrelated C change impacting performances reminds me my previous <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html">deadcode
+<p>Unrelated C change impacting performances reminds me my previous <a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html">deadcode
 horror story</a>. The performance
 difference is probably caused by <strong>&quot;code placement&quot;</strong>: <tt class="docutils literal">perf stat</tt> showed a
 significant increase of the cache miss rate on the L1 instruction cache.</p>
@@ -386,7 +386,7 @@ performances.</p>
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>

@@ -3,8 +3,8 @@
 <head>
         <meta charset="utf-8" />
         <title>My journey to stable benchmark, part 2 (deadcode)</title>
-        <link rel="stylesheet" href="https://haypo.github.io/theme/css/main.css" />
-        <link href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 2 Atom Feed" />
 
         <!--[if IE]>
             <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
@@ -13,17 +13,17 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://haypo.github.io/">Victor Stinner blog 2 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 2 </a></h1>
                 <nav><ul>
-                    <li class="active"><a href="https://haypo.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://haypo.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
 <section id="content" class="body">
   <article>
     <header>
       <h1 class="entry-title">
-        <a href="https://haypo.github.io/journey-to-stable-benchmark-deadcode.html" rel="bookmark"
+        <a href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html" rel="bookmark"
            title="Permalink to My journey to stable benchmark, part 2 (deadcode)">My journey to stable benchmark, part 2 (deadcode)</a></h1>
     </header>
 
@@ -34,12 +34,12 @@
         </abbr>
 
         <address class="vcard author">
-                By                         <a class="url fn" href="https://haypo.github.io/author/victor-stinner.html">Victor Stinner</a>
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
-<p>In <a href="https://haypo.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://haypo.github.io/tag/optimization.html">optimization</a> <a href="https://haypo.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->      <a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"><img alt="Snail" src="https://haypo.github.io/images/snail.jpg" /></a>
-<p>With <a class="reference external" href="https://haypo.github.io/journey-to-stable-benchmark-system.html">the system tuning (part 1)</a>, I
+<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> </p>
+</footer><!-- /.post-info -->      <a class="reference external image-reference" href="https://www.flickr.com/photos/uw67/16875152403/"><img alt="Snail" src="https://vstinner.github.io/images/snail.jpg" /></a>
+<p>With <a class="reference external" href="https://vstinner.github.io/journey-to-stable-benchmark-system.html">the system tuning (part 1)</a>, I
 expected to get very stable benchmarks and so I started to benchmark seriously
 my <a class="reference external" href="https://bugs.python.org/issue26814">FASTCALL branch</a> of CPython (a new
 calling convention avoiding temporary tuples).</p>
@@ -68,7 +68,7 @@ seeing that it was already a builtin feature!</p>
 </div>
 <div class="section" id="cachegrind">
 <h2>Cachegrind</h2>
-<a class="reference external image-reference" href="http://valgrind.org/"><img alt="Logo of the Valgrind project" src="https://haypo.github.io/images/valgrind.png" /></a>
+<a class="reference external image-reference" href="http://valgrind.org/"><img alt="Logo of the Valgrind project" src="https://vstinner.github.io/images/valgrind.png" /></a>
 <p><a class="reference external" href="http://valgrind.org/">Valgrind</a> is a great tool known to detect memory
 leaks, but it also contains gems like the <a class="reference external" href="http://valgrind.org/docs/manual/cg-manual.html">Cachegrind tool</a> which <em>simulates</em> the
 CPU caches.</p>
@@ -77,7 +77,7 @@ obvious in cache misses between the reference python and the patched python.</p>
 </div>
 <div class="section" id="strace-and-ltrace">
 <h2>strace and ltrace</h2>
-<img alt="strace and ltrace" src="https://haypo.github.io/images/strace_ltrace.png" />
+<img alt="strace and ltrace" src="https://vstinner.github.io/images/strace_ltrace.png" />
 <p>I also tried <tt class="docutils literal">strace</tt> and <tt class="docutils literal">ltrace</tt> tools to try to see a difference in the
 execution of the reference and the patched pythons. I saw different memory
 addresses, but no major difference which can explain a difference of the
@@ -87,7 +87,7 @@ function. It's pure CPU-bound code.</p>
 </div>
 <div class="section" id="compiler-options">
 <h2>Compiler options</h2>
-<a class="reference external image-reference" href="https://gcc.gnu.org/"><img alt="GCC logo" class="align-right" src="https://haypo.github.io/images/gcc.png" /></a>
+<a class="reference external image-reference" href="https://gcc.gnu.org/"><img alt="GCC logo" class="align-right" src="https://vstinner.github.io/images/gcc.png" /></a>
 <p>I used <a class="reference external" href="https://gcc.gnu.org/">GCC</a> to build to code. Just in case, I tried
 LLVM compiler, but it didn't &quot;fix&quot; the issue.</p>
 <p>I also tried different optimization levels: <tt class="docutils literal"><span class="pre">-O0</span></tt>, <tt class="docutils literal"><span class="pre">-O1</span></tt>, <tt class="docutils literal"><span class="pre">-O2</span></tt> and
@@ -143,7 +143,7 @@ following articles ;-)</p>
                 <div class="social">
                         <h2>social</h2>
                         <ul>
-                            <li><a href="https://haypo.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
 
                             <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
                         </ul>
