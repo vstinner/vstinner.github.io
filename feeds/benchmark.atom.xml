@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 2 - benchmark</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2017-03-29T00:40:00+02:00</updated><entry><title>speed.python.org results: March 2017</title><link href="https://vstinner.github.io/speed-python-org-march-2017.html" rel="alternate"></link><published>2017-03-29T00:40:00+02:00</published><updated>2017-03-29T00:40:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-03-29:/speed-python-org-march-2017.html</id><summary type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - benchmark</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/benchmark.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2017-03-29T00:40:00+02:00</updated><entry><title>speed.python.org results: March 2017</title><link href="https://vstinner.github.io/speed-python-org-march-2017.html" rel="alternate"></link><published>2017-03-29T00:40:00+02:00</published><updated>2017-03-29T00:40:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-03-29:/speed-python-org-march-2017.html</id><summary type="html">&lt;p&gt;In feburary 2017, CPython from Bitbucket with Mercurial moved to GitHub with
 Git: read &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-February/147381.html"&gt;[Python-Dev] CPython is now on GitHub&lt;/a&gt; by
 Brett Cannon.&lt;/p&gt;
 &lt;p&gt;In 2016, I worked on speed.python.org to automate running benchmarks and make
@@ -539,7 +539,7 @@ the CPU temperature impacts its performance.&lt;/p&gt;
 &lt;div class="section" id="burn-the-cpu-of-my-desktop-pc"&gt;
 &lt;h3&gt;Burn the CPU of my desktop PC&lt;/h3&gt;
 &lt;p&gt;CPU of my desktop PC: &amp;quot;Intel(R) Core(TM) i7-2600 CPU &amp;#64; 3.40GHz&amp;quot;.&lt;/p&gt;
-&lt;p&gt;I used my &lt;a class="reference external" href="https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py"&gt;system_load.py script&lt;/a&gt; to generate a
+&lt;p&gt;I used my &lt;a class="reference external" href="https://github.com/vstinner/misc/blob/master/bin/system_load.py"&gt;system_load.py script&lt;/a&gt; to generate a
 system load higher than 10.&lt;/p&gt;
 &lt;p&gt;When the fan is cooling correctly the CPU, all CPU run at 3.4 GHz (Turbo Boost
 was disabled) and the CPU temperature is 66°C.&lt;/p&gt;
@@ -1480,7 +1480,7 @@ take up to 2 hours in rigorous mode. I just cannot stop working during 2 hours
 to wait for the result of the benchmark. I like running benchmarks locally. It
 is convenient to run benchmarks on the same computer used to develop.&lt;/p&gt;
 &lt;p&gt;The goal here is to &amp;quot;remove the noise of the system&amp;quot;. Get the same result on a
-busy system than an idle system. My simple &lt;a class="reference external" href="https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py"&gt;system_load.py&lt;/a&gt; program can be
+busy system than an idle system. My simple &lt;a class="reference external" href="https://github.com/vstinner/misc/blob/master/bin/system_load.py"&gt;system_load.py&lt;/a&gt; program can be
 used to increase the system load. For example, run &lt;tt class="docutils literal"&gt;system_load.py 10&lt;/tt&gt; in a
 terminal to get at least a system load of 10 (busy system) and run the
 benchmark in a different terminal. Use CTRL+c to stop &lt;tt class="docutils literal"&gt;system_load.py&lt;/tt&gt;.&lt;/p&gt;
