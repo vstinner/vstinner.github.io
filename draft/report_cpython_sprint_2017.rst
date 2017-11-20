@@ -10,7 +10,7 @@ My "new C API" PEP
   https://mail.python.org/pipermail/python-dev/2017-September/149264.html
 * PEP explainted to the CPython core developers
 * New blog post to explain the PEP rationale in depth: https://github.com/vstinner/misc/blob/master/python/pep_c_api.rst
-* PEP draft written last june: https://haypo.github.io/new-python-c-api.html
+* PEP draft written last june: https://vstinner.github.io/new-python-c-api.html
 
 I used the whitebord to explain the changes I want to do, but also see how to
 reorganize C header files of the ``Include/`` directory. The question is if

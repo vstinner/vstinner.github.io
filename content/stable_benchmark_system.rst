@@ -47,7 +47,7 @@ is convenient to run benchmarks on the same computer used to develop.
 
 The goal here is to "remove the noise of the system". Get the same result on a
 busy system than an idle system. My simple `system_load.py
-<https://bitbucket.org/haypo/misc/src/tip/bin/system_load.py>`_ program can be
+<https://github.com/vstinner/misc/blob/master/bin/system_load.py>`_ program can be
 used to increase the system load. For example, run ``system_load.py 10`` in a
 terminal to get at least a system load of 10 (busy system) and run the
 benchmark in a different terminal. Use CTRL+c to stop ``system_load.py``.

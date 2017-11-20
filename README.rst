@@ -1,6 +1,6 @@
-++++++++++++
-Haypo blog 2
-++++++++++++
++++++++++++++++++++++
+Victor Stinner blog 3
++++++++++++++++++++++
 
 Read the blog online: http://vstinner.github.io/
 

@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 AUTHOR = 'Victor Stinner'
-SITENAME = 'Victor Stinner blog 2'
+SITENAME = 'Victor Stinner blog 3'
 SITEURL = ''
 
 PATH = 'content'
@@ -20,7 +20,7 @@ AUTHOR_FEED_ATOM = None
 AUTHOR_FEED_RSS = None
 
 # Blogroll
-LINKS = (("Haypo's Notes", 'http://haypo-notes.readthedocs.org/'),
+LINKS = (("Victor Stinner's Notes", 'http://vstinner.readthedocs.org/'),
         )
 
 # Social widget

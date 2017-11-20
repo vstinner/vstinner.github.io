@@ -1,6 +1,6 @@
 https://bugs.python.org/issue29639#msg302087
 
-Author: STINNER Victor (haypo) * (Python committer) 	Date: 2017-09-13 16:16
+Author: STINNER Victor * (Python committer) 	Date: 2017-09-13 16:16
 
 I would like to share a short story with you.
 
