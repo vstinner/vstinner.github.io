@@ -6,6 +6,8 @@ Changes
 * IRC nickname on Freenode server
 * GitHub
 * Bitbucket
+* Travis CI
+* bugs.python.org: works perfectly fine by design
 
 GitHub
 ======
@@ -25,6 +27,13 @@ Broken links
 * https://github.com/haypo/ => https://github.com/vstinner
 * https://bitbucket.org/haypo/ => https://bitbucket.org/vstinner/
 * https://haypo.github.io/ => http://vstinner.github.io/
+* @haypo mentions on GitHub
+
+Issues with Travis CI
+=====================
+
+* Need to click on [Sync]
+* Nickname changed easily
 
 Removed projects
 ================
