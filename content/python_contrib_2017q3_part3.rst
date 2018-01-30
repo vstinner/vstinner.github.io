@@ -14,6 +14,9 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q3
 Previous report: `My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads) <{filename}/python_contrib_2017q3_part2.rst>`_.
 
+Next report: `My contributions to CPython during 2017 Q4
+<{filename}/python_contrib_2017q4.rst>`_.
+
 Summary:
 
 * FreeBSD bug: minor() device regression

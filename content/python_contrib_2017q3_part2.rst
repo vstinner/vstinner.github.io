@@ -12,9 +12,14 @@ My contributions to `CPython <https://www.python.org/>`_ during 2017 Q3
 (july, august, september), Part 2: "Dangling threads".
 
 Previous report: `My contributions to CPython during 2017 Q3: Part 1
-<{filename}/python_contrib_2017q3_part1.rst>`_. Next report: `My contributions
-to CPython during 2017 Q3: Part 3 (funny bugs)
-<{filename}/python_contrib_2017q3_part3.rst>`_.
+<{filename}/python_contrib_2017q3_part1.rst>`_.
+
+Next reports:
+
+* `My contributions to CPython during 2017 Q3: Part 3 (funny bugs)
+  <{filename}/python_contrib_2017q3_part3.rst>`_.
+* `My contributions to CPython during 2017 Q4
+  <{filename}/python_contrib_2017q4.rst>`_.
 
 Summary:
 
