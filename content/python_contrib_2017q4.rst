@@ -42,6 +42,201 @@ commits**, remaining: 33 commits in the other branches (backports, fixes
 specific to Python 2.7 or 3.6, security fixes)
 
 
+UTF-8 Mode
+==========
+
+Commit::
+
+    commit 91106cd9ff2f321c0f60fbaa09fd46c80aa5c266
+    Author: Victor Stinner <victor.stinner@gmail.com>
+    Date:   Wed Dec 13 12:29:09 2017 +0100
+
+        bpo-29240: PEP 540: Add a new UTF-8 Mode (#855)
+
+        * Add -X utf8 command line option, PYTHONUTF8 environment variable
+          and a new sys.flags.utf8_mode flag.
+        * If the LC_CTYPE locale is "C" at startup: enable automatically the
+          UTF-8 mode.
+        * Add _winapi.GetACP(). encodings._alias_mbcs() now calls
+          _winapi.GetACP() to get the ANSI code page
+        * locale.getpreferredencoding() now returns 'UTF-8' in the UTF-8
+          mode. As a side effect, open() now uses the UTF-8 encoding by
+          default in this mode.
+        * Py_DecodeLocale() and Py_EncodeLocale() now use the UTF-8 encoding
+          in the UTF-8 Mode.
+        * Update subprocess._args_from_interpreter_flags() to handle -X utf8
+        * Skip some tests relying on the current locale if the UTF-8 mode is
+          enabled.
+        * Add test_utf8mode.py.
+        * _Py_DecodeUTF8_surrogateescape() gets a new optional parameter to
+          return also the length (number of wide characters).
+        * pymain_get_global_config() and pymain_set_global_config() now
+          always copy flag values, rather than only copying if the new value
+          is greater than the old value.
+
+
+GIL change
+==========
+
+In March 2014, Steve Dower reported a bug when a "C thread" uses the Python C
+API: "In Python 3.4rc3, calling PyGILState_Ensure() from a thread that was not
+created by Python and without any calls to PyEval_InitThreads() will cause a
+fatal exit: (...)".
+
+I commented "IMO it's a bug in PyEval_InitThreads()."
+
+In March 2016, I wrote a short C program to reproduce the bug and a fix.
+
+In november 2017, Marcin Kasperski asked "Is this fix released? I can't find it
+in the changelog…". Oops, I forgot to apply my fix.
+
+Not only I applied my fix, but I also wrote an unit test.
+
+    Ok, the bug is now fixed in Python 2.7, 3.6 and master (future 3.7). On 3.6
+    and master, the fix comes with an unit test.
+
+The fix::
+
+    bpo-20891: Fix PyGILState_Ensure() (#4650)
+
+    When PyGILState_Ensure() is called in a non-Python thread before
+    PyEval_InitThreads(), only call PyEval_InitThreads() after calling
+    PyThreadState_New() to fix a crash.
+
+    Add an unit test in test_embed.
+
+Everything was fine... until december 2017, when **random** failures were
+spotted on macOS buildbots::
+
+    macbook:master haypo$ while true; do ./Programs/_testembed bpo20891 ||break; date; done
+    Lun  4 déc 2017 12:46:34 CET
+    Lun  4 déc 2017 12:46:34 CET
+    Lun  4 déc 2017 12:46:34 CET
+    Fatal Python error: PyEval_SaveThread: NULL tstate
+
+    Current thread 0x00007fffa5dff3c0 (most recent call first):
+    Abort trap: 6
+
+My analysis:
+
+    I found a working fix: call PyEval_InitThreads() in
+    PyThread_start_new_thread(). So the GIL is created as soon as a second
+    thread is spawned. The GIL cannot be created anymore while two threads are
+    running. At least, with the "python" binary. It doesn't fix the issue if a
+    thread is not spawned by Python, but this thread calls PyGILState_Ensure().
+
+Antoine Pitrou commented:
+
+    Why not *always* call PyEval_InitThreads() at interpreter initialization?
+    Are there any downsides?
+
+I found the origin of the code creating the GIL "on demand"::
+
+    commit 1984f1e1c6306d4e8073c28d2395638f80ea509b
+    Author: Guido van Rossum <guido@python.org>
+    Date:   Tue Aug 4 12:41:02 1992 +0000
+
+        * Makefile adapted to changes below.
+        * split pythonmain.c in two: most stuff goes to pythonrun.c, in the library.
+        * new optional built-in threadmodule.c, build upon Sjoerd's thread.{c,h}.
+        * new module from Sjoerd: mmmodule.c (dynamically loaded).
+        * new module from Sjoerd: sv (svgen.py, svmodule.c.proto).
+        * new files thread.{c,h} (from Sjoerd).
+        * new xxmodule.c (example only).
+        * myselect.h: bzero -> memset
+        * select.c: bzero -> memset; removed global variable
+
+    (...)
+
+    +void
+    +init_save_thread()
+    +{
+    +#ifdef USE_THREAD
+    +       if (interpreter_lock)
+    +               fatal("2nd call to init_save_thread");
+    +       interpreter_lock = allocate_lock();
+    +       acquire_lock(interpreter_lock, 1);
+    +#endif
+    +}
+    +#endif
+
+"I guess that the intent of dynamically created GIL is to reduce the "overhead"
+of the GIL when 100% of the code is run in single thread."
+
+Guido van Rossum:
+
+    Yeah, the original reasoning was that threads were something esoteric and
+    not used by most code, and at the time we definitely felt that always using
+    the GIL would cause a (tiny) slowdown and increase the risk of crashes due
+    to bugs in the GIL code. I'd be happy to learn that we no longer need to
+    worry about this and can just always initialize it.
+
+    (Note: I haven't read the entire thread, just the first and last message.)
+
+Nick Coghlan:
+
+    Victor, could you run your patch through the performance benchmarks?
+
+I ran pyperformance on my PR 4700. Differences of at least 5%::
+
+    haypo@speed-python$ python3 -m perf compare_to ~/json/uploaded/2017-12-18_12-29-master-bd6ec4d79e85.json.gz /home/haypo/json/patch/2017-12-18_12-29-master-bd6ec4d79e85-patch-4700.json.gz --table --min-speed=5
+
+    +----------------------+--------------------------------------+-------------------------------------------------+
+    | Benchmark            | 2017-12-18_12-29-master-bd6ec4d79e85 | 2017-12-18_12-29-master-bd6ec4d79e85-patch-4700 |
+    +======================+======================================+=================================================+
+    | pathlib              | 41.8 ms                              | 44.3 ms: 1.06x slower (+6%)                     |
+    +----------------------+--------------------------------------+-------------------------------------------------+
+    | scimark_monte_carlo  | 197 ms                               | 210 ms: 1.07x slower (+7%)                      |
+    +----------------------+--------------------------------------+-------------------------------------------------+
+    | spectral_norm        | 243 ms                               | 269 ms: 1.11x slower (+11%)                     |
+    +----------------------+--------------------------------------+-------------------------------------------------+
+    | sqlite_synth         | 7.30 us                              | 8.13 us: 1.11x slower (+11%)                    |
+    +----------------------+--------------------------------------+-------------------------------------------------+
+    | unpickle_pure_python | 707 us                               | 796 us: 1.13x slower (+13%)                     |
+    +----------------------+--------------------------------------+-------------------------------------------------+
+
+    Not significant (55): 2to3; chameleon; chaos; (...)
+
+I decided to skip the test which was failing randomly before going to holiday,
+I didn't want to stress myself with having to take such major decision before
+leaving. Modifying one of the most important key feature of Python (GIL) before
+leaving is not a good idea.
+
+At the end of january 2018, "I tested again these 5 benchmarks were Python was
+slower with my PR. I ran these benchmarks manually on my laptop using CPU
+isolation. Result::
+
+    vstinner@apu$ python3 -m perf compare_to ref.json patch.json --table
+    Not significant (5): unpickle_pure_python; sqlite_synth; spectral_norm; pathlib; scimark_monte_carlo
+
+Ok, that was expected: no significant difference.
+
+So I pushed the fix to master::
+
+    New changeset 2914bb32e2adf8dff77c0ca58b33201bc94e398c by Victor Stinner in branch 'master':
+    bpo-20891: Py_Initialize() now creates the GIL (#4700)
+    https://github.com/python/cpython/commit/2914bb32e2adf8dff77c0ca58b33201bc94e398c
+
+Antoine Pitrou considers that my PR 5421 for Python 3.6 should not be merged:
+
+    I don't think so. People can already call PyEval_InitThreads.
+
+I reenabled test_embed.test_bpo20891() on master but removed it from Python
+3.6.
+
+::
+
+    bpo-20891: Skip test_embed.test_bpo20891() (#4967)
+
+    Skip the test failing randomly because of known race condition.
+
+    Skip the test to fix macOS buildbots until a decision is made on the
+    proper fix for the race condition.
+
+Note: Python 2.7 doesn't have test_embed.test_bpo20891() since it was more
+complex to write such test for Python 2.7.
+
+
 Development mode, -X dev
 ========================
 
@@ -116,6 +311,49 @@ Date:   Mon Nov 20 18:59:50 2017 -0800
 
     * should not be more verbose if the code is correct
     * enabled checks can be "expensive"
+
+commit 21c7730761e2a768e33b89b063a095d007dcfd2c
+Author: Victor Stinner <victor.stinner@gmail.com>
+Date:   Mon Nov 27 12:11:55 2017 +0100
+
+    bpo-32089: Use default action for ResourceWarning (#4584)
+
+    In development and debug mode, use the "default" action, rather than
+    the "always" action, for ResourceWarning in the default warnings
+    filters.
+
+::
+
+    bpo-32101: Add PYTHONDEVMODE environment variable (#4624)
+
+    * bpo-32101: Add sys.flags.dev_mode flag
+      Rename also the "Developer mode" to the "Development mode".
+    * bpo-32101: Add PYTHONDEVMODE environment variable
+      Mention it in the development chapiter.
+
+::
+
+    bpo-32230: Set sys.warnoptions with -X dev (#4820)
+
+    Rather than supporting dev mode directly in the warnings module, this
+    instead adjusts the initialisation code to add an extra 'default'
+    entry to sys.warnoptions when dev mode is enabled.
+
+    This ensures that dev mode behaves *exactly* as if `-Wdefault` had
+    been passed on the command line, including in the way it interacts
+    with `sys.warnoptions`, and with other command line flags like `-bb`.
+
+    Fix also bpo-20361: have -b & -bb options take precedence over any
+    other warnings options.
+
+    Patch written by Nick Coghlan, with minor modifications of Victor Stinner.
+
+::
+
+    bpo-32101: Fix tests for PYTHONDEVMODE=1 (#4821)
+
+    test_asycio: remove also aio_path which was used when asyncio was
+    developed outside the stdlib.
 
 
 
@@ -294,6 +532,554 @@ Changes
     * Add _Py_INIT_NO_MEMORY() helper: report a memory allocation failure
     * Coding style fixes (PEP 7)
 
+Before Py_Initialize and memory allocators
+------------------------------------------
+
+* bpo-32124: Document C functions safe before init. Explicitly document C
+  functions and C variables that can be set before Py_Initialize().
+
+Follow-up of bpo-32086, bpo-32096 and "[Python-Dev] Python initialization and embedded Python" thread:
+https://mail.python.org/pipermail/python-dev/2017-November/150605.html
+
+[Python-Dev] Python initialization and embedded Python
+https://mail.python.org/pipermail/python-dev/2017-November/150605.html
+
+"The CPython internals evolved during Python 3.7 cycle. I would like to know if
+we broke the C API or not."
+
+https://bugs.python.org/issue32096
+https://bugs.python.org/issue32086
+https://bugs.python.org/issue32124
+
+::
+
+    bpo-32030: Rework memory allocators (#4625)
+
+    * Fix _PyMem_SetupAllocators("debug"): always restore allocators to
+      the defaults, rather than only caling _PyMem_SetupDebugHooks().
+    * Add _PyMem_SetDefaultAllocator() helper to set the "default"
+      allocator.
+    * Add _PyMem_GetAllocatorsName(): get the name of the allocators
+    * main() now uses debug hooks on memory allocators if Py_DEBUG is
+      defined, rather than calling directly malloc()
+    * Document default memory allocators in C API documentation
+    * _Py_InitializeCore() now fails with a fatal user error if
+      PYTHONMALLOC value is an unknown memory allocator, instead of
+      failing with a fatal internal error.
+    * Add new tests on the PYTHONMALLOC environment variable
+    * Add support.with_pymalloc()
+    * Add the _testcapi.WITH_PYMALLOC constant and expose it as
+       support.with_pymalloc().
+    * sysconfig.get_config_var('WITH_PYMALLOC') doesn't work on Windows, so
+       replace it with support.with_pymalloc().
+    * pythoninfo: add _testcapi collector for pymem
+
+
+Next
+----
+
+::
+
+    bpo-32030: Add _PyMainInterpreterConfig_ReadEnv() (#4542)
+
+    Py_GetPath() and Py_Main() now call
+    _PyMainInterpreterConfig_ReadEnv() to share the same code to get
+    environment variables.
+
+    Changes:
+
+    * Add _PyMainInterpreterConfig_ReadEnv()
+    * Add _PyMainInterpreterConfig_Clear()
+    * Add _PyMem_RawWcsdup()
+    * _PyMainInterpreterConfig: rename pythonhome to home
+    * Rename _Py_ReadMainInterpreterConfig() to
+      _PyMainInterpreterConfig_Read()
+    * Use _Py_INIT_USER_ERR(), instead of _Py_INIT_ERR(), for decoding
+      errors: the user is able to fix the issue, it's not a bug in
+      Python. Same change was made in _Py_INIT_NO_MEMORY().
+    * Remove _Py_GetPythonHomeWithConfig()
+
+::
+
+    bpo-32030: Add _PyMainInterpreterConfig.program_name (#4548)
+
+    * Py_Main() now calls Py_SetProgramName() earlier to be able to get
+      the program name in _PyMainInterpreterConfig_ReadEnv().
+    * Rename prog to program_name
+    * Rename progpath to program_name
+
+::
+
+    bpo-32030: Add _PyPathConfig_Init() (#4551)
+
+    * Add _PyPathConfig_Init() and _PyPathConfig_Fini()
+    * Remove _Py_GetPathWithConfig()
+    * _PyPathConfig_Init() returns _PyInitError to allow to handle errors
+      properly
+    * Add pathconfig_clear()
+    * Windows calculate_path_impl(): replace Py_FatalError() with
+      _PyInitError
+    * Py_FinalizeEx() now calls _PyPathConfig_Fini() to release memory
+    * Fix _Py_InitializeMainInterpreter() regression: don't initialize
+      path config if _disable_importlib is false
+    * PyPathConfig now uses dynamically allocated memory
+
+::
+
+    bpo-32030: Fix _Py_InitializeEx_Private() (#4649)
+
+    _Py_InitializeEx_Private() now calls
+    _PyMainInterpreterConfig_ReadEnv() to read environment variables
+    PYTHONHOME and PYTHONPATH, and set the program name.
+
+::
+
+    bpo-32030: Cleanup "path config" code (#4663)
+
+    * Rename PyPathConfig structure to _PyPathConfig and move it to
+      Include/internal/pystate.h
+    * Rename path_config to _Py_path_config
+    * _PyPathConfig: Rename program_name field to program_full_path
+    * Add assert(str != NULL); to _PyMem_RawWcsdup(), _PyMem_RawStrdup()
+      and _PyMem_Strdup().
+    * Rename calculate_path() to pathconfig_global_init(). The function
+      now does nothing if it's already initiallized.
+
+::
+
+    bpo-32030: Fix Py_GetPath(): init program_name (#4665)
+
+    * _PyMainInterpreterConfig_ReadEnv() now sets program_name from
+      environment variables and pymain_parse_envvars() implements the
+      falls back on argv[0].
+    * Remove _PyMain.program_name: use the program_name from
+      _PyMainInterpreterConfig
+    * Move the Py_SetProgramName() call back to pymain_init_python(),
+      just before _Py_InitializeCore().
+    * pathconfig_global_init() now also calls
+      _PyMainInterpreterConfig_Read() to set program_name if it isn't set
+      yet
+    * Cleanup PyCalculatePath: pass main_config to subfunctions to get
+      directly fields from main_config (home, module_search_path_env and
+      program_name)
+
+::
+
+    bpo-32030: Don't call _PyPathConfig_Fini() in Py_FinalizeEx() (#4667)
+
+    Changes:
+
+    * _PyPathConfig_Fini() cannot be called in Py_FinalizeEx().
+      Py_Initialize() and Py_Finalize() can be called multiple times, but
+      it must not "forget" parameters set by Py_SetProgramName(),
+      Py_SetPath() or Py_SetPythonHome(), whereas _PyPathConfig_Fini()
+      clear all these parameters.
+    * config_get_program_name() and calculate_program_full_path() now
+      also decode paths using Py_DecodeLocale() to use the
+      surrogateescape error handler, rather than decoding using
+      mbstowcs() which is strict.
+    * Change _Py_CheckPython3() prototype: () => (void)
+    * Truncate a few lines which were too long
+
+::
+
+    bpo-32030: Add Python/pathconfig.c (#4668)
+
+    * Factorize code from PC/getpathp.c and Modules/getpath.c to remove
+      duplicated code
+    * rename pathconfig_clear() to _PyPathConfig_Clear()
+    * Inline _PyPathConfig_Fini() in pymain_impl() and then remove it,
+      since it's a oneliner
+
+::
+
+    bpo-32030: Fix config_get_program_name() on macOS (#4669)
+
+::
+
+    bpo-32030: _PyPathConfig_Init() sets home and program_name (#4673)
+
+    _PyPathConfig_Init() now also initialize home and program_name:
+
+    * Rename existing _PyPathConfig_Init() to _PyPathConfig_Calculate().
+      Add a new _PyPathConfig_Init() function in pathconfig.c which
+      handles the _Py_path_config variable and call
+      _PyPathConfig_Calculate().
+    * Add home and program_name fields to _PyPathConfig.home
+    * _PyPathConfig_Init() now initialize home and program_name
+      from main_config
+    * Py_SetProgramName(), Py_SetPythonHome() and Py_GetPythonHome() now
+      calls Py_FatalError() on failure, instead of silently ignoring
+      failures.
+    * config_init_home() now gets directly _Py_path_config.home to only
+      get the value set by Py_SetPythonHome(), or NULL if
+      Py_SetPythonHome() was not called.
+    * config_get_program_name() now gets directly
+      _Py_path_config.program_name to only get the value set by
+      Py_SetProgramName(), or NULL if Py_SetProgramName() was not called.
+    * pymain_init_python() doesn't call Py_SetProgramName() anymore,
+      _PyPathConfig_Init() now always sets the program name
+    * Call _PyMainInterpreterConfig_Read() in
+      pymain_parse_cmdline_envvars_impl() to control the memory allocator
+    * C API documentation: it's no more safe to call Py_GetProgramName()
+      before Py_Initialize().
+
+::
+
+    Revert "bpo-32197: Try to fix a compiler error on OS X introduced in bpo-32030. (#4681)" (#4694)
+
+    * Revert "bpo-32197: Try to fix a compiler error on OS X introduced in bpo-32030. (#4681)"
+
+    This reverts commit 13badcbc60cdbfae1dba1683fd2fae9d70717143.
+
+    Re-apply commits:
+
+    * "bpo-32030: _PyPathConfig_Init() sets home and program_name (#4673)"
+      commit af5a895073c24637c094772b27526b94a12ec897.
+    * "bpo-32030: Fix config_get_program_name() on macOS (#4669)"
+      commit e23c06e2b03452c9aaf0dae52296c85e572f9bcd.
+    * "bpo-32030: Add Python/pathconfig.c (#4668)"
+      commit 0ea395ae964c9cd0f499e2ef0d0030c971201220.
+    * "bpo-32030: Don't call _PyPathConfig_Fini() in Py_FinalizeEx() (#4667)"
+      commit ebac19dad6263141d5db0a2c923efe049dba99d2.
+    * "bpo-32030: Fix Py_GetPath(): init program_name (#4665)"
+      commit 9ac3d8882712c9675c3d2f9f84af6b5729575cde.
+
+    * Fix compilation error on macOS
+
+::
+
+    bpo-32030: Simplify _PyCoreConfig_INIT macro (#4728)
+
+    * Simplify _PyCoreConfig_INIT, _PyMainInterpreterConfig_INIT,
+      _PyPathConfig_INIT macros: no need to set fields to 0/NULL, it's
+      redundant (the C language sets them to 0/NULL for us).
+    * Fix typo: pymain_run_statup() => pymain_run_startup()
+    * Remove a few XXX/TODO
+
+::
+
+    bpo-32030: Add pymain_get_global_config() (#4735)
+
+    * Py_Main() now starts by reading Py_xxx configuration variables to
+      only work on its own private structure, and then later writes back
+      the configuration into these variables.
+    * Replace Py_GETENV() with pymain_get_env_var() which ignores empty
+      variables.
+    * Add _PyCoreConfig.dump_refs
+    * Add _PyCoreConfig.malloc_stats
+    * _PyObject_DebugMallocStats() is now responsible to check if debug
+      hooks are installed. The function returns 1 if stats were written,
+      or 0 if the hooks are disabled. Mark _PyMem_PymallocEnabled() as
+      static.
+
+::
+
+    bpo-32030: Add _PyImport_Fini2() (#4737)
+
+    PyImport_ExtendInittab() now uses PyMem_RawRealloc() rather than
+    PyMem_Realloc(). PyImport_ExtendInittab() can be called before
+    Py_Initialize() whereas only the PyMem_Raw allocator is supposed to
+    be used before Py_Initialize().
+
+    Add _PyImport_Fini2() to release the memory allocated by
+    PyImport_ExtendInittab() at exit. PyImport_ExtendInittab() now forces
+    the usage of the default raw allocator, to be able to release memory
+    in _PyImport_Fini2().
+
+    Don't export these functions anymore to be C API, only to
+    Py_BUILD_CORE:
+
+    * _PyExc_Fini()
+    * _PyImport_Fini()
+    * _PyGC_DumpShutdownStats()
+    * _PyGC_Fini()
+    * _PyType_Fini()
+    * _Py_HashRandomization_Fini()
+
+::
+
+    pymain_set_sys_argv() now copies argv (#4838)
+
+    bpo-29240, bpo-32030:
+
+    * Rename pymain_set_argv() to pymain_set_sys_argv()
+    * pymain_set_sys_argv() now creates of copy of argv and modify the
+      copy, rather than modifying pymain->argv
+    * Call pymain_set_sys_argv() earlier: before pymain_run_python(), but
+      after pymain_get_importer().
+    * Add _PySys_SetArgvWithError() to handle errors
+
+::
+
+    bpo-32030: Add _PyPathConfig_ComputeArgv0() (#4845)
+
+    Changes:
+
+    * Split _PySys_SetArgvWithError() into subfunctions for Py_Main():
+
+      * Create the Python list object
+      * Set sys.argv to the list
+      * Compute argv0
+      * Prepend argv0 to sys.path
+
+    * Add _PyPathConfig_ComputeArgv0()
+    * Remove _PySys_SetArgvWithError()
+    * Py_Main() now splits the code to compute sys.argv/path0 and the
+      code to update the sys module: add pymain_compute_argv()
+      subfunction.
+
+::
+
+    bpo-32030: Rewrite _PyMainInterpreterConfig (#4854)
+
+    _PyMainInterpreterConfig now contains Python objects, whereas
+    _PyCoreConfig contains wchar_t* strings.
+
+    Core config:
+
+    * Rename _PyMainInterpreterConfig_ReadEnv() to _PyCoreConfig_ReadEnv()
+    * Move 3 strings from _PyMainInterpreterConfig to _PyCoreConfig:
+      module_search_path_env, home, program_name.
+    * Add _PyCoreConfig_Clear()
+    * _PyPathConfig_Calculate() now takes core config rather than main
+      config
+    * _PyMainInterpreterConfig_Read() now requires also a core config
+
+    Main config:
+
+    * Add _PyMainInterpreterConfig.module_search_path: sys.path list
+    * Add _PyMainInterpreterConfig.argv: sys.argv list
+    * _PyMainInterpreterConfig_Read() now computes module_search_path
+
+::
+
+    bpo-32030: Add _PyMainInterpreterConfig.warnoptions (#4855)
+
+    Add warnoptions and xoptions fields to _PyMainInterpreterConfig.
+
+::
+
+    bpo-32329: Fix -R option for hash randomization (#4873)
+
+    bpo-32329, bpo-32030:
+
+    * The -R option now turns on hash randomization when the
+      PYTHONHASHSEED environment variable is set to 0 Previously, the
+      option was ignored.
+    * sys.flags.hash_randomization is now properly set to 0 when hash
+      randomization is turned off by PYTHONHASHSEED=0.
+    * _PyCoreConfig_ReadEnv() now reads the PYTHONHASHSEED environment
+      variable. _Py_HashRandomization_Init() now only apply the
+      configuration, it doesn't read PYTHONHASHSEED anymore.
+
+::
+
+    bpo-32329: Add versionchanged to -R option doc (#4884)
+
+::
+
+    bpo-32030: Add _PyCoreConfig_Copy() (#4874)
+
+    Each interpreter now has its core_config and main_config copy:
+
+    * Add _PyCoreConfig_Copy() and _PyMainInterpreterConfig_Copy()
+    * Move _PyCoreConfig_Read(), _PyCoreConfig_Clear() and
+      _PyMainInterpreterConfig_Clear() from Python/pylifecycle.c to
+      Modules/main.c
+    * Fix _Py_InitializeEx_Private(): call _PyCoreConfig_ReadEnv() before
+      _Py_InitializeCore()
+
+::
+
+    bpo-32030: Add _PyMainInterpreterConfig.executable (#4876)
+
+    * Add new fields to _PyMainInterpreterConfig:
+
+      * executable
+      * prefix
+      * base_prefix
+      * exec_prefix
+      * base_exec_prefix
+
+    * _PySys_EndInit() now sets sys attributes from
+      _PyMainInterpreterConfig
+
+::
+
+    bpo-29240: Don't define decode_locale() on macOS (#4895)
+
+    Don't define decode_locale() nor encode_locale() on macOS or Android.
+
+::
+
+    bpo-29240, bpo-32030: Py_Main() re-reads config if encoding changes (#4899)
+
+    bpo-29240, bpo-32030: If the encoding change (C locale coerced or
+    UTF-8 Mode changed), Py_Main() now reads again the configuration with
+    the new encoding.
+
+    Changes:
+
+    * Add _Py_UnixMain() called by main().
+    * Rename pymain_free_pymain() to pymain_clear_pymain(), it can now be
+      called multipled times.
+    * Rename pymain_parse_cmdline_envvars() to pymain_read_conf().
+    * Py_Main() now clears orig_argc and orig_argv at exit.
+    * Remove argv_copy2, Py_Main() doesn't modify argv anymore. There is
+      no need anymore to get two copies of the wchar_t** argv.
+    * _PyCoreConfig: add coerce_c_locale and coerce_c_locale_warn.
+    * Py_UTF8Mode is now initialized to -1.
+    * Locale coercion (PEP 538) now respects -I and -E options.
+
+::
+
+    bpo-32030: Fix compilation on FreeBSD, #include <fenv.h> (#4919)
+
+    * main.c: add missing #include <fenv.h> on FreeBSD
+    * indent also other #ifdef in main.c
+    * cleanup Programs/python.c
+
+::
+
+    bpo-32030: Fix compiler warnings (#4921)
+
+    Fix compiler warnings in Py_FinalizeEx(): only define variables if
+    they are needed, add #ifdef.
+
+    Other cleanup changes:
+
+    * _PyWarnings_InitWithConfig() is no more needed: call
+      _PyWarnings_Init() instead.
+    * Inline pymain_init_main_interpreter() in its caller. This
+      subfunction is no more justifed.
+
+::
+
+    bpo-32030: Add _PyCoreConfig.argv (#4934)
+
+    * Add argc and argv to _PyCoreConfig
+    * _PyMainInterpreterConfig_Read() now builds its argv from
+      _PyCoreConfig.arg
+    * Move _PyMain.env_warning_options into _Py_CommandLineDetails
+    * Reorder pymain_free()
+
+::
+
+    bpo-32030: Cleanup pymain_main() (#4935)
+
+    * Reorganize pymain_main() to make the code more flat
+    * Clear configurations before pymain_update_sys_path()
+    * Mark Py_FatalError() and _Py_FatalInitError() with _Py_NO_RETURN
+    * Replace _PyMain.run_code variable with a new RUN_CODE() macro
+    * Move _PyMain.cf into a local variable in pymain_run_python()
+
+::
+
+    bpo-32030: Add _PyCoreConfig.warnoptions (#4936)
+
+    Merge _PyCoreConfig_ReadEnv() into _PyCoreConfig_Read(), and
+    _Py_CommandLineDetails usage is now restricted to pymain_cmdline().
+
+    Changes:
+
+    * _PyCoreConfig: Add nxoption, xoptions, nwarnoption and warnoptions
+    * Add _PyCoreConfig.program: argv[0] or ""
+    * Move filename, command, module and xoptions from
+      _Py_CommandLineDetails to _PyMain. xoptions _Py_OptList becomes
+      (int, wchar_t**) list.
+    * Add pymain_cmdline() function
+    * Rename copy_argv() to copy_wstrlist(). Rename clear_argv() to
+      clear_wstrlist(). Remove _Py_OptList structure: use (int,
+      wchar_t**) list instead.
+    * Rename pymain_set_flag_from_env() to pymain_get_env_flag()
+    * Rename pymain_set_flags_from_env() to pymain_get_env_flags()
+    * _PyMainInterpreterConfig_Read() now creates the warnoptions from
+      _PyCoreConfig.warnoptions
+    * Inline pymain_add_warning_dev_mode() and
+      pymain_add_warning_bytes_flag() into config_init_warnoptions()
+    * Inline pymain_get_program_name() into _PyCoreConfig_Read()
+    * _Py_CommandLineDetails: Replace warning_options with nwarnoption
+      and warnoptions. Replace env_warning_options with nenv_warnoption
+      and env_warnoptions.
+    * pymain_warnings_envvar() now has a single implementation for
+      Windows and Unix: use config_get_env_var_dup() to also get the
+      variable as wchar_t* on Unix.
+
+::
+
+    bpo-32030: Complete _PyCoreConfig_Read() (#4946)
+
+    * Add _PyCoreConfig.install_signal_handlers
+    * Remove _PyMain.config: _PyMainInterpreterConfig usage is now
+      restricted to pymain_init_python_main().
+    * Rename _PyMain.core_config to _PyMain.config
+    * _PyMainInterpreterConfig_Read() now creates the xoptions dictionary
+       from the core config
+    * Fix _PyMainInterpreterConfig_Read(): don't replace xoptions and
+      argv if they are already set.
+
+::
+
+    bpo-32030: Fix usage of memory allocators (#4953)
+
+    * _Py_InitializeCore() doesn't call _PyMem_SetupAllocators() anymore
+      if the PYTHONMALLOC environment variable is not set.
+    * pymain_cmdline() now sets the allocator to the default, instead of
+      setting the allocator in subfunctions.
+    * Py_SetStandardStreamEncoding() now calls
+      _PyMem_SetDefaultAllocator() to get a known allocator, to be able
+      to release the memory with the same allocator.
+
+::
+
+    bpo-32030: Add _Py_EncodeUTF8_surrogateescape() (#4960)
+
+    Py_EncodeLocale() now uses _Py_EncodeUTF8_surrogateescape(), instead
+    of using temporary unicode and bytes objects. So Py_EncodeLocale()
+    doesn't use the Python C API anymore.
+
+::
+
+    bpo-32030: Add _Py_EncodeLocaleRaw() (#4961)
+
+    Replace Py_EncodeLocale() with _Py_EncodeLocaleRaw() in:
+
+    * _Py_wfopen()
+    * _Py_wreadlink()
+    * _Py_wrealpath()
+    * _Py_wstat()
+    * pymain_open_filename()
+
+    These functions are called early during Python intialization, only
+    the RAW memory allocator must be used.
+
+::
+
+    bpo-32030: Add _Py_FindEnvConfigValue() (#4963)
+
+    Add a new _Py_FindEnvConfigValue() function: code shared between
+    Windows and Unix implementations of _PyPathConfig_Calculate() to read
+    the pyenv.cfg file.
+
+    _Py_FindEnvConfigValue() now uses _Py_DecodeUTF8_surrogateescape()
+    instead of using a Python Unicode string, the Python API must not be
+    used early during Python initialization. Same change in Unix
+    search_for_exec_prefix(): use _Py_DecodeUTF8_surrogateescape().
+
+    Cleanup also encode_current_locale(): PyMem_RawFree/PyMem_Free can be
+    called with NULL.
+
+    Fix also "NUL byte" => "NULL byte" typo.
+
+::
+
+    bpo-29240: Skip test_readline.test_nonascii() (#4968)
+
+    Skip the test which fails on FreeBSD with POSIX locale.
+
+    Skip the test to fix FreeBSD buildbots, until a fix can be found, so
+    the buildbots can catch other regressions.
 
 
 Nanoseconds, PEP 564
@@ -576,6 +1362,16 @@ bpo-31324, ``test.bisect``: Optimize ``support._match_test()``: use the most
 efficient pattern matching code depending on the kind of patterns. Change
 co-authored by: **Serhiy Storchaka**.
 
+bpo-27535: Fix memory leak with warnings ignore. The warnings module doesn't
+leak memory anymore in the hidden warnings registry for the "ignore" action
+of warnings filters. The warn_explicit() function doesn't add the warning
+key to the registry anymore for the "ignore" action.
+
+    "As a result, on the first pass, the memory consumption is constant and is
+    about 3.9 Mb for my environment. For the second pass, the memory consumption
+    constantly grows up to 246 Mb for 1 million files. I.e. memory leak is about
+    254 bytes for every opened file."
+
 Enhancements
 ============
 
@@ -606,6 +1402,8 @@ Other changes
   zero.
 * bpo-31917: Add 3 new clock identifiers to the ``time`` module:
   ``CLOCK_BOOTTIME``, ``CLOCK_PROF``, ``CLOCK_UPTIME``.
+* test.pythoninfo: Collect more info from builtins, resource, test.test_socket
+  and test.support modules. Co-Authored-By: **Christian Heimes**.
 
 PyMem_AlignedAlloc()
 ====================
@@ -680,8 +1478,101 @@ semlock_acquire(), fix the following Coverity warning::
 The deadcode was introduced by the commit
 c872d39d324cd6f1a71b73e10406bbaed192d35f.
 
+Coverity
+--------
+
+::
+
+    Fix CID-1414686: PyInit_readline() handles errors (#4647)
+
+    Handle PyModule_AddIntConstant() and PyModule_AddStringConstant()
+    failures. Add also constants before calling setup_readline(), since
+    setup_readline() registers callbacks which uses a reference to the
+    module, whereas the module is destroyed if adding constants fails.
+
+    Fix Coverity warning:
+
+    CID 1414686: Unchecked return value (CHECKED_RETURN)
+    2. check_return: Calling PyModule_AddStringConstant without checking
+    return value (as is done elsewhere 45 out of 55 times).
+
+Coverity
+--------
+
+::
+
+    Fix CID-1420310: cast PY_TIMEOUT_MAX to _Py_time_t (#4646)
+
+    Fix the following false-alarm Coverity warning:
+
+        Result is not floating-point
+        (UNINTENDED_INTEGER_DIVISION)integer_division: Dividing integer
+        expressions 9223372036854775807LL and 1000LL, and then converting
+        the integer quotient to type double. Any remainder, or fractional
+        part of the quotient, is ignored.
+
+        To compute and use a non-integer quotient, change or cast either
+        operand to type double. If integer division is intended, consider
+        indicating that by casting the result to type long long .
+
+``Modules/_threadmodule.c`` change::
+
+    -    timeout_max = (double)PY_TIMEOUT_MAX * 1e-6;
+    +    timeout_max = (_PyTime_t)PY_TIMEOUT_MAX * 1e-6;
+
+Coverity
+--------
+
+::
+
+    PyLong_FromString(): fix Coverity CID 1424951 (#4738)
+
+    Explicitly cast digits (Py_ssize_t) to double to fix the following
+    false-alarm warning from Coverity:
+
+    "fsize_z = digits * log_base_BASE[base] + 1;"
+
+    CID 1424951: Incorrect expression (UNINTENDED_INTEGER_DIVISION)
+    Dividing integer expressions "9223372036854775783UL" and "4UL", and
+    then converting the integer quotient to type "double". Any remainder,
+    or fractional part of the quotient, is ignored.
+
+``Objects/longobject.c`` change::
+
+    -        fsize_z = digits * log_base_BASE[base] + 1;
+    -        if (fsize_z > MAX_LONG_DIGITS) {
+    +        double fsize_z = (double)digits * log_base_BASE[base] + 1.0;
+    +        if (fsize_z > (double)MAX_LONG_DIGITS) {
+
+
 Bugfixes
 ========
+
+faulthandler core dumps
+-----------------------
+
+Xavier de Gaye: "After running test_regrtest in the source tree on linux, the
+build/ subdirectory (i.e. test.libregrtest.main.TEMPDIR) contains a new
+test_python_* directory that contains a core file when the core file size is
+unlimited."
+
+Victor: "I'm unable to reproduce the issue on Fedora 27"
+
+Victor: "Ah! I misunderstood the bug report. I was looking for a ENV_FAILED
+failure, but no, regrtest fails to remove its temporary directory but no
+warning is emitted in this case."
+
+* bpo-32252: Fix faulthandler_suppress_crash_report(). Fix
+  faulthandler_suppress_crash_report() used to prevent core dump files when
+  testing crashes. getrlimit() returns zero on success.
+
+``Modules/faulthandler.c`` change::
+
+    -    if (getrlimit(RLIMIT_CORE, &rl) != 0) {
+    +    if (getrlimit(RLIMIT_CORE, &rl) == 0) {
+
+Changes
+-------
 
 * bpo-11063: Fix the ``_uuid module`` on macOS. On macOS, use
   ``uuid_generate_time()`` instead of ``uuid_generate_time_safe()`` of
@@ -699,6 +1590,26 @@ Bugfixes
 * bpo-32050: Fix -x option documentation. The line number in correct when using
   the ``-x option``: Py_Main() uses ``ungetc()`` to not skip the first newline
   character.
+* asyncio: Fix BaseSelectorEventLoopTests. Currently, two tests fail with
+  PYTHONASYNCIODEBUG=1 (or using -X dev).
+* bpo-32155: Bugfixes found by flake8 F841 warnings
+
+  * distutils.config: Use the PyPIRCCommand.realm attribute if set
+  * turtledemo: wait until macOS osascript command completes to not
+    create a zombie process
+  * Tools/scripts/treesync.py: declare 'default_answer' and
+    'create_files' as globals to modify them with the command line
+    arguments. Previously, -y, -n, -f and -a options had no effect.
+
+  flake8 warning: "F841 local variable 'p' is assigned to but never
+  used".
+
+  The distutils.config change was reverted later, but the realm variable was
+  removed (to fix the flake8 warning).
+
+* bpo-32302: Fix distutils bdist_wininst for CRT v142. CRT v142 is binary
+  compatible with CRT v140.
+  "test_distutils: test_get_exe_bytes() failure on AppVeyor"
 
 Tests
 =====
@@ -789,16 +1700,33 @@ Changes:
   was compiled in debug mode or not.
 * bpo-31910: ``test_socket.test_create_connection()`` now catchs also
   ``EADDRNOTAVAIL`` to fix the test on Travis CI.
+* bpo-32128: Skip test_nntplib.test_article_head_body(). The NNTP server
+  currently has troubles with SSL, whereas we don't have the control on this
+  server. This test blocks all CIs, so disable it until a fix can be found.
+* bpo-32107: Revert commit 9522a218f7dff95c490ff359cc60e8c2af35f5c8 "UUID1 MAC
+  address calculation". It broke Travis CI and buildbots like "s390x SLES 3.x".
+* bpo-31705: Skip test_socket.test_sha256() on linux < 4.5. It took 2 months
+  to fix this bug, time to collect enough information about impacted Linux
+  kernels and impacted architectures.
 
+  * FAIL: ppc64le on Linux 3.10
+  * PASS: ppc64le on Linux 4.11
 
-Misc changes
+  Victor: "Ah, I think that I found the bugfix (8 Jan 2016): https://github.com/torvalds/linux/commit/6de62f15b581
+  So it was fixed in the kernel 4.5."
+
+  I found also https://access.redhat.com/errata/RHSA-2017:2437 :
+
+  "The lrw_crypt() function in 'crypto/lrw.c' in the Linux kernel before 4.5
+  allows local users to cause a system crash and a denial of service by the
+  NULL pointer dereference via accept(2) system call for AF_ALG socket without
+  calling setkey() first to set a cipher key. (CVE-2015-8970, Moderate)"
+
+* bpo-32294: Fix multiprocessing ``test_semaphore_tracker()``. Run the child
+  process with -E option to ignore the ``PYTHONWARNINGS`` environment variable.
+
+Code removal
 ============
-
-* Replace KB unit with KiB (#4293). kB (*kilo* byte) unit means 1000 bytes,
-  whereas KiB ("kibibyte") means 1024 bytes. KB was misused: replace kB or KB
-  with KiB when appropriate. Same change for MB and GB which become MiB and
-  GiB.  Change the output of Tools/iobench/iobench.py. Round also the size of
-  the documentation from 5.5 MB to 5 MiB.
 
 * ``tokenizer``: Remove unused tabs options. Remove the following fields from
   ``tok_state`` structure which are now used unused:
@@ -810,3 +1738,64 @@ Misc changes
   Replace ``alttabsize`` variable with the ``ALTTABSIZE`` define.
 
 * bpo-31979: Remove unused ``align_maxchar()`` function.
+* bpo-32125: Remove Py_UseClassExceptionsFlag flag. This flag was deprecated
+  and wasn't used anymore since Python 2.0.
+* asyncio: Remove unused Future._tb_logger attribute. It was only used on
+  Python 3.3, now only Future._log_traceback is used.
+* asyncio: Remove asyncio/compat.py file. The asyncio/compat.py file was
+  written to support Python < 3.5 and Python < 3.5.2. But Python 3.5 doesn't
+  accept bugfixes anymore, only security fixes. There is no more need to
+  backport bugfixes to Python 3.5, and so no need to have a single code base
+  for Python 3.5, 3.6 and 3.7.
+* bpo-32154: Remove asyncio.selectors.
+
+  * Remove asyncio.selectors and asyncio._overlapped symbols from the
+    namespace of the asyncio module
+  * Replace "from asyncio import selectors" with "import selectors"
+  * Replace "from asyncio import _overlapped" with "import _overlapped"
+
+  asyncio.selectors was added to support Python 3.3, which doesn't have
+  selectors in its standard library, and Python 3.4 in the same code
+  base. Same rationale for asyncio._overlapped. Python 3.3 reached its
+  end of life, and asyncio is no more maintained as a third party
+  module on PyPI.
+
+* bpo-32154: asyncio: use directly socket.socketpair() and remove
+  asyncio.windows_utils.socketpair(). Since Python 3.5, socket.socketpair() is
+  also available on Windows, and so can be used directly, rather than using
+  asyncio.windows_utils.socketpair(). test_socket: socket.socketpair() is
+  always available.
+* bpo-32159: Remove tools for CVS and Subversion. CPython migrated from CVS to
+  Subversion, to Mercurial, and then to Git. CVS and Subversion are not more
+  used to develop CPython.
+
+  * platform module: drop support for sys.subversion. The
+    sys.subversion attribute has been removed in Python 3.3.
+  * Remove Misc/svnmap.txt
+  * Remove Tools/scripts/svneol.py
+  * Remove Tools/scripts/treesync.py
+
+  Later, Misc/svnmap.txt was reverted. Clarify the usage of this file in
+  Misc/README.
+
+* bpo-32030: Remove the initstr variable, unused since the commit
+  e69f0df45b709c25ac80617c41bbae16f56870fb pushed in 2012 "bpo-13959:
+  Re-implement imp.find_module() in Lib/imp.py". Pass also the *interp*
+  variable to ``_PyImport_Init()``.
+
+Misc changes
+============
+
+* Replace KB unit with KiB (#4293). kB (*kilo* byte) unit means 1000 bytes,
+  whereas KiB ("kibibyte") means 1024 bytes. KB was misused: replace kB or KB
+  with KiB when appropriate. Same change for MB and GB which become MiB and
+  GiB.  Change the output of Tools/iobench/iobench.py. Round also the size of
+  the documentation from 5.5 MB to 5 MiB.
+* bpo-31245: asyncio: Fix typo, isistance => isinstance. The code wasn't tested
+  :-(
+* ``make tags``: index also Modules/_ctypes/. Avoid also "cd $(srcdir)" to not
+  change the current directory.
+* import.c: Fix a GCC warning. Fix the warning::
+
+    Python/import.c: warning: comparison between signed and unsigned integer expressions
+         if ((i + n + 1) <= PY_SSIZE_T_MAX / sizeof(struct _inittab)) {
