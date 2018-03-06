@@ -29,6 +29,7 @@ Extra articles:
 * `Python 3.7 New UTF-8 Mode <{filename}/utf8_mode.rst>`_
 * `Python 3.7 New Development Mode (-X dev) <{filename}/dev_mode.rst>`_
 * `The Python 3.7 GIL change <{filename}/gil_change.rst>`_
+* `Python 3.7 perf_counter() nanoseconds <{filename}/perf_counter_nanoseconds.rst>`_
 * `Python 3.7 nanoseconds <{filename}/nanoseconds.rst>`_
 
 
