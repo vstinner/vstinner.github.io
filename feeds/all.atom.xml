@@ -1,5 +1,211 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2017-10-19T16:00:00+02:00</updated><entry><title>My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="alternate"></link><published>2017-10-19T16:00:00+02:00</published><updated>2017-10-19T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-06T15:00:00+01:00</updated><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I am trying to convert all Python clocks to use internally
+nanoseconds. The last clock which still used floating point internally was
+&lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;. INADA Naoki's new importtime tool was an opportunity
+for me to have a new look on a tricky integer overflow issue.&lt;/p&gt;
+&lt;div class="section" id="modify-importtime-to-use-time-perf-counter-clock"&gt;
+&lt;h2&gt;Modify importtime to …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;Since 2012, I am trying to convert all Python clocks to use internally
+nanoseconds. The last clock which still used floating point internally was
+&lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;. INADA Naoki's new importtime tool was an opportunity
+for me to have a new look on a tricky integer overflow issue.&lt;/p&gt;
+&lt;div class="section" id="modify-importtime-to-use-time-perf-counter-clock"&gt;
+&lt;h2&gt;Modify importtime to use time.perf_counter() clock&lt;/h2&gt;
+&lt;p&gt;INADA Naoki added to Python 3.7 a new cool &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;-X importtime&lt;/a&gt; command line option to
+analyze the Python import performance. This tool can be used optimize the
+startup time of your application. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+vstinner&amp;#64;apu$ ./python -X importtime -c pass
+import time: self [us] | cumulative | imported package
+(...)
+import time:       901 |       1902 | io
+import time:       374 |        374 |       _stat
+import time:       663 |       1037 |     stat
+import time:       617 |        617 |       genericpath
+import time:       877 |       1493 |     posixpath
+import time:      3840 |       3840 |     _collections_abc
+import time:      2106 |       8474 |   os
+import time:       674 |        674 |   _sitebuiltins
+import time:       922 |        922 |   sitecustomize
+import time:       598 |        598 |   usercustomize
+import time:      1444 |      12110 | site
+&lt;/pre&gt;
+&lt;p&gt;Read Naoki's article &lt;a class="reference external" href="https://dev.to/methane/how-to-speed-up-python-application-startup-time-nkf"&gt;How to speed up Python application startup time&lt;/a&gt;
+(Jan 19, 2018) for a concrete analysis of &lt;tt class="docutils literal"&gt;pipenv&lt;/tt&gt; performance.&lt;/p&gt;
+&lt;p&gt;Naoki chose to use the &lt;tt class="docutils literal"&gt;time.monotonic()&lt;/tt&gt; clock internally to measure elapsed
+time. On Windows, this clock (&lt;tt class="docutils literal"&gt;GetTickCount64()&lt;/tt&gt; function) has a resolution
+around 15.6 ms, whereas most Python imports take less than 10 ms, and so most
+numbers are just zeros. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+f:\dev\3x&amp;gt;python -X importtime -c &amp;quot;import idlelib.pyshell&amp;quot;
+Running Debug|Win32 interpreter...
+import time: self [us] | cumulative | imported package
+import time:         0 |          0 |     _codecs
+import time:         0 |          0 |   codecs
+import time:         0 |          0 |   encodings.aliases
+import time:     15000 |      15000 | encodings
+import time:         0 |          0 | encodings.utf_8
+import time:         0 |          0 | _signal
+import time:         0 |          0 | encodings.latin_1
+import time:         0 |          0 |     _weakrefset
+import time:         0 |          0 |   abc
+import time:         0 |          0 | io
+import time:         0 |          0 |       _stat
+(...)
+&lt;/pre&gt;
+&lt;p&gt;In &lt;a class="reference external" href="https://bugs.python.org/issue31415"&gt;bpo-31415&lt;/a&gt;, I fixed the issue by
+adding a new C function &lt;tt class="docutils literal"&gt;_PyTime_GetPerfCounter()&lt;/tt&gt; to access the
+&lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; clock at the C level and I modified &amp;quot;importtime&amp;quot; to use
+it.&lt;/p&gt;
+&lt;p&gt;Problem solved! ... almost...&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="double-integer-float-conversions"&gt;
+&lt;h2&gt;Double integer-float conversions&lt;/h2&gt;
+&lt;p&gt;My commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/a997c7b434631f51e00191acea2ba6097691e859"&gt;a997c7b4&lt;/a&gt;
+of &lt;a class="reference external" href="https://bugs.python.org/issue31415"&gt;bpo-31415&lt;/a&gt; adding
+&lt;tt class="docutils literal"&gt;_PyTime_GetPerfCounter()&lt;/tt&gt; moved the C code from &lt;tt class="docutils literal"&gt;Modules/timemodule.c&lt;/tt&gt; to
+&lt;tt class="docutils literal"&gt;Python/pytime.c&lt;/tt&gt;, but also changed the internal type storing time from
+floatting point number (C &lt;tt class="docutils literal"&gt;double&lt;/tt&gt;) to integer number (&lt;tt class="docutils literal"&gt;_PyTyime_t&lt;/tt&gt; which
+is &lt;tt class="docutils literal"&gt;int64_t&lt;/tt&gt; in practice).&lt;/p&gt;
+&lt;p&gt;The drawback of this change is that &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; now converts
+&lt;tt class="docutils literal"&gt;QueryPerformanceCounter() / QueryPerformanceFrequency()&lt;/tt&gt; float into a
+&lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; (integer) and then back to a float, and these conversions cause a
+precision loss. I computed that the conversions start to loose precision
+starting after a single second with &lt;tt class="docutils literal"&gt;QueryPerformanceFrequency()&lt;/tt&gt; equals to
+&lt;tt class="docutils literal"&gt;3,579,545&lt;/tt&gt; (3.6 MHz).&lt;/p&gt;
+&lt;p&gt;To fix the precision loss, I modified again &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; to not use &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; anymore, only double.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="grumpy-victor"&gt;
+&lt;h2&gt;Grumpy Victor&lt;/h2&gt;
+&lt;img alt="Grumpy" src="https://vstinner.github.io/images/grumpy.jpg" /&gt;
+&lt;p&gt;My change to replace &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;double&lt;/tt&gt; made me grumpy. I am
+trying to convert all Python clocks to &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; since 6 years (2012).&lt;/p&gt;
+&lt;p&gt;I was grumpy of being blocked by a single clock, especially because the issue
+is specific to the Windows implementation. The Linux implementation of
+&lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; uses &lt;tt class="docutils literal"&gt;clock_gettime()&lt;/tt&gt; which directly returns
+nanoseconds as integers, no division needed to get time as &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I looked at the clock sources in the Linux kernel source code:
+&lt;a class="reference external" href="https://github.com/torvalds/linux/blob/master/kernel/time/clocksource.c"&gt;kernel/time/clocksource.c&lt;/a&gt;.
+Linux clocks only use integers and support nanosecond resolution. I'm always
+impressed by the quality of the Linux kernel source code, the code is
+straightforward C code. If Linux is able to use integers for various kinds of
+clocks, I should be able to use integers for my specific Windows
+implementations of &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;, no?&lt;/p&gt;
+&lt;p&gt;In practice, the &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; is a number of nanoseconds, so the computation
+is:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+(QueryPerformanceCounter() * 1_000_000_000) / QueryPerformanceFrequency()
+&lt;/pre&gt;
+&lt;p&gt;where &lt;tt class="docutils literal"&gt;1_000_000_000&lt;/tt&gt; is the number of nanoseconds in one second. &lt;strong&gt;The problem
+is to prevent integer overflow&lt;/strong&gt; on the first part, using &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; which is
+&lt;tt class="docutils literal"&gt;int64_t&lt;/tt&gt; in practice:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+QueryPerformanceCounter() * 1_000_000_000
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="some-maths-to-avoid-the-precision-loss"&gt;
+&lt;h2&gt;Some maths to avoid the precision loss&lt;/h2&gt;
+&lt;p&gt;Using a pencil, a sheet of paper and some maths, I found a solution!&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+(a * b) / q == (a / q) * b + ((a % q) * b) / q
+&lt;/pre&gt;
+&lt;img alt="Math rocks" src="https://vstinner.github.io/images/math_rocks.jpg" /&gt;
+&lt;p&gt;It prevents the risk of integer overflow. C implementation:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Py_LOCAL_INLINE(_PyTime_t)
+_PyTime_MulDiv(_PyTime_t ticks, _PyTime_t mul, _PyTime_t div)
+{
+    _PyTime_t intpart, remaining;
+    /* Compute (ticks * mul / div) in two parts to prevent integer overflow:
+       compute integer part, and then the remaining part.
+
+       (ticks * mul) / div == (ticks / div) * mul + (ticks % div) * mul / div
+
+       The caller must ensure that &amp;quot;(div - 1) * mul&amp;quot; cannot overflow. */
+    intpart = ticks / div;
+    ticks %= div;
+    remaining = ticks * mul;
+    remaining /= div;
+    return intpart * mul + remaining;
+}
+&lt;/pre&gt;
+&lt;p&gt;Simplified Windows implementation of perf_counter():&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+_PyTime_t win_perf_counter(void)
+{
+    LARGE_INTEGER freq;
+    LONGLONG frequency;
+    LARGE_INTEGER now;
+    LONGLONG ticksll;
+    _PyTime_t ticks;
+
+    (void)QueryPerformanceFrequency(&amp;amp;freq);
+    frequency = freq.QuadPart;
+
+    QueryPerformanceCounter(&amp;amp;now);
+    ticksll = now.QuadPart;
+    ticks = (_PyTime_t)ticksll;
+
+    return _PyTime_MulDiv(ticks, SEC_TO_NS, (_PyTime_t)frequency);
+}
+&lt;/pre&gt;
+&lt;p&gt;On Windows, I added the following sanity checks to make sure that integer
+overflows cannot occur:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* Check that frequency can be casted to _PyTime_t.
+
+   Make also sure that (ticks * SEC_TO_NS) cannot overflow in
+   _PyTime_MulDiv(), with ticks &amp;lt; frequency.
+
+   Known QueryPerformanceFrequency() values:
+
+   * 10,000,000 (10 MHz): 100 ns resolution
+   * 3,579,545 Hz (3.6 MHz): 279 ns resolution
+
+   None of these frequencies can overflow with 64-bit _PyTime_t, but
+   check for overflow, just in case. */
+if (frequency &amp;gt; _PyTime_MAX
+    || frequency &amp;gt; (LONGLONG)_PyTime_MAX / (LONGLONG)SEC_TO_NS) {
+    PyErr_SetString(PyExc_OverflowError,
+                    &amp;quot;QueryPerformanceFrequency is too large&amp;quot;);
+    return -1;
+}
+&lt;/pre&gt;
+&lt;p&gt;Since I also modified the macOS implementation of &lt;tt class="docutils literal"&gt;time.monotonic()&lt;/tt&gt; to use
+&lt;tt class="docutils literal"&gt;_PyTime_MulDiv()&lt;/tt&gt;, I also added this check for macOS:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* Make sure that (ticks * timebase.numer) cannot overflow in
+   _PyTime_MulDiv(), with ticks &amp;lt; timebase.denom.
+
+   Known time bases:
+
+   * always (1, 1) on Intel
+   * (1000000000, 33333335) or (1000000000, 25000000) on PowerPC
+
+   None of these time bases can overflow with 64-bit _PyTime_t, but
+   check for overflow, just in case. */
+if ((_PyTime_t)timebase.numer &amp;gt; _PyTime_MAX / (_PyTime_t)timebase.denom) {
+    PyErr_SetString(PyExc_OverflowError,
+                    &amp;quot;mach_timebase_info is too large&amp;quot;);
+    return -1;
+}
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pytime-c-source-code"&gt;
+&lt;h2&gt;pytime.c source code&lt;/h2&gt;
+&lt;p&gt;If you are curious, the full code lives at &lt;a class="reference external" href="https://github.com/python/cpython/blob/master/Python/pytime.c"&gt;Python/pytime.c&lt;/a&gt; and is
+currently around 1,100 lines of C code.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;INADA Naoki's importtime tool was using &lt;tt class="docutils literal"&gt;time.monotonic()&lt;/tt&gt; clock which failed
+to measure short import times on Windows. I modified it to use
+&lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; internally to get better precision on Windows.  I
+identified a precision loss caused by my internal &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; type to store
+time as nanoseconds. Thanks to maths, I succeeded to use nanoseconds and
+prevent any risk of integer overflow.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="alternate"></link><published>2017-10-19T16:00:00+02:00</published><updated>2017-10-19T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 3 (funny bugs).&lt;/p&gt;
 &lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads)&lt;/a&gt;.&lt;/p&gt;
@@ -140,16 +346,22 @@ integer expressions&amp;quot; warning.&lt;/li&gt;
 &lt;/div&gt;
 </content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html" rel="alternate"></link><published>2017-10-19T15:00:00+02:00</published><updated>2017-10-19T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 2: &amp;quot;Dangling threads&amp;quot;.&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions
-to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next reports:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;p&gt;Summary:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Bugfixes: Reference cycles&lt;/li&gt;
 &lt;li&gt;socketserver leaking threads and processes&lt;ul&gt;
 &lt;li&gt;test_logging random bug …&lt;/li&gt;&lt;/ul&gt;&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 2: &amp;quot;Dangling threads&amp;quot;.&lt;/p&gt;
-&lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;. Next report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions
-to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Next reports:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html"&gt;My contributions to CPython during 2017 Q3: Part 3 (funny bugs)&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
 &lt;p&gt;Summary:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Bugfixes: Reference cycles&lt;/li&gt;

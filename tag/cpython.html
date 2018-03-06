@@ -22,7 +22,232 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">Python 3.7 perf_counter() nanoseconds</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2018-03-06T15:00:00+01:00">
+                Published: mar. 06 mars 2018
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>Since 2012, I am trying to convert all Python clocks to use internally
+nanoseconds. The last clock which still used floating point internally was
+<tt class="docutils literal">time.perf_counter()</tt>. INADA Naoki's new importtime tool was an opportunity
+for me to have a new look on a tricky integer overflow issue.</p>
+<div class="section" id="modify-importtime-to-use-time-perf-counter-clock">
+<h2>Modify importtime to use time.perf_counter() clock</h2>
+<p>INADA Naoki added to Python 3.7 a new cool <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">-X importtime</a> command line option to
+analyze the Python import performance. This tool can be used optimize the
+startup time of your application. Example:</p>
+<pre class="literal-block">
+vstinner&#64;apu$ ./python -X importtime -c pass
+import time: self [us] | cumulative | imported package
+(...)
+import time:       901 |       1902 | io
+import time:       374 |        374 |       _stat
+import time:       663 |       1037 |     stat
+import time:       617 |        617 |       genericpath
+import time:       877 |       1493 |     posixpath
+import time:      3840 |       3840 |     _collections_abc
+import time:      2106 |       8474 |   os
+import time:       674 |        674 |   _sitebuiltins
+import time:       922 |        922 |   sitecustomize
+import time:       598 |        598 |   usercustomize
+import time:      1444 |      12110 | site
+</pre>
+<p>Read Naoki's article <a class="reference external" href="https://dev.to/methane/how-to-speed-up-python-application-startup-time-nkf">How to speed up Python application startup time</a>
+(Jan 19, 2018) for a concrete analysis of <tt class="docutils literal">pipenv</tt> performance.</p>
+<p>Naoki chose to use the <tt class="docutils literal">time.monotonic()</tt> clock internally to measure elapsed
+time. On Windows, this clock (<tt class="docutils literal">GetTickCount64()</tt> function) has a resolution
+around 15.6 ms, whereas most Python imports take less than 10 ms, and so most
+numbers are just zeros. Example:</p>
+<pre class="literal-block">
+f:\dev\3x&gt;python -X importtime -c &quot;import idlelib.pyshell&quot;
+Running Debug|Win32 interpreter...
+import time: self [us] | cumulative | imported package
+import time:         0 |          0 |     _codecs
+import time:         0 |          0 |   codecs
+import time:         0 |          0 |   encodings.aliases
+import time:     15000 |      15000 | encodings
+import time:         0 |          0 | encodings.utf_8
+import time:         0 |          0 | _signal
+import time:         0 |          0 | encodings.latin_1
+import time:         0 |          0 |     _weakrefset
+import time:         0 |          0 |   abc
+import time:         0 |          0 | io
+import time:         0 |          0 |       _stat
+(...)
+</pre>
+<p>In <a class="reference external" href="https://bugs.python.org/issue31415">bpo-31415</a>, I fixed the issue by
+adding a new C function <tt class="docutils literal">_PyTime_GetPerfCounter()</tt> to access the
+<tt class="docutils literal">time.perf_counter()</tt> clock at the C level and I modified &quot;importtime&quot; to use
+it.</p>
+<p>Problem solved! ... almost...</p>
+</div>
+<div class="section" id="double-integer-float-conversions">
+<h2>Double integer-float conversions</h2>
+<p>My commit <a class="reference external" href="https://github.com/python/cpython/commit/a997c7b434631f51e00191acea2ba6097691e859">a997c7b4</a>
+of <a class="reference external" href="https://bugs.python.org/issue31415">bpo-31415</a> adding
+<tt class="docutils literal">_PyTime_GetPerfCounter()</tt> moved the C code from <tt class="docutils literal">Modules/timemodule.c</tt> to
+<tt class="docutils literal">Python/pytime.c</tt>, but also changed the internal type storing time from
+floatting point number (C <tt class="docutils literal">double</tt>) to integer number (<tt class="docutils literal">_PyTyime_t</tt> which
+is <tt class="docutils literal">int64_t</tt> in practice).</p>
+<p>The drawback of this change is that <tt class="docutils literal">time.perf_counter()</tt> now converts
+<tt class="docutils literal">QueryPerformanceCounter() / QueryPerformanceFrequency()</tt> float into a
+<tt class="docutils literal">_PyTime_t</tt> (integer) and then back to a float, and these conversions cause a
+precision loss. I computed that the conversions start to loose precision
+starting after a single second with <tt class="docutils literal">QueryPerformanceFrequency()</tt> equals to
+<tt class="docutils literal">3,579,545</tt> (3.6 MHz).</p>
+<p>To fix the precision loss, I modified again <tt class="docutils literal">time.clock()</tt> and
+<tt class="docutils literal">time.perf_counter()</tt> to not use <tt class="docutils literal">_PyTime_t</tt> anymore, only double.</p>
+</div>
+<div class="section" id="grumpy-victor">
+<h2>Grumpy Victor</h2>
+<img alt="Grumpy" src="https://vstinner.github.io/images/grumpy.jpg" />
+<p>My change to replace <tt class="docutils literal">_PyTime_t</tt> with <tt class="docutils literal">double</tt> made me grumpy. I am
+trying to convert all Python clocks to <tt class="docutils literal">_PyTime_t</tt> since 6 years (2012).</p>
+<p>I was grumpy of being blocked by a single clock, especially because the issue
+is specific to the Windows implementation. The Linux implementation of
+<tt class="docutils literal">time.perf_counter()</tt> uses <tt class="docutils literal">clock_gettime()</tt> which directly returns
+nanoseconds as integers, no division needed to get time as <tt class="docutils literal">_PyTime_t</tt>.</p>
+<p>I looked at the clock sources in the Linux kernel source code:
+<a class="reference external" href="https://github.com/torvalds/linux/blob/master/kernel/time/clocksource.c">kernel/time/clocksource.c</a>.
+Linux clocks only use integers and support nanosecond resolution. I'm always
+impressed by the quality of the Linux kernel source code, the code is
+straightforward C code. If Linux is able to use integers for various kinds of
+clocks, I should be able to use integers for my specific Windows
+implementations of <tt class="docutils literal">time.perf_counter()</tt>, no?</p>
+<p>In practice, the <tt class="docutils literal">_PyTime_t</tt> is a number of nanoseconds, so the computation
+is:</p>
+<pre class="literal-block">
+(QueryPerformanceCounter() * 1_000_000_000) / QueryPerformanceFrequency()
+</pre>
+<p>where <tt class="docutils literal">1_000_000_000</tt> is the number of nanoseconds in one second. <strong>The problem
+is to prevent integer overflow</strong> on the first part, using <tt class="docutils literal">_PyTime_t</tt> which is
+<tt class="docutils literal">int64_t</tt> in practice:</p>
+<pre class="literal-block">
+QueryPerformanceCounter() * 1_000_000_000
+</pre>
+</div>
+<div class="section" id="some-maths-to-avoid-the-precision-loss">
+<h2>Some maths to avoid the precision loss</h2>
+<p>Using a pencil, a sheet of paper and some maths, I found a solution!</p>
+<pre class="literal-block">
+(a * b) / q == (a / q) * b + ((a % q) * b) / q
+</pre>
+<img alt="Math rocks" src="https://vstinner.github.io/images/math_rocks.jpg" />
+<p>It prevents the risk of integer overflow. C implementation:</p>
+<pre class="literal-block">
+Py_LOCAL_INLINE(_PyTime_t)
+_PyTime_MulDiv(_PyTime_t ticks, _PyTime_t mul, _PyTime_t div)
+{
+    _PyTime_t intpart, remaining;
+    /* Compute (ticks * mul / div) in two parts to prevent integer overflow:
+       compute integer part, and then the remaining part.
+
+       (ticks * mul) / div == (ticks / div) * mul + (ticks % div) * mul / div
+
+       The caller must ensure that &quot;(div - 1) * mul&quot; cannot overflow. */
+    intpart = ticks / div;
+    ticks %= div;
+    remaining = ticks * mul;
+    remaining /= div;
+    return intpart * mul + remaining;
+}
+</pre>
+<p>Simplified Windows implementation of perf_counter():</p>
+<pre class="literal-block">
+_PyTime_t win_perf_counter(void)
+{
+    LARGE_INTEGER freq;
+    LONGLONG frequency;
+    LARGE_INTEGER now;
+    LONGLONG ticksll;
+    _PyTime_t ticks;
+
+    (void)QueryPerformanceFrequency(&amp;freq);
+    frequency = freq.QuadPart;
+
+    QueryPerformanceCounter(&amp;now);
+    ticksll = now.QuadPart;
+    ticks = (_PyTime_t)ticksll;
+
+    return _PyTime_MulDiv(ticks, SEC_TO_NS, (_PyTime_t)frequency);
+}
+</pre>
+<p>On Windows, I added the following sanity checks to make sure that integer
+overflows cannot occur:</p>
+<pre class="literal-block">
+/* Check that frequency can be casted to _PyTime_t.
+
+   Make also sure that (ticks * SEC_TO_NS) cannot overflow in
+   _PyTime_MulDiv(), with ticks &lt; frequency.
+
+   Known QueryPerformanceFrequency() values:
+
+   * 10,000,000 (10 MHz): 100 ns resolution
+   * 3,579,545 Hz (3.6 MHz): 279 ns resolution
+
+   None of these frequencies can overflow with 64-bit _PyTime_t, but
+   check for overflow, just in case. */
+if (frequency &gt; _PyTime_MAX
+    || frequency &gt; (LONGLONG)_PyTime_MAX / (LONGLONG)SEC_TO_NS) {
+    PyErr_SetString(PyExc_OverflowError,
+                    &quot;QueryPerformanceFrequency is too large&quot;);
+    return -1;
+}
+</pre>
+<p>Since I also modified the macOS implementation of <tt class="docutils literal">time.monotonic()</tt> to use
+<tt class="docutils literal">_PyTime_MulDiv()</tt>, I also added this check for macOS:</p>
+<pre class="literal-block">
+/* Make sure that (ticks * timebase.numer) cannot overflow in
+   _PyTime_MulDiv(), with ticks &lt; timebase.denom.
+
+   Known time bases:
+
+   * always (1, 1) on Intel
+   * (1000000000, 33333335) or (1000000000, 25000000) on PowerPC
+
+   None of these time bases can overflow with 64-bit _PyTime_t, but
+   check for overflow, just in case. */
+if ((_PyTime_t)timebase.numer &gt; _PyTime_MAX / (_PyTime_t)timebase.denom) {
+    PyErr_SetString(PyExc_OverflowError,
+                    &quot;mach_timebase_info is too large&quot;);
+    return -1;
+}
+</pre>
+</div>
+<div class="section" id="pytime-c-source-code">
+<h2>pytime.c source code</h2>
+<p>If you are curious, the full code lives at <a class="reference external" href="https://github.com/python/cpython/blob/master/Python/pytime.c">Python/pytime.c</a> and is
+currently around 1,100 lines of C code.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>INADA Naoki's importtime tool was using <tt class="docutils literal">time.monotonic()</tt> clock which failed
+to measure short import times on Windows. I modified it to use
+<tt class="docutils literal">time.perf_counter()</tt> internally to get better precision on Windows.  I
+identified a precision loss caused by my internal <tt class="docutils literal">_PyTime_t</tt> type to store
+time as nanoseconds. Thanks to maths, I succeeded to use nanoseconds and
+prevent any risk of integer overflow.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="bookmark"
+                           title="Permalink to My contributions to CPython during 2017 Q3: Part 3 (funny bugs)">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-10-19T16:00:00+02:00">
                 Published: jeu. 19 octobre 2017
@@ -33,7 +258,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
+</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
 (july, august, september), Part 3 (funny bugs).</p>
 <p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads)</a>.</p>
@@ -47,123 +272,10 @@ threads)</a>.</p>
 <div class="section" id="freebsd-bug-minor-device-regression">
 <h2>FreeBSD bug: minor() device regression</h2>
 <a class="reference external image-reference" href="https://www.freebsd.org/"><img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /></a>
-<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The test_makedev() of
-test_posix started to fail in the build 632 (Wed Jul 26 10:47:01 2017) of AMD64
-FreeBSD CURRENT. The test failed on Debug, but also Non-Debug buildbots, in
-master and 3.6 branches. It looks more like a change on the buildbot, maybe a
-FreeBSD upgrade?</p>
-<p>Thanks to <strong>koobs</strong>, I have a SSH access to the buildbot. I was able to
-reproduce the bug manually. I noticed that minor() truncates most significant
-bits.</p>
-<p>I continued my analysis and I found that, at May 23, the FreeBSD <tt class="docutils literal">dev_t</tt> type
-changed from 32 bits to 64 bits in the kernel, but the <tt class="docutils literal">minor()</tt> userland
-function was not updated.</p>
-<p>I reported a bug to FreeBSD: <a class="reference external" href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=221048">Bug 221048 - minor() truncates device number to
-32 bits, whereas dev_t type was extended to 64 bits</a>.</p>
-<p>In the meanwhile, I skipped test_posix.test_makedev() on FreeBSD if <tt class="docutils literal">dev_t</tt>
-is larger than 32-bit.</p>
-<p>Hopefully, the FreeBSD bug was quickly fixed!</p>
-</div>
-<div class="section" id="regrtest-snowball-effect-when-hunting-memory-leaks">
-<h2>regrtest snowball effect when hunting memory leaks</h2>
-<p>While trying to fix all reference leaks on the new Windows and Linux &quot;Refleaks&quot;
-buildbots, I reported the bug <a class="reference external" href="https://bugs.python.org/issue31217">bpo-31217</a>:</p>
-<pre class="literal-block">
-test_code leaked [1, 1, 1] memory blocks, sum=3
-</pre>
-<p>Two weeks after reporting the bug, I was able to reproduce the bug, but <strong>only
-with Python compiled in 32-bit mode</strong>. Strange.</p>
-<p>I spent one day to understand the bug. I removed as much as possible while
-making sure that I can still reproduce the bug. At the end, I wrote <a class="reference external" href="https://bugs.python.org/file47114/leak2.py">leak2.py</a> which reproduces the bug with a
-single import: <tt class="docutils literal">import sys</tt>. Even if the script is only 86 lines long, I was
-still unable to understand the bug.</p>
-<p>My first hypothesis:</p>
-<blockquote>
-It seems like the &quot;leak&quot; is the call to <tt class="docutils literal">sys.getallocatedblocks()</tt> which
-creates a new integer, and the integer is kept alive between two loop
-iterations.</blockquote>
-<p><strong>Antoine Pitrou</strong> rejected it:</p>
-<blockquote>
-I doubt it. If that was the case, the reference count would increase as
-well.</blockquote>
-<p>It was Antoine Pitrou who understood the bug:</p>
-<pre class="literal-block">
-Ahah.
-Actually, it's quite simple :-) On 64-bit Python:
-
-&gt;&gt;&gt; id(82914 - 82913) == id(1)
-True
-
-On 32-bit Python:
-
-&gt;&gt;&gt; id(82914 - 82913) == id(1)
-False
-
-So the first non-zero alloc_delta really has a snowball effect, as it
-creates new memory block which will produce a non-zero alloc_delta on the
-next run, etc.
-</pre>
-<p>I implemented Antoine's idea to fix the bug, <a class="reference external" href="https://github.com/python/cpython/commit/6c2feabc5dac2f3049b15134669e9ad5af573193">commit</a>:</p>
-<pre class="literal-block">
-Use a pool of integer objects to prevent false alarm when checking for
-memory block leaks. Fill the pool with values in -1000..1000 which
-are the most common (reference, memory block, file descriptor)
-differences.
-
-Co-Authored-By: Antoine Pitrou &lt;pitrou&#64;free.fr&gt;
-</pre>
-<p>The bug is probably as old as the code hunting memory leaks.</p>
-</div>
-<div class="section" id="bugfixes">
-<h2>Bugfixes</h2>
-<ul class="simple">
-<li><a class="reference external" href="https://bugs.python.org/issue30891">bpo-30891</a>: Second fix for
-importlib <tt class="docutils literal">_find_and_load()</tt> to handle correctly parallelism with threads.
-Call <tt class="docutils literal">sys.modules.get()</tt> in the <tt class="docutils literal">with _ModuleLockManager(name):</tt> block to
-protect the dictionary key with the module lock and use an atomic get to
-prevent race conditions.</li>
-<li><a class="reference external" href="https://bugs.python.org/issue31019">bpo-31019</a>:
-<tt class="docutils literal">multiprocessing.Process.is_alive()</tt> now removes the process from the
-<tt class="docutils literal">_children set</tt> if the process completed. The change prevents leaking
-&quot;dangling&quot; processes.</li>
-<li><a class="reference external" href="https://bugs.python.org/issue31326">bpo-31326</a>, <tt class="docutils literal">concurrent.futures</tt>:
-<tt class="docutils literal">ProcessPoolExecutor.shutdown()</tt> now explicitly closes the call queue.
-Moreover, <tt class="docutils literal">shutdown(wait=True)</tt> now also joins the call queue thread, to
-prevent leaking a dangling thread.</li>
-<li><a class="reference external" href="https://bugs.python.org/issue31170">bpo-31170</a>: Update libexpat from
-2.2.3 to 2.2.4: fix copying of partial characters for UTF-8 input (<a class="reference external" href="https://github.com/libexpat/libexpat/issues/115">libexpat
-bug 115</a>). Later, I also
-wrote non-regression tests for this bug (libexpat doesn't have any test
-for this bug).</li>
-<li><a class="reference external" href="https://bugs.python.org/issue31499">bpo-31499</a>, <tt class="docutils literal">xml.etree</tt>:
-<tt class="docutils literal">xmlparser_gc_clear()</tt> now sets self.parser to <tt class="docutils literal">NULL</tt> to prevent a crash
-in <tt class="docutils literal">xmlparser_dealloc()</tt> if <tt class="docutils literal">xmlparser_gc_clear()</tt> was called previously
-by the garbage collector, because the parser was part of a reference cycle.
-Fix co-written with <strong>Serhiy Storchaka</strong>.</li>
-<li><a class="reference external" href="https://bugs.python.org/issue30892">bpo-30892</a>: Fix <tt class="docutils literal">_elementtree</tt>
-module initialization (accelerator of <tt class="docutils literal">xml.etree</tt>), handle correctly
-<tt class="docutils literal">getattr(copy, 'deepcopy')</tt> failure to not fail with an assertion error.</li>
-</ul>
-</div>
-<div class="section" id="other-changes">
-<h2>Other Changes</h2>
-<ul class="simple">
-<li><a class="reference external" href="https://bugs.python.org/issue30866">bpo-30866</a>: Add _testcapi.stack_pointer(). I used it to write the &quot;Stack
-consumption&quot; section of a previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q1.html">My contributions to CPython
-during 2017 Q1</a></li>
-<li>_ssl_: Fix compiler warning. Cast Py_buffer.len (Py_ssize_t, signed) to
-size_t (unsigned) to prevent the &quot;comparison between signed and unsigned
-integer expressions&quot; warning.</li>
-<li><a class="reference external" href="https://bugs.python.org/issue30486">bpo-30486</a>: Make cell_set_contents() symbol private. Don't export the
-<tt class="docutils literal">cell_set_contents()</tt> symbol in the C API.</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The …</p></div>
+                <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -184,8 +296,11 @@ integer expressions&quot; warning.</li>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
 </footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
 (july, august, september), Part 2: &quot;Dangling threads&quot;.</p>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html">My contributions to CPython during 2017 Q3: Part 1</a>. Next report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">My contributions
-to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</p>
+<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html">My contributions to CPython during 2017 Q3: Part 1</a>.</p>
+<p>Next reports:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
+</ul>
 <p>Summary:</p>
 <ul class="simple">
 <li>Bugfixes: Reference cycles</li>
@@ -403,45 +518,6 @@ identify failing tests in the CPython test suite.</p>
 <p>I am fixing reference leaks since many years. When the test file contains more
 than 200 tests and is longer than 5,000 lines …</p></div>
                 <a class="readmore" href="https://vstinner.github.io/python-test-bisect.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/contrib-cpython-2017q1.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q1">My contributions to CPython during 2017 Q1</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-07-05T12:00:00+02:00">
-                Published: mer. 05 juillet 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q1
-(january, februrary, march):</p>
-<ul class="simple">
-<li>Statistics</li>
-<li>Optimization</li>
-<li>Tricky bug</li>
-<li>FASTCALL optimizations</li>
-<li>Stack consumption</li>
-<li>Contributions</li>
-<li>os.urandom() and getrandom()</li>
-<li>Migration to GitHub</li>
-<li>Enhancements</li>
-<li>Security</li>
-<li>regrtest</li>
-<li>Bugfixes</li>
-</ul>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2016q4.html">My contributions to CPython during 2016 Q4</a>. Next report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">My contributions to
-CPython during 2017 Q2 (part 1 …</a></p>
-                <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
