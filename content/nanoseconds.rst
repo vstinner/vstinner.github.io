@@ -2,113 +2,112 @@
 Python 3.7 nanoseconds
 ++++++++++++++++++++++
 
-:date: 2018-03-06 17:00
+:date: 2018-03-06 16:30
 :tags: cpython
 :category: python
-:slug: python37-nanoseconds
+:slug: python37-pep-564-nanoseconds
 :authors: Victor Stinner
 
 Thanks to my `latest change on time.perf_counter()
 <{filename}/perf_counter_nanoseconds.rst>`_, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-:pep:`564`.
+:pep:`564` "Add new time functions with nanosecond resolution". While the PEP
+was discussed, I also deprecated ``time.clock()`` and removed
+``os.stat_float_times()``.
+
+.. image:: {filename}/images/clock.jpg
+   :alt: Old clock
+   :target: https://www.flickr.com/photos/dkalo/2909921582/
 
 time.clock()
-------------
+============
 
-bpo-31803: ``time.clock()`` and ``time.get_clock_info('clock')`` now emit a
-DeprecationWarning warning. Replace ``time.clock()`` with
-``time.perf_counter()`` in tests and demos.
+Since I wrote the :pep:`418` "Add monotonic time, performance counter, and
+process time functions" in 2012, I dislike ``time.clock()``. This clock is not
+portable: on Windows it mesures wall-clock, whereas it measures CPU time on
+Unix. Extract of `time.clock() documentation
+<https://docs.python.org/dev/library/time.html#time.clock>`_:
 
-Remove also ``hasattr(time, 'monotonic')`` in ``test_time`` since
+    *Deprecated since version 3.3: The behaviour of this function depends on
+    the platform: use perf_counter() or process_time() instead, depending on
+    your requirements, to have a well defined behaviour.*
+
+My PEP 418 deprecated ``time.clock()`` in the documentation. In `bpo-31803
+<https://bugs.python.org/issue31803>`__, I modified ``time.clock()`` and
+``time.get_clock_info('clock')`` to also emit a ``DeprecationWarning`` warning.
+I replaced ``time.clock()`` with ``time.perf_counter()`` in tests and demos. I
+also removed ``hasattr(time, 'monotonic')`` in ``test_time`` since
 ``time.monotonic()`` is always available since Python 3.5.
 
 os.stat_float_times()
----------------------
+=====================
 
-os.stat_float_times() was introduced in Python 2.3 to get file modification
-times with sub-second resolution. The default remains to get time as seconds
-(integer). See commit f607bdaa77475ec8c94614414dc2cecf8fd1ca0a.
+The ``os.stat_float_times()`` function was introduced in Python 2.3 to get file
+modification times with sub-second resolution (commit `f607bdaa
+<https://github.com/python/cpython/commit/f607bdaa77475ec8c94614414dc2cecf8fd1ca0a>`__),
+the default was still to get time as seconds (integer). The function was
+introduced to get a smooth transition to time as floating point number, to keep
+the backward compatibility with Python 2.2.
 
-The function was introduced to get a smooth transition to time as floating
-point number, to keep the backward compatibility with Python 2.2.
+``os.stat()`` was modified to return time as float by default in Python 2.5
+(commit `fe33d0ba
+<https://github.com/python/cpython/commit/fe33d0ba87f5468b50f939724b303969711f3be5>`__).
+Python 2.5 was released 11 years ago, I consider that people had enough time to
+migrate their code to float time :-) I modified ``os.stat_float_times()`` in
+Python 3.1 to emit a ``DeprecationWarning`` warning (commit `034d0aa2
+<https://github.com/python/cpython/commit/034d0aa2171688c40cee1a723ddcdb85bbce31e8>`__
+of `bpo-14711 <https://bugs.python.org/issue14711>`__).
 
-In Python 2.5, os.stat() returns time as float by default: commit
-fe33d0ba87f5468b50f939724b303969711f3be5.
+Finally, I removed ``os.stat_float_times()`` in Python 3.7: `bpo-31827
+<https://bugs.python.org/issue31827>`__.
 
-Python 2.5 was released 11 years ago. I consider that people had enough time to
-migrate their code to float time :-)
+Serhiy Storchaka proposed to also remove last three items from
+``os.stat_result``. For example, ``stat_result[stat.ST_MTIME]`` could be
+replaced with ``stat_result.st_time``.  But I tried to remove these items and
+it broke the ``logging`` module, so I decided to leave it unchanged.
 
-I modified os.stat_float_times() to emit a DeprecationWarning in Python 3.1:
-commit 034d0aa2171688c40cee1a723ddcdb85bbce31e8 (bpo-14711).
+PEP 564: time.time_ns()
+=======================
 
-bpo-31827: Remove os.stat_float_times().
+Six years ago (2012), I wrote the :pep:`410` "Use decimal.Decimal type for
+timestamps" which proposes a large and complex change in all Python functions
+returning time to support nanosecond resolution using the ``decimal.Decimal``
+type.  The PEP was `rejected for different reasons
+<https://mail.python.org/pipermail/python-dev/2012-February/116837.html>`_.
 
-Serhiy: "stat_result is a named 10-tuple, containing several additional
-attributes. The last three items are st_atime, st_mtime and st_ctime as
-integers. Accessing them by name returns floats. Isn't a time to make them
-floats when access stat_result as a tuple?"
+Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
+:pep:`564` "Add new time functions with nanosecond resolution". Abstract:
 
-I tried to remove the backward compatibility layer: I modified
-stat_result[ST_MTIME] to return float rather than int. Problem: it broke
-test_logging, the code deciding if a log file should be rotated or not.
+    Add six new "nanosecond" variants of existing functions to the ``time``
+    module: ``clock_gettime_ns()``, ``clock_settime_ns()``,
+    ``monotonic_ns()``, ``perf_counter_ns()``, ``process_time_ns()`` and
+    ``time_ns()``.  While similar to the existing functions without the
+    ``_ns`` suffix, they provide nanosecond resolution: they return a number of
+    nanoseconds as a Python ``int``.
 
-While I'm not strongly opposed to modify stat_result[ST_MTIME], I prefer to do
-it in a separated PR. Moreover, we need maybe to emit a DeprecationWarning, or
-at least deprecate the feature in the doc, before changing the type, no?"
-
-Serhiy: "I agree, it should be done in a separate issue. It needs a
-special discussion. And maybe this can't be changed."
-
-faulthandler timeout
---------------------
-
-faulthandler now uses the _PyTime_t C type rather than double for timeout. Use
-the _PyTime_t type rather than double for the faulthandler timeout in
-the ``dump_traceback_later()`` function.
-
-This change should fix the following Coverity warning::
-
-    CID 1420311:  Incorrect expression  (UNINTENDED_INTEGER_DIVISION)
-    Dividing integer expressions "9223372036854775807LL" and "1000LL",
-    and then converting the integer quotient to type "double". Any
-    remainder, or fractional part of the quotient, is ignored.
-
-        if ((timeout * 1e6) >= (double) PY_TIMEOUT_MAX) {
-
-The warning comes from ``(double)PY_TIMEOUT_MAX`` with::
-
-    #define PY_TIMEOUT_MAX (PY_LLONG_MAX / 1000)
-
-PEP 564
--------
-
-Six years ago (2012), I wrote PEP 410 which proposes a large and complex change
-in all Python functions returning time to support nanosecond resolution using
-the decimal.Decimal type. The PEP was rejected for different reasons.
-
-Since all Python clock now use internally _PyTime_t, I wrote the PEP 564
-to propose to add ``_ns()`` clock variants like ``time.time_ns()``: return
-time as an integer number of nanoseconds.
+    The ``time.time_ns()`` resolution is 3 times better than the ``time.time()``
+    resolution on Linux and Windows.
 
 People were now convinced by the need for nanosecond resolution, so I
-added a "Issues caused by precision loss" section with 2 examples:
+added an "Issues caused by precision loss" section with 2 examples:
 
 * Example 1: measure time delta in long-running process
 * Example 2: compare times with different resolution
 
 As for my previous PEP 410, many people proposed many alternatives recorded in
-the PEP: sub-nanosecond resolution, modifying time.time() result type,
+the PEP: sub-nanosecond resolution, modifying ``time.time()`` result type,
 different types, different API, a new module, etc.
 
+Hopefully for me, Guido van Rossum quickly approved my PEP for Python 3.7!
+
 Implementaton of the PEP 564
-----------------------------
+============================
 
-bpo-31784, commit c29b585fd4b5a91d17fc5dd41d86edff28a30da3: Implement PEP 564:
-add ``time.time_ns()``.
-
-Add new time functions:
+I implemented my PEP 564 in `bpo-31784 <https://bugs.python.org/issue31784>`__
+with the commit `c29b585f
+<https://github.com/python/cpython/commit/c29b585fd4b5a91d17fc5dd41d86edff28a30da3>`__.
+I added 6 new time functions:
 
 * ``time.clock_gettime_ns()``
 * ``time.clock_settime_ns()``
@@ -117,19 +116,25 @@ Add new time functions:
 * ``time.process_time_ns()``
 * ``time.time_ns()``
 
-Add new _PyTime functions:
+Example::
 
-* ``_PyTime_FromTimespec()``
-* ``_PyTime_FromNanosecondsObject()``
-* ``_PyTime_FromTimeval()``
+    $ python3.7
+    Python 3.7.0b2+ (heads/3.7:31e2b76f7b, Mar  6 2018, 15:31:29)
+    [GCC 7.2.1 20170915 (Red Hat 7.2.1-2)] on linux
+    >>> import time
+    >>> time.time()
+    1520354387.7663522
+    >>> time.time_ns()
+    1520354388319257562
 
-Other changes:
+I also added tests on ``os.times()`` in ``test_os``, previously the function
+wasn't tested at all!
 
-* Add ``os.times()`` tests to ``test_os``.
-* ``pytime_fromtimeval()`` and ``pytime_fromtimeval()`` now return
-  ``_PyTime_MAX`` or ``_PyTime_MIN`` on overflow, rather than undefined
-  behaviour
-* ``_PyTime_FromNanoseconds()`` parameter type changes from ``long long`` to
-  ``_PyTime_t``
+Conclusion
+==========
 
+I added 6 new functions to get time with a nanosecond resolution like
+``time.time_ns()`` with my approved :pep:`564`. I also modified
+``time.clock()`` to emit a ``DeprecationWarning`` and I removed the legacy
+``os.stat_float_times()`` function.
 

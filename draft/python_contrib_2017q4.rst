@@ -256,6 +256,27 @@ Coverity
     +        double fsize_z = (double)digits * log_base_BASE[base] + 1.0;
     +        if (fsize_z > (double)MAX_LONG_DIGITS) {
 
+Coverity
+--------
+
+faulthandler now uses the _PyTime_t C type rather than double for timeout. Use
+the _PyTime_t type rather than double for the faulthandler timeout in
+the ``dump_traceback_later()`` function.
+
+This change should fix the following Coverity warning::
+
+    CID 1420311:  Incorrect expression  (UNINTENDED_INTEGER_DIVISION)
+    Dividing integer expressions "9223372036854775807LL" and "1000LL",
+    and then converting the integer quotient to type "double". Any
+    remainder, or fractional part of the quotient, is ignored.
+
+        if ((timeout * 1e6) >= (double) PY_TIMEOUT_MAX) {
+
+The warning comes from ``(double)PY_TIMEOUT_MAX`` with::
+
+    #define PY_TIMEOUT_MAX (PY_LLONG_MAX / 1000)
+
+
 
 Bugfixes
 ========
