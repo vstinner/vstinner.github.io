@@ -8,8 +8,23 @@ Python 3.7 perf_counter() nanoseconds
 :slug: python37-perf-counter-nanoseconds
 :authors: Victor Stinner
 
+Since 2012, I am trying to convert all Python clocks to use internally
+nanoseconds. The last clock which still used floating point internally was
+``time.perf_counter()``. INADA Naoki's new importtime tool was an opportunity
+for me to have a new look on a tricky integer overflow issue.
+
+Conclusion
+==========
+
+INADA Naoki's importtime tool was using ``time.monotonic()`` clock which failed
+to measure short imports on Windows. I modified it to use
+``time.perf_counter()`` internally to get better precision on Windows.  I had
+precision loss caused by my internal ``_PyTime_t`` type to store time as
+nanoseconds, but with some maths, I succeeded to use nanoseconds and prevent
+any risk of integer overflow.
+
 Modify importtime to use time.perf_counter() clock
---------------------------------------------------
+==================================================
 
 INADA Naoki added to Python 3.7 a new cool `-X importtime
 <https://docs.python.org/dev/using/cmdline.html#id5>`_ command line option to
@@ -45,7 +60,7 @@ numbers were just zeros. Example::
 C level and I modified "importtime" to use it. Problem solved! ... almost...
 
 Double integer-float conversions
---------------------------------
+================================
 
 My commit `a997c7b4
 <https://github.com/python/cpython/commit/a997c7b434631f51e00191acea2ba6097691e859>`__
@@ -62,22 +77,24 @@ loss of precision. I computed the conversions start to loose precision starting
 after a single second with ``QueryPerformanceFrequency()`` equals to
 ``3,579,545`` (3.6 MHz).
 
-I modified ``time.clock()`` and ``time.perf_counter()`` to not use
-``_PyTime_t`` anymore, only double.
+To fix the precision los, I modified again ``time.clock()`` and
+``time.perf_counter()`` to not use ``_PyTime_t`` anymore, only double.
 
 Some maths to avoid the precision loss
---------------------------------------
+======================================
 
-I'm trying to convert all Python clocks to ``_PyTime_t`` since 6 years (2012),
-so I was grumpy of being blocked by a single clock, especially because the
-issue was specific to Windows. The Linux implementation of
+My change to replace ``_PyTime_t`` with ``double`` made me sad since I'm trying
+to convert all Python clocks to ``_PyTime_t`` since 6 years (2012).
+
+I was grumpy of being blocked by a single clock, especially because the issue
+is specific to the Windows implementation. The Linux implementation of
 ``time.perf_counter()`` uses ``clock_gettime()`` which directly returns
 nanoseconds as integers.
 
 I looked at the clock sources in the Linux kernel source code: Linux clocks
 only use integers and support nanosecond resolution. I'm always impressed by
-the quality of the Linux kernel source code. The code is straightforward C
-code. If Linux is able to use integers to various kinds of clocks, I should be
+the quality of the Linux kernel source code, the code is straightforward C
+code. If Linux is able to use integers for various kinds of clocks, I should be
 able to use integers for my specific Windows implementations of
 ``time.perf_counter()``, no?
 
@@ -86,17 +103,17 @@ is::
 
     (QueryPerformanceCounter() * 1_000_000_000) / QueryPerformanceFrequency()
 
-where ``1_000_000_000`` is the number of nanoseconds in one second. The problem
-is to prevent integer overflow on the first part, using ``_PyTime_t`` which is
+where ``1_000_000_000`` is the number of nanoseconds in one second. **The problem
+is to prevent integer overflow** on the first part, using ``_PyTime_t`` which is
 ``int64_t`` in practice::
 
     QueryPerformanceCounter() * 1_000_000_000
 
-Using a pencil and a sheet of paper and some maths, I found a solution::
+Using a pencil, a sheet of paper and some maths, I found a solution! ::
 
     (a * b) / q == (a / q) * b + ((a % q) * b) / q
 
-It reduces the maximum value of temporary values. The C implementation becomes::
+It reduces the maximum value of temporary values. C implementation::
 
     Py_LOCAL_INLINE(_PyTime_t)
     _PyTime_MulDiv(_PyTime_t ticks, _PyTime_t mul, _PyTime_t div)
@@ -115,6 +132,25 @@ It reduces the maximum value of temporary values. The C implementation becomes::
         return intpart * mul + remaining;
     }
 
+Simplified Windows implementation of perf_counter()::
+
+    _PyTime_t win_perf_counter(void)
+    {
+        LARGE_INTEGER freq;
+        LONGLONG frequency;
+        LARGE_INTEGER now;
+        LONGLONG ticksll;
+        _PyTime_t ticks;
+
+        (void)QueryPerformanceFrequency(&freq);
+        frequency = freq.QuadPart;
+
+        QueryPerformanceCounter(&now);
+        ticksll = now.QuadPart;
+        ticks = (_PyTime_t)ticksll;
+
+        return _PyTime_MulDiv(ticks, SEC_TO_NS, (_PyTime_t)frequency);
+    }
 
 On Windows, I added the following sanity checks to make sure that integer
 overflows cannot occur::
@@ -156,3 +192,20 @@ Since I also modified the macOS implementation of ``time.monotonic()`` to use
                         "mach_timebase_info is too large");
         return -1;
     }
+
+pytime.c source code
+====================
+
+If you are curious, the full code lives at `Python/pytime.c
+<https://github.com/python/cpython/blob/master/Python/pytime.c>`_ and is
+currently around 1,100 lines of C code.
+
+Conclusion
+==========
+
+INADA Naoki's importtime tool was using ``time.monotonic()`` clock which failed
+to measure short imports on Windows. I modified it to use
+``time.perf_counter()`` internally to get better precision on Windows.  I had
+precision loss caused by my internal ``_PyTime_t`` type to store time as
+nanoseconds, but with some maths, I succeeded to use nanoseconds and prevent
+any risk of integer overflow.
