@@ -45,6 +45,60 @@ specific to Python 2.7 or 3.6, security fixes)
 UTF-8 Mode
 ==========
 
+PEP 540 -- Add a new UTF-8 Mode
+https://www.python.org/dev/peps/pep-0540/
+
+BDFL-Delegate: INADA Naoki
+
+Abstract
+--------
+
+Add a new "UTF-8 Mode" to enhance Python's use of UTF-8.  When UTF-8 Mode
+is active, Python will:
+
+* use the ``utf-8`` encoding, irregardless of the locale currently set by
+  the current platform, and
+* change the ``stdin`` and ``stdout`` error handlers to
+  ``surrogateescape``.
+
+This mode is off by default, but is automatically activated when using
+the "POSIX" locale.
+
+Add the ``-X utf8`` command line option and ``PYTHONUTF8`` environment
+variable to control UTF-8 Mode.
+
+Version History
+---------------
+
+* Version 4: ``locale.getpreferredencoding()`` now returns ``'UTF-8'``
+  in the UTF-8 Mode.
+* Version 3: The UTF-8 Mode does not change the ``open()`` default error
+  handler (``strict``) anymore, and the Strict UTF-8 Mode has been
+  removed.
+* Version 2: Rewrite the PEP from scratch to make it much shorter and
+  easier to understand.
+* Version 1: First version posted to python-dev.
+
+Post History
+------------
+
+* 2017-12: `[Python-Dev] PEP 540: Add a new UTF-8 Mode
+  <https://mail.python.org/pipermail/python-dev/2017-December/151054.html>`_
+* 2017-04: `[Python-Dev] Proposed BDFL Delegate update for PEPs 538 &
+  540 (assuming UTF-8 for *nix system boundaries)
+  <https://mail.python.org/pipermail/python-dev/2017-April/147795.html>`_
+* 2017-01: `[Python-ideas] PEP 540: Add a new UTF-8 Mode
+  <https://mail.python.org/pipermail/python-ideas/2017-January/044089.html>`_
+* 2017-01: `bpo-28180: Implementation of the PEP 538: coerce C locale to
+  C.utf-8 (msg284764) <https://bugs.python.org/issue28180#msg284764>`_
+* 2016-08-17: `bpo-27781: Change sys.getfilesystemencoding() on Windows
+  to UTF-8 (msg272916) <https://bugs.python.org/issue27781#msg272916>`_
+  -- Victor proposed ``-X utf8`` for the :pep:`529` (Change Windows
+  filesystem encoding to UTF-8)
+
+Implementation
+--------------
+
 Commit::
 
     commit 91106cd9ff2f321c0f60fbaa09fd46c80aa5c266
