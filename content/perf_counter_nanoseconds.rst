@@ -8,7 +8,7 @@ Python 3.7 perf_counter() nanoseconds
 :slug: python37-perf-counter-nanoseconds
 :authors: Victor Stinner
 
-Since 2012, I am trying to convert all Python clocks to use internally
+Since 2012, I have been trying to convert all Python clocks to use internally
 nanoseconds. The last clock which still used floating point internally was
 ``time.perf_counter()``. INADA Naoki's new importtime tool was an opportunity
 for me to have a new look on a tricky integer overflow issue.
@@ -95,10 +95,10 @@ Grumpy Victor
 .. image:: {filename}/images/grumpy.jpg
    :alt: Grumpy
 
-My change to replace ``_PyTime_t`` with ``double`` made me grumpy. I am
+My change to replace ``_PyTime_t`` with ``double`` made me grumpy. I have been
 trying to convert all Python clocks to ``_PyTime_t`` since 6 years (2012).
 
-I was grumpy of being blocked by a single clock, especially because the issue
+Being blocked by a single clock made me grumpy, especially because the issue
 is specific to the Windows implementation. The Linux implementation of
 ``time.perf_counter()`` uses ``clock_gettime()`` which directly returns
 nanoseconds as integers, no division needed to get time as ``_PyTime_t``.
@@ -118,7 +118,7 @@ is::
     (QueryPerformanceCounter() * 1_000_000_000) / QueryPerformanceFrequency()
 
 where ``1_000_000_000`` is the number of nanoseconds in one second. **The problem
-is to prevent integer overflow** on the first part, using ``_PyTime_t`` which is
+is preventing integer overflow** on the first part, using ``_PyTime_t`` which is
 ``int64_t`` in practice::
 
     QueryPerformanceCounter() * 1_000_000_000
@@ -134,7 +134,7 @@ Using a pencil, a sheet of paper and some maths, I found a solution! ::
 .. image:: {filename}/images/math_rocks.jpg
    :alt: Math rocks
 
-It prevents the risk of integer overflow. C implementation::
+This prevents the risk of integer overflow. C implementation::
 
     Py_LOCAL_INLINE(_PyTime_t)
     _PyTime_MulDiv(_PyTime_t ticks, _PyTime_t mul, _PyTime_t div)
