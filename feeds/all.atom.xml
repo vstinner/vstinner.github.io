@@ -107,12 +107,12 @@ wasn't tested at all!&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; to emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and I removed the legacy
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; function.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I am trying to convert all Python clocks to use internally
+</content><category term="cpython"></category></entry><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I have been trying to convert all Python clocks to use internally
 nanoseconds. The last clock which still used floating point internally was
 &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;. INADA Naoki's new importtime tool was an opportunity
 for me to have a new look on a tricky integer overflow issue.&lt;/p&gt;
 &lt;div class="section" id="modify-importtime-to-use-time-perf-counter-clock"&gt;
-&lt;h2&gt;Modify importtime to …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;Since 2012, I am trying to convert all Python clocks to use internally
+&lt;h2&gt;Modify importtime …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;Since 2012, I have been trying to convert all Python clocks to use internally
 nanoseconds. The last clock which still used floating point internally was
 &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;. INADA Naoki's new importtime tool was an opportunity
 for me to have a new look on a tricky integer overflow issue.&lt;/p&gt;
@@ -186,9 +186,9 @@ starting after a single second with &lt;tt class="docutils literal"&gt;QueryPerf
 &lt;div class="section" id="grumpy-victor"&gt;
 &lt;h2&gt;Grumpy Victor&lt;/h2&gt;
 &lt;img alt="Grumpy" src="https://vstinner.github.io/images/grumpy.jpg" /&gt;
-&lt;p&gt;My change to replace &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;double&lt;/tt&gt; made me grumpy. I am
+&lt;p&gt;My change to replace &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;double&lt;/tt&gt; made me grumpy. I have been
 trying to convert all Python clocks to &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; since 6 years (2012).&lt;/p&gt;
-&lt;p&gt;I was grumpy of being blocked by a single clock, especially because the issue
+&lt;p&gt;Being blocked by a single clock made me grumpy, especially because the issue
 is specific to the Windows implementation. The Linux implementation of
 &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; uses &lt;tt class="docutils literal"&gt;clock_gettime()&lt;/tt&gt; which directly returns
 nanoseconds as integers, no division needed to get time as &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt;.&lt;/p&gt;
@@ -205,7 +205,7 @@ is:&lt;/p&gt;
 (QueryPerformanceCounter() * 1_000_000_000) / QueryPerformanceFrequency()
 &lt;/pre&gt;
 &lt;p&gt;where &lt;tt class="docutils literal"&gt;1_000_000_000&lt;/tt&gt; is the number of nanoseconds in one second. &lt;strong&gt;The problem
-is to prevent integer overflow&lt;/strong&gt; on the first part, using &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; which is
+is preventing integer overflow&lt;/strong&gt; on the first part, using &lt;tt class="docutils literal"&gt;_PyTime_t&lt;/tt&gt; which is
 &lt;tt class="docutils literal"&gt;int64_t&lt;/tt&gt; in practice:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 QueryPerformanceCounter() * 1_000_000_000
@@ -218,7 +218,7 @@ QueryPerformanceCounter() * 1_000_000_000
 (a * b) / q == (a / q) * b + ((a % q) * b) / q
 &lt;/pre&gt;
 &lt;img alt="Math rocks" src="https://vstinner.github.io/images/math_rocks.jpg" /&gt;
-&lt;p&gt;It prevents the risk of integer overflow. C implementation:&lt;/p&gt;
+&lt;p&gt;This prevents the risk of integer overflow. C implementation:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 Py_LOCAL_INLINE(_PyTime_t)
 _PyTime_MulDiv(_PyTime_t ticks, _PyTime_t mul, _PyTime_t div)
