@@ -1,5 +1,113 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-06T15:00:00+01:00</updated><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I am trying to convert all Python clocks to use internally
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-06T16:30:00+01:00</updated><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
+nanoseconds as integer internally. It became possible to propose again my old
+idea of getting time as nanoseconds at Python level and so I wrote a new
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
+nanoseconds as integer internally. It became possible to propose again my old
+idea of getting time as nanoseconds at Python level and so I wrote a new
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. While the PEP
+was discussed, I also deprecated &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; and removed
+&lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt;.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"&gt;&lt;img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="time-clock"&gt;
+&lt;h2&gt;time.clock()&lt;/h2&gt;
+&lt;p&gt;Since I wrote the &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0418"&gt;PEP 418&lt;/a&gt; &amp;quot;Add monotonic time, performance counter, and
+process time functions&amp;quot; in 2012, I dislike &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt;. This clock is not
+portable: on Windows it mesures wall-clock, whereas it measures CPU time on
+Unix. Extract of &lt;a class="reference external" href="https://docs.python.org/dev/library/time.html#time.clock"&gt;time.clock() documentation&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;em&gt;Deprecated since version 3.3: The behaviour of this function depends on
+the platform: use perf_counter() or process_time() instead, depending on
+your requirements, to have a well defined behaviour.&lt;/em&gt;&lt;/blockquote&gt;
+&lt;p&gt;My PEP 418 deprecated &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; in the documentation. In &lt;a class="reference external" href="https://bugs.python.org/issue31803"&gt;bpo-31803&lt;/a&gt;, I modified &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;time.get_clock_info('clock')&lt;/span&gt;&lt;/tt&gt; to also emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; warning.
+I replaced &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt; in tests and demos. I
+also removed &lt;tt class="docutils literal"&gt;hasattr(time, 'monotonic')&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;test_time&lt;/tt&gt; since
+&lt;tt class="docutils literal"&gt;time.monotonic()&lt;/tt&gt; is always available since Python 3.5.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="os-stat-float-times"&gt;
+&lt;h2&gt;os.stat_float_times()&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; function was introduced in Python 2.3 to get file
+modification times with sub-second resolution (commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/f607bdaa77475ec8c94614414dc2cecf8fd1ca0a"&gt;f607bdaa&lt;/a&gt;),
+the default was still to get time as seconds (integer). The function was
+introduced to get a smooth transition to time as floating point number, to keep
+the backward compatibility with Python 2.2.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;os.stat()&lt;/tt&gt; was modified to return time as float by default in Python 2.5
+(commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/fe33d0ba87f5468b50f939724b303969711f3be5"&gt;fe33d0ba&lt;/a&gt;).
+Python 2.5 was released 11 years ago, I consider that people had enough time to
+migrate their code to float time :-) I modified &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; in
+Python 3.1 to emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; warning (commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/034d0aa2171688c40cee1a723ddcdb85bbce31e8"&gt;034d0aa2&lt;/a&gt;
+of &lt;a class="reference external" href="https://bugs.python.org/issue14711"&gt;bpo-14711&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Finally, I removed &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; in Python 3.7: &lt;a class="reference external" href="https://bugs.python.org/issue31827"&gt;bpo-31827&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Serhiy Storchaka proposed to also remove last three items from
+&lt;tt class="docutils literal"&gt;os.stat_result&lt;/tt&gt;. For example, &lt;tt class="docutils literal"&gt;stat_result[stat.ST_MTIME]&lt;/tt&gt; could be
+replaced with &lt;tt class="docutils literal"&gt;stat_result.st_time&lt;/tt&gt;.  But I tried to remove these items and
+it broke the &lt;tt class="docutils literal"&gt;logging&lt;/tt&gt; module, so I decided to leave it unchanged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-564-time-time-ns"&gt;
+&lt;h2&gt;PEP 564: time.time_ns()&lt;/h2&gt;
+&lt;p&gt;Six years ago (2012), I wrote the &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0410"&gt;PEP 410&lt;/a&gt; &amp;quot;Use decimal.Decimal type for
+timestamps&amp;quot; which proposes a large and complex change in all Python functions
+returning time to support nanosecond resolution using the &lt;tt class="docutils literal"&gt;decimal.Decimal&lt;/tt&gt;
+type.  The PEP was &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2012-February/116837.html"&gt;rejected for different reasons&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. Abstract:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Add six new &amp;quot;nanosecond&amp;quot; variants of existing functions to the &lt;tt class="docutils literal"&gt;time&lt;/tt&gt;
+module: &lt;tt class="docutils literal"&gt;clock_gettime_ns()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;clock_settime_ns()&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;monotonic_ns()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;perf_counter_ns()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;process_time_ns()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;time_ns()&lt;/tt&gt;.  While similar to the existing functions without the
+&lt;tt class="docutils literal"&gt;_ns&lt;/tt&gt; suffix, they provide nanosecond resolution: they return a number of
+nanoseconds as a Python &lt;tt class="docutils literal"&gt;int&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt; resolution is 3 times better than the &lt;tt class="docutils literal"&gt;time.time()&lt;/tt&gt;
+resolution on Linux and Windows.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;People were now convinced by the need for nanosecond resolution, so I
+added an &amp;quot;Issues caused by precision loss&amp;quot; section with 2 examples:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Example 1: measure time delta in long-running process&lt;/li&gt;
+&lt;li&gt;Example 2: compare times with different resolution&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;As for my previous PEP 410, many people proposed many alternatives recorded in
+the PEP: sub-nanosecond resolution, modifying &lt;tt class="docutils literal"&gt;time.time()&lt;/tt&gt; result type,
+different types, different API, a new module, etc.&lt;/p&gt;
+&lt;p&gt;Hopefully for me, Guido van Rossum quickly approved my PEP for Python 3.7!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="implementaton-of-the-pep-564"&gt;
+&lt;h2&gt;Implementaton of the PEP 564&lt;/h2&gt;
+&lt;p&gt;I implemented my PEP 564 in &lt;a class="reference external" href="https://bugs.python.org/issue31784"&gt;bpo-31784&lt;/a&gt;
+with the commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/c29b585fd4b5a91d17fc5dd41d86edff28a30da3"&gt;c29b585f&lt;/a&gt;.
+I added 6 new time functions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.clock_gettime_ns()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.clock_settime_ns()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.monotonic_ns()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.perf_counter_ns()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.process_time_ns()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.7
+Python 3.7.0b2+ (heads/3.7:31e2b76f7b, Mar  6 2018, 15:31:29)
+[GCC 7.2.1 20170915 (Red Hat 7.2.1-2)] on linux
+&amp;gt;&amp;gt;&amp;gt; import time
+&amp;gt;&amp;gt;&amp;gt; time.time()
+1520354387.7663522
+&amp;gt;&amp;gt;&amp;gt; time.time_ns()
+1520354388319257562
+&lt;/pre&gt;
+&lt;p&gt;I also added tests on &lt;tt class="docutils literal"&gt;os.times()&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;test_os&lt;/tt&gt;, previously the function
+wasn't tested at all!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;I added 6 new functions to get time with a nanosecond resolution like
+&lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt; with my approved &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt;. I also modified
+&lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; to emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and I removed the legacy
+&lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; function.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I am trying to convert all Python clocks to use internally
 nanoseconds. The last clock which still used floating point internally was
 &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;. INADA Naoki's new importtime tool was an opportunity
 for me to have a new look on a tricky integer overflow issue.&lt;/p&gt;

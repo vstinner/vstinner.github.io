@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>Python 3.7 nanoseconds</title>
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <nav><ul>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="bookmark"
+           title="Permalink to Python 3.7 nanoseconds">Python 3.7 nanoseconds</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2018-03-06T16:30:00+01:00">
+                Published: mar. 06 mars 2018
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
+nanoseconds as integer internally. It became possible to propose again my old
+idea of getting time as nanoseconds at Python level and so I wrote a new
+<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. While the PEP
+was discussed, I also deprecated <tt class="docutils literal">time.clock()</tt> and removed
+<tt class="docutils literal">os.stat_float_times()</tt>.</p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"><img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /></a>
+<div class="section" id="time-clock">
+<h2>time.clock()</h2>
+<p>Since I wrote the <a class="reference external" href="http://www.python.org/dev/peps/pep-0418">PEP 418</a> &quot;Add monotonic time, performance counter, and
+process time functions&quot; in 2012, I dislike <tt class="docutils literal">time.clock()</tt>. This clock is not
+portable: on Windows it mesures wall-clock, whereas it measures CPU time on
+Unix. Extract of <a class="reference external" href="https://docs.python.org/dev/library/time.html#time.clock">time.clock() documentation</a>:</p>
+<blockquote>
+<em>Deprecated since version 3.3: The behaviour of this function depends on
+the platform: use perf_counter() or process_time() instead, depending on
+your requirements, to have a well defined behaviour.</em></blockquote>
+<p>My PEP 418 deprecated <tt class="docutils literal">time.clock()</tt> in the documentation. In <a class="reference external" href="https://bugs.python.org/issue31803">bpo-31803</a>, I modified <tt class="docutils literal">time.clock()</tt> and
+<tt class="docutils literal"><span class="pre">time.get_clock_info('clock')</span></tt> to also emit a <tt class="docutils literal">DeprecationWarning</tt> warning.
+I replaced <tt class="docutils literal">time.clock()</tt> with <tt class="docutils literal">time.perf_counter()</tt> in tests and demos. I
+also removed <tt class="docutils literal">hasattr(time, 'monotonic')</tt> in <tt class="docutils literal">test_time</tt> since
+<tt class="docutils literal">time.monotonic()</tt> is always available since Python 3.5.</p>
+</div>
+<div class="section" id="os-stat-float-times">
+<h2>os.stat_float_times()</h2>
+<p>The <tt class="docutils literal">os.stat_float_times()</tt> function was introduced in Python 2.3 to get file
+modification times with sub-second resolution (commit <a class="reference external" href="https://github.com/python/cpython/commit/f607bdaa77475ec8c94614414dc2cecf8fd1ca0a">f607bdaa</a>),
+the default was still to get time as seconds (integer). The function was
+introduced to get a smooth transition to time as floating point number, to keep
+the backward compatibility with Python 2.2.</p>
+<p><tt class="docutils literal">os.stat()</tt> was modified to return time as float by default in Python 2.5
+(commit <a class="reference external" href="https://github.com/python/cpython/commit/fe33d0ba87f5468b50f939724b303969711f3be5">fe33d0ba</a>).
+Python 2.5 was released 11 years ago, I consider that people had enough time to
+migrate their code to float time :-) I modified <tt class="docutils literal">os.stat_float_times()</tt> in
+Python 3.1 to emit a <tt class="docutils literal">DeprecationWarning</tt> warning (commit <a class="reference external" href="https://github.com/python/cpython/commit/034d0aa2171688c40cee1a723ddcdb85bbce31e8">034d0aa2</a>
+of <a class="reference external" href="https://bugs.python.org/issue14711">bpo-14711</a>).</p>
+<p>Finally, I removed <tt class="docutils literal">os.stat_float_times()</tt> in Python 3.7: <a class="reference external" href="https://bugs.python.org/issue31827">bpo-31827</a>.</p>
+<p>Serhiy Storchaka proposed to also remove last three items from
+<tt class="docutils literal">os.stat_result</tt>. For example, <tt class="docutils literal">stat_result[stat.ST_MTIME]</tt> could be
+replaced with <tt class="docutils literal">stat_result.st_time</tt>.  But I tried to remove these items and
+it broke the <tt class="docutils literal">logging</tt> module, so I decided to leave it unchanged.</p>
+</div>
+<div class="section" id="pep-564-time-time-ns">
+<h2>PEP 564: time.time_ns()</h2>
+<p>Six years ago (2012), I wrote the <a class="reference external" href="http://www.python.org/dev/peps/pep-0410">PEP 410</a> &quot;Use decimal.Decimal type for
+timestamps&quot; which proposes a large and complex change in all Python functions
+returning time to support nanosecond resolution using the <tt class="docutils literal">decimal.Decimal</tt>
+type.  The PEP was <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2012-February/116837.html">rejected for different reasons</a>.</p>
+<p>Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
+<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. Abstract:</p>
+<blockquote>
+<p>Add six new &quot;nanosecond&quot; variants of existing functions to the <tt class="docutils literal">time</tt>
+module: <tt class="docutils literal">clock_gettime_ns()</tt>, <tt class="docutils literal">clock_settime_ns()</tt>,
+<tt class="docutils literal">monotonic_ns()</tt>, <tt class="docutils literal">perf_counter_ns()</tt>, <tt class="docutils literal">process_time_ns()</tt> and
+<tt class="docutils literal">time_ns()</tt>.  While similar to the existing functions without the
+<tt class="docutils literal">_ns</tt> suffix, they provide nanosecond resolution: they return a number of
+nanoseconds as a Python <tt class="docutils literal">int</tt>.</p>
+<p>The <tt class="docutils literal">time.time_ns()</tt> resolution is 3 times better than the <tt class="docutils literal">time.time()</tt>
+resolution on Linux and Windows.</p>
+</blockquote>
+<p>People were now convinced by the need for nanosecond resolution, so I
+added an &quot;Issues caused by precision loss&quot; section with 2 examples:</p>
+<ul class="simple">
+<li>Example 1: measure time delta in long-running process</li>
+<li>Example 2: compare times with different resolution</li>
+</ul>
+<p>As for my previous PEP 410, many people proposed many alternatives recorded in
+the PEP: sub-nanosecond resolution, modifying <tt class="docutils literal">time.time()</tt> result type,
+different types, different API, a new module, etc.</p>
+<p>Hopefully for me, Guido van Rossum quickly approved my PEP for Python 3.7!</p>
+</div>
+<div class="section" id="implementaton-of-the-pep-564">
+<h2>Implementaton of the PEP 564</h2>
+<p>I implemented my PEP 564 in <a class="reference external" href="https://bugs.python.org/issue31784">bpo-31784</a>
+with the commit <a class="reference external" href="https://github.com/python/cpython/commit/c29b585fd4b5a91d17fc5dd41d86edff28a30da3">c29b585f</a>.
+I added 6 new time functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">time.clock_gettime_ns()</tt></li>
+<li><tt class="docutils literal">time.clock_settime_ns()</tt></li>
+<li><tt class="docutils literal">time.monotonic_ns()</tt></li>
+<li><tt class="docutils literal">time.perf_counter_ns()</tt></li>
+<li><tt class="docutils literal">time.process_time_ns()</tt></li>
+<li><tt class="docutils literal">time.time_ns()</tt></li>
+</ul>
+<p>Example:</p>
+<pre class="literal-block">
+$ python3.7
+Python 3.7.0b2+ (heads/3.7:31e2b76f7b, Mar  6 2018, 15:31:29)
+[GCC 7.2.1 20170915 (Red Hat 7.2.1-2)] on linux
+&gt;&gt;&gt; import time
+&gt;&gt;&gt; time.time()
+1520354387.7663522
+&gt;&gt;&gt; time.time_ns()
+1520354388319257562
+</pre>
+<p>I also added tests on <tt class="docutils literal">os.times()</tt> in <tt class="docutils literal">test_os</tt>, previously the function
+wasn't tested at all!</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>I added 6 new functions to get time with a nanosecond resolution like
+<tt class="docutils literal">time.time_ns()</tt> with my approved <a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a>. I also modified
+<tt class="docutils literal">time.clock()</tt> to emit a <tt class="docutils literal">DeprecationWarning</tt> and I removed the legacy
+<tt class="docutils literal">os.stat_float_times()</tt> function.</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

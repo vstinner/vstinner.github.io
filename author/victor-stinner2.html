@@ -24,6 +24,32 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://vstinner.github.io/python-buildbots-2017q2.html" rel="bookmark"
+                           title="Permalink to Work on Python buildbots, 2017 Q2">Work on Python buildbots, 2017 Q2</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-07-13T09:00:00+02:00">
+                Published: jeu. 13 juillet 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>I spent the last 6 months on working on buildbots: reduce the failure rate,
+send email notitication on failure, fix random bugs, detect more bugs using
+warnings, backport fixes to older branches, etc. I decided to fix <em>all</em>
+buildbots issues: fix all warnings and all unstable tests!</p>
+<p>The good news …</p>
+                <a class="readmore" href="https://vstinner.github.io/python-buildbots-2017q2.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://vstinner.github.io/python-test-bisect.html" rel="bookmark"
                            title="Permalink to New Python test.bisect tool">New Python test.bisect tool</a></h1>
                 </header>
@@ -275,34 +301,6 @@ Instagram, Microsoft, and the PSF.</p>
 <a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
 <p>IMHO it was the most productive CPython week ever :-) Having …</p>
                 <a class="readmore" href="https://vstinner.github.io/cpython-sprint-2016.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/pep-524-os-urandom-blocking.html" rel="bookmark"
-                           title="Permalink to PEP 524: os.urandom() now blocks on Linux in Python 3.6">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-14T12:00:00+01:00">
-                Published: mar. 14 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/security.html">security</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="getrandom-avoids-file-descriptors">
-<h2>getrandom() avoids file descriptors</h2>
-<p>Last years, I'm making sometimes enhancements in the Python code used to
-generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
-changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
-available on Linux, Solaris, OpenBSD, etc.</p>
-<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/pep-524-os-urandom-blocking.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
