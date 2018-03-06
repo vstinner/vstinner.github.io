@@ -40,15 +40,18 @@ numbers were just zeros. Example::
     import time:         0 |          0 |       _stat
     (...)
 
-bpo-31415: I added a new C function ``_PyTime_GetPerfCounter()`` to access
-``time.perf_counter()`` at the C level and so use it in the "importtime" tool.
+`bpo-31415 <https://bugs.python.org/issue31415>`__: I added a new C function
+``_PyTime_GetPerfCounter()`` to access the ``time.perf_counter()`` clock at the
+C level and I modified "importtime" to use it. Problem solved! ... almost...
 
 Double integer-float conversions
 --------------------------------
 
-My commit a997c7b434631f51e00191acea2ba6097691e859 of bpo-31415 adding
-``_PyTime_GetPerfCounter()`` moved the C code (from ``Modules/timemodule.c`` to
-``Python/pytime.c``), but also changed the internal type storing time from
+My commit `a997c7b4
+<https://github.com/python/cpython/commit/a997c7b434631f51e00191acea2ba6097691e859>`__
+of `bpo-31415 <https://bugs.python.org/issue31415>`__ adding
+``_PyTime_GetPerfCounter()`` moved the C code from ``Modules/timemodule.c`` to
+``Python/pytime.c``, but also changed the internal type storing time from
 floatting point number (C ``double``) to integer number (``_PyTyime_t`` which
 is ``int64_t`` in practice).
 

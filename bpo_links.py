@@ -4,6 +4,7 @@ import sys
 
 
 FMT_BPO_URL = 'https://bugs.python.org/issue%s'
+FMT_COMMIT_URL = 'https://github.com/python/cpython/commit/%s'
 
 
 def replace_bpo(regs):
@@ -13,12 +14,20 @@ def replace_bpo(regs):
     return '`%s <%s>`__' % (text, url)
 
 
+def replace_commit(regs):
+    commit_id = regs.group(1)
+    url = FMT_COMMIT_URL % commit_id
+    text = commit_id[:8]
+    return 'commit `%s <%s>`__' % (text, url)
+
+
 def main():
     filename = sys.argv[1]
     with open(filename, encoding='utf8') as fp:
         content = fp.read()
 
-    content = re.sub('bpo-([0-9]{2,6})', replace_bpo, content)
+    content = re.sub(r'(?<!`)bpo-([0-9]{2,6})', replace_bpo, content)
+    content = re.sub(r'(?<!`)commit ([0-9a-f]{3,40})', replace_commit, content)
 
     with open(filename, 'w', encoding='utf8') as fp:
         fp.write(content)
