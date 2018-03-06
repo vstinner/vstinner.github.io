@@ -19,9 +19,26 @@ application startup time
 <https://dev.to/methane/how-to-speed-up-python-application-startup-time-nkf>`_
 (Jan 19, 2018) for an example.
 
-Naoki uses time.monotonic() internally for its feature. On Windows, this clock
-(``GetTickCount64()`` function) has a resolution around 15.6 ms, whereas most
-Python imports take less than 10 ms.
+Naoki chose to use the ``time.monotonic()`` clock internally to measure elapsed
+time. On Windows, this clock (``GetTickCount64()`` function) has a resolution
+around 15.6 ms, whereas most Python imports take less than 10 ms, and so most
+numbers were just zeros. Example::
+
+    f:\dev\3x>python -X importtime -c "import idlelib.pyshell"
+    Running Debug|Win32 interpreter...
+    import time: self [us] | cumulative | imported package
+    import time:         0 |          0 |     _codecs
+    import time:         0 |          0 |   codecs
+    import time:         0 |          0 |   encodings.aliases
+    import time:     15000 |      15000 | encodings
+    import time:         0 |          0 | encodings.utf_8
+    import time:         0 |          0 | _signal
+    import time:         0 |          0 | encodings.latin_1
+    import time:         0 |          0 |     _weakrefset
+    import time:         0 |          0 |   abc
+    import time:         0 |          0 | io
+    import time:         0 |          0 |       _stat
+    (...)
 
 bpo-31415: I added a new C function ``_PyTime_GetPerfCounter()`` to access
 ``time.perf_counter()`` at the C level and so use it in the "importtime" tool.
