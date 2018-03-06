@@ -8,16 +8,11 @@ Python 3.7 nanoseconds
 :slug: python37-nanoseconds
 :authors: Victor Stinner
 
-Six years ago (2012), I wrote PEP 410 which proposes a large and complex change
-of all Python functions returning time to support nanosecond resolution using
-the ``decimal.Decimal`` type. The PEP was rejected for different reasons.
-
-But I never abandonned my project. I modified CPython internals to use
-nanoseconds and so avoid precision loss, at least internally.
-
-Recently, I succeeded to reimplement ``time.perf_counter()`` to use nanoseconds
-internally, and so I wrote a new PEP 564 to read clocks with nanosecond
-resolution at the Python level.
+Thanks to my `latest change on time.perf_counter()
+<{filename}/perf_counter_nanoseconds.rst>`_, all Python 3.7 clocks now use
+nanoseconds as integer internally. It became possible to propose again my old
+idea of getting time as nanoseconds at Python level and so I wrote a new
+:pep:`564`.
 
 time.clock()
 ------------
