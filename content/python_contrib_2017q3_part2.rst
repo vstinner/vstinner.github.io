@@ -18,8 +18,6 @@ Next reports:
 
 * `My contributions to CPython during 2017 Q3: Part 3 (funny bugs)
   <{filename}/python_contrib_2017q3_part3.rst>`_.
-* `My contributions to CPython during 2017 Q4
-  <{filename}/python_contrib_2017q4.rst>`_.
 
 Summary:
 
