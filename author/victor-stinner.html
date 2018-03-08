@@ -22,7 +22,253 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">Python 3.7 nanoseconds</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/python37-gil-change.html">Digging GIL history and a GIL change for Python 3.7</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2018-03-08T10:00:00+01:00">
+                Published: jeu. 08 mars 2018
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL</strong> (Global
+Interpreter Lock), one of the critical part of Python. I had to dig the Git
+history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at this
+time, <em>threads were something esoteric</em>. Let me tell you my story.</p>
+<div class="section" id="fatal-python-error-caused-by-a-c-thread-and-the-gil">
+<h2>Fatal Python error caused by a C thread and the GIL</h2>
+<p>In March 2014, <strong>Steve Dower</strong> reported the bug <a class="reference external" href="https://bugs.python.org/issue20891">bpo-20891</a> when a &quot;C thread&quot; uses the Python C
+API:</p>
+<blockquote>
+<p>In Python 3.4rc3, calling <tt class="docutils literal">PyGILState_Ensure()</tt> from a thread that was
+not created by Python and without any calls to <tt class="docutils literal">PyEval_InitThreads()</tt>
+will cause a fatal exit:</p>
+<p><tt class="docutils literal">Fatal Python error: take_gil: NULL tstate</tt></p>
+</blockquote>
+<p>My first comment:</p>
+<blockquote>
+IMO it's a bug in <tt class="docutils literal">PyEval_InitThreads()</tt>.</blockquote>
+<a class="reference external image-reference" href="https://twitter.com/kwinkunks/status/619496450834087938"><img alt="Release the GIL!" src="https://vstinner.github.io/images/release_the_gil.png" /></a>
+</div>
+<div class="section" id="pygilstate-ensure-fix">
+<h2>PyGILState_Ensure() fix</h2>
+<p>I forgot the bug during 2 years. In March 2016, I modified Steve's test
+program to make it compatible with Linux (the test was written for Windows). I
+succeeded to reproduce the bug on my computer and I wrote a fix for
+<tt class="docutils literal">PyGILState_Ensure()</tt>.</p>
+<p>One year later, november 2017, <strong>Marcin Kasperski</strong> asked:</p>
+<blockquote>
+Is this fix released? I can't find it in the changelog…</blockquote>
+<p>Oops, again, I completely forgot this issue! This time, not only I <strong>applied my
+PyGILState_Ensure() fix</strong>, but I also wrote the <strong>unit test</strong>
+<tt class="docutils literal">test_embed.test_bpo20891()</tt>:</p>
+<blockquote>
+Ok, the bug is now fixed in Python 2.7, 3.6 and master (future 3.7). On 3.6
+and master, the fix comes with an unit test.</blockquote>
+<p>My fix for the master branch, commit <a class="reference external" href="https://github.com/python/cpython/commit/b4d1e1f7c1af6ae33f0e371576c8bcafedb099db">b4d1e1f7</a>:</p>
+<pre class="literal-block">
+bpo-20891: Fix PyGILState_Ensure() (#4650)
+
+When PyGILState_Ensure() is called in a non-Python thread before
+PyEval_InitThreads(), only call PyEval_InitThreads() after calling
+PyThreadState_New() to fix a crash.
+
+Add an unit test in test_embed.
+</pre>
+<p>And I closed the issue <a class="reference external" href="https://bugs.python.org/issue20891">bpo-20891</a>...</p>
+</div>
+<div class="section" id="random-crash-of-the-test-on-macos">
+<h2>Random crash of the test on macOS</h2>
+<p>Everything was fine... but one week later, I noticed <strong>random</strong> crashes on
+macOS buildbots on my newly added unit test. I succeeded to reproduce the bug
+manually, example of crash at the 3rd run:</p>
+<pre class="literal-block">
+macbook:master haypo$ while true; do ./Programs/_testembed bpo20891 ||break; date; done
+Lun  4 déc 2017 12:46:34 CET
+Lun  4 déc 2017 12:46:34 CET
+Lun  4 déc 2017 12:46:34 CET
+Fatal Python error: PyEval_SaveThread: NULL tstate
+
+Current thread 0x00007fffa5dff3c0 (most recent call first):
+Abort trap: 6
+</pre>
+<p><tt class="docutils literal">test_embed.test_bpo20891()</tt> on macOS showed a race condition in
+<tt class="docutils literal">PyGILState_Ensure()</tt>: the creation of the GIL lock itself... was not
+protected by a lock! Adding a new lock to check if Python currently has the GIL
+lock doesn't make sense...</p>
+<p>I proposed an incomplete fix for <tt class="docutils literal">PyThread_start_new_thread()</tt>:</p>
+<blockquote>
+I found a working fix: call <tt class="docutils literal">PyEval_InitThreads()</tt> in
+<tt class="docutils literal">PyThread_start_new_thread()</tt>. So the GIL is created as soon as a second
+thread is spawned. The GIL cannot be created anymore while two threads are
+running. At least, with the <tt class="docutils literal">python</tt> binary. It doesn't fix the issue if
+a thread is not spawned by Python, but this thread calls
+<tt class="docutils literal">PyGILState_Ensure()</tt>.</blockquote>
+</div>
+<div class="section" id="why-not-always-create-the-gil">
+<h2>Why not always create the GIL?</h2>
+<p><strong>Antoine Pitrou</strong> asked a simple question:</p>
+<blockquote>
+Why not <em>always</em> call <tt class="docutils literal">PyEval_InitThreads()</tt> at interpreter
+initialization? Are there any downsides?</blockquote>
+<p>Thanks to <tt class="docutils literal">git blame</tt> and <tt class="docutils literal">git log</tt>, I found the origin of the code
+creating the GIL &quot;on demand&quot;, <strong>a change made 26 years ago</strong>!</p>
+<pre class="literal-block">
+commit 1984f1e1c6306d4e8073c28d2395638f80ea509b
+Author: Guido van Rossum &lt;guido&#64;python.org&gt;
+Date:   Tue Aug 4 12:41:02 1992 +0000
+
+    * Makefile adapted to changes below.
+    * split pythonmain.c in two: most stuff goes to pythonrun.c, in the library.
+    * new optional built-in threadmodule.c, build upon Sjoerd's thread.{c,h}.
+    * new module from Sjoerd: mmmodule.c (dynamically loaded).
+    * new module from Sjoerd: sv (svgen.py, svmodule.c.proto).
+    * new files thread.{c,h} (from Sjoerd).
+    * new xxmodule.c (example only).
+    * myselect.h: bzero -&gt; memset
+    * select.c: bzero -&gt; memset; removed global variable
+
+(...)
+
++void
++init_save_thread()
++{
++#ifdef USE_THREAD
++       if (interpreter_lock)
++               fatal(&quot;2nd call to init_save_thread&quot;);
++       interpreter_lock = allocate_lock();
++       acquire_lock(interpreter_lock, 1);
++#endif
++}
++#endif
+</pre>
+<p>My guess was that the intent of dynamically created GIL is to reduce the
+&quot;overhead&quot; of the GIL for applications only using a single Python thread (never
+spawn a new Python thread).</p>
+<p>Luckily, <strong>Guido van Rossum</strong> was around and was able to elaborate the
+rationale:</p>
+<blockquote>
+Yeah, the original reasoning was that <strong>threads were something esoteric and
+not used by most code</strong>, and at the time we definitely felt that <strong>always
+using the GIL would cause a (tiny) slowdown</strong> and <strong>increase the risk of
+crashes</strong> due to bugs in the GIL code. I'd be happy to learn that we no
+longer need to worry about this and <strong>can just always initialize it</strong>.</blockquote>
+</div>
+<div class="section" id="second-fix-for-py-initialize-proposed">
+<h2>Second fix for Py_Initialize() proposed</h2>
+<p>I proposed a <strong>second fix</strong> for <tt class="docutils literal">Py_Initialize()</tt> to always create the GIL as
+soon as Python starts, and no longer &quot;on demand&quot;, to prevent any risk of a race
+condition:</p>
+<pre class="literal-block">
++    /* Create the GIL */
++    PyEval_InitThreads();
+</pre>
+<p><strong>Nick Coghlan</strong> asked if I could you run my patch through the performance
+benchmarks. I ran <a class="reference external" href="http://pyperformance.readthedocs.io/">pyperformance</a> on my <a class="reference external" href="https://github.com/python/cpython/pull/4700/">PR 4700</a>. Differences of at least 5%:</p>
+<pre class="literal-block">
+haypo&#64;speed-python$ python3 -m perf compare_to \
+    2017-12-18_12-29-master-bd6ec4d79e85.json.gz \
+    2017-12-18_12-29-master-bd6ec4d79e85-patch-4700.json.gz \
+    --table --min-speed=5
+
++----------------------+--------------------------------------+-------------------------------------------------+
+| Benchmark            | 2017-12-18_12-29-master-bd6ec4d79e85 | 2017-12-18_12-29-master-bd6ec4d79e85-patch-4700 |
++======================+======================================+=================================================+
+| pathlib              | 41.8 ms                              | 44.3 ms: 1.06x slower (+6%)                     |
++----------------------+--------------------------------------+-------------------------------------------------+
+| scimark_monte_carlo  | 197 ms                               | 210 ms: 1.07x slower (+7%)                      |
++----------------------+--------------------------------------+-------------------------------------------------+
+| spectral_norm        | 243 ms                               | 269 ms: 1.11x slower (+11%)                     |
++----------------------+--------------------------------------+-------------------------------------------------+
+| sqlite_synth         | 7.30 us                              | 8.13 us: 1.11x slower (+11%)                    |
++----------------------+--------------------------------------+-------------------------------------------------+
+| unpickle_pure_python | 707 us                               | 796 us: 1.13x slower (+13%)                     |
++----------------------+--------------------------------------+-------------------------------------------------+
+
+Not significant (55): 2to3; chameleon; chaos; (...)
+</pre>
+<p>Oh, 5 benchmarks were slower. Performance regressions are not welcome in
+Python: we are working hard on <a class="reference external" href="https://lwn.net/Articles/725114/">making Python faster</a>!</p>
+</div>
+<div class="section" id="skip-the-failing-test-before-christmas">
+<h2>Skip the failing test before Christmas</h2>
+<p>I didn't expect that 5 benchmarks would be slower. It required further
+investigation, but I didn't have time for that and I was too shy or ashame to
+take the responsibility of pushing a performance regression.</p>
+<p>Before the christmas holiday, no decision was taken whereas
+<tt class="docutils literal">test_embed.test_bpo20891()</tt> was still failing randomly on macOS buildbots.
+I <strong>was not confortable to touch a critical part of Python</strong>, its GIL, just
+before leaving for two weeks. So I decided to skip <tt class="docutils literal">test_bpo20891()</tt> until
+I'm back.</p>
+<p>No gift for you, Python 3.7.</p>
+<a class="reference external image-reference" href="https://drawception.com/panel/drawing/0teL3336/charlie-brown-sad-about-small-christmas-tree/"><img alt="Sad Christmas tree" src="https://vstinner.github.io/images/sad_christmas_tree.png" /></a>
+</div>
+<div class="section" id="new-benchmark-run-and-second-fix-applied-to-master">
+<h2>New benchmark run and second fix applied to master</h2>
+<p>At the end of january 2018, I ran again the 5 benchmarks made slower by my PR.
+I ran these benchmarks manually on my laptop using CPU isolation:</p>
+<pre class="literal-block">
+vstinner&#64;apu$ python3 -m perf compare_to ref.json patch.json --table
+Not significant (5): unpickle_pure_python; sqlite_synth; spectral_norm; pathlib; scimark_monte_carlo
+</pre>
+<p>Ok, it confirms that my second fix has <strong>no significant impact on
+performances</strong> according to the <a class="reference external" href="http://pyperformance.readthedocs.io/">Python &quot;performance&quot; benchmark suite</a>.</p>
+<p>I decided to <strong>push my fix</strong> to the master branch, commit <a class="reference external" href="https://github.com/python/cpython/commit/2914bb32e2adf8dff77c0ca58b33201bc94e398c">2914bb32</a>:</p>
+<pre class="literal-block">
+bpo-20891: Py_Initialize() now creates the GIL (#4700)
+
+The GIL is no longer created &quot;on demand&quot; to fix a race condition when
+PyGILState_Ensure() is called in a non-Python thread.
+</pre>
+<p>Then I reenabled <tt class="docutils literal">test_embed.test_bpo20891()</tt> on the master branch.</p>
+</div>
+<div class="section" id="no-second-fix-for-python-2-7-and-3-6-sorry">
+<h2>No second fix for Python 2.7 and 3.6, sorry!</h2>
+<p><strong>Antoine Pitrou</strong> considered that backport for Python 3.6 <a class="reference external" href="https://github.com/python/cpython/pull/5421#issuecomment-361214537">should not be
+merged</a>:</p>
+<blockquote>
+I don't think so. People can already call <tt class="docutils literal">PyEval_InitThreads()</tt>.</blockquote>
+<p><strong>Guido van Rossum</strong> didn't want to backport this change neither. So I only
+removed <tt class="docutils literal">test_embed.test_bpo20891()</tt> from the 3.6 branch.</p>
+<p>I didn't apply my second fix to Python 2.7 neither for the same reason.
+Moreover, Python 2.7 has no unit test, since it was too difficult to backport
+it.</p>
+<p>At least, Python 2.7 and 3.6 got my first <tt class="docutils literal">PyGILState_Ensure()</tt> fix.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>Python still has some race conditions in corner cases. Such bug was found in
+the creation of the GIL when a C thread starts using the Python API. I pushed a
+first fix, but a new and different race condition was found on macOS.</p>
+<p>I had to dig into the very old history (1992) of the Python GIL. Luckily,
+<strong>Guido van Rossum</strong> was also able to elaborate the rationale.</p>
+<p>After a glitch in benchmarks, we agreed to modify Python 3.7 to always create
+the GIL, instead of creating the GIL &quot;on demand&quot;. The change has no significant
+impact on performances.</p>
+<p>It was also decided to leave Python 2.7 and 3.6 unchanged, to prevent any risk
+of regression: continue to create the GIL &quot;on demand&quot;.</p>
+<p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL.</strong> I am never
+confortable when touching such <strong>critical part</strong> of Python. I am now happy that
+the bug is behind us: it's now fully fixed in the future Python 3.7!</p>
+<p>See <a class="reference external" href="https://bugs.python.org/issue20891">bpo-20891</a> for the full story.
+Thanks to all developers who helped me to fix this bug!</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="bookmark"
+                           title="Permalink to Python 3.7 nanoseconds">Python 3.7 nanoseconds</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2018-03-06T16:30:00+01:00">
                 Published: mar. 06 mars 2018
@@ -33,117 +279,13 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
+</footer><!-- /.post-info -->                <p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. While the PEP
-was discussed, I also deprecated <tt class="docutils literal">time.clock()</tt> and removed
-<tt class="docutils literal">os.stat_float_times()</tt>.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"><img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /></a>
-<div class="section" id="time-clock">
-<h2>time.clock()</h2>
-<p>Since I wrote the <a class="reference external" href="http://www.python.org/dev/peps/pep-0418">PEP 418</a> &quot;Add monotonic time, performance counter, and
-process time functions&quot; in 2012, I dislike <tt class="docutils literal">time.clock()</tt>. This clock is not
-portable: on Windows it mesures wall-clock, whereas it measures CPU time on
-Unix. Extract of <a class="reference external" href="https://docs.python.org/dev/library/time.html#time.clock">time.clock() documentation</a>:</p>
-<blockquote>
-<em>Deprecated since version 3.3: The behaviour of this function depends on
-the platform: use perf_counter() or process_time() instead, depending on
-your requirements, to have a well defined behaviour.</em></blockquote>
-<p>My PEP 418 deprecated <tt class="docutils literal">time.clock()</tt> in the documentation. In <a class="reference external" href="https://bugs.python.org/issue31803">bpo-31803</a>, I modified <tt class="docutils literal">time.clock()</tt> and
-<tt class="docutils literal"><span class="pre">time.get_clock_info('clock')</span></tt> to also emit a <tt class="docutils literal">DeprecationWarning</tt> warning.
-I replaced <tt class="docutils literal">time.clock()</tt> with <tt class="docutils literal">time.perf_counter()</tt> in tests and demos. I
-also removed <tt class="docutils literal">hasattr(time, 'monotonic')</tt> in <tt class="docutils literal">test_time</tt> since
-<tt class="docutils literal">time.monotonic()</tt> is always available since Python 3.5.</p>
-</div>
-<div class="section" id="os-stat-float-times">
-<h2>os.stat_float_times()</h2>
-<p>The <tt class="docutils literal">os.stat_float_times()</tt> function was introduced in Python 2.3 to get file
-modification times with sub-second resolution (commit <a class="reference external" href="https://github.com/python/cpython/commit/f607bdaa77475ec8c94614414dc2cecf8fd1ca0a">f607bdaa</a>),
-the default was still to get time as seconds (integer). The function was
-introduced to get a smooth transition to time as floating point number, to keep
-the backward compatibility with Python 2.2.</p>
-<p><tt class="docutils literal">os.stat()</tt> was modified to return time as float by default in Python 2.5
-(commit <a class="reference external" href="https://github.com/python/cpython/commit/fe33d0ba87f5468b50f939724b303969711f3be5">fe33d0ba</a>).
-Python 2.5 was released 11 years ago, I consider that people had enough time to
-migrate their code to float time :-) I modified <tt class="docutils literal">os.stat_float_times()</tt> in
-Python 3.1 to emit a <tt class="docutils literal">DeprecationWarning</tt> warning (commit <a class="reference external" href="https://github.com/python/cpython/commit/034d0aa2171688c40cee1a723ddcdb85bbce31e8">034d0aa2</a>
-of <a class="reference external" href="https://bugs.python.org/issue14711">bpo-14711</a>).</p>
-<p>Finally, I removed <tt class="docutils literal">os.stat_float_times()</tt> in Python 3.7: <a class="reference external" href="https://bugs.python.org/issue31827">bpo-31827</a>.</p>
-<p>Serhiy Storchaka proposed to also remove last three items from
-<tt class="docutils literal">os.stat_result</tt>. For example, <tt class="docutils literal">stat_result[stat.ST_MTIME]</tt> could be
-replaced with <tt class="docutils literal">stat_result.st_time</tt>.  But I tried to remove these items and
-it broke the <tt class="docutils literal">logging</tt> module, so I decided to leave it unchanged.</p>
-</div>
-<div class="section" id="pep-564-time-time-ns">
-<h2>PEP 564: time.time_ns()</h2>
-<p>Six years ago (2012), I wrote the <a class="reference external" href="http://www.python.org/dev/peps/pep-0410">PEP 410</a> &quot;Use decimal.Decimal type for
-timestamps&quot; which proposes a large and complex change in all Python functions
-returning time to support nanosecond resolution using the <tt class="docutils literal">decimal.Decimal</tt>
-type.  The PEP was <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2012-February/116837.html">rejected for different reasons</a>.</p>
-<p>Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
-<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. Abstract:</p>
-<blockquote>
-<p>Add six new &quot;nanosecond&quot; variants of existing functions to the <tt class="docutils literal">time</tt>
-module: <tt class="docutils literal">clock_gettime_ns()</tt>, <tt class="docutils literal">clock_settime_ns()</tt>,
-<tt class="docutils literal">monotonic_ns()</tt>, <tt class="docutils literal">perf_counter_ns()</tt>, <tt class="docutils literal">process_time_ns()</tt> and
-<tt class="docutils literal">time_ns()</tt>.  While similar to the existing functions without the
-<tt class="docutils literal">_ns</tt> suffix, they provide nanosecond resolution: they return a number of
-nanoseconds as a Python <tt class="docutils literal">int</tt>.</p>
-<p>The <tt class="docutils literal">time.time_ns()</tt> resolution is 3 times better than the <tt class="docutils literal">time.time()</tt>
-resolution on Linux and Windows.</p>
-</blockquote>
-<p>People were now convinced by the need for nanosecond resolution, so I
-added an &quot;Issues caused by precision loss&quot; section with 2 examples:</p>
-<ul class="simple">
-<li>Example 1: measure time delta in long-running process</li>
-<li>Example 2: compare times with different resolution</li>
-</ul>
-<p>As for my previous PEP 410, many people proposed many alternatives recorded in
-the PEP: sub-nanosecond resolution, modifying <tt class="docutils literal">time.time()</tt> result type,
-different types, different API, a new module, etc.</p>
-<p>Hopefully for me, Guido van Rossum quickly approved my PEP for Python 3.7!</p>
-</div>
-<div class="section" id="implementaton-of-the-pep-564">
-<h2>Implementaton of the PEP 564</h2>
-<p>I implemented my PEP 564 in <a class="reference external" href="https://bugs.python.org/issue31784">bpo-31784</a>
-with the commit <a class="reference external" href="https://github.com/python/cpython/commit/c29b585fd4b5a91d17fc5dd41d86edff28a30da3">c29b585f</a>.
-I added 6 new time functions:</p>
-<ul class="simple">
-<li><tt class="docutils literal">time.clock_gettime_ns()</tt></li>
-<li><tt class="docutils literal">time.clock_settime_ns()</tt></li>
-<li><tt class="docutils literal">time.monotonic_ns()</tt></li>
-<li><tt class="docutils literal">time.perf_counter_ns()</tt></li>
-<li><tt class="docutils literal">time.process_time_ns()</tt></li>
-<li><tt class="docutils literal">time.time_ns()</tt></li>
-</ul>
-<p>Example:</p>
-<pre class="literal-block">
-$ python3.7
-Python 3.7.0b2+ (heads/3.7:31e2b76f7b, Mar  6 2018, 15:31:29)
-[GCC 7.2.1 20170915 (Red Hat 7.2.1-2)] on linux
-&gt;&gt;&gt; import time
-&gt;&gt;&gt; time.time()
-1520354387.7663522
-&gt;&gt;&gt; time.time_ns()
-1520354388319257562
-</pre>
-<p>I also added tests on <tt class="docutils literal">os.times()</tt> in <tt class="docutils literal">test_os</tt>, previously the function
-wasn't tested at all!</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>I added 6 new functions to get time with a nanosecond resolution like
-<tt class="docutils literal">time.time_ns()</tt> with my approved <a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a>. I also modified
-<tt class="docutils literal">time.clock()</tt> to emit a <tt class="docutils literal">DeprecationWarning</tt> and I removed the legacy
-<tt class="docutils literal">os.stat_float_times()</tt> function.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond …</p>
+                <a class="readmore" href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -392,38 +534,6 @@ macros with function calls.</p>
 <p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part 1)</a>.</p>
 <p>Next report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html">My contributions to CPython during 2017 Q2 …</a></p>
                 <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q2-part2.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q2 (part 1)">My contributions to CPython during 2017 Q2 (part 1)</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-07-13T16:00:00+02:00">
-                Published: jeu. 13 juillet 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>This is the first part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
-<ul class="simple">
-<li>Statistics</li>
-<li>Buidbots and test.bisect</li>
-<li>Python 3.6.0 regression</li>
-<li>struct.Struct.format type</li>
-<li>Optimization: one less syscall per open() call</li>
-<li>make regen-all</li>
-</ul>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a>.</p>
-<p>Next reports …</p>
-                <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

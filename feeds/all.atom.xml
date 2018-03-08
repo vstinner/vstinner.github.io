@@ -1,5 +1,230 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-06T16:30:00+01:00</updated><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-08T10:00:00+01:00</updated><entry><title>Digging GIL history and a GIL change for Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
+Interpreter Lock), one of the critical part of Python. I had to dig the Git
+history to find a &lt;strong&gt;change made 26 years ago&lt;/strong&gt; by &lt;strong&gt;Guido van Rossum&lt;/strong&gt;: at this
+time, &lt;em&gt;threads were something …&lt;/em&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
+Interpreter Lock), one of the critical part of Python. I had to dig the Git
+history to find a &lt;strong&gt;change made 26 years ago&lt;/strong&gt; by &lt;strong&gt;Guido van Rossum&lt;/strong&gt;: at this
+time, &lt;em&gt;threads were something esoteric&lt;/em&gt;. Let me tell you my story.&lt;/p&gt;
+&lt;div class="section" id="fatal-python-error-caused-by-a-c-thread-and-the-gil"&gt;
+&lt;h2&gt;Fatal Python error caused by a C thread and the GIL&lt;/h2&gt;
+&lt;p&gt;In March 2014, &lt;strong&gt;Steve Dower&lt;/strong&gt; reported the bug &lt;a class="reference external" href="https://bugs.python.org/issue20891"&gt;bpo-20891&lt;/a&gt; when a &amp;quot;C thread&amp;quot; uses the Python C
+API:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In Python 3.4rc3, calling &lt;tt class="docutils literal"&gt;PyGILState_Ensure()&lt;/tt&gt; from a thread that was
+not created by Python and without any calls to &lt;tt class="docutils literal"&gt;PyEval_InitThreads()&lt;/tt&gt;
+will cause a fatal exit:&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Fatal Python error: take_gil: NULL tstate&lt;/tt&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;My first comment:&lt;/p&gt;
+&lt;blockquote&gt;
+IMO it's a bug in &lt;tt class="docutils literal"&gt;PyEval_InitThreads()&lt;/tt&gt;.&lt;/blockquote&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/kwinkunks/status/619496450834087938"&gt;&lt;img alt="Release the GIL!" src="https://vstinner.github.io/images/release_the_gil.png" /&gt;&lt;/a&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pygilstate-ensure-fix"&gt;
+&lt;h2&gt;PyGILState_Ensure() fix&lt;/h2&gt;
+&lt;p&gt;I forgot the bug during 2 years. In March 2016, I modified Steve's test
+program to make it compatible with Linux (the test was written for Windows). I
+succeeded to reproduce the bug on my computer and I wrote a fix for
+&lt;tt class="docutils literal"&gt;PyGILState_Ensure()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;One year later, november 2017, &lt;strong&gt;Marcin Kasperski&lt;/strong&gt; asked:&lt;/p&gt;
+&lt;blockquote&gt;
+Is this fix released? I can't find it in the changelog…&lt;/blockquote&gt;
+&lt;p&gt;Oops, again, I completely forgot this issue! This time, not only I &lt;strong&gt;applied my
+PyGILState_Ensure() fix&lt;/strong&gt;, but I also wrote the &lt;strong&gt;unit test&lt;/strong&gt;
+&lt;tt class="docutils literal"&gt;test_embed.test_bpo20891()&lt;/tt&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Ok, the bug is now fixed in Python 2.7, 3.6 and master (future 3.7). On 3.6
+and master, the fix comes with an unit test.&lt;/blockquote&gt;
+&lt;p&gt;My fix for the master branch, commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/b4d1e1f7c1af6ae33f0e371576c8bcafedb099db"&gt;b4d1e1f7&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+bpo-20891: Fix PyGILState_Ensure() (#4650)
+
+When PyGILState_Ensure() is called in a non-Python thread before
+PyEval_InitThreads(), only call PyEval_InitThreads() after calling
+PyThreadState_New() to fix a crash.
+
+Add an unit test in test_embed.
+&lt;/pre&gt;
+&lt;p&gt;And I closed the issue &lt;a class="reference external" href="https://bugs.python.org/issue20891"&gt;bpo-20891&lt;/a&gt;...&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="random-crash-of-the-test-on-macos"&gt;
+&lt;h2&gt;Random crash of the test on macOS&lt;/h2&gt;
+&lt;p&gt;Everything was fine... but one week later, I noticed &lt;strong&gt;random&lt;/strong&gt; crashes on
+macOS buildbots on my newly added unit test. I succeeded to reproduce the bug
+manually, example of crash at the 3rd run:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+macbook:master haypo$ while true; do ./Programs/_testembed bpo20891 ||break; date; done
+Lun  4 déc 2017 12:46:34 CET
+Lun  4 déc 2017 12:46:34 CET
+Lun  4 déc 2017 12:46:34 CET
+Fatal Python error: PyEval_SaveThread: NULL tstate
+
+Current thread 0x00007fffa5dff3c0 (most recent call first):
+Abort trap: 6
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;test_embed.test_bpo20891()&lt;/tt&gt; on macOS showed a race condition in
+&lt;tt class="docutils literal"&gt;PyGILState_Ensure()&lt;/tt&gt;: the creation of the GIL lock itself... was not
+protected by a lock! Adding a new lock to check if Python currently has the GIL
+lock doesn't make sense...&lt;/p&gt;
+&lt;p&gt;I proposed an incomplete fix for &lt;tt class="docutils literal"&gt;PyThread_start_new_thread()&lt;/tt&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I found a working fix: call &lt;tt class="docutils literal"&gt;PyEval_InitThreads()&lt;/tt&gt; in
+&lt;tt class="docutils literal"&gt;PyThread_start_new_thread()&lt;/tt&gt;. So the GIL is created as soon as a second
+thread is spawned. The GIL cannot be created anymore while two threads are
+running. At least, with the &lt;tt class="docutils literal"&gt;python&lt;/tt&gt; binary. It doesn't fix the issue if
+a thread is not spawned by Python, but this thread calls
+&lt;tt class="docutils literal"&gt;PyGILState_Ensure()&lt;/tt&gt;.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="why-not-always-create-the-gil"&gt;
+&lt;h2&gt;Why not always create the GIL?&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Antoine Pitrou&lt;/strong&gt; asked a simple question:&lt;/p&gt;
+&lt;blockquote&gt;
+Why not &lt;em&gt;always&lt;/em&gt; call &lt;tt class="docutils literal"&gt;PyEval_InitThreads()&lt;/tt&gt; at interpreter
+initialization? Are there any downsides?&lt;/blockquote&gt;
+&lt;p&gt;Thanks to &lt;tt class="docutils literal"&gt;git blame&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;git log&lt;/tt&gt;, I found the origin of the code
+creating the GIL &amp;quot;on demand&amp;quot;, &lt;strong&gt;a change made 26 years ago&lt;/strong&gt;!&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 1984f1e1c6306d4e8073c28d2395638f80ea509b
+Author: Guido van Rossum &amp;lt;guido&amp;#64;python.org&amp;gt;
+Date:   Tue Aug 4 12:41:02 1992 +0000
+
+    * Makefile adapted to changes below.
+    * split pythonmain.c in two: most stuff goes to pythonrun.c, in the library.
+    * new optional built-in threadmodule.c, build upon Sjoerd's thread.{c,h}.
+    * new module from Sjoerd: mmmodule.c (dynamically loaded).
+    * new module from Sjoerd: sv (svgen.py, svmodule.c.proto).
+    * new files thread.{c,h} (from Sjoerd).
+    * new xxmodule.c (example only).
+    * myselect.h: bzero -&amp;gt; memset
+    * select.c: bzero -&amp;gt; memset; removed global variable
+
+(...)
+
++void
++init_save_thread()
++{
++#ifdef USE_THREAD
++       if (interpreter_lock)
++               fatal(&amp;quot;2nd call to init_save_thread&amp;quot;);
++       interpreter_lock = allocate_lock();
++       acquire_lock(interpreter_lock, 1);
++#endif
++}
++#endif
+&lt;/pre&gt;
+&lt;p&gt;My guess was that the intent of dynamically created GIL is to reduce the
+&amp;quot;overhead&amp;quot; of the GIL for applications only using a single Python thread (never
+spawn a new Python thread).&lt;/p&gt;
+&lt;p&gt;Luckily, &lt;strong&gt;Guido van Rossum&lt;/strong&gt; was around and was able to elaborate the
+rationale:&lt;/p&gt;
+&lt;blockquote&gt;
+Yeah, the original reasoning was that &lt;strong&gt;threads were something esoteric and
+not used by most code&lt;/strong&gt;, and at the time we definitely felt that &lt;strong&gt;always
+using the GIL would cause a (tiny) slowdown&lt;/strong&gt; and &lt;strong&gt;increase the risk of
+crashes&lt;/strong&gt; due to bugs in the GIL code. I'd be happy to learn that we no
+longer need to worry about this and &lt;strong&gt;can just always initialize it&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="second-fix-for-py-initialize-proposed"&gt;
+&lt;h2&gt;Second fix for Py_Initialize() proposed&lt;/h2&gt;
+&lt;p&gt;I proposed a &lt;strong&gt;second fix&lt;/strong&gt; for &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt; to always create the GIL as
+soon as Python starts, and no longer &amp;quot;on demand&amp;quot;, to prevent any risk of a race
+condition:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
++    /* Create the GIL */
++    PyEval_InitThreads();
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;Nick Coghlan&lt;/strong&gt; asked if I could you run my patch through the performance
+benchmarks. I ran &lt;a class="reference external" href="http://pyperformance.readthedocs.io/"&gt;pyperformance&lt;/a&gt; on my &lt;a class="reference external" href="https://github.com/python/cpython/pull/4700/"&gt;PR 4700&lt;/a&gt;. Differences of at least 5%:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+haypo&amp;#64;speed-python$ python3 -m perf compare_to \
+    2017-12-18_12-29-master-bd6ec4d79e85.json.gz \
+    2017-12-18_12-29-master-bd6ec4d79e85-patch-4700.json.gz \
+    --table --min-speed=5
+
++----------------------+--------------------------------------+-------------------------------------------------+
+| Benchmark            | 2017-12-18_12-29-master-bd6ec4d79e85 | 2017-12-18_12-29-master-bd6ec4d79e85-patch-4700 |
++======================+======================================+=================================================+
+| pathlib              | 41.8 ms                              | 44.3 ms: 1.06x slower (+6%)                     |
++----------------------+--------------------------------------+-------------------------------------------------+
+| scimark_monte_carlo  | 197 ms                               | 210 ms: 1.07x slower (+7%)                      |
++----------------------+--------------------------------------+-------------------------------------------------+
+| spectral_norm        | 243 ms                               | 269 ms: 1.11x slower (+11%)                     |
++----------------------+--------------------------------------+-------------------------------------------------+
+| sqlite_synth         | 7.30 us                              | 8.13 us: 1.11x slower (+11%)                    |
++----------------------+--------------------------------------+-------------------------------------------------+
+| unpickle_pure_python | 707 us                               | 796 us: 1.13x slower (+13%)                     |
++----------------------+--------------------------------------+-------------------------------------------------+
+
+Not significant (55): 2to3; chameleon; chaos; (...)
+&lt;/pre&gt;
+&lt;p&gt;Oh, 5 benchmarks were slower. Performance regressions are not welcome in
+Python: we are working hard on &lt;a class="reference external" href="https://lwn.net/Articles/725114/"&gt;making Python faster&lt;/a&gt;!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="skip-the-failing-test-before-christmas"&gt;
+&lt;h2&gt;Skip the failing test before Christmas&lt;/h2&gt;
+&lt;p&gt;I didn't expect that 5 benchmarks would be slower. It required further
+investigation, but I didn't have time for that and I was too shy or ashame to
+take the responsibility of pushing a performance regression.&lt;/p&gt;
+&lt;p&gt;Before the christmas holiday, no decision was taken whereas
+&lt;tt class="docutils literal"&gt;test_embed.test_bpo20891()&lt;/tt&gt; was still failing randomly on macOS buildbots.
+I &lt;strong&gt;was not confortable to touch a critical part of Python&lt;/strong&gt;, its GIL, just
+before leaving for two weeks. So I decided to skip &lt;tt class="docutils literal"&gt;test_bpo20891()&lt;/tt&gt; until
+I'm back.&lt;/p&gt;
+&lt;p&gt;No gift for you, Python 3.7.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://drawception.com/panel/drawing/0teL3336/charlie-brown-sad-about-small-christmas-tree/"&gt;&lt;img alt="Sad Christmas tree" src="https://vstinner.github.io/images/sad_christmas_tree.png" /&gt;&lt;/a&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-benchmark-run-and-second-fix-applied-to-master"&gt;
+&lt;h2&gt;New benchmark run and second fix applied to master&lt;/h2&gt;
+&lt;p&gt;At the end of january 2018, I ran again the 5 benchmarks made slower by my PR.
+I ran these benchmarks manually on my laptop using CPU isolation:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+vstinner&amp;#64;apu$ python3 -m perf compare_to ref.json patch.json --table
+Not significant (5): unpickle_pure_python; sqlite_synth; spectral_norm; pathlib; scimark_monte_carlo
+&lt;/pre&gt;
+&lt;p&gt;Ok, it confirms that my second fix has &lt;strong&gt;no significant impact on
+performances&lt;/strong&gt; according to the &lt;a class="reference external" href="http://pyperformance.readthedocs.io/"&gt;Python &amp;quot;performance&amp;quot; benchmark suite&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I decided to &lt;strong&gt;push my fix&lt;/strong&gt; to the master branch, commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/2914bb32e2adf8dff77c0ca58b33201bc94e398c"&gt;2914bb32&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+bpo-20891: Py_Initialize() now creates the GIL (#4700)
+
+The GIL is no longer created &amp;quot;on demand&amp;quot; to fix a race condition when
+PyGILState_Ensure() is called in a non-Python thread.
+&lt;/pre&gt;
+&lt;p&gt;Then I reenabled &lt;tt class="docutils literal"&gt;test_embed.test_bpo20891()&lt;/tt&gt; on the master branch.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="no-second-fix-for-python-2-7-and-3-6-sorry"&gt;
+&lt;h2&gt;No second fix for Python 2.7 and 3.6, sorry!&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Antoine Pitrou&lt;/strong&gt; considered that backport for Python 3.6 &lt;a class="reference external" href="https://github.com/python/cpython/pull/5421#issuecomment-361214537"&gt;should not be
+merged&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I don't think so. People can already call &lt;tt class="docutils literal"&gt;PyEval_InitThreads()&lt;/tt&gt;.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Guido van Rossum&lt;/strong&gt; didn't want to backport this change neither. So I only
+removed &lt;tt class="docutils literal"&gt;test_embed.test_bpo20891()&lt;/tt&gt; from the 3.6 branch.&lt;/p&gt;
+&lt;p&gt;I didn't apply my second fix to Python 2.7 neither for the same reason.
+Moreover, Python 2.7 has no unit test, since it was too difficult to backport
+it.&lt;/p&gt;
+&lt;p&gt;At least, Python 2.7 and 3.6 got my first &lt;tt class="docutils literal"&gt;PyGILState_Ensure()&lt;/tt&gt; fix.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Python still has some race conditions in corner cases. Such bug was found in
+the creation of the GIL when a C thread starts using the Python API. I pushed a
+first fix, but a new and different race condition was found on macOS.&lt;/p&gt;
+&lt;p&gt;I had to dig into the very old history (1992) of the Python GIL. Luckily,
+&lt;strong&gt;Guido van Rossum&lt;/strong&gt; was also able to elaborate the rationale.&lt;/p&gt;
+&lt;p&gt;After a glitch in benchmarks, we agreed to modify Python 3.7 to always create
+the GIL, instead of creating the GIL &amp;quot;on demand&amp;quot;. The change has no significant
+impact on performances.&lt;/p&gt;
+&lt;p&gt;It was also decided to leave Python 2.7 and 3.6 unchanged, to prevent any risk
+of regression: continue to create the GIL &amp;quot;on demand&amp;quot;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL.&lt;/strong&gt; I am never
+confortable when touching such &lt;strong&gt;critical part&lt;/strong&gt; of Python. I am now happy that
+the bug is behind us: it's now fully fixed in the future Python 3.7!&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://bugs.python.org/issue20891"&gt;bpo-20891&lt;/a&gt; for the full story.
+Thanks to all developers who helped me to fix this bug!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
 &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
