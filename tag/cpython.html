@@ -34,9 +34,9 @@
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
 </footer><!-- /.post-info --><p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL</strong> (Global
-Interpreter Lock), one of the critical part of Python. I had to dig the Git
-history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at this
-time, <em>threads were something esoteric</em>. Let me tell you my story.</p>
+Interpreter Lock), one of the most critical part of Python. I had to dig the
+Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
+this time, <em>threads were something esoteric</em>. Let me tell you my story.</p>
 <div class="section" id="fatal-python-error-caused-by-a-c-thread-and-the-gil">
 <h2>Fatal Python error caused by a C thread and the GIL</h2>
 <p>In March 2014, <strong>Steve Dower</strong> reported the bug <a class="reference external" href="https://bugs.python.org/issue20891">bpo-20891</a> when a &quot;C thread&quot; uses the Python C
