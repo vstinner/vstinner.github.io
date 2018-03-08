@@ -9,9 +9,9 @@ How I fixed an old GIL race condition in Python 3.7
 :authors: Victor Stinner
 
 **It took me 4 years to fix a nasty bug in the famous Python GIL** (Global
-Interpreter Lock), one of the critical part of Python. I had to dig the Git
-history to find a **change made 26 years ago** by **Guido van Rossum**: at this
-time, *threads were something esoteric*. Let me tell you my story.
+Interpreter Lock), one of the most critical part of Python. I had to dig the
+Git history to find a **change made 26 years ago** by **Guido van Rossum**: at
+this time, *threads were something esoteric*. Let me tell you my story.
 
 Fatal Python error caused by a C thread and the GIL
 ===================================================
