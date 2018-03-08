@@ -26,12 +26,17 @@ def main():
     with open(filename, encoding='utf8') as fp:
         content = fp.read()
 
-    content = re.sub(r'(?<!`)bpo-([0-9]{2,6})', replace_bpo, content)
-    content = re.sub(r'(?<!`)commit ([0-9a-f]{3,40})', replace_commit, content)
+    old_content = content
+    content = re.sub(r'(?<!    )(?<!`)bpo-([0-9]{2,6})', replace_bpo, content)
+    content = re.sub(r'(?<!    )(?<!`)commit ([0-9a-f]{3,40})', replace_commit, content)
 
-    with open(filename, 'w', encoding='utf8') as fp:
-        fp.write(content)
-        fp.flush()
+    if content != old_content:
+        print("Write %s" % filename)
+        with open(filename, 'w', encoding='utf8') as fp:
+            fp.write(content)
+            fp.flush()
+    else:
+        print("No change")
 
 
 if __name__ == "__main__":
