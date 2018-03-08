@@ -1,5 +1,5 @@
 +++++++++++++++++++++++++++++++++++++++++++++++++++
-Digging GIL history and a GIL change for Python 3.7
+How I fixed an old GIL race condition in Python 3.7
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-08 10:00
