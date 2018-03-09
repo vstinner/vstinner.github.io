@@ -8,7 +8,6 @@ Python 3.7 New UTF-8 Mode
 :slug: python37-new-utf8-mode
 :authors: Victor Stinner
 
-
 UTF-8 Mode
 ==========
 
@@ -16,6 +15,17 @@ PEP 540 -- Add a new UTF-8 Mode
 https://www.python.org/dev/peps/pep-0540/
 
 BDFL-Delegate: INADA Naoki
+
+PEP history in Git:
+https://github.com/python/peps/commits/master/pep-0540.txt
+
+PEP before rewrite:
+https://github.com/python/peps/blob/f92b5fbdc2bcd9b182c1541da5a0f4ce32195fb6/pep-0540.txt
+(1017 lines)
+
+PEP just after rewrite:
+https://github.com/python/peps/blob/0bb19ff93af9855db327e9a02f3e86b6f932a25a/pep-0540.txt
+(263 lines)
 
 Abstract
 --------
