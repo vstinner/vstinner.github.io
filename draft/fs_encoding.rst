@@ -37,7 +37,7 @@ of bug will haunt me for the next following 10 years**...
 The os.walk() bug
 =================
 
-bpo-3187, june 2008: **Helmut Jarausch** tested the **first beta release of
+`bpo-3187 <https://bugs.python.org/issue3187>`__, june 2008: **Helmut Jarausch** tested the **first beta release of
 Python 3.0** and reported a bug on ``os.walk()``::
 
     Traceback (most recent call last):
@@ -181,46 +181,96 @@ compromise yet.*"), **Amaury Forgeot d'Arc** `asked
 
 Because of this issue, ``os.listdir()`` will no emit the proposed warning.
 
-xxxx
-====
 
-The workaround at that time was to pass filenames as ``bytes`` rather than
-Unicode (``str``). Guido asked for patches to support passing filenames as
-``bytes``.
+Support bytes and fix os.listdir()
+==================================
 
-I wrote patches to accept ``bytes`` in:
+I started to write on multiple times to support passing filenames as ``bytes``
+in many functions of the ``os`` module:
 
-* ``fnmatch.filter()``
-* ``glob.glob1()``
-* ``glob.iglob()``
-* ``open()``
-* ``os.path.isabs()``
-* ``os.path.issep()``
-* ``os.path.join()``
-* ``os.path.split()``
-* ``os.path.splitext()``
-* ``os.path.basename()``
-* ``os.path.dirname()``
-* ``os.path.splitdrive()``
-* ``os.path.ismount()``
-* ``os.path.expanduser()``
-* ``os.path.expandvars()``
-* ``os.path.normpath()``
-* ``os.path.abspath()``
-* ``os.path.realpath()``
+* posix_path_bytes.patch: ``posixpath.join()``
+* io_byte_filename.patch: ``open()``
+* fnmatch_bytes.patch: ``fnmatch.filter()``
+* glob1_bytes.patch: ``glob.glob()``
+* getcwd_bytes.patch: ``os.getcwd()`` returns bytes if unicode conversion fails
+* merge_os_getcwd_getcwdu.patch: Remove ``os.getcwdu()``;
+  ``os.getcwd(bytes=True)`` returns bytes
+* os_getcwdb.patch: Fix ``os.getcwd()`` (use ``PyUnicode_Decode()``) and create
+  ``getcwdb()`` -> bytes
 
-My patch also added ``os.getcwdb()``.
+Guido van Rossum created a `review on my combined patches
+<https://codereview.appspot.com/3055>`_ using the Google Rietveld tool (this
+tool was only integrated later into the Python bug tracker). Then I combined my
+patches into a single ``python3_bytes_filename.patch`` file.
 
-My patch modified ``os.listdir(str)`` to no longer return undecodable filenames
-as ``bytes``, but instead **ignore** them.
+After one month of development, 6 versions of the patch set, Guido commited my
+big change as the commit `f0af3e30
+<https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76>`__::
 
-Guido van Rossum commited my change as the commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76:
+    commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
+    Author: Guido van Rossum <guido@python.org>
+    Date:   Thu Oct 2 18:55:37 2008 +0000
 
-    Issue #3187: Better support for "undecodable" filenames.  Code by Victor
-    Stinner, with small tweaks by GvR.
+        Issue #3187: Better support for "undecodable" filenames.  Code by Victor
+        Stinner, with small tweaks by GvR.
 
-Then I started to write new patches to support bytes in os.exec*() bpo-4035
-and patches to support bytes in subprocess.Popen() bpo-4036.
+     Lib/fnmatch.py                |  27 ++++---
+     Lib/genericpath.py            |   5 +-
+     Lib/glob.py                   |  17 +++--
+     Lib/io.py                     |  15 ++--
+     Lib/posixpath.py              | 171 +++++++++++++++++++++++++++++++-----------
+     Lib/test/test_fnmatch.py      |   9 +++
+     Lib/test/test_posix.py        |   2 +-
+     Lib/test/test_posixpath.py    | 150 ++++++++++++++++++++++++++++++++----
+     Lib/test/test_unicode_file.py |   6 +-
+     Misc/NEWS                     |  10 ++-
+     Modules/posixmodule.c         |  90 +++++++++-------------
+     11 files changed, 358 insertions(+), 144 deletions(-)
+
+My change:
+
+* Modify ``os.listdir(str)`` to **ignore undecodable filenames**, instead of
+  returning them as ``bytes``
+* Add ``os.getcwdb()`` function: similar to ``os.getcwd()`` but returns the
+  current working directory as ``bytes``.
+* Support ``bytes`` paths:
+
+  * ``fnmatch.filter()``
+  * ``glob.glob1()``
+  * ``glob.iglob()``
+  * ``open()``
+  * ``os.path.isabs()``
+  * ``os.path.issep()``
+  * ``os.path.join()``
+  * ``os.path.split()``
+  * ``os.path.splitext()``
+  * ``os.path.basename()``
+  * ``os.path.dirname()``
+  * ``os.path.splitdrive()``
+  * ``os.path.ismount()``
+  * ``os.path.expanduser()``
+  * ``os.path.expandvars()``
+  * ``os.path.normpath()``
+  * ``os.path.abspath()``
+  * ``os.path.realpath()``
+
+More bytes patches
+==================
+
+While first my "bytes" change is big, it was only the very first patch of a
+long serie which will keep me busy during a few years. A few examples between
+2008 and 2010:
+
+* `bpo-4035 <https://bugs.python.org/issue4035>`__: Support bytes in os.exec*()
+* `bpo-4036 <https://bugs.python.org/issue4036>`__: Support bytes in subprocess.Popen()
+* `bpo-8513 <https://bugs.python.org/issue8513>`__: subprocess: support bytes program name (POSIX)
+* `bpo-8514 <https://bugs.python.org/issue8514>`__: Add fsencode() functions to os module
+* `bpo-8603 <https://bugs.python.org/issue8603>`__: Create a bytes version of os.environ and getenvb()
+* `bpo-8412 <https://bugs.python.org/issue8412>`__: os.system() doesn't support surrogates nor bytes
+* `bpo-8468 <https://bugs.python.org/issue8468>`__: bz2: support surrogates in filename, and bytes/bytearray filename
+* `bpo-8477 <https://bugs.python.org/issue8477>`__: _ssl: support surrogates in filenames, and bytes/bytearray filenames
+* `bpo-8640 <https://bugs.python.org/issue8640>`__: subprocess: canonicalize env to bytes on Unix (Python3)
+* `bpo-8776 <https://bugs.python.org/issue8776>`__: Bytes version of sys.argv (REJECTED)
 
 Conclusion
 ==========
