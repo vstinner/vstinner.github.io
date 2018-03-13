@@ -1,6 +1,6 @@
-+++++++++++++++++++++++++++++++++++++++++
-History of the Python filesystem encoding
-+++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++
+Python 3.0 listdir() and undecodable filenames
+++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-09 13:00
 :tags: cpython
@@ -8,31 +8,63 @@ History of the Python filesystem encoding
 :slug: python-filesystem-encoding-history
 :authors: Victor Stinner
 
-Summary:
+In Python 3.0 final, ``os.listdir(str)`` simply ignores undecodable filenames::
 
-* 2008: cannot pass bytes to open(), annoying listdir(str) behaviour
-* June 2009: PEP 383, surrogateescape
-* 2010: initfsencoding()
-* PYTHONFSENCODING attempt
+    $ python3.0
+    Python 3.0 (unknown, Mar 13 2018, 14:24:02)
+    [GCC 7.2.1 20170915 (Red Hat 7.2.1-2)] on linux4
+    >>> os.mkdir(b'x')
+    >>> open(b'x/nonascii\xff', 'w').close()
+    >>> os.listdir('x')
+    []
 
-Timeline:
+You have to use bytes to see all filenames::
 
-* Python 3.0: December 2008
-* Python 3.1: June 2009
-* Python 3.2: February 2011
-* Python 3.3: September 2012
-* Python 3.4: March 2014
-* Python 3.5: September 2015
+    >>> os.listdir(b'x')
+    [b'nonascii\xff']
 
+If the locale encoding is ASCII, listdir() simply ignores all non-ASCII
+filenames. Hopefully, ``os.listdir()`` accepts ``bytes``, right? In fact, 4
+months before 3.0 final, it wasn't the case.
 
-Quick history of Unicode in Python 3
-====================================
+Ignoring undecodable filenames looks very stupid and error-prone: lying on the
+real content of a directory cannot be a good idea. Well, there is a long
+rationale behind this silly design. Let me tell you this old and long story.
 
-In Python 3.0, ``os.listdir()`` failed to list the content of a directory if a
-single filename was not decodable from the locale encoding.
+When I first looked at this bug in August 2008, **I didn't know that this kind
+of bug will haunt me for the next following 10 years**...
 
-In 2008, `I proposed <https://bugs.python.org/issue3187#msg71612>`_ to use a
-custom type::
+The os.walk() bug
+=================
+
+bpo-3187, june 2008: **Helmut Jarausch** tested the **first beta release of
+Python 3.0** and reported a bug on ``os.walk()``::
+
+    Traceback (most recent call last):
+      File "WalkBug.py", line 5, in <module>
+        for Dir, SubDirs, Files in os.walk('/home/jarausch') :
+      File "/usr/local/lib/python3.0/os.py", line 278, in walk
+        for x in walk(path, topdown, onerror, followlinks):
+      File "/usr/local/lib/python3.0/os.py", line 268, in walk
+        if isdir(join(top, name)):
+      File "/usr/local/lib/python3.0/posixpath.py", line 64, in join
+        if b.startswith('/'):
+    TypeError: expected an object with the buffer interface
+
+In Python 3.0b1, ``os.listdir(str)`` returned undecodable filenames as
+``bytes``. The caller must be prepared to get filenames as two types: ``str``
+and ``bytes``. It wasn't the case for ``os.walk()``.
+
+At the first look, the bug seems trivial to fix. At that time, **I didn't know
+that this kind of bug will haunt me for the next following 10 years**...
+
+I proposed a new Filename class
+===============================
+
+August 2008, my first comment `proposed
+<https://bugs.python.org/issue3187#msg71612>`__ to use a custom "Filename" type
+to store the original ``bytes`` filename, but also gives a Unicode view of the
+filename, in a single object::
 
     class Filename:
         def __init__(self, orig):
@@ -43,12 +75,114 @@ custom type::
         def __bytes__(self):
             return self.as_bytes
 
+**Antoine Pitrou** suggested to inherit from ``str``:
 
-But `Guido van Rossum disliked the idea
-<https://bugs.python.org/issue3187#msg71749>`_:
+    I agree that logically it's the right solution. It's also the most
+    invasive. If that class is **made a subclass of str**, however, existing
+    code shouldn't break more than it currently does.
+
+I preferred to inherit from ``bytes`` for pratical reasons, but Antoine noticed
+that the native type for filenames on Windows is ``str``.
+
+Anyway, `Guido van Rossum disliked the idea
+<https://bugs.python.org/issue3187#msg71749>`_ (comment on InvalidFilename,
+an evolution of the class):
 
     I'm not interested in the InvalidFilename class; it's an API complification
     that might seem right for your situation but will hinder most other people.
+
+
+Guido van Rossum proposed errors="replace"
+==========================================
+
+**Guido van Rossum** `proposed <https://bugs.python.org/issue3187#msg71655>`__
+to use the ``replace`` error handler to prevent decoding error. For example,
+``b'nonascii\xff'`` is decoded as ``'nonascii�'``.
+
+Problem: this filename cannot be used to read the file using ``open()`` or to
+remove the file using ``os.unlink()``, the operating system doesn't know the
+filename containing "�".
+
+An important property has been, indirectly, identified: **we must be able to
+encode back Unicode filenames as their original bytes filename**.
+
+
+Defer the choice to the caller: pass a callback
+===============================================
+
+As no obvious choice arised, `I proposed
+<https://bugs.python.org/issue3187#msg71680>`_ to give the ability to the
+``os.listdir()`` caller to decide how to handle undecodable filenames. Example
+of new listdir implementation (pseudo-code)::
+
+   charset = sys.getfilesystemcharset()
+   dirobj = opendir(path)
+   try:
+      for bytesname in readdir(dirobj):
+          try:
+              name = str(bytesname, charset)
+          exept UnicodeDecodeError:
+              name = fallback_encoder(bytesname)
+          yield name
+   finally:
+      closedir(dirobj)
+
+The default ``fallback_encoder`` callback::
+
+   def fallback_encoder(name):
+      raise
+
+Example of callback to keep the raw bytes string unchanged (Python 3.0 beta1
+behaviour)::
+
+   def fallback_encoder(name):
+      return name
+
+Example to use your own custom filename class::
+
+   class Filename:
+      ...
+
+   def fallback_encoder(name):
+      return Filename(name)
+
+Guido also `disliked my callback idea
+<https://bugs.python.org/issue3187#msg71699>`_:
+
+    The callback variant is too complex; you could write it yourself by
+    using os.listdir() with a bytes argument.
+
+Ignore undecodable filenames but emit a warning?
+================================================
+
+As ignoring undecodable filenames in ``os.listdir(str)`` slowly became the most
+popular option, **Benjamin Peterson** `proposed to emit a warning
+<https://bugs.python.org/issue3187#msg71700>`_ if a filename cannot be decoded,
+to ease debugging:
+
+    (...) I don't like the idea of silently losing the contents of a directory.
+    That's asking for difficult to discover bugs. Could Python emit a warning
+    in this case?
+
+While Guido van Rossum `liked the idea
+<https://bugs.python.org/issue3187#msg71705>`_ ("*This may be the best
+compromise yet.*"), **Amaury Forgeot d'Arc** `asked
+<https://bugs.python.org/issue3187#msg73535>`_:
+
+    Does the warning warn multiple times? IIRC the default behaviour is to warn
+    once.
+
+**Benjamin Peterson** `replied <https://bugs.python.org/issue3187#msg73535>`__:
+
+    **Making a warning happen more than once is tricky because it requires
+    messing with the warnings filter.** This of course takes away some of the
+    user's control which is one of the main reasons for using the Python
+    warning system in the first place.
+
+Because of this issue, ``os.listdir()`` will no emit the proposed warning.
+
+xxxx
+====
 
 The workaround at that time was to pass filenames as ``bytes`` rather than
 Unicode (``str``). Guido asked for patches to support passing filenames as
@@ -80,133 +214,17 @@ My patch also added ``os.getcwdb()``.
 My patch modified ``os.listdir(str)`` to no longer return undecodable filenames
 as ``bytes``, but instead **ignore** them.
 
-**Benjamin Peterson** `proposed to emit a UnicodeWarning warning
-<https://bugs.python.org/issue3187#msg73678>`_ if ``os.listdir(dir)`` fails to
-decode a filename.
-
-Then **Benjamin Peterson** `proposed another possibility
-<https://bugs.python.org/issue3187#msg73909>`_:
-
-    Ok. Here's another possibility. It adds another optional parameter to
-    listdir. If False, bytes strings can be returned. Otherwise, the
-    UnicodeDecodeError is reraised.
-
-End of september 2008, **Martin v. Löwis** showed up and `proposed an idea
-<https://bugs.python.org/issue3187#msg73992>` which will later become his
-:pep:`383` "Non-decodable Bytes in System Character Interfaces":
-
-    I'd like to propose yet another approach: make sure that conversion
-    according to the file system encoding always succeeds. If an
-    unconvertable byte is detected, map it into some private-use character.
-    To reduce the chance of conflict with other people's private-use
-    characters, we can use some of the plane 15 private-use characters, e.g.
-    map byte 0xPQ to U+F30PQ (in two-byte Unicode mode, this would result in
-    a surrogate pair).
-
-    This would make all file names accessible to all text processing
-    (including glob and friends); UI display would typically either report
-    an encoding error, or arrange for some replacement glyph to be shown.
-
-    There are certain variations of the approach possible, in case there is
-    objection to a specific detail.
-
-commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
-Author: Guido van Rossum <guido@python.org>
-Date:   Thu Oct 2 18:55:37 2008 +0000
+Guido van Rossum commited my change as the commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76:
 
     Issue #3187: Better support for "undecodable" filenames.  Code by Victor
     Stinner, with small tweaks by GvR.
 
-2008-10-03, Martin v. Löwis:
+Then I started to write new patches to support bytes in os.exec*() bpo-4035
+and patches to support bytes in subprocess.Popen() bpo-4036.
 
-    I've committed sys.setfilesystemencoding as r66769.
-
-Then I started to write new patches to support bytes in os.exec*()
-https://bugs.python.org/issue4035
-
-and patches to support bytes in subprocess.Popen().
-https://bugs.python.org/issue4036
+Conclusion
+==========
 
 Sadly, I didn't know that I opened a giant can of worms: "Unicode support".  I
 will work 5 more years (Python 3.0 - Python 3.4) on fixing all these tiny
 "Unicode issues" on Windows, Linux, macOS, FreeBSD, Solaris, etc.
-
-It took many years to find the best encoding and error handler to encode and
-decode data from/to the operating system, and to design new and enhance
-existing APIs. Example: ``os.environb`` monster, ``sys.argvb`` idea, etc.
-
-**Martin v. Löwis** wrote his :pep:`383` "Non-decodable Bytes in System
-Character Interfaces" and implemented it in Python 3.1. The ``surrogateescape``
-error handler fixed a lot of old and very complex Unicode issues on Unix.
-
-In 2010, I already proposed to "fallback on UTF-8" if Python failed to get
-the locale encoding: https://bugs.python.org/issue8610#msg104986
-
-2010-05-05, bpo-8622: As a follow-up of bpo-8610, **Marc-Andre Lemburg**
-proposed a way to override the automatic detection of the file system
-encoding::
-
-    PYTHONFSENCODING: Encoding[:errors] used for file system.
-
-At that time, I already noticed the most complex part of this option: the need
-to "reencode filenames when setting the filesystem encoding".
-
-bpo-9630:
-
-    I wrote a patch to reencode filenames of all module and code objects in
-    initfsencoding() when the locale encoding is known.
-
-Amaury Forgeot d'Arc::
-
-    > Python is installed in a directory called b'py3k\xc3\xa9'
-    > and your locale is C
-    Do we really want to support this kind of configuration?
-
-Comment::
-
-    > Why is this needed ?
-
-    Py_FilesystemDefaultEncoding is changed too late. Some modules are already
-    loaded, sys.executable is already set, etc. Py_FilesystemDefaultEncoding is
-    changed but modules filenames are decoded with utf-8 and should be
-    "redecoded".
-
-Another option::
-
-    Another solution would be to unload all modules, clear all caches,
-    delete all code objects, etc. after setting the filesystem encoding. But
-    I think that it is inefficient and nobody wants a slower Python startup.
-
-"I commited redecode_modules_path-4.patch as r85115 in Python 3.2." ::
-
-    commit c39211f51e377919952b139c46e295800cbc2a8d
-    Author: Victor Stinner <victor.stinner@haypocalc.com>
-    Date:   Wed Sep 29 16:35:47 2010 +0000
-
-        Issue #9630: Redecode filenames when setting the filesystem encoding
-
-        Redecode the filenames of:
-
-         - all modules: __file__ and __path__ attributes
-         - all code objects: co_filename attribute
-         - sys.path
-         - sys.meta_path
-         - sys.executable
-         - sys.path_importer_cache (keys)
-
-        Keep weak references to all code objects until initfsencoding() is called, to
-        be able to redecode co_filename attribute of all code objects.
-
-
-Other::
-
-    commit b744ba1d14c5487576c95d0311e357b707600b47
-    Author: Victor Stinner <victor.stinner@haypocalc.com>
-    Date:   Sat May 15 12:27:16 2010 +0000
-
-        Issue #8610: Load file system codec at startup, and display a fatal error on
-        failure. Set the file system encoding to utf-8 (instead of None) if getting
-        the locale encoding failed, or if nl_langinfo(CODESET) function is missing.
-
-
-
