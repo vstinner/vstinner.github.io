@@ -1,6 +1,6 @@
-++++++++++++++++++++++++++++++++++++++++++++++
-Python 3.0 listdir() and undecodable filenames
-++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++
+Python 3.0 listdir() bug on undecodable filenames
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-09 13:00
 :tags: cpython
@@ -8,8 +8,8 @@ Python 3.0 listdir() and undecodable filenames
 :slug: python30-listdir-undecodable-filenames
 :authors: Victor Stinner
 
-Then years ago, when Python 3.0 final was released, ``os.listdir(str)`` simply
-ignored undecodable filenames::
+Ten years ago, when Python 3.0 final was released, ``os.listdir(str)``
+**ignored silently undecodable filenames**::
 
     $ python3.0
     >>> os.mkdir(b'x')
@@ -22,13 +22,13 @@ You had to use bytes to see all filenames::
     >>> os.listdir(b'x')
     [b'nonascii\xff']
 
-If the locale encoding is ASCII, listdir() **ignored silently all non-ASCII
-filenames**. Hopefully, ``os.listdir()`` accepts ``bytes``, right? In fact, 4
-months before 3.0 final release, it wasn't the case.
+If the locale is POSIX or C, listdir() ignored silently all non-ASCII
+filenames.  Hopefully, ``os.listdir()`` accepts ``bytes``, right? In fact, 4
+months before the 3.0 final release, it was not the case.
 
 Lying on the real content of a directory looks like a very bad idea. Well,
-there is a rationale behind this design. Let me tell you this old story (10
-years old).
+there is a rationale behind this design. Let me tell you this story which is
+now 10 years old.
 
 **This article is the first in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system.**
@@ -36,10 +36,13 @@ rationale of the Python 3 Unicode model for the operating system.**
 The os.walk() bug
 =================
 
+.. image:: {filename}/images/car_accident_hole.jpg
+   :alt: Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston
+   :target: http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html
+
 `bpo-3187 <https://bugs.python.org/issue3187>`__, june 2008: **Helmut
 Jarausch** tested the **first beta release of Python 3.0** and reported a bug
-on ``os.walk()`` when he tried to walk into his home directory
-``/home/jarausch``::
+on ``os.walk()`` when he tried to walk into his home directory::
 
     Traceback (most recent call last):
       File "WalkBug.py", line 5, in <module>
@@ -63,7 +66,7 @@ proposed, it will take 4 months and 79 messages to fix the bug**.
 I proposed a new Filename class
 ===============================
 
-August 2008, my first comment `proposed
+August 2008, `my first comment proposed
 <https://bugs.python.org/issue3187#msg71612>`__ to use a custom "Filename" type
 to store the original ``bytes`` filename, but also gives a Unicode view of the
 filename, in a single object, using an hypothetical ``myformat()`` function::
@@ -83,8 +86,9 @@ filename, in a single object, using an hypothetical ``myformat()`` function::
     invasive. If that class is **made a subclass of str**, however, existing
     code shouldn't break more than it currently does.
 
-I preferred to inherit from ``bytes`` for pratical reasons, but Antoine noticed
-that the native type for filenames on Windows is ``str``.
+I preferred to inherit from ``bytes`` for pratical reasons. Antoine noted that
+the native type for filenames on Windows is ``str``, and so inheriting from
+``bytes`` can be an issue on Windows.
 
 Anyway, `Guido van Rossum disliked the idea
 <https://bugs.python.org/issue3187#msg71749>`_ (comment on InvalidFilename, a
@@ -98,38 +102,37 @@ variant of the class):
 Guido van Rossum proposed to use replace error handler
 ======================================================
 
-**Guido van Rossum** `proposed <https://bugs.python.org/issue3187#msg71655>`__
-to use the ``replace`` error handler to prevent decoding error. For example,
-``b'nonascii\xff'`` is decoded as ``'nonascii�'``.
+**Guido van Rossum** `proposed to use the replace error handler
+<https://bugs.python.org/issue3187#msg71655>`__ to prevent decoding error. For
+example, ``b'nonascii\xff'`` is decoded as ``'nonascii�'``.
 
-Problem: this filename cannot be used to read the file content using ``open()``
-or to remove the file using ``os.unlink()``, since the operating system doesn't
-know the filename containing "�".
+The problem is that this filename cannot be used to read the file content using
+``open()`` or to remove the file using ``os.unlink()``, since the operating
+system doesn't know the Unicode filename containing the "�" character.
 
-An important property has been, indirectly, identified: **we must be able to
-encode back Unicode filenames as their original bytes filename**.
+An important property is that **encoding back the Unicode filename to bytes
+must return the same original bytes filename**.
 
 
 Defer the choice to the caller: pass a callback
 ===============================================
 
-As no obvious choice arised, `I proposed
-<https://bugs.python.org/issue3187#msg71680>`_ to give the ability to the
-``os.listdir()`` caller to decide how to handle undecodable filenames.
+As no obvious choice arised, `I proposed to use a callback to handle
+undecodable filenames <https://bugs.python.org/issue3187#msg71680>`_.
 Pseudo-code::
 
     def listdir(path, fallback_decoder=default_fallback_decoder):
         charset = sys.getfilesystemcharset()
-        dirobj = opendir(path)
+        dir_fd = opendir(path)
         try:
-            for bytesname in readdir(dirobj):
-            try:
-                name = str(bytesname, charset)
-            exept UnicodeDecodeError:
-                name = fallback_decoder(bytesname)
-            yield name
+            for bytesname in readdir(dir_fd):
+                try:
+                    name = str(bytesname, charset)
+                exept UnicodeDecodeError:
+                    name = fallback_decoder(bytesname)
+                yield name
         finally:
-            closedir(dirobj)
+            closedir(dir_fd)
 
 The default behaviour is to raise an exception on decoding error::
 
@@ -156,11 +159,12 @@ Example to use a custom filename class::
     The callback variant is **too complex**; you could **write it yourself by
     using os.listdir() with a bytes argument**.
 
-Ignore undecodable filenames but emit a warning?
-================================================
+Emit a warning on undecodable filename
+======================================
 
 .. image:: {filename}/images/warning_venomous_snakes.png
    :alt: Warning: venoumous snakes
+   :target: http://www.unicode.org/
 
 As ignoring undecodable filenames in ``os.listdir(str)`` slowly became the most
 popular option, **Benjamin Peterson** `proposed to emit a warning
@@ -171,8 +175,10 @@ to ease debugging:
     That's asking for difficult to discover bugs. Could Python emit a warning
     in this case?
 
-Guido van Rossum `liked the idea <https://bugs.python.org/issue3187#msg71705>`_
-("*This may be the best compromise yet.*").
+Guido van Rossum `liked the idea
+<https://bugs.python.org/issue3187#msg71705>`_:
+
+    This may be the best compromise yet.
 
 **Amaury Forgeot d'Arc** `asked <https://bugs.python.org/issue3187#msg73535>`_:
 
@@ -193,11 +199,10 @@ Support bytes and fix os.listdir()
 ==================================
 
 Guido repeated that the best workaround is to pass filenames as ``bytes``,
-which is the native type on Unix. But it wasn't possible since most functions
-only accepted filenames as ``str``.
+which is the native type for filenames on Unix, but most functions only
+accepted filenames as ``str``.
 
-I started to write multiple patches to support passing filenames as ``bytes``
-in many functions of the ``os`` module:
+I started to write multiple patches to support passing filenames as ``bytes``:
 
 * ``posix_path_bytes.patch``: enhance ``posixpath.join()``
 * ``io_byte_filename.patch``: enhance ``open()``
@@ -206,16 +211,15 @@ in many functions of the ``os`` module:
 * ``getcwd_bytes.patch``: ``os.getcwd()`` returns bytes if unicode conversion fails
 * ``merge_os_getcwd_getcwdu.patch``: Remove ``os.getcwdu()``;
   ``os.getcwd(bytes=True)`` returns bytes
-* ``os_getcwdb.patch``: Fix ``os.getcwd()`` (use ``PyUnicode_Decode()``) and create
-  ``getcwdb()`` -> bytes
+* ``os_getcwdb.patch``: Fix ``os.getcwd()`` by using ``PyUnicode_Decode()`` and
+  add ``os.getcwdb()`` which returns ``bytes``
 
 Guido van Rossum created a `review on my combined patches
-<https://codereview.appspot.com/3055>`_ using the Rietveld tool (this reviewing
-tool was only integrated later into the Python bug tracker). Then I combined my
-patches into a single ``python3_bytes_filename.patch`` file.
+<https://codereview.appspot.com/3055>`_. Then I also combined my patches into a
+single ``python3_bytes_filename.patch`` file.
 
-**After one month of development, 6 versions of the patch set, Guido commited
-my big change** as the commit `f0af3e30
+**After one month of development, 6 versions of the combined patch, Guido
+commited my big change** as the commit `f0af3e30
 <https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76>`__::
 
     commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
@@ -286,29 +290,29 @@ library. Example of issues between 2008 and 2010:
 Conclusion
 ==========
 
-At the first look, **Helmut Jarausch**'s ``os.walk('/home/jarausch')`` bug
-looked trivial to fix.
+At the first look, **Helmut Jarausch**'s ``os.walk()`` bug looked trivial to
+fix.
 
-I proposed a new ``Filename`` class to store filenames as ``bytes`` **and**
-``str``, but **Guido van Rossum** rejected the idea because this API complification
+I proposed a **new Filename class** storing filenames as ``bytes`` and ``str``,
+but Guido van Rossum rejected the idea because this API complification
 would *hinder most people*.
 
-**Guido van Rossum** proposed to use the ``replace`` error handler, but decoded
+Guido van Rossum proposed to **use the replace error handler**, but decoded
 filenames were not recognized by the operating system making them useless for
 most cases.
 
-I proposed to defer the choice to the caller by passing a callback, but Guido
-van Rossum also rejected this idea because it was too complex and could be
-written using os.listdir() with a bytes argument.
+I proposed to **use callback to handle undecodable filenames**, but Guido van
+Rossum also rejected this idea because it was too complex and could be written
+using os.listdir() with a bytes argument.
 
-**Benjamin Peterson** proposed to emit a warning when a filename cannot be
+Benjamin Peterson proposed to **emit a warning** when a filename cannot be
 decoded, but the idea was abandonned because of the warnings filters complexity
 to emit the warning multiple times.
 
 I wrote a big change modifying ``os.listdir()`` to ignore silently undecodable
-filenames, but also modify a lot of functions to accept filenames as ``bytes``.
-I made further changes the following years to fix the full Python standard
-library.
+filenames, but also modify a lot of functions to also accept filenames as
+``bytes``.  I made further changes the following years to fix the full Python
+standard library to accept ``bytes``.
 
 While it "only" took 4 months to fix the ``os.listdir(str)`` issue, **this kind
 of bugs will keep me busy the next 10 years** (2008-2018)...
