@@ -1,5 +1,288 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-08T10:00:00+01:00</updated><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-09T13:00:00+01:00</updated><entry><title>Python 3.0 listdir() bug on undecodable filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+&lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.0
+&amp;gt;&amp;gt;&amp;gt; os.mkdir(b'x')
+&amp;gt;&amp;gt;&amp;gt; open(b'x/nonascii\xff', 'w').close()
+&amp;gt;&amp;gt;&amp;gt; os.listdir('x')
+[]
+&lt;/pre&gt;
+&lt;p&gt;You had to use bytes to see all filenames:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;gt;&amp;gt;&amp;gt; os.listdir(b'x')
+[b'nonascii\xff']
+&lt;/pre&gt;
+&lt;p&gt;If the locale is POSIX …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+&lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.0
+&amp;gt;&amp;gt;&amp;gt; os.mkdir(b'x')
+&amp;gt;&amp;gt;&amp;gt; open(b'x/nonascii\xff', 'w').close()
+&amp;gt;&amp;gt;&amp;gt; os.listdir('x')
+[]
+&lt;/pre&gt;
+&lt;p&gt;You had to use bytes to see all filenames:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;gt;&amp;gt;&amp;gt; os.listdir(b'x')
+[b'nonascii\xff']
+&lt;/pre&gt;
+&lt;p&gt;If the locale is POSIX or C, listdir() ignored silently all non-ASCII
+filenames.  Hopefully, &lt;tt class="docutils literal"&gt;os.listdir()&lt;/tt&gt; accepts &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;, right? In fact, 4
+months before the 3.0 final release, it was not the case.&lt;/p&gt;
+&lt;p&gt;Lying on the real content of a directory looks like a very bad idea. Well,
+there is a rationale behind this design. Let me tell you this story which is
+now 10 years old.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the first in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system.&lt;/strong&gt;&lt;/p&gt;
+&lt;div class="section" id="the-os-walk-bug"&gt;
+&lt;h2&gt;The os.walk() bug&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html"&gt;&lt;img alt="Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston" src="https://vstinner.github.io/images/car_accident_hole.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue3187"&gt;bpo-3187&lt;/a&gt;, june 2008: &lt;strong&gt;Helmut
+Jarausch&lt;/strong&gt; tested the &lt;strong&gt;first beta release of Python 3.0&lt;/strong&gt; and reported a bug
+on &lt;tt class="docutils literal"&gt;os.walk()&lt;/tt&gt; when he tried to walk into his home directory:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Traceback (most recent call last):
+  File &amp;quot;WalkBug.py&amp;quot;, line 5, in &amp;lt;module&amp;gt;
+    for Dir, SubDirs, Files in os.walk('/home/jarausch') :
+  File &amp;quot;/usr/local/lib/python3.0/os.py&amp;quot;, line 278, in walk
+    for x in walk(path, topdown, onerror, followlinks):
+  File &amp;quot;/usr/local/lib/python3.0/os.py&amp;quot;, line 268, in walk
+    if isdir(join(top, name)):
+  File &amp;quot;/usr/local/lib/python3.0/posixpath.py&amp;quot;, line 64, in join
+    if b.startswith('/'):
+TypeError: expected an object with the buffer interface
+&lt;/pre&gt;
+&lt;p&gt;In Python 3.0b1, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; returned undecodable filenames as
+&lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;. The caller must be prepared to get filenames as two types: &lt;tt class="docutils literal"&gt;str&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;: it wasn't the case for &lt;tt class="docutils literal"&gt;os.walk()&lt;/tt&gt; which failed with a
+&lt;tt class="docutils literal"&gt;TypeError&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;At the first look, the bug seems trivial to fix. In fact, many solutions were
+proposed, it will take 4 months and 79 messages to fix the bug&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="i-proposed-a-new-filename-class"&gt;
+&lt;h2&gt;I proposed a new Filename class&lt;/h2&gt;
+&lt;p&gt;August 2008, &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71612"&gt;my first comment proposed&lt;/a&gt; to use a custom &amp;quot;Filename&amp;quot; type
+to store the original &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; filename, but also gives a Unicode view of the
+filename, in a single object, using an hypothetical &lt;tt class="docutils literal"&gt;myformat()&lt;/tt&gt; function:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+class Filename:
+    def __init__(self, orig):
+        self.as_bytes = orig
+        self.as_str = myformat(orig)
+    def __str__(self):
+        return self.as_str
+    def __bytes__(self):
+        return self.as_bytes
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;Antoine Pitrou&lt;/strong&gt; suggested to inherit from &lt;tt class="docutils literal"&gt;str&lt;/tt&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I agree that logically it's the right solution. It's also the most
+invasive. If that class is &lt;strong&gt;made a subclass of str&lt;/strong&gt;, however, existing
+code shouldn't break more than it currently does.&lt;/blockquote&gt;
+&lt;p&gt;I preferred to inherit from &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; for pratical reasons. Antoine noted that
+the native type for filenames on Windows is &lt;tt class="docutils literal"&gt;str&lt;/tt&gt;, and so inheriting from
+&lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; can be an issue on Windows.&lt;/p&gt;
+&lt;p&gt;Anyway, &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71749"&gt;Guido van Rossum disliked the idea&lt;/a&gt; (comment on InvalidFilename, a
+variant of the class):&lt;/p&gt;
+&lt;blockquote&gt;
+I'm not interested in the InvalidFilename class; it's an API complification
+that might seem right for your situation but &lt;strong&gt;will hinder most other
+people&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="guido-van-rossum-proposed-to-use-replace-error-handler"&gt;
+&lt;h2&gt;Guido van Rossum proposed to use replace error handler&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Guido van Rossum&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71655"&gt;proposed to use the replace error handler&lt;/a&gt; to prevent decoding error. For
+example, &lt;tt class="docutils literal"&gt;b'nonascii\xff'&lt;/tt&gt; is decoded as &lt;tt class="docutils literal"&gt;'nonascii�'&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The problem is that this filename cannot be used to read the file content using
+&lt;tt class="docutils literal"&gt;open()&lt;/tt&gt; or to remove the file using &lt;tt class="docutils literal"&gt;os.unlink()&lt;/tt&gt;, since the operating
+system doesn't know the Unicode filename containing the &amp;quot;�&amp;quot; character.&lt;/p&gt;
+&lt;p&gt;An important property is that &lt;strong&gt;encoding back the Unicode filename to bytes
+must return the same original bytes filename&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="defer-the-choice-to-the-caller-pass-a-callback"&gt;
+&lt;h2&gt;Defer the choice to the caller: pass a callback&lt;/h2&gt;
+&lt;p&gt;As no obvious choice arised, &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71680"&gt;I proposed to use a callback to handle
+undecodable filenames&lt;/a&gt;.
+Pseudo-code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def listdir(path, fallback_decoder=default_fallback_decoder):
+    charset = sys.getfilesystemcharset()
+    dir_fd = opendir(path)
+    try:
+        for bytesname in readdir(dir_fd):
+            try:
+                name = str(bytesname, charset)
+            exept UnicodeDecodeError:
+                name = fallback_decoder(bytesname)
+            yield name
+    finally:
+        closedir(dir_fd)
+&lt;/pre&gt;
+&lt;p&gt;The default behaviour is to raise an exception on decoding error:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def default_fallback_decoder(name):
+   raise
+&lt;/pre&gt;
+&lt;p&gt;Example of callback returning the raw bytes string unchanged (Python 3.0 beta1
+behaviour):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def return_undecodable_unchanged(name):
+   return name
+&lt;/pre&gt;
+&lt;p&gt;Example to use a custom filename class:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+class Filename:
+   ...
+
+def filename_decoder(name):
+   return Filename(name)
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71699"&gt;Guido also disliked my callback idea&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+The callback variant is &lt;strong&gt;too complex&lt;/strong&gt;; you could &lt;strong&gt;write it yourself by
+using os.listdir() with a bytes argument&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="emit-a-warning-on-undecodable-filename"&gt;
+&lt;h2&gt;Emit a warning on undecodable filename&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="http://www.unicode.org/"&gt;&lt;img alt="Warning: venoumous snakes" src="https://vstinner.github.io/images/warning_venomous_snakes.png" /&gt;&lt;/a&gt;
+&lt;p&gt;As ignoring undecodable filenames in &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; slowly became the most
+popular option, &lt;strong&gt;Benjamin Peterson&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71700"&gt;proposed to emit a warning&lt;/a&gt; if a filename cannot be decoded,
+to ease debugging:&lt;/p&gt;
+&lt;blockquote&gt;
+(...) I don't like the idea of silently losing the contents of a directory.
+That's asking for difficult to discover bugs. Could Python emit a warning
+in this case?&lt;/blockquote&gt;
+&lt;p&gt;Guido van Rossum &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71705"&gt;liked the idea&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+This may be the best compromise yet.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Amaury Forgeot d'Arc&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg73535"&gt;asked&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Does the warning warn multiple times? IIRC the default behaviour is to warn
+once.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Benjamin Peterson&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg73535"&gt;replied&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;Making a warning happen more than once is tricky because it requires
+messing with the warnings filter.&lt;/strong&gt; This of course takes away some of the
+user's control which is one of the main reasons for using the Python
+warning system in the first place.&lt;/blockquote&gt;
+&lt;p&gt;Because of this issue, the warning idea was abandonned.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="support-bytes-and-fix-os-listdir"&gt;
+&lt;h2&gt;Support bytes and fix os.listdir()&lt;/h2&gt;
+&lt;p&gt;Guido repeated that the best workaround is to pass filenames as &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;,
+which is the native type for filenames on Unix, but most functions only
+accepted filenames as &lt;tt class="docutils literal"&gt;str&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I started to write multiple patches to support passing filenames as &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;posix_path_bytes.patch&lt;/tt&gt;: enhance &lt;tt class="docutils literal"&gt;posixpath.join()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;io_byte_filename.patch&lt;/tt&gt;: enhance &lt;tt class="docutils literal"&gt;open()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;fnmatch_bytes.patch&lt;/tt&gt;: enhance &lt;tt class="docutils literal"&gt;fnmatch.filter()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;glob1_bytes.patch&lt;/tt&gt;: enhance &lt;tt class="docutils literal"&gt;glob.glob()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;getcwd_bytes.patch&lt;/tt&gt;: &lt;tt class="docutils literal"&gt;os.getcwd()&lt;/tt&gt; returns bytes if unicode conversion fails&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;merge_os_getcwd_getcwdu.patch&lt;/tt&gt;: Remove &lt;tt class="docutils literal"&gt;os.getcwdu()&lt;/tt&gt;;
+&lt;tt class="docutils literal"&gt;os.getcwd(bytes=True)&lt;/tt&gt; returns bytes&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os_getcwdb.patch&lt;/tt&gt;: Fix &lt;tt class="docutils literal"&gt;os.getcwd()&lt;/tt&gt; by using &lt;tt class="docutils literal"&gt;PyUnicode_Decode()&lt;/tt&gt; and
+add &lt;tt class="docutils literal"&gt;os.getcwdb()&lt;/tt&gt; which returns &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Guido van Rossum created a &lt;a class="reference external" href="https://codereview.appspot.com/3055"&gt;review on my combined patches&lt;/a&gt;. Then I also combined my patches into a
+single &lt;tt class="docutils literal"&gt;python3_bytes_filename.patch&lt;/tt&gt; file.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;After one month of development, 6 versions of the combined patch, Guido
+commited my big change&lt;/strong&gt; as the commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76"&gt;f0af3e30&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
+Author: Guido van Rossum &amp;lt;guido&amp;#64;python.org&amp;gt;
+Date:   Thu Oct 2 18:55:37 2008 +0000
+
+    Issue #3187: Better support for &amp;quot;undecodable&amp;quot; filenames.  Code by Victor
+    Stinner, with small tweaks by GvR.
+
+ Lib/fnmatch.py                |  27 ++++---
+ Lib/genericpath.py            |   5 +-
+ Lib/glob.py                   |  17 +++--
+ Lib/io.py                     |  15 ++--
+ Lib/posixpath.py              | 171 +++++++++++++++++++++++++++++++-----------
+ Lib/test/test_fnmatch.py      |   9 +++
+ Lib/test/test_posix.py        |   2 +-
+ Lib/test/test_posixpath.py    | 150 ++++++++++++++++++++++++++++++++----
+ Lib/test/test_unicode_file.py |   6 +-
+ Misc/NEWS                     |  10 ++-
+ Modules/posixmodule.c         |  90 +++++++++-------------
+ 11 files changed, 358 insertions(+), 144 deletions(-)
+&lt;/pre&gt;
+&lt;p&gt;My change:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Modify &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; to &lt;strong&gt;ignore silently undecodable filenames&lt;/strong&gt;,
+instead of returning them as &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;os.getcwdb()&lt;/tt&gt; function: similar to &lt;tt class="docutils literal"&gt;os.getcwd()&lt;/tt&gt; but returns the
+current working directory as &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Support &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; paths:&lt;ul&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;fnmatch.filter()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;glob.glob1()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;glob.iglob()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;open()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.isabs()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.issep()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.join()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.split()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.splitext()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.basename()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.dirname()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.splitdrive()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.ismount()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.expanduser()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.expandvars()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.normpath()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.abspath()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.path.realpath()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="more-bytes-patches"&gt;
+&lt;h2&gt;More bytes patches&lt;/h2&gt;
+&lt;p&gt;I looked if other functions accepted passing filenames as &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; and... I
+was disappointed. It took me some years to fix the full Python standard
+library. Example of issues between 2008 and 2010:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue4035"&gt;bpo-4035&lt;/a&gt;: Support bytes in &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;os.exec*()&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue4036"&gt;bpo-4036&lt;/a&gt;: Support bytes in &lt;tt class="docutils literal"&gt;subprocess.Popen()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8513"&gt;bpo-8513&lt;/a&gt;: &lt;tt class="docutils literal"&gt;subprocess&lt;/tt&gt;: support bytes program name (POSIX)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8514"&gt;bpo-8514&lt;/a&gt;: Add &lt;tt class="docutils literal"&gt;fsencode()&lt;/tt&gt; functions to os module&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8603"&gt;bpo-8603&lt;/a&gt;: Create a bytes version of &lt;tt class="docutils literal"&gt;os.environ&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;getenvb()&lt;/tt&gt; -- Add &lt;tt class="docutils literal"&gt;os.environb&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8412"&gt;bpo-8412&lt;/a&gt;: &lt;tt class="docutils literal"&gt;os.system()&lt;/tt&gt; doesn't support surrogates nor bytes&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8468"&gt;bpo-8468&lt;/a&gt;: &lt;tt class="docutils literal"&gt;bz2&lt;/tt&gt; module: support surrogates in filename, and bytes/bytearray filename&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8477"&gt;bpo-8477&lt;/a&gt;: &lt;tt class="docutils literal"&gt;ssl&lt;/tt&gt; module: support surrogates in filenames, and bytes/bytearray filenames&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8640"&gt;bpo-8640&lt;/a&gt;: &lt;tt class="docutils literal"&gt;subprocess:&lt;/tt&gt; canonicalize env to bytes on Unix (Python3)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8776"&gt;bpo-8776&lt;/a&gt;: Bytes version of &lt;tt class="docutils literal"&gt;sys.argv&lt;/tt&gt; (REJECTED)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;At the first look, &lt;strong&gt;Helmut Jarausch&lt;/strong&gt;'s &lt;tt class="docutils literal"&gt;os.walk()&lt;/tt&gt; bug looked trivial to
+fix.&lt;/p&gt;
+&lt;p&gt;I proposed a &lt;strong&gt;new Filename class&lt;/strong&gt; storing filenames as &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;str&lt;/tt&gt;,
+but Guido van Rossum rejected the idea because this API complification
+would &lt;em&gt;hinder most people&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Guido van Rossum proposed to &lt;strong&gt;use the replace error handler&lt;/strong&gt;, but decoded
+filenames were not recognized by the operating system making them useless for
+most cases.&lt;/p&gt;
+&lt;p&gt;I proposed to &lt;strong&gt;use callback to handle undecodable filenames&lt;/strong&gt;, but Guido van
+Rossum also rejected this idea because it was too complex and could be written
+using os.listdir() with a bytes argument.&lt;/p&gt;
+&lt;p&gt;Benjamin Peterson proposed to &lt;strong&gt;emit a warning&lt;/strong&gt; when a filename cannot be
+decoded, but the idea was abandonned because of the warnings filters complexity
+to emit the warning multiple times.&lt;/p&gt;
+&lt;p&gt;I wrote a big change modifying &lt;tt class="docutils literal"&gt;os.listdir()&lt;/tt&gt; to ignore silently undecodable
+filenames, but also modify a lot of functions to also accept filenames as
+&lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;.  I made further changes the following years to fix the full Python
+standard library to accept &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;While it &amp;quot;only&amp;quot; took 4 months to fix the &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; issue, &lt;strong&gt;this kind
+of bugs will keep me busy the next 10 years&lt;/strong&gt; (2008-2018)...&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the first in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
 Interpreter Lock), one of the most critical part of Python. I had to dig the
 Git history to find a &lt;strong&gt;change made 26 years ago&lt;/strong&gt; by &lt;strong&gt;Guido van Rossum&lt;/strong&gt;: at
 this time, &lt;em&gt;threads were …&lt;/em&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
