@@ -5,7 +5,7 @@ PEP 383: Non-decodable Bytes in System Character Interfaces
 :date: 2018-03-15 18:00
 :tags: cpython
 :category: python
-:slug: painful-history-python-filesystem-encoding
+:slug: pep-383
 :authors: Victor Stinner
 
 In my previous article, I wrote that ``os.listdir(str)`` ignored silently
