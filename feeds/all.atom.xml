@@ -80,6 +80,10 @@ UnicodeDecodeError: 'ascii' codec can't decode byte 0xff (...)
 &amp;gt;&amp;gt;&amp;gt; 'nonascii\udcff'.encode('ascii', 'surrogateescape')
 b'nonascii\xff'
 &lt;/pre&gt;
+&lt;p&gt;Using the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler, &lt;strong&gt;decoding cannot fail&lt;/strong&gt;.  For
+example, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; no longer ignores silently undecodable filenames,
+since all filenames became decodable with any encoding. Moreover, encoding
+filenames with &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; returns the original bytes unchanged.&lt;/p&gt;
 &lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/089278.html"&gt;The PEP was accepted&lt;/a&gt; by
 &lt;strong&gt;Guido van Rossum&lt;/strong&gt; in less than one week!&lt;/p&gt;
 &lt;/div&gt;
@@ -106,6 +110,10 @@ was not ideal.&lt;/p&gt;
 in Python as a new &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler.&lt;/p&gt;
 &lt;p&gt;Martin's PEP was approved in less than one week and implemented a few days
 later.&lt;/p&gt;
+&lt;p&gt;Using the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler, decoding cannot fail:
+&lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; no longer ignores silently undecodable filenames.
+Moreover, encoding filenames with &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; returns the original
+bytes unchanged.&lt;/p&gt;
 &lt;p&gt;The &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler fixed a lot of old and very complex
 Unicode issues on Unix. It is still widely used in Python 3.6 to &lt;strong&gt;not annoy
 users with Unicode errors&lt;/strong&gt;.&lt;/p&gt;

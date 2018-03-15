@@ -114,6 +114,10 @@ UnicodeDecodeError: 'ascii' codec can't decode byte 0xff (...)
 &gt;&gt;&gt; 'nonascii\udcff'.encode('ascii', 'surrogateescape')
 b'nonascii\xff'
 </pre>
+<p>Using the <tt class="docutils literal">surrogateescape</tt> error handler, <strong>decoding cannot fail</strong>.  For
+example, <tt class="docutils literal">os.listdir(str)</tt> no longer ignores silently undecodable filenames,
+since all filenames became decodable with any encoding. Moreover, encoding
+filenames with <tt class="docutils literal">surrogateescape</tt> returns the original bytes unchanged.</p>
 <p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/089278.html">The PEP was accepted</a> by
 <strong>Guido van Rossum</strong> in less than one week!</p>
 </div>
@@ -140,6 +144,10 @@ was not ideal.</p>
 in Python as a new <tt class="docutils literal">surrogateescape</tt> error handler.</p>
 <p>Martin's PEP was approved in less than one week and implemented a few days
 later.</p>
+<p>Using the <tt class="docutils literal">surrogateescape</tt> error handler, decoding cannot fail:
+<tt class="docutils literal">os.listdir(str)</tt> no longer ignores silently undecodable filenames.
+Moreover, encoding filenames with <tt class="docutils literal">surrogateescape</tt> returns the original
+bytes unchanged.</p>
 <p>The <tt class="docutils literal">surrogateescape</tt> error handler fixed a lot of old and very complex
 Unicode issues on Unix. It is still widely used in Python 3.6 to <strong>not annoy
 users with Unicode errors</strong>.</p>
