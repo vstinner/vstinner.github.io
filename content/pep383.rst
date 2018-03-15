@@ -91,6 +91,11 @@ Example::
     >>> 'nonascii\udcff'.encode('ascii', 'surrogateescape')
     b'nonascii\xff'
 
+Using the ``surrogateescape`` error handler, **decoding cannot fail**.  For
+example, ``os.listdir(str)`` no longer ignores silently undecodable filenames,
+since all filenames became decodable with any encoding. Moreover, encoding
+filenames with ``surrogateescape`` returns the original bytes unchanged.
+
 `The PEP was accepted
 <https://mail.python.org/pipermail/python-dev/2009-April/089278.html>`_ by
 **Guido van Rossum** in less than one week!
@@ -129,6 +134,11 @@ in Python as a new ``surrogateescape`` error handler.
 
 Martin's PEP was approved in less than one week and implemented a few days
 later.
+
+Using the ``surrogateescape`` error handler, decoding cannot fail:
+``os.listdir(str)`` no longer ignores silently undecodable filenames.
+Moreover, encoding filenames with ``surrogateescape`` returns the original
+bytes unchanged.
 
 The ``surrogateescape`` error handler fixed a lot of old and very complex
 Unicode issues on Unix. It is still widely used in Python 3.6 to **not annoy
