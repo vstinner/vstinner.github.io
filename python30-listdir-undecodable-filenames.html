@@ -59,7 +59,17 @@ months before the 3.0 final release, it was not the case.</p>
 there is a rationale behind this design. Let me tell you this story which is
 now 10 years old.</p>
 <p><strong>This article is the first in a series of articles telling the history and
-rationale of the Python 3 Unicode model for the operating system.</strong></p>
+rationale of the Python 3 Unicode model for the operating system:</strong></p>
+<ul class="simple">
+<li><ol class="first arabic">
+<li><a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">Python 3.0 listdir() bug on undecodable filenames</a></li>
+</ol>
+</li>
+<li><ol class="first arabic" start="2">
+<li><a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">PEP 383: Non-decodable Bytes in System Character Interfaces</a></li>
+</ol>
+</li>
+</ul>
 <div class="section" id="the-os-walk-bug">
 <h2>The os.walk() bug</h2>
 <a class="reference external image-reference" href="http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html"><img alt="Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston" src="https://vstinner.github.io/images/car_accident_hole.jpg" /></a>
@@ -213,7 +223,7 @@ add <tt class="docutils literal">os.getcwdb()</tt> which returns <tt class="docu
 <p>Guido van Rossum created a <a class="reference external" href="https://codereview.appspot.com/3055">review on my combined patches</a>. Then I also combined my patches into a
 single <tt class="docutils literal">python3_bytes_filename.patch</tt> file.</p>
 <p><strong>After one month of development, 6 versions of the combined patch, Guido
-commited my big change</strong> as the commit <a class="reference external" href="https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76">f0af3e30</a>:</p>
+commited my big change</strong> as the <a class="reference external" href="https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76">commit f0af3e30</a>:</p>
 <pre class="literal-block">
 commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
 Author: Guido van Rossum &lt;guido&#64;python.org&gt;

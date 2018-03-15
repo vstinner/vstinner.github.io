@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>PEP 383: Non-decodable Bytes in System Character Interfaces</title>
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+
+        <!--[if IE]>
+            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <nav><ul>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="bookmark"
+           title="Permalink to PEP 383: Non-decodable Bytes in System Character Interfaces">PEP 383: Non-decodable Bytes in System Character Interfaces</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2018-03-15T18:00:00+01:00">
+                Published: jeu. 15 mars 2018
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <p>In my previous article, I wrote that <tt class="docutils literal">os.listdir(str)</tt> ignored silently
+undecodable filenames in Python 3.0 and that lying on the real content of a
+directory looks like a very bad idea.</p>
+<p><strong>Martin v. Löwis</strong> found a very smart solution to this problem: the
+<tt class="docutils literal">surrogateescape</tt> error handler.</p>
+<p><strong>This article is the second in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system:</strong></p>
+<ul class="simple">
+<li><ol class="first arabic">
+<li><a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">Python 3.0 listdir() bug on undecodable filenames</a></li>
+</ol>
+</li>
+<li><ol class="first arabic" start="2">
+<li><a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">PEP 383: Non-decodable Bytes in System Character Interfaces</a></li>
+</ol>
+</li>
+</ul>
+<div class="section" id="first-attempt-to-propose-the-solution">
+<h2>First attempt to propose the solution</h2>
+<p>September 2008, <a class="reference external" href="https://bugs.python.org/issue3187">bpo-3187</a>: While
+solutions to fix <tt class="docutils literal">os.listdir(str)</tt> were discussed, <strong>Martin v. Löwis</strong>
+<a class="reference external" href="https://bugs.python.org/issue3187#msg73992">proposed a different approach</a>:</p>
+<blockquote>
+<p>I'd like to propose yet another approach: make sure that <strong>conversion</strong>
+according to the file system encoding <strong>always succeeds</strong>. <strong>If an
+unconvertable byte is detected, map it into some private-use character.</strong>
+To reduce the chance of conflict with other people's private-use
+characters, we can use some of the plane 15 private-use characters, e.g.
+map byte 0xPQ to U+F30PQ (in two-byte Unicode mode, this would result in
+a surrogate pair).</p>
+<p>This would make all file names accessible to all text processing
+(including glob and friends); UI display would typically either report
+an encoding error, or arrange for some replacement glyph to be shown.</p>
+<p>There are certain variations of the approach possible, in case there is
+objection to a specific detail.</p>
+</blockquote>
+<p>He amended this proposal:</p>
+<blockquote>
+<p><strong>James Knight</strong> points out that UTF-8b can be used to give unambiguous
+round-tripping of characters in a UTF-8 locale. So I would like to amend my
+previous proposal:</p>
+<ul class="simple">
+<li>for a non-UTF-8 encoding, use private-use characters for roundtripping</li>
+<li>if the locale's charset is UTF-8, use UTF-8b as the file system encoding.</li>
+</ul>
+</blockquote>
+<p><strong>But Martin's smart idea was lost</strong> in the middle of long discussion.</p>
+<a class="reference external image-reference" href="https://github.com/loewis"><img alt="Martin v. Löwis" src="https://vstinner.github.io/images/martin_von_loewis.jpg" /></a>
+</div>
+<div class="section" id="pep-383">
+<h2>PEP 383</h2>
+<p>April 2009, Martin v. Löwis proposed again his idea, now as the well defined
+<a class="reference external" href="http://www.python.org/dev/peps/pep-0383">PEP 383</a>: <strong>Non-decodable Bytes in System Character Interfaces</strong>. He <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/088919.html">posted
+his PEP to python-dev</a> for
+comments.</p>
+<p>Abstract:</p>
+<blockquote>
+<p>File names, environment variables, and command line arguments are defined
+as being character data in POSIX; the C APIs however allow passing
+arbitrary bytes - whether these conform to a certain encoding or not.</p>
+<p><strong>This PEP proposes a means of dealing with such irregularities by embedding
+the bytes in character strings in such a way that allows recreation of the
+original byte string.</strong></p>
+</blockquote>
+<p>The <tt class="docutils literal">surrogateescape</tt> encoding is based on <strong>Markus Kuhn</strong>'s idea that he
+called <strong>UTF-8b</strong>. Undecodable bytes in range <tt class="docutils literal"><span class="pre">0x80-0xff</span></tt> are mapped as
+Unicode surrogate characters: range <tt class="docutils literal">U+DC80</tt> - <tt class="docutils literal">U+DCFF</tt>.</p>
+<p>Example:</p>
+<pre class="literal-block">
+&gt;&gt;&gt; b'nonascii\xff'.decode('ascii')
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xff (...)
+&gt;&gt;&gt; b'nonascii\xff'.decode('ascii', 'surrogateescape')
+'nonascii\udcff'
+&gt;&gt;&gt; 'nonascii\udcff'.encode('ascii', 'surrogateescape')
+b'nonascii\xff'
+</pre>
+<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/089278.html">The PEP was accepted</a> by
+<strong>Guido van Rossum</strong> in less than one week!</p>
+</div>
+<div class="section" id="implementation">
+<h2>Implementation</h2>
+<p>May 2009, Martin v. Löwis opened the <a class="reference external" href="https://bugs.python.org/issue5915">bpo-5915</a> to get a review on his implementation.</p>
+<p>Two days later, after <strong>Benjamin Peterson</strong> and <strong>Antoine Pitrou</strong> reviews,
+Martin pushed the <a class="reference external" href="https://github.com/python/cpython/commit/011e8420339245f9b55d41082ec6036f2f83a182">commit 011e8420</a>:</p>
+<blockquote>
+Issue #5915: Implement PEP 383, Non-decodable Bytes
+in System Character Interfaces.</blockquote>
+<p>Five days later, Martin renamed his &quot;utf8b&quot; error handler to its final name
+<strong>surrogateescape</strong>, <a class="reference external" href="https://github.com/python/cpython/commit/43c57785d3319249c03c3fa46c9df42a8ccd3e52">commit 43c57785</a>:</p>
+<blockquote>
+Rename utf8b error handler to surrogateescape.</blockquote>
+<p><strong>Python 3.1</strong> will be the first release getting the <tt class="docutils literal">surrogateescape</tt> error
+handler.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>In Python 3.0, <tt class="docutils literal">os.listdir(str)</tt> ignored silently undecodable filenames which
+was not ideal.</p>
+<p><strong>Martin v. Löwis</strong> proposed to apply <strong>Markus Kuhn</strong>'s idea called <strong>UTF-8b</strong>
+in Python as a new <tt class="docutils literal">surrogateescape</tt> error handler.</p>
+<p>Martin's PEP was approved in less than one week and implemented a few days
+later.</p>
+<p>The <tt class="docutils literal">surrogateescape</tt> error handler fixed a lot of old and very complex
+Unicode issues on Unix. It is still widely used in Python 3.6 to <strong>not annoy
+users with Unicode errors</strong>.</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

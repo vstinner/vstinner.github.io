@@ -1,5 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-09T13:00:00+01:00</updated><entry><title>Python 3.0 listdir() bug on undecodable filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-15T18:00:00+01:00</updated><entry><title>PEP 383: Non-decodable Bytes in System Character Interfaces</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+undecodable filenames in Python 3.0 and that lying on the real content of a
+directory looks like a very bad idea.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+undecodable filenames in Python 3.0 and that lying on the real content of a
+directory looks like a very bad idea.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the second in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() bug on undecodable filenames&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="first-attempt-to-propose-the-solution"&gt;
+&lt;h2&gt;First attempt to propose the solution&lt;/h2&gt;
+&lt;p&gt;September 2008, &lt;a class="reference external" href="https://bugs.python.org/issue3187"&gt;bpo-3187&lt;/a&gt;: While
+solutions to fix &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; were discussed, &lt;strong&gt;Martin v. Löwis&lt;/strong&gt;
+&lt;a class="reference external" href="https://bugs.python.org/issue3187#msg73992"&gt;proposed a different approach&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I'd like to propose yet another approach: make sure that &lt;strong&gt;conversion&lt;/strong&gt;
+according to the file system encoding &lt;strong&gt;always succeeds&lt;/strong&gt;. &lt;strong&gt;If an
+unconvertable byte is detected, map it into some private-use character.&lt;/strong&gt;
+To reduce the chance of conflict with other people's private-use
+characters, we can use some of the plane 15 private-use characters, e.g.
+map byte 0xPQ to U+F30PQ (in two-byte Unicode mode, this would result in
+a surrogate pair).&lt;/p&gt;
+&lt;p&gt;This would make all file names accessible to all text processing
+(including glob and friends); UI display would typically either report
+an encoding error, or arrange for some replacement glyph to be shown.&lt;/p&gt;
+&lt;p&gt;There are certain variations of the approach possible, in case there is
+objection to a specific detail.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;He amended this proposal:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;James Knight&lt;/strong&gt; points out that UTF-8b can be used to give unambiguous
+round-tripping of characters in a UTF-8 locale. So I would like to amend my
+previous proposal:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;for a non-UTF-8 encoding, use private-use characters for roundtripping&lt;/li&gt;
+&lt;li&gt;if the locale's charset is UTF-8, use UTF-8b as the file system encoding.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;But Martin's smart idea was lost&lt;/strong&gt; in the middle of long discussion.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://github.com/loewis"&gt;&lt;img alt="Martin v. Löwis" src="https://vstinner.github.io/images/martin_von_loewis.jpg" /&gt;&lt;/a&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-383"&gt;
+&lt;h2&gt;PEP 383&lt;/h2&gt;
+&lt;p&gt;April 2009, Martin v. Löwis proposed again his idea, now as the well defined
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0383"&gt;PEP 383&lt;/a&gt;: &lt;strong&gt;Non-decodable Bytes in System Character Interfaces&lt;/strong&gt;. He &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/088919.html"&gt;posted
+his PEP to python-dev&lt;/a&gt; for
+comments.&lt;/p&gt;
+&lt;p&gt;Abstract:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;File names, environment variables, and command line arguments are defined
+as being character data in POSIX; the C APIs however allow passing
+arbitrary bytes - whether these conform to a certain encoding or not.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This PEP proposes a means of dealing with such irregularities by embedding
+the bytes in character strings in such a way that allows recreation of the
+original byte string.&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; encoding is based on &lt;strong&gt;Markus Kuhn&lt;/strong&gt;'s idea that he
+called &lt;strong&gt;UTF-8b&lt;/strong&gt;. Undecodable bytes in range &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;0x80-0xff&lt;/span&gt;&lt;/tt&gt; are mapped as
+Unicode surrogate characters: range &lt;tt class="docutils literal"&gt;U+DC80&lt;/tt&gt; - &lt;tt class="docutils literal"&gt;U+DCFF&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;gt;&amp;gt;&amp;gt; b'nonascii\xff'.decode('ascii')
+UnicodeDecodeError: 'ascii' codec can't decode byte 0xff (...)
+&amp;gt;&amp;gt;&amp;gt; b'nonascii\xff'.decode('ascii', 'surrogateescape')
+'nonascii\udcff'
+&amp;gt;&amp;gt;&amp;gt; 'nonascii\udcff'.encode('ascii', 'surrogateescape')
+b'nonascii\xff'
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/089278.html"&gt;The PEP was accepted&lt;/a&gt; by
+&lt;strong&gt;Guido van Rossum&lt;/strong&gt; in less than one week!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="implementation"&gt;
+&lt;h2&gt;Implementation&lt;/h2&gt;
+&lt;p&gt;May 2009, Martin v. Löwis opened the &lt;a class="reference external" href="https://bugs.python.org/issue5915"&gt;bpo-5915&lt;/a&gt; to get a review on his implementation.&lt;/p&gt;
+&lt;p&gt;Two days later, after &lt;strong&gt;Benjamin Peterson&lt;/strong&gt; and &lt;strong&gt;Antoine Pitrou&lt;/strong&gt; reviews,
+Martin pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/011e8420339245f9b55d41082ec6036f2f83a182"&gt;commit 011e8420&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Issue #5915: Implement PEP 383, Non-decodable Bytes
+in System Character Interfaces.&lt;/blockquote&gt;
+&lt;p&gt;Five days later, Martin renamed his &amp;quot;utf8b&amp;quot; error handler to its final name
+&lt;strong&gt;surrogateescape&lt;/strong&gt;, &lt;a class="reference external" href="https://github.com/python/cpython/commit/43c57785d3319249c03c3fa46c9df42a8ccd3e52"&gt;commit 43c57785&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Rename utf8b error handler to surrogateescape.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Python 3.1&lt;/strong&gt; will be the first release getting the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error
+handler.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;In Python 3.0, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently undecodable filenames which
+was not ideal.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; proposed to apply &lt;strong&gt;Markus Kuhn&lt;/strong&gt;'s idea called &lt;strong&gt;UTF-8b&lt;/strong&gt;
+in Python as a new &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler.&lt;/p&gt;
+&lt;p&gt;Martin's PEP was approved in less than one week and implemented a few days
+later.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler fixed a lot of old and very complex
+Unicode issues on Unix. It is still widely used in Python 3.6 to &lt;strong&gt;not annoy
+users with Unicode errors&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() bug on undecodable filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
 &lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 $ python3.0
@@ -34,7 +145,17 @@ months before the 3.0 final release, it was not the case.&lt;/p&gt;
 there is a rationale behind this design. Let me tell you this story which is
 now 10 years old.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;This article is the first in a series of articles telling the history and
-rationale of the Python 3 Unicode model for the operating system.&lt;/strong&gt;&lt;/p&gt;
+rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() bug on undecodable filenames&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
 &lt;div class="section" id="the-os-walk-bug"&gt;
 &lt;h2&gt;The os.walk() bug&lt;/h2&gt;
 &lt;a class="reference external image-reference" href="http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html"&gt;&lt;img alt="Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston" src="https://vstinner.github.io/images/car_accident_hole.jpg" /&gt;&lt;/a&gt;
@@ -188,7 +309,7 @@ add &lt;tt class="docutils literal"&gt;os.getcwdb()&lt;/tt&gt; which returns &lt
 &lt;p&gt;Guido van Rossum created a &lt;a class="reference external" href="https://codereview.appspot.com/3055"&gt;review on my combined patches&lt;/a&gt;. Then I also combined my patches into a
 single &lt;tt class="docutils literal"&gt;python3_bytes_filename.patch&lt;/tt&gt; file.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;After one month of development, 6 versions of the combined patch, Guido
-commited my big change&lt;/strong&gt; as the commit &lt;a class="reference external" href="https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76"&gt;f0af3e30&lt;/a&gt;:&lt;/p&gt;
+commited my big change&lt;/strong&gt; as the &lt;a class="reference external" href="https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76"&gt;commit f0af3e30&lt;/a&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
 Author: Guido van Rossum &amp;lt;guido&amp;#64;python.org&amp;gt;
@@ -3437,7 +3558,7 @@ the code consistent. It might also help the compiler to inline code more
 easily, or maybe help to cache more machine code in CPU instruction cache.&lt;/p&gt;
 &lt;p&gt;This change was made during the GitHub migration. Since the change is big
 (modify many &lt;tt class="docutils literal"&gt;.c&lt;/tt&gt; files), I got many conflicts and it was annoying to rebase
-it. I am not happy to get this &lt;tt class="docutils literal"&gt;call.c&lt;/tt&gt; file, it already helped me :-)&lt;/p&gt;
+it. I am now happy to get this &lt;tt class="docutils literal"&gt;call.c&lt;/tt&gt; file, it already helped me :-)&lt;/p&gt;
 &lt;p&gt;Having &lt;tt class="docutils literal"&gt;call.c&lt;/tt&gt; also helps to keep helper functions need their callers, and
 prevent to expose them in the C API, even if they are exposed as private
 functions.&lt;/p&gt;

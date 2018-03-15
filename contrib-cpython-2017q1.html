@@ -266,7 +266,7 @@ the code consistent. It might also help the compiler to inline code more
 easily, or maybe help to cache more machine code in CPU instruction cache.</p>
 <p>This change was made during the GitHub migration. Since the change is big
 (modify many <tt class="docutils literal">.c</tt> files), I got many conflicts and it was annoying to rebase
-it. I am not happy to get this <tt class="docutils literal">call.c</tt> file, it already helped me :-)</p>
+it. I am now happy to get this <tt class="docutils literal">call.c</tt> file, it already helped me :-)</p>
 <p>Having <tt class="docutils literal">call.c</tt> also helps to keep helper functions need their callers, and
 prevent to expose them in the C API, even if they are exposed as private
 functions.</p>
