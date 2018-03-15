@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-15T18:00:00+01:00</updated><entry><title>PEP 383: Non-decodable Bytes in System Character Interfaces</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-15T18:00:00+01:00</updated><entry><title>PEP 383: Non-decodable Bytes in System Character Interfaces</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
 undecodable filenames in Python 3.0 and that lying on the real content of a
 directory looks like a very bad idea.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
@@ -17,7 +17,7 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -152,7 +152,7 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
