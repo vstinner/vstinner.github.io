@@ -8,6 +8,9 @@ Python 3.7 New UTF-8 Mode
 :slug: python37-new-utf8-mode
 :authors: Victor Stinner
 
+XXX in 2010, I proposed to "fallback on UTF-8" if Python failed to get the
+locale encoding: https://bugs.python.org/issue8610#msg104986
+
 UTF-8 Mode
 ==========
 

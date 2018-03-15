@@ -18,7 +18,7 @@ def replace_commit(regs):
     commit_id = regs.group(1)
     url = FMT_COMMIT_URL % commit_id
     text = commit_id[:8]
-    return 'commit `%s <%s>`__' % (text, url)
+    return '`commit %s <%s>`__' % (text, url)
 
 
 def main():

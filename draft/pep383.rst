@@ -1,25 +1,5 @@
-setfilesystemencoding()
-=======================
-
-2008-10-03, Martin v. Löwis:
-
-    I've committed sys.setfilesystemencoding as r66769.
-
-Summary:
-
-* 2008: cannot pass bytes to open(), annoying listdir(str) behaviour
 * June 2009: PEP 383, surrogateescape
-* 2010: initfsencoding()
-* PYTHONFSENCODING attempt
 
-Timeline:
-
-* Python 3.0: December 2008
-* Python 3.1: June 2009
-* Python 3.2: February 2011
-* Python 3.3: September 2012
-* Python 3.4: March 2014
-* Python 3.5: September 2015
 
 End of september 2008, **Martin v. Löwis** showed up and `proposed an idea
 <https://bugs.python.org/issue3187#msg73992>` which will later become his
@@ -40,82 +20,8 @@ End of september 2008, **Martin v. Löwis** showed up and `proposed an idea
     There are certain variations of the approach possible, in case there is
     objection to a specific detail.
 
-It took many years to find the best encoding and error handler to encode and
-decode data from/to the operating system, and to design new and enhance
-existing APIs. Example: ``os.environb`` monster, ``sys.argvb`` idea, etc.
-
 **Martin v. Löwis** wrote his :pep:`383` "Non-decodable Bytes in System
 Character Interfaces" and implemented it in Python 3.1. The ``surrogateescape``
 error handler fixed a lot of old and very complex Unicode issues on Unix.
-
-In 2010, I already proposed to "fallback on UTF-8" if Python failed to get
-the locale encoding: https://bugs.python.org/issue8610#msg104986
-
-2010-05-05, bpo-8622: As a follow-up of bpo-8610, **Marc-Andre Lemburg**
-proposed a way to override the automatic detection of the file system
-encoding::
-
-    PYTHONFSENCODING: Encoding[:errors] used for file system.
-
-At that time, I already noticed the most complex part of this option: the need
-to "reencode filenames when setting the filesystem encoding".
-
-bpo-9630:
-
-    I wrote a patch to reencode filenames of all module and code objects in
-    initfsencoding() when the locale encoding is known.
-
-Amaury Forgeot d'Arc::
-
-    > Python is installed in a directory called b'py3k\xc3\xa9'
-    > and your locale is C
-    Do we really want to support this kind of configuration?
-
-Comment::
-
-    > Why is this needed ?
-
-    Py_FilesystemDefaultEncoding is changed too late. Some modules are already
-    loaded, sys.executable is already set, etc. Py_FilesystemDefaultEncoding is
-    changed but modules filenames are decoded with utf-8 and should be
-    "redecoded".
-
-Another option::
-
-    Another solution would be to unload all modules, clear all caches,
-    delete all code objects, etc. after setting the filesystem encoding. But
-    I think that it is inefficient and nobody wants a slower Python startup.
-
-"I commited redecode_modules_path-4.patch as r85115 in Python 3.2." ::
-
-    commit c39211f51e377919952b139c46e295800cbc2a8d
-    Author: Victor Stinner <victor.stinner@haypocalc.com>
-    Date:   Wed Sep 29 16:35:47 2010 +0000
-
-        Issue #9630: Redecode filenames when setting the filesystem encoding
-
-        Redecode the filenames of:
-
-         - all modules: __file__ and __path__ attributes
-         - all code objects: co_filename attribute
-         - sys.path
-         - sys.meta_path
-         - sys.executable
-         - sys.path_importer_cache (keys)
-
-        Keep weak references to all code objects until initfsencoding() is called, to
-        be able to redecode co_filename attribute of all code objects.
-
-
-Other::
-
-    commit b744ba1d14c5487576c95d0311e357b707600b47
-    Author: Victor Stinner <victor.stinner@haypocalc.com>
-    Date:   Sat May 15 12:27:16 2010 +0000
-
-        Issue #8610: Load file system codec at startup, and display a fatal error on
-        failure. Set the file system encoding to utf-8 (instead of None) if getting
-        the locale encoding failed, or if nl_langinfo(CODESET) function is missing.
-
 
 

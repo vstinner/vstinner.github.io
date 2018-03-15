@@ -219,7 +219,7 @@ Guido van Rossum created a `review on my combined patches
 single ``python3_bytes_filename.patch`` file.
 
 **After one month of development, 6 versions of the combined patch, Guido
-commited my big change** as the commit `f0af3e30
+commited my big change** as the `commit f0af3e30
 <https://github.com/python/cpython/commit/f0af3e30db9475ab68bcb1f1ce0b5581e214df76>`__::
 
     commit f0af3e30db9475ab68bcb1f1ce0b5581e214df76
