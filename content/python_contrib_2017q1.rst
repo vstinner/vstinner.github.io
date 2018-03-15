@@ -261,7 +261,7 @@ easily, or maybe help to cache more machine code in CPU instruction cache.
 
 This change was made during the GitHub migration. Since the change is big
 (modify many ``.c`` files), I got many conflicts and it was annoying to rebase
-it. I am not happy to get this ``call.c`` file, it already helped me :-)
+it. I am now happy to get this ``call.c`` file, it already helped me :-)
 
 Having ``call.c`` also helps to keep helper functions need their callers, and
 prevent to expose them in the C API, even if they are exposed as private

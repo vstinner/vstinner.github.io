@@ -11,6 +11,16 @@ Python 3.7 New UTF-8 Mode
 XXX in 2010, I proposed to "fallback on UTF-8" if Python failed to get the
 locale encoding: https://bugs.python.org/issue8610#msg104986
 
+Missing nl_langinfo(CODESET) uses UTF-8
+=======================================
+
+XXX
+
+Windows PEPs to use UTF-8
+=========================
+
+XXX
+
 UTF-8 Mode
 ==========
 
