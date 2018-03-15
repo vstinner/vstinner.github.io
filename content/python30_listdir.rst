@@ -31,7 +31,10 @@ there is a rationale behind this design. Let me tell you this story which is
 now 10 years old.
 
 **This article is the first in a series of articles telling the history and
-rationale of the Python 3 Unicode model for the operating system.**
+rationale of the Python 3 Unicode model for the operating system:**
+
+* 1. `Python 3.0 listdir() bug on undecodable filenames <{filename}/python30_listdir.rst>`_
+* 2. `PEP 383: Non-decodable Bytes in System Character Interfaces <{filename}/pep383.rst>`_
 
 The os.walk() bug
 =================

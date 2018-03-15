@@ -8,25 +8,29 @@ PEP 383: Non-decodable Bytes in System Character Interfaces
 :slug: painful-history-python-filesystem-encoding
 :authors: Victor Stinner
 
-* June 2009: PEP 383, surrogateescape
+In my previous article, I wrote that ``os.listdir(str)`` ignored silently
+undecodable filenames in Python 3.0 and that lying on the real content of a
+directory looks like a very bad idea.
 
-**This article is the third in a series of articles telling the history and
+**Martin v. Löwis** found a very smart solution to this problem: the
+``surrogateescape`` error handler.
+
+**This article is the second in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system:**
 
-* 1. `Python 3.0 listdir() bug on undecodable filenames <{filename}/python30_listdir.rst>`_.
-* 2. PEP 383
-* 3. Painful history of the Python filesystem encoding
+* 1. `Python 3.0 listdir() bug on undecodable filenames <{filename}/python30_listdir.rst>`_
+* 2. `PEP 383: Non-decodable Bytes in System Character Interfaces <{filename}/pep383.rst>`_
 
-Start
-=====
+First attempt to propose the solution
+=====================================
 
-End of september 2008, **Martin v. Löwis** showed up and `proposed an idea
-<https://bugs.python.org/issue3187#msg73992>` which will later become his
-:pep:`383` "Non-decodable Bytes in System Character Interfaces":
+September 2008, `bpo-3187 <https://bugs.python.org/issue3187>`__: While
+solutions to fix ``os.listdir(str)`` were discussed, **Martin v. Löwis**
+`proposed a different approach <https://bugs.python.org/issue3187#msg73992>`_:
 
-    I'd like to propose yet another approach: make sure that conversion
-    according to the file system encoding always succeeds. If an
-    unconvertable byte is detected, map it into some private-use character.
+    I'd like to propose yet another approach: make sure that **conversion**
+    according to the file system encoding **always succeeds**. **If an
+    unconvertable byte is detected, map it into some private-use character.**
     To reduce the chance of conflict with other people's private-use
     characters, we can use some of the plane 15 private-use characters, e.g.
     map byte 0xPQ to U+F30PQ (in two-byte Unicode mode, this would result in
@@ -39,8 +43,93 @@ End of september 2008, **Martin v. Löwis** showed up and `proposed an idea
     There are certain variations of the approach possible, in case there is
     objection to a specific detail.
 
-**Martin v. Löwis** wrote his :pep:`383` "Non-decodable Bytes in System
-Character Interfaces" and implemented it in Python 3.1. The ``surrogateescape``
-error handler fixed a lot of old and very complex Unicode issues on Unix.
+He amended this proposal:
+
+    **James Knight** points out that UTF-8b can be used to give unambiguous
+    round-tripping of characters in a UTF-8 locale. So I would like to amend my
+    previous proposal:
+
+    - for a non-UTF-8 encoding, use private-use characters for roundtripping
+    - if the locale's charset is UTF-8, use UTF-8b as the file system encoding.
+
+**But Martin's smart idea was lost** in the middle of long discussion.
+
+.. image:: {filename}/images/martin_von_loewis.jpg
+   :alt: Martin v. Löwis
+   :target: https://github.com/loewis
 
 
+PEP 383
+=======
+
+April 2009, Martin v. Löwis proposed again his idea, now as the well defined
+:pep:`383`: **Non-decodable Bytes in System Character Interfaces**. He `posted
+his PEP to python-dev
+<https://mail.python.org/pipermail/python-dev/2009-April/088919.html>`_ for
+comments.
+
+Abstract:
+
+    File names, environment variables, and command line arguments are defined
+    as being character data in POSIX; the C APIs however allow passing
+    arbitrary bytes - whether these conform to a certain encoding or not.
+
+    **This PEP proposes a means of dealing with such irregularities by embedding
+    the bytes in character strings in such a way that allows recreation of the
+    original byte string.**
+
+The ``surrogateescape`` encoding is based on **Markus Kuhn**'s idea that he
+called **UTF-8b**. Undecodable bytes in range ``0x80-0xff`` are mapped as
+Unicode surrogate characters: range ``U+DC80`` - ``U+DCFF``.
+
+Example::
+
+    >>> b'nonascii\xff'.decode('ascii')
+    UnicodeDecodeError: 'ascii' codec can't decode byte 0xff (...)
+    >>> b'nonascii\xff'.decode('ascii', 'surrogateescape')
+    'nonascii\udcff'
+    >>> 'nonascii\udcff'.encode('ascii', 'surrogateescape')
+    b'nonascii\xff'
+
+`The PEP was accepted
+<https://mail.python.org/pipermail/python-dev/2009-April/089278.html>`_ by
+**Guido van Rossum** in less than one week!
+
+
+Implementation
+==============
+
+May 2009, Martin v. Löwis opened the `bpo-5915
+<https://bugs.python.org/issue5915>`__ to get a review on his implementation.
+
+Two days later, after **Benjamin Peterson** and **Antoine Pitrou** reviews,
+Martin pushed the `commit 011e8420
+<https://github.com/python/cpython/commit/011e8420339245f9b55d41082ec6036f2f83a182>`__:
+
+    Issue #5915: Implement PEP 383, Non-decodable Bytes
+    in System Character Interfaces.
+
+Five days later, Martin renamed his "utf8b" error handler to its final name
+**surrogateescape**, `commit 43c57785
+<https://github.com/python/cpython/commit/43c57785d3319249c03c3fa46c9df42a8ccd3e52>`__:
+
+    Rename utf8b error handler to surrogateescape.
+
+**Python 3.1** will be the first release getting the ``surrogateescape`` error
+handler.
+
+Conclusion
+==========
+
+In Python 3.0, ``os.listdir(str)`` ignored silently undecodable filenames which
+was not ideal.
+
+**Martin v. Löwis** proposed to apply **Markus Kuhn**'s idea called **UTF-8b**
+in Python as a new ``surrogateescape`` error handler.
+
+Martin's PEP was approved in less than one week and implemented a few days
+later.
+
+The ``surrogateescape`` error handler fixed a lot of old and very complex
+Unicode issues on Unix. It is still widely used in Python 3.6 to **not annoy
+users with Unicode errors**.
