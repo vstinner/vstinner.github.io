@@ -1,5 +1,413 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-15T18:00:00+01:00</updated><entry><title>PEP 383: Non-decodable Bytes in System Character Interfaces</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-15T23:00:00+01:00</updated><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
+filesystem encoding changed multiple times. &lt;strong&gt;It took 6 years to choose the best
+Python filesystem encoding on each platform.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I have been officially promoted as a core developer&lt;/strong&gt; in January 2010 by
+&lt;strong&gt;Martin von …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
+filesystem encoding changed multiple times. &lt;strong&gt;It took 6 years to choose the best
+Python filesystem encoding on each platform.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I have been officially promoted as a core developer&lt;/strong&gt; in January 2010 by
+&lt;strong&gt;Martin von Loewis&lt;/strong&gt;. I spent the whole year of 2010 to fix dozens of encoding
+issues during the development of Python 3.2, following my Unicode work started
+in 2008.&lt;/p&gt;
+&lt;p&gt;This article is focused on the long discussions to choose the best Python
+filesystem encoding on each platform in 2010 for Python 3.2.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the third in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() Bug on Undecodable Filenames&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error handler (PEP 383)&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;a class="reference external image-reference" href="https://commons.wikimedia.org/wiki/File:Longleat-maze.jpg"&gt;&lt;img alt="Maze" src="https://vstinner.github.io/images/maze.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="python-3-0-loves-utf-8"&gt;
+&lt;h2&gt;Python 3.0 loves UTF-8&lt;/h2&gt;
+&lt;p&gt;When Python 3.0 was released, it was unclear which encodings should be used
+for:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;File content: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;open().read()&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Filenames: &lt;tt class="docutils literal"&gt;os.listdir()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;open()&lt;/tt&gt;, etc.&lt;/li&gt;
+&lt;li&gt;Command line arguments: &lt;tt class="docutils literal"&gt;sys.argv&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;subprocess.Popen&lt;/tt&gt; arguments&lt;/li&gt;
+&lt;li&gt;Environment variables: &lt;tt class="docutils literal"&gt;os.environ&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Python 3.0 was forked from Python 2.6 and functions were modified to use
+Unicode. Many Python 3 functions only used UTF-8 because the implementation
+were modified to use the default encoding which is UTF-8: it was not a
+deliberate choice.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;While UTF-8 is a good choice in most cases, it is not the best choice in
+all cases.&lt;/strong&gt; Almost everything worked well in Python 3.0 when all data used
+UTF-8, but Python 3.0 failed badly if the locale encoding was not UTF-8.&lt;/p&gt;
+&lt;p&gt;Python 3.1, 3.2 and 3.3 will get a lot of changes to adjust encodings in all
+corners of the standard library.&lt;/p&gt;
+&lt;p&gt;Python 3.1 got the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler (PEP 383) which reduced
+Unicode errors: read my previous article &lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error
+handler (PEP 383)&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-sys-setfilesystemencoding"&gt;
+&lt;h2&gt;Add sys.setfilesystemencoding()&lt;/h2&gt;
+&lt;p&gt;September 2008, &lt;a class="reference external" href="https://bugs.python.org/issue3187"&gt;bpo-3187&lt;/a&gt;: To fix
+&lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; to support undecodable filenames, &lt;strong&gt;Martin v.  Löwis&lt;/strong&gt;
+&lt;a class="reference external" href="https://bugs.python.org/issue3187#msg74080"&gt;proposed a new function to change the filesystem encoding&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Here is a patch that solves the issue in a different way: it introduces
+sys.setfilesystemencoding. &lt;strong&gt;If applications invoke
+sys.setfilesystemencoding(&amp;quot;iso-8859-1&amp;quot;), all file names can be successfully
+converted into a character string.&lt;/strong&gt;&lt;/blockquote&gt;
+&lt;p&gt;The ISO-8859-1 encoding has a very interesting property for bytes: it maps
+exactly the &lt;tt class="docutils literal"&gt;0x00 - 0xff&lt;/tt&gt; byte range to the U+0000 - U+00ff Unicode range,
+the decoder cannot fail:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.6 -q
+&amp;gt;&amp;gt;&amp;gt; all(ord((b'%c' % byte).decode('iso-8859-1')) == byte for byte in range(256))
+True
+&amp;gt;&amp;gt;&amp;gt; all(ord(('%c' % char).encode('iso-8859-1')) == char for char in range(256))
+True
+&lt;/pre&gt;
+&lt;p&gt;Guido van Rossum &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg74173"&gt;commented&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I will check in Victor's changes (with some edits).&lt;/p&gt;
+&lt;p&gt;Together this means that the various &lt;strong&gt;suggested higher-level solutions&lt;/strong&gt;
+(like returning path-like objects, or some kind of roudtripping
+almost-but-not-quite-utf-8 encoding) &lt;strong&gt;can be implemented in pure Python&lt;/strong&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;October 2008, &lt;strong&gt;Martin v. Löwis&lt;/strong&gt; pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/04dc25c53728f5c2fe66d9e66af67da0c9b8959d"&gt;commit 04dc25c5&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Issue #3187: Add sys.setfilesystemencoding.
+&lt;/pre&gt;
+&lt;p&gt;Python 3.0 will be the first major release with this function.&lt;/p&gt;
+&lt;p&gt;In retrospective, I see this function as asking developers and users to be
+smart and choose the encoding themself.&lt;/p&gt;
+&lt;p&gt;While the ISO-8859-1 encoding trick is tempting, we will see later that
+&lt;tt class="docutils literal"&gt;setfilesystemencoding()&lt;/tt&gt; is broken by design and so cannot be used in
+practice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="what-if-getting-the-locale-encoding-fails"&gt;
+&lt;h2&gt;What if getting the locale encoding fails?&lt;/h2&gt;
+&lt;p&gt;May 2010, I reported &lt;a class="reference external" href="https://bugs.python.org/issue8610"&gt;bpo-8610&lt;/a&gt;,
+&amp;quot;Python3/POSIX: errors if file system encoding is None&amp;quot;:&lt;/p&gt;
+&lt;blockquote&gt;
+On POSIX (but not on Mac OS X), Python3 calls get_codeset() to get the file
+system encoding. If this function fails, sys.getfilesystemencoding()
+returns None.&lt;/blockquote&gt;
+&lt;p&gt;I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/b744ba1d14c5487576c95d0311e357b707600b47"&gt;commit b744ba1d&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Issue #8610: Load file system codec at startup, and &lt;strong&gt;display a fatal error
+on failure&lt;/strong&gt;. &lt;strong&gt;Set the file system encoding to utf-8&lt;/strong&gt; (instead of None)
+&lt;strong&gt;if getting the locale encoding failed&lt;/strong&gt;, or if nl_langinfo(CODESET)
+function is missing.&lt;/blockquote&gt;
+&lt;p&gt;This change &lt;strong&gt;adds the function initfsencoding()&lt;/strong&gt;: logic to initialize the
+filesystem encoding.&lt;/p&gt;
+&lt;p&gt;In practice, Python already used UTF-8 when the filesystem encoding was set to
+&lt;tt class="docutils literal"&gt;None&lt;/tt&gt;, but this change makes the default more obvious. The change also makes
+the error case better defined: Python exits immediately with a fatal error.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="support-locale-encodings-different-than-utf-8"&gt;
+&lt;h2&gt;Support locale encodings different than UTF-8&lt;/h2&gt;
+&lt;p&gt;My biggest Unicode project in Python 3 was to &lt;strong&gt;fix the encoding&lt;/strong&gt; in all
+corners of the standard library. This task kept me busy between Python 3.0 and
+Python 3.4, at least.&lt;/p&gt;
+&lt;p&gt;May 2010, I created &lt;a class="reference external" href="https://bugs.python.org/issue8611"&gt;bpo-8611&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;Python3 is unable to start&lt;/strong&gt; (bootstrap failure) on a POSIX system &lt;strong&gt;if
+the locale encoding is different than utf8 and the Python path&lt;/strong&gt; (standard
+library path where the encoding module is stored) &lt;strong&gt;contains a non-ASCII
+character&lt;/strong&gt;. (Windows and Mac OS X are not affected by this issue because
+the file system encoding is hardcoded.)&lt;/blockquote&gt;
+&lt;p&gt;For example, &lt;a class="reference external" href="https://bugs.python.org/issue8242"&gt;bpo-8242&lt;/a&gt; &amp;quot;Improve support
+of PEP 383 (surrogates) in Python3&amp;quot; is a meta issue tracking multiple issues:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue7606"&gt;bpo-7606&lt;/a&gt;:
+test_xmlrpc fails with non-ascii path&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8092"&gt;bpo-8092&lt;/a&gt;:
+utf8, backslashreplace and surrogates&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8383"&gt;bpo-8383&lt;/a&gt;:
+pickle is unable to encode unicode surrogates&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8390"&gt;bpo-8390&lt;/a&gt;:
+tarfile: use surrogates for undecode fields&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8391"&gt;bpo-8391&lt;/a&gt;:
+os.execvpe() doesn't support surrogates in env&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8393"&gt;bpo-8393&lt;/a&gt;:
+subprocess: support undecodable current working directory on POSIX OS&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8394"&gt;bpo-8394&lt;/a&gt;:
+ctypes.dlopen() doesn't support surrogates&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8412"&gt;bpo-8412&lt;/a&gt;:
+os.system() doesn't support surrogates nor bytes&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8467"&gt;bpo-8467&lt;/a&gt;:
+subprocess: surrogates of the error message (Python implementation on non-Windows)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8468"&gt;bpo-8468&lt;/a&gt;:
+bz2: support surrogates in filename, and bytes/bytearray filename&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8477"&gt;bpo-8477&lt;/a&gt;:
+_ssl: support surrogates in filenames, and bytes/bytearray filenames&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8485"&gt;bpo-8485&lt;/a&gt;:
+Don't accept bytearray as filenames, or simplify the API&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I fixed all these issues, and reported most of them.&lt;/p&gt;
+&lt;p&gt;October 2010, finally, five months later, I succeeded to close the issue!&lt;/p&gt;
+&lt;blockquote&gt;
+Starting at r85691, the full test suite of Python 3.2 pass with ASCII,
+ISO-8859-1 and UTF-8 locale encodings in a non-ascii directory.
+&lt;strong&gt;The work on this issue is done.&lt;/strong&gt;&lt;/blockquote&gt;
+&lt;p&gt;At that time, I didn't know that it will take me a few more years to really fix
+&lt;strong&gt;all&lt;/strong&gt; encoding issues. For example, it will take me &lt;strong&gt;3 years&lt;/strong&gt; to modify the
+core of the import machinery to pass filenames as Unicode on Windows: &lt;a class="reference external" href="https://bugs.python.org/issue3080"&gt;bpo-3080&lt;/a&gt; &lt;strong&gt;Full unicode import system&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-pythonfsencoding-environment-variable"&gt;
+&lt;h2&gt;Add PYTHONFSENCODING environment variable&lt;/h2&gt;
+&lt;p&gt;May 2010, while discussing how to fix &lt;a class="reference external" href="https://bugs.python.org/issue8610"&gt;bpo-8610&lt;/a&gt; &amp;quot;Python3/POSIX: errors if file system
+encoding is None&amp;quot;, I asked what is the best encoding if reading the locale
+encoding fails. As a follow-up, &lt;strong&gt;Marc-Andre Lemburg&lt;/strong&gt; created &lt;a class="reference external" href="https://bugs.python.org/issue8622"&gt;bpo-8622&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;As discussed on issue8610, we need a way to &lt;strong&gt;override the automatic
+detection of the file system encoding&lt;/strong&gt; - for much the same reasons we also
+do for the I/O encoding: the detection mechanism isn't fail-safe.&lt;/p&gt;
+&lt;p&gt;We should add a new environment variable with the same functionality as
+&lt;tt class="docutils literal"&gt;PYTHONIOENCODING&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PYTHONFSENCODING: Encoding[:errors] used for file system.
+&lt;/pre&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I implemented the idea since I liked it. August 2010, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/94908bbc1503df830d1d615e7b57744ae1b41079"&gt;commit
+94908bbc&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Issue #8622: Add &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; environment variable to override the
+filesystem encoding.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;initfsencoding()&lt;/tt&gt; displays also a better error message
+if &lt;tt class="docutils literal"&gt;get_codeset()&lt;/tt&gt; failed.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="remove-sys-setfilesystemencoding"&gt;
+&lt;h2&gt;Remove sys.setfilesystemencoding()&lt;/h2&gt;
+&lt;p&gt;August 2010, just after adding &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt;, I opened &lt;a class="reference external" href="https://bugs.python.org/issue9632"&gt;bpo-9632&lt;/a&gt; to remove the
+&lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; function:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; function is &lt;strong&gt;dangerous&lt;/strong&gt; because it
+introduces a lot of inconsistencies: this function is &lt;strong&gt;unable to reencode
+all filenames&lt;/strong&gt; of all objects (eg. Python is unable to find filenames in
+user objects or 3rd party libraries). Eg. if you change the filesystem from
+utf8 to ascii, it will not be possible to use existing non-ascii (unicode)
+filenames: they will raise UnicodeEncodeError.&lt;/p&gt;
+&lt;p&gt;As &lt;tt class="docutils literal"&gt;sys.setdefaultencoding()&lt;/tt&gt; in Python2, I think that
+&lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; is the &lt;strong&gt;root of evil&lt;/strong&gt; :-)
+&lt;strong&gt;PYTHONFSENCODING&lt;/strong&gt; (issue #8622) &lt;strong&gt;is the right solution&lt;/strong&gt; to set the
+filesysteme encoding.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Marc-Andre Lemburg&lt;/strong&gt; complained that applications embedding Python may want
+to set the encoding used by Python. I proposed to use the &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt;
+environment variable as a workaround, even if it was not the best option.&lt;/p&gt;
+&lt;p&gt;One month later, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/5b519e02016ea3a51f784dee70eead3be4ab1aff"&gt;commit 5b519e02&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Issue #9632: Remove &lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; function: use
+&lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; environment variable to set the filesystem encoding at
+Python startup.  &lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; created inconsistencies
+because it was unable to reencode all filenames of all objects.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reencode-filenames-when-setting-the-filesystem-encoding"&gt;
+&lt;h2&gt;Reencode filenames when setting the filesystem encoding&lt;/h2&gt;
+&lt;p&gt;August 2010, I created &lt;a class="reference external" href="https://bugs.python.org/issue9630"&gt;bpo-9630&lt;/a&gt;:
+&amp;quot;Reencode filenames when setting the filesystem encoding&amp;quot;.&lt;/p&gt;
+&lt;p&gt;Since the beginning of 2010, I identified a design flaw in the Python
+initialization. Python starts by &lt;strong&gt;decoding strings from the default encoding
+UTF-8&lt;/strong&gt;. Later, Python reads the locale encoding and loads the Python codec of
+this encoding. Then Python &lt;strong&gt;decodes string from the locale encoding&lt;/strong&gt;.
+Problem: if the locale encoding is not UTF-8, &lt;strong&gt;encoding strings decoded from
+UTF-8 to the locale encoding can fail&lt;/strong&gt; in different ways.&lt;/p&gt;
+&lt;p&gt;I wrote a patch to &amp;quot;reencode&amp;quot; filenames of all module and code objects once the
+filesystem encoding is set, in &lt;tt class="docutils literal"&gt;initfsencoding()&lt;/tt&gt;,&lt;/p&gt;
+&lt;p&gt;When I wrote the patch, I knew that it was an &lt;strong&gt;ugly hack and not the proper
+design&lt;/strong&gt;. I proposed to try to avoid importing any Python module before the Python
+codec of the locale encoding is loaded, but there was a pratical issue. Python
+only has builtin implementation (written in C) of the most popular encodings
+like ASCII and UTF-8. Some encodings like ISO-8859-15 are only implemented in
+Python.&lt;/p&gt;
+&lt;p&gt;I also proposed to &amp;quot;unload all modules, clear all caches and delete all code
+objects&amp;quot; after setting the filesystem encoding. This option would be very
+inefficient and make Python startup slower, whereas Python 3 startup was also
+way slower than Python 2 startup.&lt;/p&gt;
+&lt;p&gt;September 2010, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/c39211f51e377919952b139c46e295800cbc2a8d"&gt;commit c39211f5&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Issue #9630: Redecode filenames when setting the filesystem encoding&lt;/p&gt;
+&lt;p&gt;Redecode the filenames of:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;all modules: __file__ and __path__ attributes&lt;/li&gt;
+&lt;li&gt;all code objects: co_filename attribute&lt;/li&gt;
+&lt;li&gt;sys.path&lt;/li&gt;
+&lt;li&gt;sys.meta_path&lt;/li&gt;
+&lt;li&gt;sys.executable&lt;/li&gt;
+&lt;li&gt;sys.path_importer_cache (keys)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Keep weak references to all code objects until &lt;tt class="docutils literal"&gt;initfsencoding()&lt;/tt&gt; is
+called, to be able to redecode co_filename attribute of all code objects.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The list of weak references to code objects really looks like a hack and I
+disliked it, but I failed to find a better way to fix Python startup.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pythonfsencoding-dead-end"&gt;
+&lt;h2&gt;PYTHONFSENCODING dead end&lt;/h2&gt;
+&lt;p&gt;Even with my latest big and ugly &amp;quot;redecode filenames when setting the
+filesystem encoding&amp;quot; fix, there were &lt;strong&gt;issues when the filesystem encoding was
+different than the locale encoding&lt;/strong&gt;. I identified 4 bugs:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue9992"&gt;bpo-9992&lt;/a&gt;, &lt;tt class="docutils literal"&gt;sys.argv&lt;/tt&gt;: decoded from the &lt;strong&gt;locale&lt;/strong&gt; encoding, but subprocess encodes process arguments to the &lt;strong&gt;filesystem&lt;/strong&gt; encoding&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue10014"&gt;bpo-10014&lt;/a&gt;, &lt;tt class="docutils literal"&gt;sys.path&lt;/tt&gt;: decoded from the &lt;strong&gt;locale&lt;/strong&gt; encoding, but import encodes paths to the &lt;strong&gt;filesystem&lt;/strong&gt; encoding&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue10039"&gt;bpo-10039&lt;/a&gt;, the script name: read on the command line
+(ex: &lt;tt class="docutils literal"&gt;python script.py&lt;/tt&gt;) which is decoded from the locale encoding, whereas
+it is used to fill &lt;tt class="docutils literal"&gt;sys.path[0]&lt;/tt&gt; and import encodes paths to the
+&lt;strong&gt;filesystem&lt;/strong&gt; encoding.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue9988"&gt;bpo-9988&lt;/a&gt;, &lt;tt class="docutils literal"&gt;PYTHONWARNINGS&lt;/tt&gt; environment variable: decoded from the
+&lt;strong&gt;locale&lt;/strong&gt; encoding, but &lt;tt class="docutils literal"&gt;subprocess&lt;/tt&gt; encodes environment variables to the
+&lt;strong&gt;filesystem&lt;/strong&gt; encoding.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;October 2010, I wrote an email to the python-dev list: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2010-October/104509.html"&gt;Inconsistencies if
+locale and filesystem encodings are different&lt;/a&gt;. I
+proposed two solutions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;(a) use the same encoding to encode and decode values (it can be different
+for each issue).&lt;/li&gt;
+&lt;li&gt;(b) &lt;strong&gt;remove PYTHONFSENCODING variable&lt;/strong&gt; and raise an error if locale and
+filesystem encodings are different (ensure that both encodings are the same).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Marc-Andre Lemburg&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2010-October/104511.html"&gt;replied&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;You have to differentiate between the meaning of a file system
+encoding and the locale:&lt;/p&gt;
+&lt;p&gt;A file system encoding defines how the applications interact
+with the file system.&lt;/p&gt;
+&lt;p&gt;A locale defines how the user expects to interact with the
+application.&lt;/p&gt;
+&lt;p&gt;It is well possible that the two are different. Mac OS X is
+just one example. Another common example is having a Unix
+account using the C locale (=ASCII) while working on a UTF-8
+file system.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This email is a good example of dilemma we had when having to choose &lt;strong&gt;one&lt;/strong&gt;
+encoding. There is a big temptation to use multiple encodings, but at the end,
+&lt;strong&gt;data are not isolated&lt;/strong&gt;. A filename can be found in command line arguments
+(&lt;tt class="docutils literal"&gt;python3 script.py file.txt&lt;/tt&gt;), in environment variables
+(&lt;tt class="docutils literal"&gt;LOG_FILE=log.txt&lt;/tt&gt;), in file content (ex: &lt;tt class="docutils literal"&gt;Makefile&lt;/tt&gt; or a configuration
+file), etc. Using multiple encodings does not work in practice.&lt;/p&gt;
+&lt;img alt="Dead end" src="https://vstinner.github.io/images/dead_end.jpg" /&gt;
+&lt;/div&gt;
+&lt;div class="section" id="remove-pythonfsencoding"&gt;
+&lt;h2&gt;Remove PYTHONFSENCODING&lt;/h2&gt;
+&lt;p&gt;September 2010, I reported &lt;a class="reference external" href="https://bugs.python.org/issue9992"&gt;bpo-9992&lt;/a&gt;:
+Command-line arguments are not correctly decoded if locale and fileystem
+encodings are different.&lt;/p&gt;
+&lt;p&gt;I proposed a patch to use the &lt;strong&gt;locale encoding&lt;/strong&gt; to decode and encode command
+line arguments, rather than using the &lt;strong&gt;filesystem encoding&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; proposed to use the &lt;strong&gt;locale encoding&lt;/strong&gt; for the command
+line arguments, environment variables and all filenames. &lt;a class="reference external" href="https://bugs.python.org/issue9992#msg118352"&gt;My summary&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;You mean that we should use the following encoding:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Mac OS X: UTF-8&lt;/li&gt;
+&lt;li&gt;Windows: unicode for command line/env, mbcs to decode filenames&lt;/li&gt;
+&lt;li&gt;others OSes: &lt;strong&gt;locale encoding&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;To do that, we have to:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&amp;quot;others OSes&amp;quot;: &lt;strong&gt;delete the PYTHONFSENCODING variable&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;Mac OS X: use UTF-8 to decode the command line arguments (we can use
+&lt;tt class="docutils literal"&gt;PyUnicode_DecodeUTF8()&lt;/tt&gt; + &lt;tt class="docutils literal"&gt;PyUnicode_AsWideCharString()&lt;/tt&gt; before
+Python is initialized)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;October 2010, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/8f6b6b0cc3febd15e33a96bd31dcb3cbef2ad1ac"&gt;commit 8f6b6b0c&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Issue #9992: Remove PYTHONFSENCODING environment variable.&lt;/blockquote&gt;
+&lt;p&gt;Two days later, I pushed an important change to &lt;strong&gt;use the locale encoding&lt;/strong&gt; and
+remove the ugly &lt;tt class="docutils literal"&gt;redecode_filenames()&lt;/tt&gt; hack, &lt;a class="reference external" href="https://github.com/python/cpython/commit/f3170ccef8809e4a3f82fe9f82dc7a4a486c28c1"&gt;commit f3170cce&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Use locale encoding if &lt;tt class="docutils literal"&gt;Py_FileSystemDefaultEncoding&lt;/tt&gt; is not set&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyUnicode_EncodeFSDefault()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;PyUnicode_DecodeFSDefaultAndSize()&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;PyUnicode_DecodeFSDefault()&lt;/tt&gt; use the locale encoding instead of
+UTF-8 if &lt;tt class="docutils literal"&gt;Py_FileSystemDefaultEncoding&lt;/tt&gt; is &lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;redecode_filenames()&lt;/tt&gt; functions and &lt;tt class="docutils literal"&gt;_Py_code_object_list&lt;/tt&gt; (issue #9630)
+are no more needed: remove them&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="encodings-used-by-python-3-2"&gt;
+&lt;h2&gt;Encodings used by Python 3.2&lt;/h2&gt;
+&lt;p&gt;February 2011, Python 3.2 has been released. Summary of the used filesystem
+encodings:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;strong&gt;ANSI code page&lt;/strong&gt; on Windows;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;UTF-8&lt;/strong&gt; on macOS;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;locale encoding&lt;/strong&gt; on other platforms.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note: UTF-8 is used if the &lt;tt class="docutils literal"&gt;nl_langinfo(CODESET)&lt;/tt&gt; function is not available.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="force-ascii-encoding-on-freebsd-and-solaris"&gt;
+&lt;h2&gt;Force ASCII encoding on FreeBSD and Solaris&lt;/h2&gt;
+&lt;p&gt;November 2012, I created &lt;a class="reference external" href="https://bugs.python.org/issue16455"&gt;bpo-16455&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;On FreeBSD and OpenIndiana, &lt;tt class="docutils literal"&gt;sys.getfilesystemencoding()&lt;/tt&gt; returns
+&lt;tt class="docutils literal"&gt;'ascii'&lt;/tt&gt; when the locale is not set, whereas the locale encoding is
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;ISO-8859-1&lt;/span&gt;&lt;/tt&gt; in practice.&lt;/p&gt;
+&lt;p&gt;This inconsistency causes different issue.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;December 2012, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/d45c7f8d74d30de0a558b10e04541b861428b7c1"&gt;commit d45c7f8d&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Issue #16455: On FreeBSD and Solaris, if the locale is C, the
+ASCII/surrogateescape codec is now used, instead of the locale encoding, to
+decode the command line arguments. This change fixes inconsistencies with
+os.fsencode() and os.fsdecode() because these operating systems announces
+an ASCII locale encoding, whereas the ISO-8859-1 encoding is used in
+practice.&lt;/blockquote&gt;
+&lt;p&gt;Extract of the main comment:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Workaround FreeBSD and OpenIndiana locale encoding issue with the C locale.
+On these operating systems, &lt;strong&gt;nl_langinfo(CODESET) announces an alias of
+the ASCII encoding, whereas mbstowcs() and wcstombs() functions use the
+ISO-8859-1 encoding&lt;/strong&gt;. The problem is that os.fsencode() and
+&lt;tt class="docutils literal"&gt;os.fsdecode()&lt;/tt&gt; use &lt;tt class="docutils literal"&gt;locale.getpreferredencoding()&lt;/tt&gt; codec. For example,
+if command line arguments are decoded by &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt; and encoded back by
+&lt;tt class="docutils literal"&gt;os.fsencode()&lt;/tt&gt;, we get a &lt;tt class="docutils literal"&gt;UnicodeEncodeError&lt;/tt&gt; instead of retrieving
+the original byte string.&lt;/p&gt;
+&lt;p&gt;The workaround is enabled if &lt;tt class="docutils literal"&gt;setlocale(LC_CTYPE, NULL)&lt;/tt&gt; returns &lt;tt class="docutils literal"&gt;&amp;quot;C&amp;quot;&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;nl_langinfo(CODESET)&lt;/tt&gt; announces &lt;tt class="docutils literal"&gt;&amp;quot;ascii&amp;quot;&lt;/tt&gt; (or an alias to ASCII), and
+at least one byte in range 0x80-0xff can be decoded from the locale
+encoding. The workaround is also enabled on error, for example if getting
+the locale failed.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Python 3.4 will be the first major release getting fix (March 2014), but I also
+backported the change to Python 3.2 and 3.3 branches.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;It took 6 years&lt;/strong&gt; to fix Python to use the best Python filesystem encoding.&lt;/p&gt;
+&lt;p&gt;Python 3.0 mostly uses UTF-8 everywhere, but it was not a deliberate choice and
+it caused many issues when the locale encoding was not UTF-8. Python 3.1 got
+the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler (PEP 383) which reduced Unicode errors.&lt;/p&gt;
+&lt;p&gt;October 2008, &lt;strong&gt;Martin v. Löwis&lt;/strong&gt; added &lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; to
+Python 3.0.&lt;/p&gt;
+&lt;p&gt;August 2010, I added a new &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; environment variable,
+&lt;strong&gt;Marc-Andre Lemburg&lt;/strong&gt;'s idea.&lt;/p&gt;
+&lt;p&gt;September 2010, I removed the &lt;tt class="docutils literal"&gt;sys.setfilesystemencoding()&lt;/tt&gt; function because
+it creates mojibake by design. I also pushed an ugly change to reencode
+filenames to fix many &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; bugs.&lt;/p&gt;
+&lt;p&gt;October 2010, I fixed all tests when Python lives in a non-ASCII directory:
+first milestone of supporting locale encodings different than UTF-8. I also
+removed the &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; environment variable after a long discussion.
+Moreover, I pushed the most important Python 3.2 change: &lt;strong&gt;Python now uses the
+locale encoding as the filesystem encoding&lt;/strong&gt;. This change fixed many issues.&lt;/p&gt;
+&lt;p&gt;December 2012, I forced the filesystem encoding to ASCII on FreeBSD and Solaris
+when the announced locale encoding is wrong.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
 undecodable filenames in Python 3.0 and that lying on the real content of a
 directory looks like a very bad idea.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
@@ -13,11 +421,15 @@ directory looks like a very bad idea.&lt;/p&gt;
 rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;&lt;ol class="first arabic"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() bug on undecodable filenames&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() Bug on Undecodable Filenames&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error handler (PEP 383)&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -118,7 +530,7 @@ bytes unchanged.&lt;/p&gt;
 Unicode issues on Unix. It is still widely used in Python 3.6 to &lt;strong&gt;not annoy
 users with Unicode errors&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() bug on undecodable filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
 &lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 $ python3.0
@@ -156,11 +568,15 @@ now 10 years old.&lt;/p&gt;
 rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;&lt;ol class="first arabic"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() bug on undecodable filenames&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() Bug on Undecodable Filenames&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;PEP 383: Non-decodable Bytes in System Character Interfaces&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error handler (PEP 383)&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
