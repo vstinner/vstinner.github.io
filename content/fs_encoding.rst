@@ -272,7 +272,7 @@ Python.
 
 I also proposed to "unload all modules, clear all caches and delete all code
 objects" after setting the filesystem encoding. This option would be very
-inefficient and make Python startup slower, whereas Python 3 startup was also
+inefficient and make Python startup slower, whereas Python 3 startup was already
 way slower than Python 2 startup.
 
 September 2010, I pushed the `commit c39211f5
@@ -394,6 +394,19 @@ remove the ugly ``redecode_filenames()`` hack, `commit f3170cce
     * ``redecode_filenames()`` functions and ``_Py_code_object_list`` (issue #9630)
       are no more needed: remove them
 
+This change has been made possible by enhancements of
+``PyUnicode_EncodeFSDefault()`` and ``PyUnicode_DecodeFSDefaultAndSize()``.
+Previously, **these functions used UTF-8** before the filesystem was set. With
+my change, these functions **now use the C implementation of the locale
+encoding**: use ``mbstowcs()`` to decode and ``wcstombs()`` to encode.  In
+practice, the code is more complex because Python uses the ``surrogateescape``
+error handler.
+
+Using the C implementation of the locale encoding fixed a lot of "bootstrap"
+issues of the Python initialization. It works because **the Python codec of the
+locale encoding is 100% compatible with the C implementation** of the locale
+codec.
+
 Encodings used by Python 3.2
 ============================
 
@@ -415,7 +428,7 @@ November 2012, I created `bpo-16455 <https://bugs.python.org/issue16455>`__:
     ``'ascii'`` when the locale is not set, whereas the locale encoding is
     ``ISO-8859-1`` in practice.
 
-    This inconsistency causes different issue.
+    This inconsistency causes different issues.
 
 December 2012, I pushed the `commit d45c7f8d
 <https://github.com/python/cpython/commit/d45c7f8d74d30de0a558b10e04541b861428b7c1>`__:
