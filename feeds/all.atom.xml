@@ -231,7 +231,7 @@ like ASCII and UTF-8. Some encodings like ISO-8859-15 are only implemented in
 Python.&lt;/p&gt;
 &lt;p&gt;I also proposed to &amp;quot;unload all modules, clear all caches and delete all code
 objects&amp;quot; after setting the filesystem encoding. This option would be very
-inefficient and make Python startup slower, whereas Python 3 startup was also
+inefficient and make Python startup slower, whereas Python 3 startup was already
 way slower than Python 2 startup.&lt;/p&gt;
 &lt;p&gt;September 2010, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/c39211f51e377919952b139c46e295800cbc2a8d"&gt;commit c39211f5&lt;/a&gt;:&lt;/p&gt;
 &lt;blockquote&gt;
@@ -338,6 +338,17 @@ UTF-8 if &lt;tt class="docutils literal"&gt;Py_FileSystemDefaultEncoding&lt;/tt&
 are no more needed: remove them&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/blockquote&gt;
+&lt;p&gt;This change has been made possible by enhancements of
+&lt;tt class="docutils literal"&gt;PyUnicode_EncodeFSDefault()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyUnicode_DecodeFSDefaultAndSize()&lt;/tt&gt;.
+Previously, &lt;strong&gt;these functions used UTF-8&lt;/strong&gt; before the filesystem was set. With
+my change, these functions &lt;strong&gt;now use the C implementation of the locale
+encoding&lt;/strong&gt;: use &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt; to decode and &lt;tt class="docutils literal"&gt;wcstombs()&lt;/tt&gt; to encode.  In
+practice, the code is more complex because Python uses the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;
+error handler.&lt;/p&gt;
+&lt;p&gt;Using the C implementation of the locale encoding fixed a lot of &amp;quot;bootstrap&amp;quot;
+issues of the Python initialization. It works because &lt;strong&gt;the Python codec of the
+locale encoding is 100% compatible with the C implementation&lt;/strong&gt; of the locale
+codec.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="encodings-used-by-python-3-2"&gt;
 &lt;h2&gt;Encodings used by Python 3.2&lt;/h2&gt;
@@ -357,7 +368,7 @@ encodings:&lt;/p&gt;
 &lt;p&gt;On FreeBSD and OpenIndiana, &lt;tt class="docutils literal"&gt;sys.getfilesystemencoding()&lt;/tt&gt; returns
 &lt;tt class="docutils literal"&gt;'ascii'&lt;/tt&gt; when the locale is not set, whereas the locale encoding is
 &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;ISO-8859-1&lt;/span&gt;&lt;/tt&gt; in practice.&lt;/p&gt;
-&lt;p&gt;This inconsistency causes different issue.&lt;/p&gt;
+&lt;p&gt;This inconsistency causes different issues.&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;December 2012, I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/d45c7f8d74d30de0a558b10e04541b861428b7c1"&gt;commit d45c7f8d&lt;/a&gt;:&lt;/p&gt;
 &lt;blockquote&gt;

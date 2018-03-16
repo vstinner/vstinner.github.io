@@ -266,7 +266,7 @@ like ASCII and UTF-8. Some encodings like ISO-8859-15 are only implemented in
 Python.</p>
 <p>I also proposed to &quot;unload all modules, clear all caches and delete all code
 objects&quot; after setting the filesystem encoding. This option would be very
-inefficient and make Python startup slower, whereas Python 3 startup was also
+inefficient and make Python startup slower, whereas Python 3 startup was already
 way slower than Python 2 startup.</p>
 <p>September 2010, I pushed the <a class="reference external" href="https://github.com/python/cpython/commit/c39211f51e377919952b139c46e295800cbc2a8d">commit c39211f5</a>:</p>
 <blockquote>
@@ -373,6 +373,17 @@ UTF-8 if <tt class="docutils literal">Py_FileSystemDefaultEncoding</tt> is <tt c
 are no more needed: remove them</li>
 </ul>
 </blockquote>
+<p>This change has been made possible by enhancements of
+<tt class="docutils literal">PyUnicode_EncodeFSDefault()</tt> and <tt class="docutils literal">PyUnicode_DecodeFSDefaultAndSize()</tt>.
+Previously, <strong>these functions used UTF-8</strong> before the filesystem was set. With
+my change, these functions <strong>now use the C implementation of the locale
+encoding</strong>: use <tt class="docutils literal">mbstowcs()</tt> to decode and <tt class="docutils literal">wcstombs()</tt> to encode.  In
+practice, the code is more complex because Python uses the <tt class="docutils literal">surrogateescape</tt>
+error handler.</p>
+<p>Using the C implementation of the locale encoding fixed a lot of &quot;bootstrap&quot;
+issues of the Python initialization. It works because <strong>the Python codec of the
+locale encoding is 100% compatible with the C implementation</strong> of the locale
+codec.</p>
 </div>
 <div class="section" id="encodings-used-by-python-3-2">
 <h2>Encodings used by Python 3.2</h2>
@@ -392,7 +403,7 @@ encodings:</p>
 <p>On FreeBSD and OpenIndiana, <tt class="docutils literal">sys.getfilesystemencoding()</tt> returns
 <tt class="docutils literal">'ascii'</tt> when the locale is not set, whereas the locale encoding is
 <tt class="docutils literal"><span class="pre">ISO-8859-1</span></tt> in practice.</p>
-<p>This inconsistency causes different issue.</p>
+<p>This inconsistency causes different issues.</p>
 </blockquote>
 <p>December 2012, I pushed the <a class="reference external" href="https://github.com/python/cpython/commit/d45c7f8d74d30de0a558b10e04541b861428b7c1">commit d45c7f8d</a>:</p>
 <blockquote>
