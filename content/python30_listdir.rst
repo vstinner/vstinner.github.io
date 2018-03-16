@@ -1,5 +1,5 @@
 +++++++++++++++++++++++++++++++++++++++++++++++++
-Python 3.0 listdir() bug on undecodable filenames
+Python 3.0 listdir() Bug on Undecodable Filenames
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-09 13:00
@@ -33,8 +33,10 @@ now 10 years old.
 **This article is the first in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system:**
 
-* 1. `Python 3.0 listdir() bug on undecodable filenames <{filename}/python30_listdir.rst>`_
-* 2. `PEP 383: Non-decodable Bytes in System Character Interfaces <{filename}/pep383.rst>`_
+* 1. `Python 3.0 listdir() Bug on Undecodable Filenames <{filename}/python30_listdir.rst>`_
+* 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
+* 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
+
 
 The os.walk() bug
 =================
