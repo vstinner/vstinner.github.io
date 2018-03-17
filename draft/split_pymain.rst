@@ -2,11 +2,19 @@
 Split Py_Main()
 +++++++++++++++
 
-:date: 2018-03-06 14:00
+:date: 2018-03-16 23:00
 :tags: cpython
 :category: python
 :slug: split-pymain
 :authors: Victor Stinner
+
+December 2012, Nick Coghlan wrote the `PEP 432
+<https://www.python.org/dev/peps/pep-0432/>`_ "Restructuring the CPython
+startup sequence".
+
+Nick Coghlan and Eric Snow are working on cleaning up the Python
+initialization with the "on going" PEP 432:
+https://www.python.org/dev/peps/pep-0432/
 
 
 PyMem revert
