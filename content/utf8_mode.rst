@@ -8,17 +8,6 @@ Python 3.7 New UTF-8 Mode
 :slug: python37-new-utf8-mode
 :authors: Victor Stinner
 
-**This article is the fourth and last in a series of articles telling the
-history and rationale of the Python 3 Unicode model for the operating system:**
-
-* 1. `Python 3.0 listdir() Bug on Undecodable Filenames <{filename}/python30_listdir.rst>`_
-* 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
-* 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
-* 4. `Python 3.7 New UTF-8 Mode <{filename}/utf8_mode.rst>`_
-
-Introduction
-============
-
 Since Python 3.0 was released in 2008, each time an user reports an encoding
 issue, someone shows up and asks why Python does not simply always use UTF-8.
 Well, it's not that easy. UTF-8 is the best encoding in most cases, but it is
@@ -26,6 +15,15 @@ still not the best encoding in all cases, even in 2018.
 
 The locale encoding remains the best **default** filesystem encoding for
 Python. I would say that **the locale encoding is the least bad choice**.
+
+**This article is the fifth and last in a series of articles telling the
+history and rationale of the Python 3 Unicode model for the operating system:**
+
+* 1. `Python 3.0 listdir() Bug on Undecodable Filenames <{filename}/python30_listdir.rst>`_
+* 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
+* 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
+* 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
+* 5. `Python 3.7 New UTF-8 Mode <{filename}/utf8_mode.rst>`_
 
 Option -X utf8
 ==============
