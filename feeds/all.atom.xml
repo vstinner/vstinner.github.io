@@ -1,5 +1,165 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-15T23:00:00+01:00</updated><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-22T17:00:00+01:00</updated><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
+proposed two major backward incompatible changes for Python 3.6 on Windows:
+&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
+filesystem encoding to UTF-8&lt;/a&gt;.
+At the first read, I was sure that …&lt;/p&gt;</summary><content type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
+proposed two major backward incompatible changes for Python 3.6 on Windows:
+&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
+filesystem encoding to UTF-8&lt;/a&gt;.
+At the first read, I was sure that the PEP 529 will break all applications on
+Windows. This article tells the story behind the PEPs approval.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the fourth in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() Bug on Undecodable Filenames&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error handler (PEP 383)&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="pep-529"&gt;
+&lt;h2&gt;PEP 529&lt;/h2&gt;
+&lt;p&gt;September 2016, &lt;strong&gt;Steve Dower&lt;/strong&gt;, who works for Microsoft, wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529:
+Change Windows filesystem encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146051.html"&gt;posted it to python-dev&lt;/a&gt; for
+comments.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="http://stevedower.id.au/blog/"&gt;&lt;img alt="Steve Dower" src="https://vstinner.github.io/images/steve_dower.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Abstract:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Historically, Python uses the ANSI APIs&lt;/strong&gt; for interacting with the
+Windows operating system, often via C Runtime functions. However, these
+have been long discouraged in favor of the UTF-16 APIs. Within the
+operating system, all text is represented as UTF-16, and the ANSI APIs
+perform encoding and decoding using the active code page. See Naming Files,
+Paths, and Namespaces for more details.&lt;/p&gt;
+&lt;p&gt;This PEP proposes &lt;strong&gt;changing the default filesystem encoding on Windows to
+utf-8&lt;/strong&gt;, and changing all filesystem functions to use the Unicode APIs for
+filesystem paths. This will not affect code that uses strings to represent
+paths, however those that use bytes for paths will now be able to correctly
+round-trip all valid paths in Windows filesystems. &lt;strong&gt;Currently, the
+conversions between Unicode (in the OS) and bytes (in Python) were lossy&lt;/strong&gt;
+and would fail to round-trip characters outside of the user's active code
+page.&lt;/p&gt;
+&lt;p&gt;Notably, this does not impact the encoding of the contents of files. These
+will continue to default to &lt;tt class="docutils literal"&gt;locale.getpreferredencoding()&lt;/tt&gt; (for text
+files) or plain bytes (for binary files). This only affects the encoding
+used when users pass a bytes object to Python where it is then passed to
+the operating system as a path name.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="my-analysis"&gt;
+&lt;h2&gt;My analysis&lt;/h2&gt;
+&lt;p&gt;Here is my analysis on the rationale for the PEP 529 change.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;On Unix, the native type for filenames is bytes&lt;/strong&gt;. A filename is seen by the
+Linux kernel as an opaque object. The ext4 filesystem stores filenames as
+bytes. If a Python 2 application uses Unicode for filenames, filesystem
+operations can fail with a Unicode error (encoding or decoding error) depending
+on the locale encoding. If the locale encoding is ASCII, Unicode errors are
+likely to occur at the first non-ASCII filename. For example, Mercurial handles
+filenames as bytes.&lt;/p&gt;
+&lt;p&gt;On Python 3, handling filenames as Unicode works thanks to the
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler. &lt;strong&gt;Most Python 2 applications ported to
+Python 3 keep their Python 2 support, and so still handle filenames bytes.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Problems arise when such software is used on Windows.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;On Windows, the native type for filenames is Unicode&lt;/strong&gt;. Many functions come
+in two flavors: &amp;quot;ANSI&amp;quot; (bytes) and &amp;quot;Wide&amp;quot; (Unicode) versions. In my opinion,
+the ANSI flavor mostly exists for backward compatibility. In Python 3.5,
+passing a filename as bytes uses the ANSI flavor, whereas the Wide flavor is
+used for Unicode filenames. The ANSI flavor uses the ANSI code page which is
+very limited compared to Unicode, usually only 256 code points or less. Some
+filenames not encodable to the ANSI code page simply cannot be opened, renamed,
+etc. using the ANSI API.&lt;/p&gt;
+&lt;p&gt;The other issue is that &lt;strong&gt;some developers only develop on Unix&lt;/strong&gt; (ex: Linux or
+macOS) &lt;strong&gt;and never test their application on Windows&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;For a better rationale, read the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/#background"&gt;Background section&lt;/a&gt; of Steve Dower's PEP
+:-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="discussion-at-the-cpython-sprint-and-guido-s-approval"&gt;
+&lt;h2&gt;Discussion at the CPython sprint and Guido's approval&lt;/h2&gt;
+&lt;p&gt;Honestly, &lt;strong&gt;at the first read, I was sure that the PEP 529 will break all
+applications on Windows&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Hopefully, thanks to the PSF and Instagram, I was able to attend my first
+CPython sprint at Instagram headquarters: &lt;a class="reference external" href="https://vstinner.github.io/cpython-sprint-2016.html"&gt;CPython sprint, september 2016&lt;/a&gt;. I discussed there with &lt;strong&gt;Steve who
+reassured me and explained me his PEP&lt;/strong&gt;. Later, we talked with &lt;strong&gt;Guido van
+Rossum&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Even if I liked the idea of using UTF-8, I was still not fully confident that the
+change will not break the world. &lt;strong&gt;We agreed to try the change during Python
+3.6 beta phase&lt;/strong&gt;, but revert it if something bad happens.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Following this talk, &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146277.html"&gt;Guido accepted the PEP under conditions&lt;/a&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I'm hijacking this thread to &lt;strong&gt;provisionally accept PEP 529&lt;/strong&gt;. (I'll also
+do this for PEP 528, in its own thread.)&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I've talked things over with Steve and Victor and we're going to do an
+experiment&lt;/strong&gt; (as &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/#beta-experiment"&gt;now written up in the PEP&lt;/a&gt;) to tease out
+any issues with this change during the beta. &lt;strong&gt;If serious problems crop up
+we may have to roll back the changes and reject the PEP&lt;/strong&gt; -- we won't get
+another chance at getting this right. (That would also mean that using the
+binary filesystem APIs will remain deprecated and will eventually be
+disallowed; as long as the PEP remains accepted they are undeprecated.)&lt;/p&gt;
+&lt;p&gt;Congrats Steve! Thanks for the massive amount of work on the
+implementation and the thinking that went into the design. Thanks
+everyone else for their feedback.&lt;/p&gt;
+&lt;p class="attribution"&gt;&amp;mdash;Guido&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;I was honoured that Guido listened to my Unicode experience&lt;/strong&gt; to take a
+decision on the PEP ;-)&lt;/p&gt;
+&lt;p&gt;Steve chose the right timing to get his PEP accepted. Thanks to the sprint
+which helped to quickly discussed such backward incompatible change, &lt;strong&gt;the PEP
+has been approved in just 12 days&lt;/strong&gt;! For comparison, some of my PEPs like my
+&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0446/"&gt;PEP 446: Make newly created file descriptors non-inheritable&lt;/a&gt; (another backward incompatible
+change) took 8 months to get accepted.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-528-windows-console"&gt;
+&lt;h2&gt;PEP 528: Windows console&lt;/h2&gt;
+&lt;p&gt;Just before the PEP 529, Steve Dower also wrote &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows
+console encoding to UTF-8&lt;/a&gt;.  This
+change only impacts the Windows console, so there is a lower risk of breaking
+the world.&lt;/p&gt;
+&lt;p&gt;This PEP was also &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146278.html"&gt;quickly approved by Guido&lt;/a&gt;
+during the CPython sprint.  Steve implemented it in Python 3.6.&lt;/p&gt;
+&lt;p&gt;Even if it's smaller change, it is &lt;strong&gt;yet another change towards using UTF-8
+everywhere&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="great-success"&gt;
+&lt;h2&gt;Great success!&lt;/h2&gt;
+&lt;p&gt;Hopefully, I was wrong about the risk of breaking the world. &lt;strong&gt;No user
+complained about these two backward incompatible changes: Python 3.6 on Windows
+is a success!&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Python 3.6 now has a &lt;strong&gt;better Unicode support&lt;/strong&gt; on Windows thanks to the PEP
+528 and PEP 529!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;September 2016: Steve Dower proposed two major backward incompatible changes
+for Python 3.6 on Windows: &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
+filesystem encoding to UTF-8&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;At the first read, I was sure that the PEP 529 (filesystem encoding) will break
+all applications on Windows.&lt;/p&gt;
+&lt;p&gt;Thanks to the CPython core dev sprint, I was able to discuss with Steve who
+reassured me and explained me his PEP 529. We agreed with Guido van Rossum to
+try the change during Python 3.6 beta phase, but revert it if something bad
+happens. I was honoured that Guido listened to my Unicode experience to take a
+decision on the PEP.&lt;/p&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; was also quickly approved,
+another change towards using UTF-8 everywhere.&lt;/p&gt;
+&lt;p&gt;No user complained about these two backward incompatible changes: Python 3.6 on
+Windows is a success!&lt;/p&gt;
+&lt;p&gt;Python 3.6 now has a better Unicode support thanks on Windows to the PEP 528
+and PEP 529!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
 filesystem encoding changed multiple times. &lt;strong&gt;It took 6 years to choose the best
 Python filesystem encoding on each platform.&lt;/strong&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;I have been officially promoted as a core developer&lt;/strong&gt; in January 2010 by
@@ -25,6 +185,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -443,6 +607,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="first-attempt-to-propose-the-solution"&gt;
 &lt;h2&gt;First attempt to propose the solution&lt;/h2&gt;
@@ -588,6 +756,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
