@@ -21,107 +21,11 @@ Introduction
 
 Since Python 3.0 was released in 2008, each time an user reports an encoding
 issue, someone shows up and asks why Python does not simply always use UTF-8.
-Well, it's not that easy.
-
-UTF-8 is the best encoding in most cases, but it is still not the best encoding
-in all cases, even in 2018.
+Well, it's not that easy. UTF-8 is the best encoding in most cases, but it is
+still not the best encoding in all cases, even in 2018.
 
 The locale encoding remains the best **default** filesystem encoding for
 Python. I would say that **the locale encoding is the least bad choice**.
-
-The two PEPs of Steve Dower to use UTF-8 on Windows
-===================================================
-
-On Unix, the native type for filenames is **bytes**. A filename is seen by the
-Linux kernel as an opaque object. The ext4 filesystem stores filenames as
-bytes. If your application uses Unicode for filenames, filesystem operations
-can fail with a Unicode error (encoding or decoding error) depending on the
-locale encoding. Backup and Source Control Management (SCM) softwares may use
-bytes for filenames for such reasons. Other softwares may make a similar
-choice.
-
-Problems arise when such software is used on Windows...
-
-On Windows, the native type for filenames is **Unicode**. Many functions come
-in two flavors: "ANSI" (bytes) and "Wide" (Unicode) versions. In my opinion,
-the ANSI flavor mostly exists for backward compatibility. In Python 3.5,
-passing a filename as bytes uses the ANSI flavor, whereas the Wide flavor is
-used for Unicode filenames. The ANSI flavor uses the ANSI code page which is
-very limited compared to Unicode, usually only 256 code points or less. Some
-filenames not encodable to the ANSI code page simply cannot be opened, renamed,
-etc. using the ANSI API.
-
-The other issue is that some developers only develop on Unix (ex: Linux or
-macOS) and never test their application on Windows.
-
-For all these reasons, **Steve Dower**, who works for Microsoft, wrote the `PEP
-529: Change Windows filesystem encoding to UTF-8
-<https://www.python.org/dev/peps/pep-0529/>`_ in August 2016 and `posted it to
-python-dev
-<https://mail.python.org/pipermail/python-dev/2016-September/146051.html>`_ for
-comments.
-
-Abstract:
-
-    Historically, Python uses the ANSI APIs for interacting with the Windows
-    operating system, often via C Runtime functions. However, these have been long
-    discouraged in favor of the UTF-16 APIs. Within the operating system, all text
-    is represented as UTF-16, and the ANSI APIs perform encoding and decoding using
-    the active code page. See Naming Files, Paths, and Namespaces for
-    more details.
-
-    This PEP proposes changing the default filesystem encoding on Windows to utf-8,
-    and changing all filesystem functions to use the Unicode APIs for filesystem
-    paths. This will not affect code that uses strings to represent paths, however
-    those that use bytes for paths will now be able to correctly round-trip all
-    valid paths in Windows filesystems. Currently, the conversions between Unicode
-    (in the OS) and bytes (in Python) were lossy and would fail to round-trip
-    characters outside of the user's active code page.
-
-    Notably, this does not impact the encoding of the contents of files. These will
-    continue to default to ``locale.getpreferredencoding()`` (for text files) or
-    plain bytes (for binary files). This only affects the encoding used when users
-    pass a bytes object to Python where it is then passed to the operating system as
-    a path name.
-
-Honestly, at the first read, I was sure that it was going to break all
-applications on Windows.
-
-Hopefully, thanks to the PSF and Instagram, I was able to attend my first
-CPython sprint at Instagram HQ: `CPython sprint, september 2016
-<{filename}/cpython_sprint_2016.rst>`_. I discussed there with Steve who
-reassured me and explained me his PEP.
-
-Following this talk, `Guido accepted the PEP with conditions
-<https://mail.python.org/pipermail/python-dev/2016-September/146277.html>`_
-
-    I'm hijacking this thread to **provisionally accept PEP 529**. (I'll also
-    do this for PEP 528, in its own thread.)
-
-    **I've talked things over with Steve and Victor and we're going to do an
-    experiment** (as now written up in the PEP:
-    https://www.python.org/dev/peps/pep-0529/#beta-experiment) to tease out any
-    issues with this change during the beta. **If serious problems crop up we
-    may have to roll back the changes and reject the PEP** -- we won't get
-    another chance at getting this right. (That would also mean that using the
-    binary filesystem APIs will remain deprecated and will eventually be
-    disallowed; as long as the PEP remains accepted they are undeprecated.)
-
-    Congrats Steve! Thanks for the massive amount of work on the
-    implementation and the thinking that went into the design. Thanks
-    everyone else for their feedback.
-
-    --Guido
-
-Hopefully, I was wrong and Python 3.6 on Windows was a success!
-
-Moreover, Steve Dower also wrote and implemented his `PEP 528: Change Windows
-console encoding to UTF-8 <https://www.python.org/dev/peps/pep-0528/>`_ in
-Python 3.6. A smaller but also important change in the direction of UTF-8
-everywhere.
-
-Note: I was honoured that Guido listened to my Unicode experience to take a
-decision on a PEP ;-)
 
 Option -X utf8
 ==============

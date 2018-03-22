@@ -36,7 +36,7 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 1. `Python 3.0 listdir() Bug on Undecodable Filenames <{filename}/python30_listdir.rst>`_
 * 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
 * 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
-* 4. `Python 3.7 New UTF-8 Mode <{filename}/utf8_mode.rst>`_
+* 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
 
 
 The os.walk() bug
