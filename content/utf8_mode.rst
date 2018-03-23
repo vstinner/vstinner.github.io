@@ -30,7 +30,7 @@ history and rationale of the Python 3 Unicode model for the operating system:**
 Fallback
 ========
 
-bpo-8610.
+`bpo-8610 <https://bugs.python.org/issue8610>`__.
 
 2010-05-05, `I wrote <https://bugs.python.org/issue8610#msg105008>`__:
 
@@ -47,7 +47,7 @@ bpo-8610.
 POSIX, first attempt, 2011
 ==========================
 
-2011-12-20: bpo-13643
+2011-12-20: `bpo-13643 <https://bugs.python.org/issue13643>`__
 https://bugs.python.org/issue13643
 
 I wrote
@@ -109,7 +109,7 @@ https://bugs.python.org/issue11574#msg159340
 POSIX, second attempt, 2013
 ===========================
 
-2013-11-30, bpo-19846: ``LANG=C python3 -c 'print("\xe4")'`` fails.
+2013-11-30, `bpo-19846 <https://bugs.python.org/issue19846>`__: ``LANG=C python3 -c 'print("\xe4")'`` fails.
 
 Antoine Pitrou
 https://bugs.python.org/issue19846#msg205419
@@ -220,7 +220,9 @@ Python X.Y
 History
 =======
 
-2016-08-17: bpo-27781: `I wrote <https://bugs.python.org/issue27781#msg272950>`__:
+2016-08-17: `bpo-27781 <https://bugs.python.org/issue27781>`__, "Change sys.getfilesystemencoding() on Windows to UTF-8".
+
+`I wrote <https://bugs.python.org/issue27781#msg272950>`__:
 
     If you go in this direction, I would like to follow you for the UNIX/BSD
     side to make the switch portable. I was thinking about ``-X utf8`` which
@@ -237,7 +239,12 @@ History
     ``sys.getfilesystemencoding()`` to UTF-8 on UNIX/BSD, it would ignore the
     current locale setting.
 
-2016-09-16: bpo-28180, `I wrote <https://bugs.python.org/issue28180#msg276707>`__:
+History
+=======
+
+2016-09-16: `bpo-28180 <https://bugs.python.org/issue28180>`__, "sys.getfilesystemencoding() should default to utf-8".
+
+`I wrote <https://bugs.python.org/issue28180#msg276707>`__:
 
     I proposed to add ``-X utf8`` command line option for UNIX to force utf8
     encoding. Would it work for you?
@@ -305,7 +312,7 @@ https://mail.python.org/pipermail/linux-sig/2017-January/000014.html
 Option -X utf8
 ==============
 
-August 2016, bpo-27781: "Change sys.getfilesystemencoding() on Windows to UTF-8".
+August 2016, `bpo-27781 <https://bugs.python.org/issue27781>`__: "Change sys.getfilesystemencoding() on Windows to UTF-8".
 When I was afraid that
 changing the encoding from the ANSI code page to UTF-8 on Windows would break
 all applications, `I proposed to make the change as an opt-in option, -X utf8
@@ -367,7 +374,7 @@ didn't seem ready for compromises.
 PEP version 3
 =============
 
-One week later, I implemented my PEP 540: bpo-29240, and `I wrote a third
+One week later, I implemented my PEP 540: `bpo-29240 <https://bugs.python.org/issue29240>`__, and `I wrote a third
 version of my PEP
 <https://mail.python.org/pipermail/python-ideas/2017-January/044197.html>`_:
 
@@ -499,7 +506,7 @@ XXX mercurial link
 Commit 2::
 
     New changeset 9454060e84a669dde63824d9e2fcaf295e34f687 by Victor Stinner in branch 'master':
-    bpo-29240, bpo-32030: Py_Main() re-reads config if encoding changes (#4899)
+    bpo-29240, `bpo-32030 <https://bugs.python.org/issue32030>`__: Py_Main() re-reads config if encoding changes (#4899)
     https://github.com/python/cpython/commit/9454060e84a669dde63824d9e2fcaf295e34f687
 
 Decode Current Locale::
@@ -507,7 +514,7 @@ Decode Current Locale::
     PyObject*
     _PyUnicode_DecodeCurrentLocale(const char *str, const char *errors)
 
-commit 7ed7aead9503102d2ed316175f198104e0cd674c::
+`commit 7ed7aead <https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c>`__::
 
     bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
 
