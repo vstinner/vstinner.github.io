@@ -27,6 +27,23 @@ history and rationale of the Python 3 Unicode model for the operating system:**
 * 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
 * 5. `Python 3.7 New UTF-8 Mode <{filename}/utf8_mode.rst>`_
 
+Fallback
+========
+
+`bpo-8610 <https://bugs.python.org/issue8610>`__.
+
+2010-05-05, `I wrote <https://bugs.python.org/issue8610#msg105008>`__:
+
+    UTF-8 is also an optimist choice: I bet that more and more OS will move to
+    UTF-8.
+
+`Marc-Andre wrote <https://bugs.python.org/issue8610#msg105010>`_:
+
+    Ouch, that was a poor choice. In Python we have a tradition to avoid
+    guessing, if possible. Since we cannot guarantee that the file system will
+    indeed use UTF-8, it would have been safer to use ASCII. Not sure why this
+    reasoning wasn't applied for the file system encoding.
+
 History
 =======
 

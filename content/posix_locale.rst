@@ -8,85 +8,122 @@ POSIX locale
 :slug: posix-locale
 :authors: Victor Stinner
 
+During the childhood of Python 3, encodings issues were common, even on well
+configured systems. Python used UTF-8 rather than the locale encoding, and so
+commonly produced `mojibake <https://en.wikipedia.org/wiki/Mojibake>`_. For
+these reasons, when users complained about the Python behaviour with the POSIX
+locale, bug reports were closed with a message like: "your system is not
+correctly configured, please fix your locale".
 
-Fallback
-========
+I only started to make a shy change in Python 3.5 for the POSIX locale at the
+end of 2013 (Python 3.5 was released in 2015). We will have to wait for Nick
+Coghlan for significant changes in Python 3.7 (commit in 2017, released
+scheduled in 2018).
 
-`bpo-8610 <https://bugs.python.org/issue8610>`__.
+**This article is the fifth in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system:**
 
-2010-05-05, `I wrote <https://bugs.python.org/issue8610#msg105008>`__:
+* 1. `Python 3.0 listdir() Bug on Undecodable Filenames <{filename}/python30_listdir.rst>`_
+* 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
+* 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
+* 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
 
-    UTF-8 is also an optimist choice: I bet that more and more OS will move to
-    UTF-8.
+First rejected attempt, 2011
+============================
 
-`Marc-Andre wrote <https://bugs.python.org/issue8610#msg105010>`_:
+December 2011, **Martin Packman**, a Bazaar developer, reported `bpo-13643
+<https://bugs.python.org/issue13643>`__ proposed to use UTF-8 in Python if the
+locale encoding is ASCII:
 
-    Ouch, that was a poor choice. In Python we have a tradition to avoid
-    guessing, if possible. Since we cannot guarantee that the file system will
-    indeed use UTF-8, it would have been safer to use ASCII. Not sure why this
-    reasoning wasn't applied for the file system encoding.
+    Currently when running Python on a non-OSX posix environment under either
+    the **C locale**, or with an invalid or missing locale, it's **not possible
+    to operate using unicode filenames outside the ascii range**. Using bytes
+    works, as does reading expecting unicode, using the surrogates hack.
 
-POSIX, first attempt, 2011
-==========================
+    This makes robustly working with non-ascii filenames on different platforms
+    needlessly annoying, given no modern nix should have problems just using
+    UTF-8 in these cases.
 
-2011-12-20: `bpo-13643 <https://bugs.python.org/issue13643>`__
-https://bugs.python.org/issue13643
+    See the `downstream bzr bug for more
+    <https://bugs.launchpad.net/bzr/+bug/794353>`__.
 
-I wrote
-https://bugs.python.org/issue13643#msg149926
+    One option is to **just use UTF-8** for encoding and decoding filenames
+    **when otherwise ascii would be used**. As a strict superset, this
+    shouldn't break too many existing assumptions, and **it's unlikely that
+    non-UTF-8 filenames will accidentally be mangled due to a locale setting
+    blip.** See the attached patch for this behaviour change. It does not
+    include a test currently, but it's possible to write one using subprocess
+    and overriden ``LANG`` and ``LC_ALL`` vars.
+
+`He added <https://bugs.python.org/issue13643#msg149928>`__:
+
+    This is more about **un-encodable filenames**.
+
+    At the moment work with non-ascii filenames in Python robustly requires two
+    branches, one using unicode and one that encodes to bytestrings and deals
+    with the case where the name can't be represented in the declared
+    filesystem encoding.
+
+    **That may be something that just had to be lived with**, but it's a little
+    annoying when even without a UTF-8 locale for a particular process, that's
+    what most systems will want on disk.
+
+At this time, I was still traumatised by the ``PYTHONFSENCODING`` mess: using a
+filesystem encoding different than the locale encoding caused many issues (see
+`Python 3.2 Painful History of the Filesystem Encoding
+<{filename}/fs_encoding.rst>`__). `I wrote
+<https://bugs.python.org/issue13643#msg149926>`__:
 
     It was already discussed: using a different encoding for filenames and for
-    other things is really not a good idea. The main problem is the interaction
-    with other programs.
+    other things is really not a good idea. (...)
 
-    Read discussion of issues #8622, #8775 and #9992.
+`I added <https://bugs.python.org/issue13643#msg149927>`__:
 
-I added:
+    The right fix is to **fix your locale, not Python**.
 
-    The right fix is to fix your locale, not Python.
+Antoine Pitrou `suggested to fix the operating system, not Python
+<https://bugs.python.org/issue13643#msg149949>`__:
 
-Antoine Pitrou:
+    So why don't these supposedly "modern" systems at least **set the
+    appropriate environment variables** for Python to infer the proper
+    character encoding?  (since these "modern" systems don't have a
+    well-defined encoding...)
 
-    So why don't these supposedly "modern" systems at least set the appropriate
-    environment variables for Python to infer the proper character encoding?
-    (since these "modern" systems don't have a well-defined encoding...)
+    Answer: because they are not modern at all, **they are antiquated,
+    inadapted and obsolete pieces of software designed and written by clueless
+    Anglo-American people**. Please report bugs against these systems. **The
+    culprit is not Python, it's the Unix crap** and the utterly clueless
+    attitude of its maintainers ("filesystems are just bytes", yeah,
+    whatever...).
 
-Antoine Pitrou:
+**Martin Pool** `wrote <https://bugs.python.org/issue13643#msg149951>`__:
 
-    > The standard encoding is UTF-8.
+    The standard encoding is UTF-8. Python shouldn't need to have a variable
+    set to tell it this.
+
+`Antoine replied <https://bugs.python.org/issue13643#msg149952>`__:
 
     How so? I don't know of any Linux or Unix spec which says so.
 
-2011-12-24, Terry J. Reedy closed the issue
-https://bugs.python.org/issue13643#msg150204
+2011-12-24, **Terry J. Reedy** `closed the issue
+<https://bugs.python.org/issue13643#msg150204>`__:
 
-    Martin, after reading most all of the unusually large sequence of messages,
-    I am closing this because three of the core developers with the most
-    experience in this area are dead-set against your proposal. That does not
-    make it 'wrong', but does mean that it will not be approved and implemented
-    without new data and more persuasive arguments than those presented so far.
-    I do not see that continued repetition of what has been said so far will
-    change anything.
+    Martin, after reading most all of the **unusually large sequence of
+    messages**, I am closing this because **three of the core developers** with
+    the most experience in this area are **dead-set against your proposal**.
 
-Another similar proposal by Armin Ronacher
-https://bugs.python.org/issue11574#msg131144
+    That does not make it 'wrong', but does mean that it will not be approved
+    and implemented without new data and more persuasive arguments than those
+    presented so far. I do not see that continued repetition of what has been
+    said so far will change anything.
 
-    Right now Python happily falls back to ASCII if it can not parse your
-    LC_CTYPE or something similar happens.  Instead of falling back to ASCII it
-    would be better if it falls back to UTF-8. (...)
+The issue got a total of 34 messages in 4 days, and two more years later.  Many
+messages in short time is something common when discussing Unicode issues :-)
 
-[Python-Dev] Low-Level Encoding Behavior on Python 3
-https://mail.python.org/pipermail/python-dev/2011-March/109361.html
-Armin Ronacher
-Mar 16, 2011
-
-I closed it
-2012-04-25
-https://bugs.python.org/issue11574#msg159340
-
-    I don't think that using a fallback is a good idea. So I'm closing the
-    issue. You can reopen the discussion on the python-dev mailing list if you
-    don't agree with me or Martin.
+March 2011, **Armin Ronacher** and **Carl Meyer** reported a similar issue:
+`bpo-11574 <https://bugs.python.org/issue11574>`__ and `[Python-Dev] Low-Level Encoding Behavior on Python 3
+<https://mail.python.org/pipermail/python-dev/2011-March/109361.html>`_.  I
+closed the issue as "wont fixed" in April 2012.
 
 POSIX, second attempt, 2013
 ===========================
@@ -197,6 +234,12 @@ Python X.Y
     description:
     Issue #19977: When the ``LC_TYPE`` locale is the POSIX locale (``C`` locale),
     :py:data:`sys.stdin` and :py:data:`sys.stdout` are now using the
+    ``surrogateescape`` error handler, instead of the ``strict`` error handler.
+
+Mar 18 2014, I pushed my `commit 7143029d <https://github.com/python/cpython/commit/7143029d4360637aadbd7ddf386ea5c64fb83095>`__:
+
+    Issue #19977: When the ``LC_TYPE`` locale is the POSIX locale (``C``
+    locale), ``sys.stdin`` and ``sys.stdout`` are now using the
     ``surrogateescape`` error handler, instead of the ``strict`` error handler.
 
 History
