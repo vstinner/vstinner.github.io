@@ -81,6 +81,19 @@ History
     Unfortunately no, as this would mean I'll have to change all my python
     invocations in my scripts and it wouldn't work for executable files with
 
+2016-12-16, `I wrote <https://bugs.python.org/issue28180#msg283408>`__:
+
+    Usually, when a new option is added to Python, we add a command line option
+    (-X utf8) but also an environment variable: I propose PYTHONUTF8=1.
+
+    Use your favorite method to define the env var "system wide" in your docker
+    containers.
+
+    Note: Technically, I'm not sure that it's possible to support -E option
+    with PYTHONUTF8, since -E comes from the command line, and we first need to
+    decode command line arguments with an encoding to parse these options....
+    Chicken-and-egg issue ;-)
+
 Option -X utf8
 ==============
 
