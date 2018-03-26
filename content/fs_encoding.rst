@@ -27,7 +27,7 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
 * 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
 * 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
-* 5. `Python 3.7 New UTF-8 Mode <{filename}/utf8_mode.rst>`_
+* 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
 
 .. image:: {filename}/images/maze.jpg
    :alt: Maze

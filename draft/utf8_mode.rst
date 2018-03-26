@@ -81,6 +81,17 @@ History
     Unfortunately no, as this would mean I'll have to change all my python
     invocations in my scripts and it wouldn't work for executable files with
 
+
+2016-12-12
+INADA Naoki
+https://bugs.python.org/issue28180#msg282978
+
+    Sorry for confusing.
+    I didn't meant defaulting LANG=C.UTF-8.
+
+    I meant use UTF-8 as default fsencoding, stdioencoding regardless locale,
+    and locale.getpreferredencoding() returns 'utf-8' when LC_CTYPE is ascii.
+
 2016-12-16, `I wrote <https://bugs.python.org/issue28180#msg283408>`__:
 
     Usually, when a new option is added to Python, we add a command line option

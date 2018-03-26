@@ -1,6 +1,6 @@
-++++++++++++
-POSIX locale
-++++++++++++
++++++++++++++++++++++++++++++++
+Python 3.7 and the POSIX locale
++++++++++++++++++++++++++++++++
 
 :date: 2018-03-23 13:00
 :tags: cpython
@@ -13,12 +13,15 @@ configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced `mojibake <https://en.wikipedia.org/wiki/Mojibake>`_. For
 these reasons, when users complained about the Python behaviour with the POSIX
 locale, bug reports were closed with a message like: "your system is not
-correctly configured, please fix your locale".
+properly configured, please fix your locale".
 
-I only started to make a shy change in Python 3.5 for the POSIX locale at the
-end of 2013 (Python 3.5 was released in 2015). We will have to wait for Nick
-Coghlan for significant changes in Python 3.7 (commit in 2017, released
-scheduled in 2018).
+I only started to make a shy change for the POSIX locale in Python 3.5 at the
+end of 2013: use ``surrogateescape`` for stdin and stdout. We will have to wait
+for Nick Coghlan in 2017 for significant changes in Python 3.7.
+
+This article explains the slow transition, **six years** since the first bug
+report (2011) to the significant change (2017), from "you must fix your locale"
+to "maybe Python can do something for you".
 
 **This article is the fifth in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system:**
@@ -27,12 +30,17 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 2. `Python 3.1 surrogateescape error handler (PEP 383) <{filename}/pep383.rst>`_
 * 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
 * 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
+* 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
+
+.. image:: {filename}/images/bee.jpg
+   :alt: Bee
+   :target: https://www.flickr.com/photos/rj65/15010849568/
 
 First rejected attempt, 2011
 ============================
 
 December 2011, **Martin Packman**, a Bazaar developer, reported `bpo-13643
-<https://bugs.python.org/issue13643>`__ proposed to use UTF-8 in Python if the
+<https://bugs.python.org/issue13643>`__ to propose to use UTF-8 in Python if the
 locale encoding is ASCII:
 
     Currently when running Python on a non-OSX posix environment under either
@@ -41,8 +49,8 @@ locale encoding is ASCII:
     works, as does reading expecting unicode, using the surrogates hack.
 
     This makes robustly working with non-ascii filenames on different platforms
-    needlessly annoying, given no modern nix should have problems just using
-    UTF-8 in these cases.
+    needlessly annoying, given **no modern nix should have problems just using
+    UTF-8 in these cases**.
 
     See the `downstream bzr bug for more
     <https://bugs.launchpad.net/bzr/+bug/794353>`__.
@@ -77,14 +85,14 @@ filesystem encoding different than the locale encoding caused many issues (see
     It was already discussed: using a different encoding for filenames and for
     other things is really not a good idea. (...)
 
-`I added <https://bugs.python.org/issue13643#msg149927>`__:
+and `I added <https://bugs.python.org/issue13643#msg149927>`__:
 
     The right fix is to **fix your locale, not Python**.
 
 Antoine Pitrou `suggested to fix the operating system, not Python
 <https://bugs.python.org/issue13643#msg149949>`__:
 
-    So why don't these supposedly "modern" systems at least **set the
+    So **why don't these supposedly "modern" systems at least set the
     appropriate environment variables** for Python to infer the proper
     character encoding?  (since these "modern" systems don't have a
     well-defined encoding...)
@@ -105,7 +113,7 @@ Antoine Pitrou `suggested to fix the operating system, not Python
 
     How so? I don't know of any Linux or Unix spec which says so.
 
-Four days after the issue creation and 34 messages later, **Terry J. Reedy**
+Four days and 34 messages later, **Terry J. Reedy**
 `closed the issue <https://bugs.python.org/issue13643#msg150204>`__:
 
     Martin, after reading most all of the **unusually large sequence of
@@ -128,40 +136,39 @@ closed the issue as "wont fixed" in April 2012.
 Second attempt, 2013
 ====================
 
-November 2013, **Sworddragon** reported a "simple" bug, `bpo-19846
-<https://bugs.python.org/issue19846>`__:
-
-    ``LANG=C python3 -c 'print("\xe4")'`` fails with an ``UnicodeEncodeError``.
+November 2013, **Sworddragon** reported `bpo-19846
+<https://bugs.python.org/issue19846>`__: ``LANG=C python3 -c 'print("\xe4")'``
+fails with an ``UnicodeEncodeError``.
 
 **Antoine Pitrou** wrote a patch to use UTF-8 when the locale encoding is
-ASCII, same approach than `bpo-13643 <https://bugs.python.org/issue13643>`__
-(closed in December 2011).
+ASCII, same approach than the first attempt `bpo-13643
+<https://bugs.python.org/issue13643>`__.
 
-The patch was incomplete and so caused many issues. Python used the C codec of
-the locale encoding during Python initialization, and so Python had to use the
-locale encoding as its filesystem encoding.
+**The patch was incomplete and so caused many issues.** Python used the C codec
+of the locale encoding during Python initialization, and so Python had to use
+the locale encoding as its filesystem encoding.
 
 I listed all functions that should be modified to fix issues and get a fully
-working solution. Nobody came up with a full implementation, likely because too
-many changes were required.
+working solution. Nobody came up with a full implementation, likely because
+**too many changes were required**.
 
-One month and 66 messages (almost the double of the previous attempt) later, `I
-closed the issue <https://bugs.python.org/issue19846#msg205675>`__:
+One month and 66 messages (almost the double of the previous attempt) later,
+again, `I closed the issue <https://bugs.python.org/issue19846#msg205675>`__:
 
-    I'm closing the issue as invalid, because Python 3 behaviour is correct and
-    must not be changed.
+    I'm closing the issue as invalid, because **Python 3 behaviour is correct**
+    and must not be changed.
 
     Standard streams (sys.stdin, sys.stdout, sys.stderr) uses the locale
     encoding. (...) These encodings and error handlers can be overriden by the
     **PYTHONIOENCODING**.
 
-My `full comment <https://bugs.python.org/issue19846#msg205675>`_ describes
-encodings used on each platform.
+My `full long comment <https://bugs.python.org/issue19846#msg205675>`_
+describes encodings used on each platform.
 
 Use surrogateescape for stdin and stdout in Python 3.5
 ======================================================
 
-December 2013: Just after closing `bpo-19846
+December 2013: Just after closing the second attempt `bpo-19846
 <https://bugs.python.org/issue19846>`__, I created `bpo-19977
 <https://bugs.python.org/issue19977>`__ to propose to use the
 ``surrogateescape`` error handler in ``sys.stdin`` and ``sys.stdout`` for the
@@ -184,27 +191,61 @@ in Python 3.5:
     locale), ``sys.stdin`` and ``sys.stdout`` are now using the
     ``surrogateescape`` error handler, instead of the ``strict`` error handler.
 
-History
-=======
+Previously, **Python 3 was very strict on encodings**, all core developers were
+convinced to be able to force developers to fix their applications. This change
+is one the **first Python 3 change which can produce "mojibake" on purpose**.
+
+**Six years after the Python 3.0 release, we started to understand that while
+developers can fix their code, we cannot ask users to fix their configuration
+("fix their locale").**
+
+Read /etc/locale.conf?
+======================
+
+April 2014, **Nick Coghlan** created `bpo-21368 <https://bugs.python.org/issue21368>`__: "Check for systemd locale on
+startup if current locale is set to POSIX".
+
+    If a modern Linux system is using systemd as the process manager, then
+    there will likely be **a "/etc/locale.conf" file** providing settings like
+    LANG - due to problematic requirements in the POSIX specification, **this
+    file** (when available) is **likely to be a better "source of truth"
+    regarding the system encoding** than the environment where the interpreter
+    process is started, at least when the latter is claiming ASCII as the
+    default encoding.
+
+`I disliked the idea <https://bugs.python.org/issue21368#msg217328>`__:
+
+    I don't think that Python should read such configuration file. If you
+    consider that something is wrong here, **please report the issue to the C
+    library**.
+
+Since no consensus was found, no action was taken.
+
+Misconfigured locales in Docker images
+======================================
 
 September 2016: **Jan Niklas Hasse** opened `bpo-28180
 <https://bugs.python.org/issue28180>`__, **"sys.getfilesystemencoding() should
 default to utf-8"**.
 
-    Working with Docker I often end up with an environment where the locale
-    isn't correctly set. In these cases it would be great if
-    ``sys.getfilesystemencoding()`` could default to ``'utf-8'`` instead of
+    **Working with Docker I often end up with an environment where the locale
+    isn't correctly set.** In these cases **it would be great if
+    sys.getfilesystemencoding() could default to 'utf-8'** instead of
     ``'ascii'``, as it's the encoding of the future and ascii is a subset of it
     anyway.
 
-Jan Niklas Hasse:
+December 2016, **Jan Niklas Hasse** `mentioned
+<https://bugs.python.org/issue28180#msg282972>`__ the ``C.UTF-8`` locale:
 
-    https://sourceware.org/glibc/wiki/Proposals/C.UTF-8#Defaults mentions that C.UTF-8 should be glibc's default.
+    `glibc C.UTF-8 article
+    <https://sourceware.org/glibc/wiki/Proposals/C.UTF-8#Defaults>`_ mentions
+    that **C.UTF-8 should be glibc's default**.
 
-    This bug report also mentions Python: https://sourceware.org/bugzilla/show_bug.cgi?id=17318
-    It hasn't been fixed yet, though :/
+    This bug report `also mentions Python
+    <https://sourceware.org/bugzilla/show_bug.cgi?id=17318>`_. It **hasn't been
+    fixed yet**, though :/
 
-Marc-Andre Lemburg `added <https://bugs.python.org/issue28180#msg282977>`_:
+**Marc-Andre Lemburg** `added <https://bugs.python.org/issue28180#msg282977>`_:
 
     If we just restrict this to the file system encoding (and not the whole
     LANG setting), how about:
@@ -216,27 +257,70 @@ Marc-Andre Lemburg `added <https://bugs.python.org/issue28180#msg282977>`_:
 
     (*) I believe we discussed this at some point already, but don't remember the outcome.
 
-Read /etc/locale.conf
-=====================
+The removed ``PYTHONFSENCODING`` environment variable, using a filesystem
+encoding different than the locale encoding, caused many issues: see `Python
+3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`__.
 
-https://bugs.python.org/issue21368
-Read /etc/locale.conf
+**Nick Coghlan** `proposed to experiment using the C.UTF-8 locale` in Fedora
+26:
 
-PEP 538
-=======
+    **For Fedora 26,** I'm going to explore the feasibility of patching our system
+    3.6 installation such that the python3 command itself (rather than the
+    shared library) **checks for "LC_CTYPE=C"** as almost the first thing it
+    does, and forcibly **sets LANG and LC_ALL to C.UTF-8** if it gets an answer
+    it doesn't like. If we're able to do that successfully in the more
+    constrained environment of a specific recent Fedora release, then I think
+    it will bode well for doing something similar by default in CPython 3.7
 
-Core issue: https://bugs.python.org/issue28180
+    `Downstream Fedora issue proposing the above idea for F26
+    <https://bugzilla.redhat.com/show_bug.cgi?id=1404918>`_.
 
-Nick Coghlan proposed the PEP 538.
+The Fedora 26 `Python 3 C.UTF-8 locale
+<https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale>`_
+change was filled and owned by Nick, but it was not completed (Fedora 26 was
+released in July 2017).
 
-https://bugs.python.org/issue28180#msg284150
-msg284150 - (view) 	Author: Nick Coghlan (ncoghlan) * (Python committer) 	Date: 2016-12-28 02:45
+PEP 538: Coercing the C locale to a UTF-8 based locale
+======================================================
 
-I've now written this up as a PEP: https://github.com/python/peps/blob/master/pep-0538.txt
+.. image:: {filename}/images/nick_coghlan.jpg
+   :alt: Nick Coghlan
+   :target: https://github.com/ncoghlan
 
-Nick Coghlan ncoghlan at gmail.com
-Tue Jan 3 01:00:25 EST 2017
-[Linux-SIG] PEP 538: Coercing the legacy C locale to C.UTF-8
-https://mail.python.org/pipermail/linux-sig/2017-January/000014.html
+December 2016, as a follow-up of `bpo-28180 <https://bugs.python.org/issue28180>`__, **Nick Coghlan** wrote the `PEP
+538: Coercing the legacy C locale to a UTF-8 based locale
+<https://www.python.org/dev/peps/pep-0538/>`_ and `posted it to python-ideas
+list
+<https://mail.python.org/pipermail/python-ideas/2017-January/044130.html>`__
+and `to the linux-sig list
+<https://mail.python.org/pipermail/linux-sig/2017-January/000014.html>`_.
 
-XXX 82 messages.
+April 2017, Nick `proposed
+<https://mail.python.org/pipermail/python-dev/2017-April/147795.html>`__
+**INADA Naoki** as the BDFL Delegate for his PEP. Guido `accepted to delegate
+<https://mail.python.org/pipermail/python-dev/2017-April/147796.html>`_.
+
+May 2017, after 5 months of discussions and changes, INADA Naoki `approved the
+PEP <https://mail.python.org/pipermail/python-dev/2017-May/148035.html>`_.
+
+June 2017, `bpo-28180 <https://bugs.python.org/issue28180>`__: Nick Coghlan
+pushed the `commit 6ea4186d
+<https://github.com/python/cpython/commit/6ea4186de32d65b1f1dc1533b6312b798d300466>`__:
+
+    bpo-28180: Implementation for PEP 538 (#659)
+
+Conclusion
+==========
+
+A first attempt to use a different encoding for the POSIX locale was rejected
+in 2011. A second attempt was also rejected in 2013.
+
+I modified Python 3.5 in 2014 to use the ``surrogateescape`` error handler in
+``stdin`` and ``stdout`` for the POSIX locale. Six years after the Python 3.0
+release, we started to understand that while developers can fix their code, we
+cannot ask users to "fix their locale" (configure properly their locale).
+
+In 2016, the problem occurred again with misconfigured locales in Docker
+images.  In 2017, Nick Coghlan wrote the PEP 538 "Coercing the legacy C locale
+to a UTF-8 based locale" which has been approved by INADA Naoki and implemented
+in Python 3.7.
