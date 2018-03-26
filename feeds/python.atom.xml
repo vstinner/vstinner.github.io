@@ -237,7 +237,7 @@ released in July 2017).&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="pep-538-coercing-the-c-locale-to-a-utf-8-based-locale"&gt;
 &lt;h2&gt;PEP 538: Coercing the C locale to a UTF-8 based locale&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://github.com/ncoghlan"&gt;&lt;img alt="Nick Coghlan" src="https://vstinner.github.io/images/nick_coghlan.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://www.curiousefficiency.org/"&gt;&lt;img alt="Nick Coghlan" src="https://vstinner.github.io/images/nick_coghlan.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;December 2016, as a follow-up of &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt;, &lt;strong&gt;Nick Coghlan&lt;/strong&gt; wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0538/"&gt;PEP
 538: Coercing the legacy C locale to a UTF-8 based locale&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044130.html"&gt;posted it to python-ideas
 list&lt;/a&gt;
