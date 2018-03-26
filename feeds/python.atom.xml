@@ -1,5 +1,270 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-22T17:00:00+01:00</updated><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-23T13:00:00+01:00</updated><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+configured systems. Python used UTF-8 rather than the locale encoding, and so
+commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
+these reasons, when users complained about the Python behaviour with the POSIX
+locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+configured systems. Python used UTF-8 rather than the locale encoding, and so
+commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
+these reasons, when users complained about the Python behaviour with the POSIX
+locale, bug reports were closed with a message like: &amp;quot;your system is not
+properly configured, please fix your locale&amp;quot;.&lt;/p&gt;
+&lt;p&gt;I only started to make a shy change for the POSIX locale in Python 3.5 at the
+end of 2013: use &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; for stdin and stdout. We will have to wait
+for Nick Coghlan in 2017 for significant changes in Python 3.7.&lt;/p&gt;
+&lt;p&gt;This article explains the slow transition, &lt;strong&gt;six years&lt;/strong&gt; since the first bug
+report (2011) to the significant change (2017), from &amp;quot;you must fix your locale&amp;quot;
+to &amp;quot;maybe Python can do something for you&amp;quot;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the fifth in a series of articles telling the history and
+rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() Bug on Undecodable Filenames&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error handler (PEP 383)&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="first-rejected-attempt-2011"&gt;
+&lt;h2&gt;First rejected attempt, 2011&lt;/h2&gt;
+&lt;p&gt;December 2011, &lt;strong&gt;Martin Packman&lt;/strong&gt;, a Bazaar developer, reported &lt;a class="reference external" href="https://bugs.python.org/issue13643"&gt;bpo-13643&lt;/a&gt; to propose to use UTF-8 in Python if the
+locale encoding is ASCII:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Currently when running Python on a non-OSX posix environment under either
+the &lt;strong&gt;C locale&lt;/strong&gt;, or with an invalid or missing locale, it's &lt;strong&gt;not possible
+to operate using unicode filenames outside the ascii range&lt;/strong&gt;. Using bytes
+works, as does reading expecting unicode, using the surrogates hack.&lt;/p&gt;
+&lt;p&gt;This makes robustly working with non-ascii filenames on different platforms
+needlessly annoying, given &lt;strong&gt;no modern nix should have problems just using
+UTF-8 in these cases&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;See the &lt;a class="reference external" href="https://bugs.launchpad.net/bzr/+bug/794353"&gt;downstream bzr bug for more&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;One option is to &lt;strong&gt;just use UTF-8&lt;/strong&gt; for encoding and decoding filenames
+&lt;strong&gt;when otherwise ascii would be used&lt;/strong&gt;. As a strict superset, this
+shouldn't break too many existing assumptions, and &lt;strong&gt;it's unlikely that
+non-UTF-8 filenames will accidentally be mangled due to a locale setting
+blip.&lt;/strong&gt; See the attached patch for this behaviour change. It does not
+include a test currently, but it's possible to write one using subprocess
+and overriden &lt;tt class="docutils literal"&gt;LANG&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;LC_ALL&lt;/tt&gt; vars.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue13643#msg149928"&gt;He added&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;This is more about &lt;strong&gt;un-encodable filenames&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;At the moment work with non-ascii filenames in Python robustly requires two
+branches, one using unicode and one that encodes to bytestrings and deals
+with the case where the name can't be represented in the declared
+filesystem encoding.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;That may be something that just had to be lived with&lt;/strong&gt;, but it's a little
+annoying when even without a UTF-8 locale for a particular process, that's
+what most systems will want on disk.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;At this time, I was still traumatised by the &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; mess: using a
+filesystem encoding different than the locale encoding caused many issues (see
+&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;). &lt;a class="reference external" href="https://bugs.python.org/issue13643#msg149926"&gt;I wrote&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+It was already discussed: using a different encoding for filenames and for
+other things is really not a good idea. (...)&lt;/blockquote&gt;
+&lt;p&gt;and &lt;a class="reference external" href="https://bugs.python.org/issue13643#msg149927"&gt;I added&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+The right fix is to &lt;strong&gt;fix your locale, not Python&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;p&gt;Antoine Pitrou &lt;a class="reference external" href="https://bugs.python.org/issue13643#msg149949"&gt;suggested to fix the operating system, not Python&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;So &lt;strong&gt;why don't these supposedly &amp;quot;modern&amp;quot; systems at least set the
+appropriate environment variables&lt;/strong&gt; for Python to infer the proper
+character encoding?  (since these &amp;quot;modern&amp;quot; systems don't have a
+well-defined encoding...)&lt;/p&gt;
+&lt;p&gt;Answer: because they are not modern at all, &lt;strong&gt;they are antiquated,
+inadapted and obsolete pieces of software designed and written by clueless
+Anglo-American people&lt;/strong&gt;. Please report bugs against these systems. &lt;strong&gt;The
+culprit is not Python, it's the Unix crap&lt;/strong&gt; and the utterly clueless
+attitude of its maintainers (&amp;quot;filesystems are just bytes&amp;quot;, yeah,
+whatever...).&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Martin Pool&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue13643#msg149951"&gt;wrote&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+The standard encoding is UTF-8. Python shouldn't need to have a variable
+set to tell it this.&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue13643#msg149952"&gt;Antoine replied&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+How so? I don't know of any Linux or Unix spec which says so.&lt;/blockquote&gt;
+&lt;p&gt;Four days and 34 messages later, &lt;strong&gt;Terry J. Reedy&lt;/strong&gt;
+&lt;a class="reference external" href="https://bugs.python.org/issue13643#msg150204"&gt;closed the issue&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Martin, after reading most all of the &lt;strong&gt;unusually large sequence of
+messages&lt;/strong&gt;, I am closing this because &lt;strong&gt;three of the core developers&lt;/strong&gt; with
+the most experience in this area are &lt;strong&gt;dead-set against your proposal&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;That does not make it 'wrong', but does mean that it will not be approved
+and implemented without new data and more persuasive arguments than those
+presented so far. I do not see that continued repetition of what has been
+said so far will change anything.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Getting many messages in short time is common when discussing Unicode issues
+:-)&lt;/p&gt;
+&lt;p&gt;March 2011, &lt;strong&gt;Armin Ronacher&lt;/strong&gt; and &lt;strong&gt;Carl Meyer&lt;/strong&gt; reported a similar issue:
+&lt;a class="reference external" href="https://bugs.python.org/issue11574"&gt;bpo-11574&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2011-March/109361.html"&gt;[Python-Dev] Low-Level Encoding Behavior on Python 3&lt;/a&gt;.  I
+closed the issue as &amp;quot;wont fixed&amp;quot; in April 2012.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="second-attempt-2013"&gt;
+&lt;h2&gt;Second attempt, 2013&lt;/h2&gt;
+&lt;p&gt;November 2013, &lt;strong&gt;Sworddragon&lt;/strong&gt; reported &lt;a class="reference external" href="https://bugs.python.org/issue19846"&gt;bpo-19846&lt;/a&gt;: &lt;tt class="docutils literal"&gt;LANG=C python3 &lt;span class="pre"&gt;-c&lt;/span&gt; &lt;span class="pre"&gt;'print(&amp;quot;\xe4&amp;quot;)'&lt;/span&gt;&lt;/tt&gt;
+fails with an &lt;tt class="docutils literal"&gt;UnicodeEncodeError&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Antoine Pitrou&lt;/strong&gt; wrote a patch to use UTF-8 when the locale encoding is
+ASCII, same approach than the first attempt &lt;a class="reference external" href="https://bugs.python.org/issue13643"&gt;bpo-13643&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The patch was incomplete and so caused many issues.&lt;/strong&gt; Python used the C codec
+of the locale encoding during Python initialization, and so Python had to use
+the locale encoding as its filesystem encoding.&lt;/p&gt;
+&lt;p&gt;I listed all functions that should be modified to fix issues and get a fully
+working solution. Nobody came up with a full implementation, likely because
+&lt;strong&gt;too many changes were required&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;One month and 66 messages (almost the double of the previous attempt) later,
+again, &lt;a class="reference external" href="https://bugs.python.org/issue19846#msg205675"&gt;I closed the issue&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I'm closing the issue as invalid, because &lt;strong&gt;Python 3 behaviour is correct&lt;/strong&gt;
+and must not be changed.&lt;/p&gt;
+&lt;p&gt;Standard streams (sys.stdin, sys.stdout, sys.stderr) uses the locale
+encoding. (...) These encodings and error handlers can be overriden by the
+&lt;strong&gt;PYTHONIOENCODING&lt;/strong&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;My &lt;a class="reference external" href="https://bugs.python.org/issue19846#msg205675"&gt;full long comment&lt;/a&gt;
+describes encodings used on each platform.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="use-surrogateescape-for-stdin-and-stdout-in-python-3-5"&gt;
+&lt;h2&gt;Use surrogateescape for stdin and stdout in Python 3.5&lt;/h2&gt;
+&lt;p&gt;December 2013: Just after closing the second attempt &lt;a class="reference external" href="https://bugs.python.org/issue19846"&gt;bpo-19846&lt;/a&gt;, I created &lt;a class="reference external" href="https://bugs.python.org/issue19977"&gt;bpo-19977&lt;/a&gt; to propose to use the
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler in &lt;tt class="docutils literal"&gt;sys.stdin&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; for the
+POSIX locale.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;R. David Murray&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue19977#msg206131"&gt;disliked my idea&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Reintroducing moji-bake intentionally doesn't sound like a particularly
+good idea&lt;/strong&gt;, wasn't that what python3 was supposed to help prevent?&lt;/p&gt;
+&lt;p&gt;It does seem like a &lt;strong&gt;utf-8 default is the Way of the Future&lt;/strong&gt;. Or even the
+present, most places.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;March 2014, since &lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; and &lt;strong&gt;Nick Coghlan&lt;/strong&gt; supported my idea,
+I pushed my &lt;a class="reference external" href="https://github.com/python/cpython/commit/7143029d4360637aadbd7ddf386ea5c64fb83095"&gt;commit 7143029d&lt;/a&gt;
+in Python 3.5:&lt;/p&gt;
+&lt;blockquote&gt;
+Issue #19977: When the &lt;tt class="docutils literal"&gt;LC_TYPE&lt;/tt&gt; locale is the POSIX locale (&lt;tt class="docutils literal"&gt;C&lt;/tt&gt;
+locale), &lt;tt class="docutils literal"&gt;sys.stdin&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; are now using the
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler, instead of the &lt;tt class="docutils literal"&gt;strict&lt;/tt&gt; error handler.&lt;/blockquote&gt;
+&lt;p&gt;Previously, &lt;strong&gt;Python 3 was very strict on encodings&lt;/strong&gt;, all core developers were
+convinced to be able to force developers to fix their applications. This change
+is one the &lt;strong&gt;first Python 3 change which can produce &amp;quot;mojibake&amp;quot; on purpose&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Six years after the Python 3.0 release, we started to understand that while
+developers can fix their code, we cannot ask users to fix their configuration
+(&amp;quot;fix their locale&amp;quot;).&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="read-etc-locale-conf"&gt;
+&lt;h2&gt;Read /etc/locale.conf?&lt;/h2&gt;
+&lt;p&gt;April 2014, &lt;strong&gt;Nick Coghlan&lt;/strong&gt; created &lt;a class="reference external" href="https://bugs.python.org/issue21368"&gt;bpo-21368&lt;/a&gt;: &amp;quot;Check for systemd locale on
+startup if current locale is set to POSIX&amp;quot;.&lt;/p&gt;
+&lt;blockquote&gt;
+If a modern Linux system is using systemd as the process manager, then
+there will likely be &lt;strong&gt;a &amp;quot;/etc/locale.conf&amp;quot; file&lt;/strong&gt; providing settings like
+LANG - due to problematic requirements in the POSIX specification, &lt;strong&gt;this
+file&lt;/strong&gt; (when available) is &lt;strong&gt;likely to be a better &amp;quot;source of truth&amp;quot;
+regarding the system encoding&lt;/strong&gt; than the environment where the interpreter
+process is started, at least when the latter is claiming ASCII as the
+default encoding.&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue21368#msg217328"&gt;I disliked the idea&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I don't think that Python should read such configuration file. If you
+consider that something is wrong here, &lt;strong&gt;please report the issue to the C
+library&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;p&gt;Since no consensus was found, no action was taken.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="misconfigured-locales-in-docker-images"&gt;
+&lt;h2&gt;Misconfigured locales in Docker images&lt;/h2&gt;
+&lt;p&gt;September 2016: &lt;strong&gt;Jan Niklas Hasse&lt;/strong&gt; opened &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt;, &lt;strong&gt;&amp;quot;sys.getfilesystemencoding() should
+default to utf-8&amp;quot;&lt;/strong&gt;.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;Working with Docker I often end up with an environment where the locale
+isn't correctly set.&lt;/strong&gt; In these cases &lt;strong&gt;it would be great if
+sys.getfilesystemencoding() could default to 'utf-8'&lt;/strong&gt; instead of
+&lt;tt class="docutils literal"&gt;'ascii'&lt;/tt&gt;, as it's the encoding of the future and ascii is a subset of it
+anyway.&lt;/blockquote&gt;
+&lt;p&gt;December 2016, &lt;strong&gt;Jan Niklas Hasse&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue28180#msg282972"&gt;mentioned&lt;/a&gt; the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;C.UTF-8&lt;/span&gt;&lt;/tt&gt; locale:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://sourceware.org/glibc/wiki/Proposals/C.UTF-8#Defaults"&gt;glibc C.UTF-8 article&lt;/a&gt; mentions
+that &lt;strong&gt;C.UTF-8 should be glibc's default&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This bug report &lt;a class="reference external" href="https://sourceware.org/bugzilla/show_bug.cgi?id=17318"&gt;also mentions Python&lt;/a&gt;. It &lt;strong&gt;hasn't been
+fixed yet&lt;/strong&gt;, though :/&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Marc-Andre Lemburg&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue28180#msg282977"&gt;added&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;If we just restrict this to the file system encoding (and not the whole
+LANG setting), how about:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;default the file system encoding to 'utf-8' and use the surrogate escape
+handler as default error handler&lt;/li&gt;
+&lt;li&gt;add a &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; env var to set the file system encoding to
+something else (*)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;(*) I believe we discussed this at some point already, but don't remember the outcome.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The removed &lt;tt class="docutils literal"&gt;PYTHONFSENCODING&lt;/tt&gt; environment variable, using a filesystem
+encoding different than the locale encoding, caused many issues: see &lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python
+3.2 Painful History of the Filesystem Encoding&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Nick Coghlan&lt;/strong&gt; &lt;cite&gt;proposed to experiment using the C.UTF-8 locale&lt;/cite&gt; in Fedora
+26:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;For Fedora 26,&lt;/strong&gt; I'm going to explore the feasibility of patching our system
+3.6 installation such that the python3 command itself (rather than the
+shared library) &lt;strong&gt;checks for &amp;quot;LC_CTYPE=C&amp;quot;&lt;/strong&gt; as almost the first thing it
+does, and forcibly &lt;strong&gt;sets LANG and LC_ALL to C.UTF-8&lt;/strong&gt; if it gets an answer
+it doesn't like. If we're able to do that successfully in the more
+constrained environment of a specific recent Fedora release, then I think
+it will bode well for doing something similar by default in CPython 3.7&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1404918"&gt;Downstream Fedora issue proposing the above idea for F26&lt;/a&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The Fedora 26 &lt;a class="reference external" href="https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale"&gt;Python 3 C.UTF-8 locale&lt;/a&gt;
+change was filled and owned by Nick, but it was not completed (Fedora 26 was
+released in July 2017).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-538-coercing-the-c-locale-to-a-utf-8-based-locale"&gt;
+&lt;h2&gt;PEP 538: Coercing the C locale to a UTF-8 based locale&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://github.com/ncoghlan"&gt;&lt;img alt="Nick Coghlan" src="https://vstinner.github.io/images/nick_coghlan.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;December 2016, as a follow-up of &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt;, &lt;strong&gt;Nick Coghlan&lt;/strong&gt; wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0538/"&gt;PEP
+538: Coercing the legacy C locale to a UTF-8 based locale&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044130.html"&gt;posted it to python-ideas
+list&lt;/a&gt;
+and &lt;a class="reference external" href="https://mail.python.org/pipermail/linux-sig/2017-January/000014.html"&gt;to the linux-sig list&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;April 2017, Nick &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147795.html"&gt;proposed&lt;/a&gt;
+&lt;strong&gt;INADA Naoki&lt;/strong&gt; as the BDFL Delegate for his PEP. Guido &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147796.html"&gt;accepted to delegate&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;May 2017, after 5 months of discussions and changes, INADA Naoki &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-May/148035.html"&gt;approved the
+PEP&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;June 2017, &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt;: Nick Coghlan
+pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/6ea4186de32d65b1f1dc1533b6312b798d300466"&gt;commit 6ea4186d&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+bpo-28180: Implementation for PEP 538 (#659)&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;A first attempt to use a different encoding for the POSIX locale was rejected
+in 2011. A second attempt was also rejected in 2013.&lt;/p&gt;
+&lt;p&gt;I modified Python 3.5 in 2014 to use the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler in
+&lt;tt class="docutils literal"&gt;stdin&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;stdout&lt;/tt&gt; for the POSIX locale. Six years after the Python 3.0
+release, we started to understand that while developers can fix their code, we
+cannot ask users to &amp;quot;fix their locale&amp;quot; (configure properly their locale).&lt;/p&gt;
+&lt;p&gt;In 2016, the problem occurred again with misconfigured locales in Docker
+images.  In 2017, Nick Coghlan wrote the PEP 538 &amp;quot;Coercing the legacy C locale
+to a UTF-8 based locale&amp;quot; which has been approved by INADA Naoki and implemented
+in Python 3.7.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
 proposed two major backward incompatible changes for Python 3.6 on Windows:
 &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
 filesystem encoding to UTF-8&lt;/a&gt;.
@@ -26,6 +291,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -189,6 +458,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -611,6 +884,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="first-attempt-to-propose-the-solution"&gt;
 &lt;h2&gt;First attempt to propose the solution&lt;/h2&gt;
@@ -760,6 +1037,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;

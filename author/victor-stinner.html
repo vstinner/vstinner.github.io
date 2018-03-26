@@ -22,10 +22,10 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python36-utf8-windows.html">Python 3.6 now uses UTF-8 on Windows</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/posix-locale.html">Python 3.7 and the POSIX locale</a></h1>
 <footer class="post-info">
-        <abbr class="published" title="2018-03-22T17:00:00+01:00">
-                Published: jeu. 22 mars 2018
+        <abbr class="published" title="2018-03-23T13:00:00+01:00">
+                Published: ven. 23 mars 2018
         </abbr>
 
         <address class="vcard author">
@@ -33,13 +33,19 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>September 2016, a few days before the CPython core dev sprint, <strong>Steve Dower</strong>
-proposed two major backward incompatible changes for Python 3.6 on Windows:
-<a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
-filesystem encoding to UTF-8</a>.
-At the first read, I was sure that the PEP 529 will break all applications on
-Windows. This article tells the story behind the PEPs approval.</p>
-<p><strong>This article is the fourth in a series of articles telling the history and
+</footer><!-- /.post-info --><p>During the childhood of Python 3, encodings issues were common, even on well
+configured systems. Python used UTF-8 rather than the locale encoding, and so
+commonly produced <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>. For
+these reasons, when users complained about the Python behaviour with the POSIX
+locale, bug reports were closed with a message like: &quot;your system is not
+properly configured, please fix your locale&quot;.</p>
+<p>I only started to make a shy change for the POSIX locale in Python 3.5 at the
+end of 2013: use <tt class="docutils literal">surrogateescape</tt> for stdin and stdout. We will have to wait
+for Nick Coghlan in 2017 for significant changes in Python 3.7.</p>
+<p>This article explains the slow transition, <strong>six years</strong> since the first bug
+report (2011) to the significant change (2017), from &quot;you must fix your locale&quot;
+to &quot;maybe Python can do something for you&quot;.</p>
+<p><strong>This article is the fifth in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system:</strong></p>
 <ul class="simple">
 <li><ol class="first arabic">
@@ -58,136 +64,235 @@ rationale of the Python 3 Unicode model for the operating system:</strong></p>
 <li><a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html">Python 3.6 now uses UTF-8 on Windows</a></li>
 </ol>
 </li>
+<li><ol class="first arabic" start="5">
+<li><a class="reference external" href="https://vstinner.github.io/posix-locale.html">Python 3.7 and the POSIX locale</a></li>
+</ol>
+</li>
 </ul>
-<div class="section" id="pep-529">
-<h2>PEP 529</h2>
-<p>September 2016, <strong>Steve Dower</strong>, who works for Microsoft, wrote the <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529:
-Change Windows filesystem encoding to UTF-8</a> and <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146051.html">posted it to python-dev</a> for
-comments.</p>
-<a class="reference external image-reference" href="http://stevedower.id.au/blog/"><img alt="Steve Dower" src="https://vstinner.github.io/images/steve_dower.jpg" /></a>
-<p>Abstract:</p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"><img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /></a>
+<div class="section" id="first-rejected-attempt-2011">
+<h2>First rejected attempt, 2011</h2>
+<p>December 2011, <strong>Martin Packman</strong>, a Bazaar developer, reported <a class="reference external" href="https://bugs.python.org/issue13643">bpo-13643</a> to propose to use UTF-8 in Python if the
+locale encoding is ASCII:</p>
 <blockquote>
-<p><strong>Historically, Python uses the ANSI APIs</strong> for interacting with the
-Windows operating system, often via C Runtime functions. However, these
-have been long discouraged in favor of the UTF-16 APIs. Within the
-operating system, all text is represented as UTF-16, and the ANSI APIs
-perform encoding and decoding using the active code page. See Naming Files,
-Paths, and Namespaces for more details.</p>
-<p>This PEP proposes <strong>changing the default filesystem encoding on Windows to
-utf-8</strong>, and changing all filesystem functions to use the Unicode APIs for
-filesystem paths. This will not affect code that uses strings to represent
-paths, however those that use bytes for paths will now be able to correctly
-round-trip all valid paths in Windows filesystems. <strong>Currently, the
-conversions between Unicode (in the OS) and bytes (in Python) were lossy</strong>
-and would fail to round-trip characters outside of the user's active code
-page.</p>
-<p>Notably, this does not impact the encoding of the contents of files. These
-will continue to default to <tt class="docutils literal">locale.getpreferredencoding()</tt> (for text
-files) or plain bytes (for binary files). This only affects the encoding
-used when users pass a bytes object to Python where it is then passed to
-the operating system as a path name.</p>
+<p>Currently when running Python on a non-OSX posix environment under either
+the <strong>C locale</strong>, or with an invalid or missing locale, it's <strong>not possible
+to operate using unicode filenames outside the ascii range</strong>. Using bytes
+works, as does reading expecting unicode, using the surrogates hack.</p>
+<p>This makes robustly working with non-ascii filenames on different platforms
+needlessly annoying, given <strong>no modern nix should have problems just using
+UTF-8 in these cases</strong>.</p>
+<p>See the <a class="reference external" href="https://bugs.launchpad.net/bzr/+bug/794353">downstream bzr bug for more</a>.</p>
+<p>One option is to <strong>just use UTF-8</strong> for encoding and decoding filenames
+<strong>when otherwise ascii would be used</strong>. As a strict superset, this
+shouldn't break too many existing assumptions, and <strong>it's unlikely that
+non-UTF-8 filenames will accidentally be mangled due to a locale setting
+blip.</strong> See the attached patch for this behaviour change. It does not
+include a test currently, but it's possible to write one using subprocess
+and overriden <tt class="docutils literal">LANG</tt> and <tt class="docutils literal">LC_ALL</tt> vars.</p>
 </blockquote>
-</div>
-<div class="section" id="my-analysis">
-<h2>My analysis</h2>
-<p>Here is my analysis on the rationale for the PEP 529 change.</p>
-<p><strong>On Unix, the native type for filenames is bytes</strong>. A filename is seen by the
-Linux kernel as an opaque object. The ext4 filesystem stores filenames as
-bytes. If a Python 2 application uses Unicode for filenames, filesystem
-operations can fail with a Unicode error (encoding or decoding error) depending
-on the locale encoding. If the locale encoding is ASCII, Unicode errors are
-likely to occur at the first non-ASCII filename. For example, Mercurial handles
-filenames as bytes.</p>
-<p>On Python 3, handling filenames as Unicode works thanks to the
-<tt class="docutils literal">surrogateescape</tt> error handler. <strong>Most Python 2 applications ported to
-Python 3 keep their Python 2 support, and so still handle filenames bytes.</strong></p>
-<p>Problems arise when such software is used on Windows.</p>
-<p><strong>On Windows, the native type for filenames is Unicode</strong>. Many functions come
-in two flavors: &quot;ANSI&quot; (bytes) and &quot;Wide&quot; (Unicode) versions. In my opinion,
-the ANSI flavor mostly exists for backward compatibility. In Python 3.5,
-passing a filename as bytes uses the ANSI flavor, whereas the Wide flavor is
-used for Unicode filenames. The ANSI flavor uses the ANSI code page which is
-very limited compared to Unicode, usually only 256 code points or less. Some
-filenames not encodable to the ANSI code page simply cannot be opened, renamed,
-etc. using the ANSI API.</p>
-<p>The other issue is that <strong>some developers only develop on Unix</strong> (ex: Linux or
-macOS) <strong>and never test their application on Windows</strong>.</p>
-<p>For a better rationale, read the <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/#background">Background section</a> of Steve Dower's PEP
+<p><a class="reference external" href="https://bugs.python.org/issue13643#msg149928">He added</a>:</p>
+<blockquote>
+<p>This is more about <strong>un-encodable filenames</strong>.</p>
+<p>At the moment work with non-ascii filenames in Python robustly requires two
+branches, one using unicode and one that encodes to bytestrings and deals
+with the case where the name can't be represented in the declared
+filesystem encoding.</p>
+<p><strong>That may be something that just had to be lived with</strong>, but it's a little
+annoying when even without a UTF-8 locale for a particular process, that's
+what most systems will want on disk.</p>
+</blockquote>
+<p>At this time, I was still traumatised by the <tt class="docutils literal">PYTHONFSENCODING</tt> mess: using a
+filesystem encoding different than the locale encoding caused many issues (see
+<a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">Python 3.2 Painful History of the Filesystem Encoding</a>). <a class="reference external" href="https://bugs.python.org/issue13643#msg149926">I wrote</a>:</p>
+<blockquote>
+It was already discussed: using a different encoding for filenames and for
+other things is really not a good idea. (...)</blockquote>
+<p>and <a class="reference external" href="https://bugs.python.org/issue13643#msg149927">I added</a>:</p>
+<blockquote>
+The right fix is to <strong>fix your locale, not Python</strong>.</blockquote>
+<p>Antoine Pitrou <a class="reference external" href="https://bugs.python.org/issue13643#msg149949">suggested to fix the operating system, not Python</a>:</p>
+<blockquote>
+<p>So <strong>why don't these supposedly &quot;modern&quot; systems at least set the
+appropriate environment variables</strong> for Python to infer the proper
+character encoding?  (since these &quot;modern&quot; systems don't have a
+well-defined encoding...)</p>
+<p>Answer: because they are not modern at all, <strong>they are antiquated,
+inadapted and obsolete pieces of software designed and written by clueless
+Anglo-American people</strong>. Please report bugs against these systems. <strong>The
+culprit is not Python, it's the Unix crap</strong> and the utterly clueless
+attitude of its maintainers (&quot;filesystems are just bytes&quot;, yeah,
+whatever...).</p>
+</blockquote>
+<p><strong>Martin Pool</strong> <a class="reference external" href="https://bugs.python.org/issue13643#msg149951">wrote</a>:</p>
+<blockquote>
+The standard encoding is UTF-8. Python shouldn't need to have a variable
+set to tell it this.</blockquote>
+<p><a class="reference external" href="https://bugs.python.org/issue13643#msg149952">Antoine replied</a>:</p>
+<blockquote>
+How so? I don't know of any Linux or Unix spec which says so.</blockquote>
+<p>Four days and 34 messages later, <strong>Terry J. Reedy</strong>
+<a class="reference external" href="https://bugs.python.org/issue13643#msg150204">closed the issue</a>:</p>
+<blockquote>
+<p>Martin, after reading most all of the <strong>unusually large sequence of
+messages</strong>, I am closing this because <strong>three of the core developers</strong> with
+the most experience in this area are <strong>dead-set against your proposal</strong>.</p>
+<p>That does not make it 'wrong', but does mean that it will not be approved
+and implemented without new data and more persuasive arguments than those
+presented so far. I do not see that continued repetition of what has been
+said so far will change anything.</p>
+</blockquote>
+<p>Getting many messages in short time is common when discussing Unicode issues
 :-)</p>
+<p>March 2011, <strong>Armin Ronacher</strong> and <strong>Carl Meyer</strong> reported a similar issue:
+<a class="reference external" href="https://bugs.python.org/issue11574">bpo-11574</a> and <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2011-March/109361.html">[Python-Dev] Low-Level Encoding Behavior on Python 3</a>.  I
+closed the issue as &quot;wont fixed&quot; in April 2012.</p>
 </div>
-<div class="section" id="discussion-at-the-cpython-sprint-and-guido-s-approval">
-<h2>Discussion at the CPython sprint and Guido's approval</h2>
-<p>Honestly, <strong>at the first read, I was sure that the PEP 529 will break all
-applications on Windows</strong>.</p>
-<p>Hopefully, thanks to the PSF and Instagram, I was able to attend my first
-CPython sprint at Instagram headquarters: <a class="reference external" href="https://vstinner.github.io/cpython-sprint-2016.html">CPython sprint, september 2016</a>. I discussed there with <strong>Steve who
-reassured me and explained me his PEP</strong>. Later, we talked with <strong>Guido van
-Rossum</strong>.</p>
-<p>Even if I liked the idea of using UTF-8, I was still not fully confident that the
-change will not break the world. <strong>We agreed to try the change during Python
-3.6 beta phase</strong>, but revert it if something bad happens.</p>
-<a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"><img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /></a>
-<p>Following this talk, <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146277.html">Guido accepted the PEP under conditions</a></p>
+<div class="section" id="second-attempt-2013">
+<h2>Second attempt, 2013</h2>
+<p>November 2013, <strong>Sworddragon</strong> reported <a class="reference external" href="https://bugs.python.org/issue19846">bpo-19846</a>: <tt class="docutils literal">LANG=C python3 <span class="pre">-c</span> <span class="pre">'print(&quot;\xe4&quot;)'</span></tt>
+fails with an <tt class="docutils literal">UnicodeEncodeError</tt>.</p>
+<p><strong>Antoine Pitrou</strong> wrote a patch to use UTF-8 when the locale encoding is
+ASCII, same approach than the first attempt <a class="reference external" href="https://bugs.python.org/issue13643">bpo-13643</a>.</p>
+<p><strong>The patch was incomplete and so caused many issues.</strong> Python used the C codec
+of the locale encoding during Python initialization, and so Python had to use
+the locale encoding as its filesystem encoding.</p>
+<p>I listed all functions that should be modified to fix issues and get a fully
+working solution. Nobody came up with a full implementation, likely because
+<strong>too many changes were required</strong>.</p>
+<p>One month and 66 messages (almost the double of the previous attempt) later,
+again, <a class="reference external" href="https://bugs.python.org/issue19846#msg205675">I closed the issue</a>:</p>
 <blockquote>
-<p>I'm hijacking this thread to <strong>provisionally accept PEP 529</strong>. (I'll also
-do this for PEP 528, in its own thread.)</p>
-<p><strong>I've talked things over with Steve and Victor and we're going to do an
-experiment</strong> (as <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/#beta-experiment">now written up in the PEP</a>) to tease out
-any issues with this change during the beta. <strong>If serious problems crop up
-we may have to roll back the changes and reject the PEP</strong> -- we won't get
-another chance at getting this right. (That would also mean that using the
-binary filesystem APIs will remain deprecated and will eventually be
-disallowed; as long as the PEP remains accepted they are undeprecated.)</p>
-<p>Congrats Steve! Thanks for the massive amount of work on the
-implementation and the thinking that went into the design. Thanks
-everyone else for their feedback.</p>
-<p class="attribution">&mdash;Guido</p>
+<p>I'm closing the issue as invalid, because <strong>Python 3 behaviour is correct</strong>
+and must not be changed.</p>
+<p>Standard streams (sys.stdin, sys.stdout, sys.stderr) uses the locale
+encoding. (...) These encodings and error handlers can be overriden by the
+<strong>PYTHONIOENCODING</strong>.</p>
 </blockquote>
-<p><strong>I was honoured that Guido listened to my Unicode experience</strong> to take a
-decision on the PEP ;-)</p>
-<p>Steve chose the right timing to get his PEP accepted. Thanks to the sprint
-which helped to quickly discussed such backward incompatible change, <strong>the PEP
-has been approved in just 12 days</strong>! For comparison, some of my PEPs like my
-<a class="reference external" href="https://www.python.org/dev/peps/pep-0446/">PEP 446: Make newly created file descriptors non-inheritable</a> (another backward incompatible
-change) took 8 months to get accepted.</p>
+<p>My <a class="reference external" href="https://bugs.python.org/issue19846#msg205675">full long comment</a>
+describes encodings used on each platform.</p>
 </div>
-<div class="section" id="pep-528-windows-console">
-<h2>PEP 528: Windows console</h2>
-<p>Just before the PEP 529, Steve Dower also wrote <a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows
-console encoding to UTF-8</a>.  This
-change only impacts the Windows console, so there is a lower risk of breaking
-the world.</p>
-<p>This PEP was also <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146278.html">quickly approved by Guido</a>
-during the CPython sprint.  Steve implemented it in Python 3.6.</p>
-<p>Even if it's smaller change, it is <strong>yet another change towards using UTF-8
-everywhere</strong>.</p>
+<div class="section" id="use-surrogateescape-for-stdin-and-stdout-in-python-3-5">
+<h2>Use surrogateescape for stdin and stdout in Python 3.5</h2>
+<p>December 2013: Just after closing the second attempt <a class="reference external" href="https://bugs.python.org/issue19846">bpo-19846</a>, I created <a class="reference external" href="https://bugs.python.org/issue19977">bpo-19977</a> to propose to use the
+<tt class="docutils literal">surrogateescape</tt> error handler in <tt class="docutils literal">sys.stdin</tt> and <tt class="docutils literal">sys.stdout</tt> for the
+POSIX locale.</p>
+<p><strong>R. David Murray</strong> <a class="reference external" href="https://bugs.python.org/issue19977#msg206131">disliked my idea</a>:</p>
+<blockquote>
+<p><strong>Reintroducing moji-bake intentionally doesn't sound like a particularly
+good idea</strong>, wasn't that what python3 was supposed to help prevent?</p>
+<p>It does seem like a <strong>utf-8 default is the Way of the Future</strong>. Or even the
+present, most places.</p>
+</blockquote>
+<p>March 2014, since <strong>Serhiy Storchaka</strong> and <strong>Nick Coghlan</strong> supported my idea,
+I pushed my <a class="reference external" href="https://github.com/python/cpython/commit/7143029d4360637aadbd7ddf386ea5c64fb83095">commit 7143029d</a>
+in Python 3.5:</p>
+<blockquote>
+Issue #19977: When the <tt class="docutils literal">LC_TYPE</tt> locale is the POSIX locale (<tt class="docutils literal">C</tt>
+locale), <tt class="docutils literal">sys.stdin</tt> and <tt class="docutils literal">sys.stdout</tt> are now using the
+<tt class="docutils literal">surrogateescape</tt> error handler, instead of the <tt class="docutils literal">strict</tt> error handler.</blockquote>
+<p>Previously, <strong>Python 3 was very strict on encodings</strong>, all core developers were
+convinced to be able to force developers to fix their applications. This change
+is one the <strong>first Python 3 change which can produce &quot;mojibake&quot; on purpose</strong>.</p>
+<p><strong>Six years after the Python 3.0 release, we started to understand that while
+developers can fix their code, we cannot ask users to fix their configuration
+(&quot;fix their locale&quot;).</strong></p>
 </div>
-<div class="section" id="great-success">
-<h2>Great success!</h2>
-<p>Hopefully, I was wrong about the risk of breaking the world. <strong>No user
-complained about these two backward incompatible changes: Python 3.6 on Windows
-is a success!</strong></p>
-<p>Python 3.6 now has a <strong>better Unicode support</strong> on Windows thanks to the PEP
-528 and PEP 529!</p>
+<div class="section" id="read-etc-locale-conf">
+<h2>Read /etc/locale.conf?</h2>
+<p>April 2014, <strong>Nick Coghlan</strong> created <a class="reference external" href="https://bugs.python.org/issue21368">bpo-21368</a>: &quot;Check for systemd locale on
+startup if current locale is set to POSIX&quot;.</p>
+<blockquote>
+If a modern Linux system is using systemd as the process manager, then
+there will likely be <strong>a &quot;/etc/locale.conf&quot; file</strong> providing settings like
+LANG - due to problematic requirements in the POSIX specification, <strong>this
+file</strong> (when available) is <strong>likely to be a better &quot;source of truth&quot;
+regarding the system encoding</strong> than the environment where the interpreter
+process is started, at least when the latter is claiming ASCII as the
+default encoding.</blockquote>
+<p><a class="reference external" href="https://bugs.python.org/issue21368#msg217328">I disliked the idea</a>:</p>
+<blockquote>
+I don't think that Python should read such configuration file. If you
+consider that something is wrong here, <strong>please report the issue to the C
+library</strong>.</blockquote>
+<p>Since no consensus was found, no action was taken.</p>
+</div>
+<div class="section" id="misconfigured-locales-in-docker-images">
+<h2>Misconfigured locales in Docker images</h2>
+<p>September 2016: <strong>Jan Niklas Hasse</strong> opened <a class="reference external" href="https://bugs.python.org/issue28180">bpo-28180</a>, <strong>&quot;sys.getfilesystemencoding() should
+default to utf-8&quot;</strong>.</p>
+<blockquote>
+<strong>Working with Docker I often end up with an environment where the locale
+isn't correctly set.</strong> In these cases <strong>it would be great if
+sys.getfilesystemencoding() could default to 'utf-8'</strong> instead of
+<tt class="docutils literal">'ascii'</tt>, as it's the encoding of the future and ascii is a subset of it
+anyway.</blockquote>
+<p>December 2016, <strong>Jan Niklas Hasse</strong> <a class="reference external" href="https://bugs.python.org/issue28180#msg282972">mentioned</a> the <tt class="docutils literal"><span class="pre">C.UTF-8</span></tt> locale:</p>
+<blockquote>
+<p><a class="reference external" href="https://sourceware.org/glibc/wiki/Proposals/C.UTF-8#Defaults">glibc C.UTF-8 article</a> mentions
+that <strong>C.UTF-8 should be glibc's default</strong>.</p>
+<p>This bug report <a class="reference external" href="https://sourceware.org/bugzilla/show_bug.cgi?id=17318">also mentions Python</a>. It <strong>hasn't been
+fixed yet</strong>, though :/</p>
+</blockquote>
+<p><strong>Marc-Andre Lemburg</strong> <a class="reference external" href="https://bugs.python.org/issue28180#msg282977">added</a>:</p>
+<blockquote>
+<p>If we just restrict this to the file system encoding (and not the whole
+LANG setting), how about:</p>
+<ul class="simple">
+<li>default the file system encoding to 'utf-8' and use the surrogate escape
+handler as default error handler</li>
+<li>add a <tt class="docutils literal">PYTHONFSENCODING</tt> env var to set the file system encoding to
+something else (*)</li>
+</ul>
+<p>(*) I believe we discussed this at some point already, but don't remember the outcome.</p>
+</blockquote>
+<p>The removed <tt class="docutils literal">PYTHONFSENCODING</tt> environment variable, using a filesystem
+encoding different than the locale encoding, caused many issues: see <a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">Python
+3.2 Painful History of the Filesystem Encoding</a>.</p>
+<p><strong>Nick Coghlan</strong> <cite>proposed to experiment using the C.UTF-8 locale</cite> in Fedora
+26:</p>
+<blockquote>
+<p><strong>For Fedora 26,</strong> I'm going to explore the feasibility of patching our system
+3.6 installation such that the python3 command itself (rather than the
+shared library) <strong>checks for &quot;LC_CTYPE=C&quot;</strong> as almost the first thing it
+does, and forcibly <strong>sets LANG and LC_ALL to C.UTF-8</strong> if it gets an answer
+it doesn't like. If we're able to do that successfully in the more
+constrained environment of a specific recent Fedora release, then I think
+it will bode well for doing something similar by default in CPython 3.7</p>
+<p><a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1404918">Downstream Fedora issue proposing the above idea for F26</a>.</p>
+</blockquote>
+<p>The Fedora 26 <a class="reference external" href="https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale">Python 3 C.UTF-8 locale</a>
+change was filled and owned by Nick, but it was not completed (Fedora 26 was
+released in July 2017).</p>
+</div>
+<div class="section" id="pep-538-coercing-the-c-locale-to-a-utf-8-based-locale">
+<h2>PEP 538: Coercing the C locale to a UTF-8 based locale</h2>
+<a class="reference external image-reference" href="https://github.com/ncoghlan"><img alt="Nick Coghlan" src="https://vstinner.github.io/images/nick_coghlan.jpg" /></a>
+<p>December 2016, as a follow-up of <a class="reference external" href="https://bugs.python.org/issue28180">bpo-28180</a>, <strong>Nick Coghlan</strong> wrote the <a class="reference external" href="https://www.python.org/dev/peps/pep-0538/">PEP
+538: Coercing the legacy C locale to a UTF-8 based locale</a> and <a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044130.html">posted it to python-ideas
+list</a>
+and <a class="reference external" href="https://mail.python.org/pipermail/linux-sig/2017-January/000014.html">to the linux-sig list</a>.</p>
+<p>April 2017, Nick <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147795.html">proposed</a>
+<strong>INADA Naoki</strong> as the BDFL Delegate for his PEP. Guido <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147796.html">accepted to delegate</a>.</p>
+<p>May 2017, after 5 months of discussions and changes, INADA Naoki <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-May/148035.html">approved the
+PEP</a>.</p>
+<p>June 2017, <a class="reference external" href="https://bugs.python.org/issue28180">bpo-28180</a>: Nick Coghlan
+pushed the <a class="reference external" href="https://github.com/python/cpython/commit/6ea4186de32d65b1f1dc1533b6312b798d300466">commit 6ea4186d</a>:</p>
+<blockquote>
+bpo-28180: Implementation for PEP 538 (#659)</blockquote>
 </div>
 <div class="section" id="conclusion">
 <h2>Conclusion</h2>
-<p>September 2016: Steve Dower proposed two major backward incompatible changes
-for Python 3.6 on Windows: <a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
-filesystem encoding to UTF-8</a>.</p>
-<p>At the first read, I was sure that the PEP 529 (filesystem encoding) will break
-all applications on Windows.</p>
-<p>Thanks to the CPython core dev sprint, I was able to discuss with Steve who
-reassured me and explained me his PEP 529. We agreed with Guido van Rossum to
-try the change during Python 3.6 beta phase, but revert it if something bad
-happens. I was honoured that Guido listened to my Unicode experience to take a
-decision on the PEP.</p>
-<p>The <a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> was also quickly approved,
-another change towards using UTF-8 everywhere.</p>
-<p>No user complained about these two backward incompatible changes: Python 3.6 on
-Windows is a success!</p>
-<p>Python 3.6 now has a better Unicode support thanks on Windows to the PEP 528
-and PEP 529!</p>
+<p>A first attempt to use a different encoding for the POSIX locale was rejected
+in 2011. A second attempt was also rejected in 2013.</p>
+<p>I modified Python 3.5 in 2014 to use the <tt class="docutils literal">surrogateescape</tt> error handler in
+<tt class="docutils literal">stdin</tt> and <tt class="docutils literal">stdout</tt> for the POSIX locale. Six years after the Python 3.0
+release, we started to understand that while developers can fix their code, we
+cannot ask users to &quot;fix their locale&quot; (configure properly their locale).</p>
+<p>In 2016, the problem occurred again with misconfigured locales in Docker
+images.  In 2017, Nick Coghlan wrote the PEP 538 &quot;Coercing the legacy C locale
+to a UTF-8 based locale&quot; which has been approved by INADA Naoki and implemented
+in Python 3.7.</p>
 </div>
                 </article>
             </aside><!-- /#featured -->
@@ -195,6 +300,32 @@ and PEP 529!</p>
                     <h1>Other articles</h1>
                     <hr />
                     <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/python36-utf8-windows.html" rel="bookmark"
+                           title="Permalink to Python 3.6 now uses UTF-8 on Windows">Python 3.6 now uses UTF-8 on Windows</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2018-03-22T17:00:00+01:00">
+                Published: jeu. 22 mars 2018
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->                <p>September 2016, a few days before the CPython core dev sprint, <strong>Steve Dower</strong>
+proposed two major backward incompatible changes for Python 3.6 on Windows:
+<a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
+filesystem encoding to UTF-8</a>.
+At the first read, I was sure that …</p>
+                <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -428,40 +559,6 @@ threads)</a>.</p>
 <li>socketserver leaking threads and processes<ul>
 <li>test_logging random bug …</li></ul></li></ul>
                 <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q3: Part 1">My contributions to CPython during 2017 Q3: Part 1</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-10-18T15:00:00+02:00">
-                Published: mer. 18 octobre 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
-(july, august, september), Part 1.</p>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part1)</a>.</p>
-<p>Next reports:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
-threads)</a>.</li>
-<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a>.</li>
-</ul>
-<p>Summary:</p>
-<ul class="simple">
-<li>Statistics</li>
-<li>Security fixes …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
