@@ -275,10 +275,9 @@ encoding different than the locale encoding, caused many issues: see `Python
     `Downstream Fedora issue proposing the above idea for F26
     <https://bugzilla.redhat.com/show_bug.cgi?id=1404918>`_.
 
-The Fedora 26 `Python 3 C.UTF-8 locale
-<https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale>`_
-change was filled and owned by Nick, but it was not completed (Fedora 26 was
-released in July 2017).
+Fedora 26 integrated a downstream change in Python 3.6:
+see `Python 3 C.UTF-8 locale
+<https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale>`_.
 
 PEP 538: Coercing the C locale to a UTF-8 based locale
 ======================================================
