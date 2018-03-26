@@ -38,6 +38,7 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 3. `Python 3.2 Painful History of the Filesystem Encoding <{filename}/fs_encoding.rst>`_
 * 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
 * 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
+* 6. `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_
 
 
 The os.walk() bug
