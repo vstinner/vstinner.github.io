@@ -231,9 +231,8 @@ constrained environment of a specific recent Fedora release, then I think
 it will bode well for doing something similar by default in CPython 3.7&lt;/p&gt;
 &lt;p&gt;&lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1404918"&gt;Downstream Fedora issue proposing the above idea for F26&lt;/a&gt;.&lt;/p&gt;
 &lt;/blockquote&gt;
-&lt;p&gt;The Fedora 26 &lt;a class="reference external" href="https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale"&gt;Python 3 C.UTF-8 locale&lt;/a&gt;
-change was filled and owned by Nick, but it was not completed (Fedora 26 was
-released in July 2017).&lt;/p&gt;
+&lt;p&gt;Fedora 26 integrated a downstream change in Python 3.6:
+see &lt;a class="reference external" href="https://fedoraproject.org/wiki/Releases/26/ChangeSet#Python_3_C.UTF-8_locale"&gt;Python 3 C.UTF-8 locale&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="pep-538-coercing-the-c-locale-to-a-utf-8-based-locale"&gt;
 &lt;h2&gt;PEP 538: Coercing the C locale to a UTF-8 based locale&lt;/h2&gt;
