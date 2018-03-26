@@ -285,7 +285,7 @@ PEP 538: Coercing the C locale to a UTF-8 based locale
 
 .. image:: {filename}/images/nick_coghlan.jpg
    :alt: Nick Coghlan
-   :target: https://github.com/ncoghlan
+   :target: http://www.curiousefficiency.org/
 
 December 2016, as a follow-up of `bpo-28180 <https://bugs.python.org/issue28180>`__, **Nick Coghlan** wrote the `PEP
 538: Coercing the legacy C locale to a UTF-8 based locale
