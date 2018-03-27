@@ -2,21 +2,34 @@
 Python 3.7 UTF-8 Mode
 +++++++++++++++++++++
 
-:date: 2018-03-26 22:00
+:date: 2018-03-27 20:00
 :tags: cpython
 :category: python
 :slug: python37-new-utf8-mode
 :authors: Victor Stinner
 
-Since Python 3.0 was released in 2008, each time an user reports an encoding
-issue, someone shows up and asks why Python does not simply always use UTF-8.
-Well, it's not that easy. UTF-8 is the best encoding in most cases, but it is
-still not the best encoding in all cases, even in 2018. The locale encoding
-remains the best **default** filesystem encoding for Python. I would say that
-**the locale encoding is the least bad choice**.
+Since Python 3.0 was released in 2008, each time an user reported an encoding
+issue, someone showed up and asked why Python does not "simply" always use UTF-8.
+Well, it's not that easy. **UTF-8 is the best encoding in most cases, but it is
+still not the best encoding in all cases**, even in 2018. The locale encoding
+remains the best default filesystem encoding for Python. I would say that **the
+locale encoding is the least bad filesystem encoding**.
 
-I proposed an opt-in UTF-8 Mode for Python 3.7, and also to use UTF-8 for the C
-locale.
+This article tells the story of my `PEP 540: Add a new UTF-8 Mode
+<https://www.python.org/dev/peps/pep-0540/>`_ which adds an opt-in option to
+**"use UTF-8" everywhere"**. Moreover, the UTF-8 Mode is enabled by the POSIX
+locale: **Python 3.7 now uses UTF-8 for the POSIX locale**. My
+PEP 540 is complementary to Nick Coghlan's PEP 538.
+
+When I started to write this article, I wrote something like: "Hey! I added a
+new option to use UTF-8, enjoy!". Written like that, it seems like using UTF-8
+was an obvious choice and that it was really easy to write such PEP. No.
+**Nothing was obvious, nothing was simple.**
+
+It took me one year to design and implement my PEP 540, and to get it accepted.
+I wrote five articles before this one to show that the PEP 540 only came after
+a long painful journey, starting with Python 3.0, to choose the best Python
+encoding.  My PEP rely on the all the great work done previously.
 
 **This article is the sixth and last in a series of articles telling the
 history and rationale of the Python 3 Unicode model for the operating system:**
@@ -70,17 +83,17 @@ The utf8 option proposed for Windows
 August 2016, `bpo-27781 <https://bugs.python.org/issue27781>`__: when **Steve
 Dower** `was working on changing the filesystem encoding to UTF-8
 <{filename}/windows_utf8.rst>`__, I was not sure that Windows should use UTF-8
-by default, I was more in favor on **making the backward incompatible change an
+by default. I was more in favor on **making the backward incompatible change an
 opt-in option**. `I wrote <https://bugs.python.org/issue27781#msg272950>`__:
 
     **If you go in this direction, I would like to follow you for the UNIX/BSD
     side to make the switch portable. I was thinking about "-X utf8" which
     avoids to change the command line parser.**
 
-    If we agree on a plan, I would like to write it down as a PEP since I
-    expect a lot of complains and questions which I would prefer to only
-    answer once (see for example the length of your thread on python-ideas
-    where each people repeated the same things multiple times ;-))
+    If we agree on a plan, **I would like to write it down as a PEP since I
+    expect a lot of complains and questions which I would prefer to only answer
+    once** (see for example the length of your thread on python-ideas where
+    each people repeated the same things multiple times ;-))
 
 `I added <https://bugs.python.org/issue27781#msg272962>`__:
 
@@ -122,14 +135,6 @@ December 2016, `I added <https://bugs.python.org/issue28180#msg283408>`__:
     decode command line arguments with an encoding to parse these options....
     Chicken-and-egg issue ;-)
 
-Implement properly the ``-X utf8`` option was tricky. Parsing the command line
-was done on ``wchar_t*`` C strings (Unicode), which requires to decode the
-``char** argv`` C array of byte strings (bytes). Python starts by decoding byte
-strings from the locale encoding. If the utf8 option is detected, ``argv`` byte
-strings must be decoded again, but now from UTF-8. The problem was that the
-code was not designed for that, and it required to refactor a lot of code in
-``Py_Main()``.
-
 **Nick Coghlan** `wrote his PEP 538 "Coercing the C locale to a UTF-8 based
 locale" <{filename}/posix_locale.rst>`__ which has been approved in May 2017
 and finally implemented in June 2017.
@@ -157,7 +162,7 @@ After ten hours after and a few messages, I `wrote a second version
 
     I modified my PEP: **the POSIX locale now enables the UTF-8 mode**.
 
-**INADA Naoki** `proposed to always use UTF-8 and always ignore the locale
+**INADA Naoki** `wrote
 <https://mail.python.org/pipermail/python-ideas/2017-January/044112.html>`_:
 
     I want UTF-8 mode is **enabled by default (opt-out option) even if locale
@@ -170,9 +175,10 @@ After ten hours after and a few messages, I `wrote a second version
     **But many people lives in "UTF-8 everywhere" world**, and don't know about
     locale.
 
-Always ignoring the locale to always use UTF-8 would be a backward incompatible
-change.  I wasn't brave enough to propose it on UNIX, I only wanted to propose
-an opt-in option, except of the specific case of the POSIX locale.
+Always ignoring the locale to **always use UTF-8 would be a backward
+incompatible change**. I wasn't brave enough to propose it, I only
+wanted to propose an opt-in option, except of the specific case of the POSIX
+locale.
 
 Not only people had different opinons, but most people had strong opinions on
 how to handle Unicode and were not ready for compromises.
@@ -214,20 +220,20 @@ April 2017, Nick `proposed
 `accepted to delegate
 <https://mail.python.org/pipermail/python-dev/2017-April/147796.html>`_.
 
-May 2017, Naoki approved Nick's PEP 538, and then Nick implemented it.
+May 2017, Naoki approved Nick's PEP 538, and Nick implemented it.
 
 PEP 540 version 3 posted to python-dev
 ======================================
 
 At the end of 2017, when I looked at my contributions in Python 3.7 in the
 `What’s New In Python 3.7 <https://docs.python.org/dev/whatsnew/3.7.html>`_
-document, I didn't see any major contribution. Moreover, the deadline for the
-Python 3.7 feature freeze (first beta version) was getting close, end of
-January 2018: see the `PEP 537: Python 3.7 Release Schedule
-<https://www.python.org/dev/peps/pep-0537/>`_.
+document, I didn't see any significant contribution. I wanted to propose
+something. Moreover, the deadline for the Python 3.7 feature freeze (first beta
+version) was getting close, end of January 2018: see the `PEP 537: Python 3.7
+Release Schedule <https://www.python.org/dev/peps/pep-0537/>`_.
 
-December 2017, I decided to move to the next step. I sent my PEP to the
-python-dev mailing list: `[Python-Dev] PEP 540: Add a new UTF-8 Mode
+December 2017, I decided to move to the next step: `I sent my PEP to the
+python-dev mailing list
 <https://mail.python.org/pipermail/python-dev/2017-December/151054.html>`_.
 
 Guido van Rossum `complained about the length of the PEP
@@ -276,7 +282,7 @@ December 2017, I sent the `shorter PEP version 4 to python-dev
 INADA Naoki, the BDFL-delegate, `spotted a design issue
 <https://mail.python.org/pipermail/python-dev/2017-December/151081.html>`_:
 
-    And I have one worrying point. With UTF-8 mode, open()'s **default**
+    And I have one worrying point. With UTF-8 mode, **open()'s default**
     encoding/error handler **is UTF-8/surrogateescape**.
 
     (...)
@@ -291,7 +297,7 @@ He `gave a concrete example
     With PEP 538 (C.UTF-8 locale), ``open()`` uses UTF-8/strict, not
     UTF-8/surrogateescape.
 
-    For example, this code raise ``UnicodeDecodeError`` with PEP 538 if the
+    For example, this code raises ``UnicodeDecodeError`` with PEP 538 if the
     file is JPEG file. ::
 
         with open(fn) as f:
@@ -300,18 +306,18 @@ He `gave a concrete example
 `I replied <https://mail.python.org/pipermail/python-dev/2017-December/151132.html>`__:
 
     While I'm not strongly convinced that ``open()`` error handler must be
-    changed for ``surrogateescape``, **first I would like to make sure that
+    changed for ``surrogateescape``, first **I would like to make sure that
     it's really a very bad idea** before changing it :-)
 
     (...)
 
     Using a JPEG image, the example is obviously wrong.
 
-    But using surrogateescape on open() is written to **read text files
+    But using surrogateescape on open() has been chosen to **read text files
     which are mostly correctly encoded to UTF-8, except a few bytes**.
 
     I'm not sure how to explain the issue. The Mercurial wiki page has a good
-    example of this issue that they call the `Makefile problem
+    example of this issue that they call the `"Makefile problem"
     <https://www.mercurial-scm.org/wiki/EncodingStrategy#The_.22makefile_problem.22>`_.
 
 **Guido van Rossum** `finished to convinced me
@@ -320,7 +326,7 @@ He `gave a concrete example
     You will quickly get decoding errors, and that is **INADA**'s point.
     (Unless you use ``encoding='Latin-1'``.) His worry is that the
     surrogateescape error handler makes it so that you won't get decoding
-    errors, and then the failure mode is much harder to debug.
+    errors, and then **the failure mode is much harder to debug**.
 
 I `wrote a 5th version of my PEP
 <https://mail.python.org/pipermail/python-dev/2017-December/151136.html>`_:
@@ -338,9 +344,7 @@ December 2017, **INADA Naoki** `asked
 
     Or ``locale.getpreferredencoding()`` returns ``'UTF-8'`` in UTF-8 mode too?
 
-Oh. I didn't look at this specific issue.
-
-I `looked at the code
+Oh, that's a good question! I `looked at the code
 <https://mail.python.org/pipermail/python-dev/2017-December/151148.html>`_ and
 agreed to return UTF-8:
 
@@ -364,14 +368,19 @@ I `sent a 6th version of my PEP
 
     locale.getpreferredencoding() now returns 'UTF-8' in the UTF-8 Mode.
 
+Moreover, I also wrote a new much better written "Relationship with the locale
+coercion (PEP 538)" section replacing the "Annex: Differences between
+PEP 538 and PEP 540" section. The new section was asked by many people who were
+confused by the relationship between PEP 538 and PEP 540.
+
 Finally, one year after the first PEP version, INADA Naoki `approved my PEP
-<https://mail.python.org/pipermail/python-dev/2017-December/151193.html>`_.
+<https://mail.python.org/pipermail/python-dev/2017-December/151193.html>`_!
 
 First incomplete implementation
 ===============================
 
 I started to work on the implementation of my PEP 540 in March 2017. Once the
-PEP has been approved, I asked INADA Naoki for a review. `He asked to fix the
+PEP has been approved, I asked INADA Naoki for a review. `He asked me to fix the
 command line parsing
 <https://github.com/python/cpython/pull/855#issuecomment-351089573>`_ to handle
 properly the ``-X utf8`` option:
@@ -379,6 +388,14 @@ properly the ``-X utf8`` option:
     And when ``-X utf8`` option is found, we can decode from ``char **argv``
     again.  Since ``mbstowcs()`` doesn't guarantee round tripping, it is better
     than re-encode ``wchar_t **argv``.
+
+Implementing properly the ``-X utf8`` option was tricky. Parsing the command line
+was done on ``wchar_t*`` C strings (Unicode), which requires to decode the
+``char** argv`` C array of byte strings (bytes). Python starts by decoding byte
+strings from the locale encoding. If the utf8 option is detected, ``argv`` byte
+strings must be decoded again, but now from UTF-8. The problem was that the
+code was not designed for that, and it required to refactor a lot of code in
+``Py_Main()``.
 
 `I replied
 <https://github.com/python/cpython/pull/855#issuecomment-351252873>`__:
@@ -393,6 +410,10 @@ properly the ``-X utf8`` option:
     For all these reasons, **I propose to merge this uncomplete PR and write a
     different PR for the most complex part**, re-encode wchar_t* command line
     arguments, implement Py_UnixMain() or another even better option?
+
+I wanted to get my code merged as soon as possible to make sure that it will
+get into the first Python 3.7 beta, to get a longer testing period before
+Python 3.7 final.
 
 December 2017, `bpo-29240 <https://bugs.python.org/issue29240>`__, I pushed my
 `commit 91106cd9
@@ -409,9 +430,9 @@ December 2017, `bpo-29240 <https://bugs.python.org/issue29240>`__, I pushed my
 Split Py_Main() into subfunctions
 =================================
 
-To be able to properly implement my PEP 540, I created `bpo-32030
-<https://bugs.python.org/issue32030>`__ to split the big ``Py_Main()`` into
-smaller subfunctions.
+November 2017, I created `bpo-32030 <https://bugs.python.org/issue32030>`__ to
+split the big ``Py_Main()`` function into smaller subfunctions. My motivation
+was to be able to properly implement my PEP 540.
 
 It will take me **3 months of work and 45 commits** to completely cleanup
 ``Py_Main()`` and put almost all Python configuration options into the private
@@ -422,56 +443,114 @@ Parse again the command line when -X utf8 is used
 
 December 2017, `bpo-32030 <https://bugs.python.org/issue32030>`__, thanks to
 the ``Py_Main()`` refactoring, I was able to finish the implementation of my
-PEP. If the encoding changed after reading the Python configuration, cleanup
-the configuration and read again the configuration with the new configuration.
-The key feature here is to be able to cleanup properly all the configuration.
+PEP.
 
-I pushed my commit 9454060e84a669dde63824d9e2fcaf295e34f687:
+I pushed my `commit 9454060e <https://github.com/python/cpython/commit/9454060e84a669dde63824d9e2fcaf295e34f687>`__:
 
     ``Py_Main()`` re-reads config if encoding changes
 
     If the encoding change (C locale coerced or UTF-8 Mode changed),
     ``Py_Main()`` now reads again the configuration with the new encoding.
 
-Decode Current Locale
-=====================
+If the encoding changed after reading the Python configuration, cleanup the
+configuration and **read again the configuration with the new encoding.** The
+key feature here allowed by the refactoring is to be able to cleanup properly
+all the configuration.
 
-Decode Current Locale::
+UTF-8 Mode and the locale encoding
+==================================
 
-    PyObject*
-    _PyUnicode_DecodeCurrentLocale(const char *str, const char *errors)
+January 2018, while working on `bpo-31900
+<https://bugs.python.org/issue31900>`__ "localeconv() should decode numeric
+fields from LC_NUMERIC encoding, not from LC_CTYPE encoding", I tested various
+combinations of locales and encodings. **I found bugs with the UTF-8 mode.**
 
-`commit 7ed7aead <https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c>`__::
+When the UTF-8 mode is enabled explicitly by ``-X utf8``, the intent is to use
+UTF-8 "everywhere". Right. But **there are some places, where the current
+locale encoding is really the correct encoding**, like the ``time.strftime()``
+function.
 
-    bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
+`bpo-29240 <https://bugs.python.org/issue29240>`__: I pushed a first fix,
+`commit cb3ae558 <https://github.com/python/cpython/commit/cb3ae5588bd7733e76dc09277bb7626652d9bb64>`__:
 
-    Modify locale.localeconv(), time.tzname, os.strerror() and other
-    functions to ignore the UTF-8 Mode: always use the current locale
+    Ignore UTF-8 Mode in the ``time`` module
+
+    ``time.strftime()`` must use the current ``LC_CTYPE`` encoding, not UTF-8
+    if the UTF-8 mode is enabled.
+
+I tested more cases and found... **more bugs**. More functions must really use the
+current locale encoding, rather than UTF-8 if the UTF-8 Mode is enabled.
+
+I pushed a second fix, `commit 7ed7aead
+<https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c>`__:
+
+    Fix locale encodings in UTF-8 Mode
+
+    Modify ``locale.localeconv()``, ``time.tzname``, ``os.strerror()`` and
+    other functions to ignore the UTF-8 Mode: always use the current locale
     encoding.
 
-    Changes:
+The second fix documented the encoding used by the public C functions
+`Py_DecodeLocale()
+<https://docs.python.org/dev/c-api/sys.html#c.Py_DecodeLocale>`_ and
+`Py_EncodeLocale()
+<https://docs.python.org/dev/c-api/sys.html#c.Py_EncodeLocale>`_:
 
-    * Add _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx(). On decoding or
-      encoding error, they return the position of the error and an error
-      message which are used to raise Unicode errors in
-      PyUnicode_DecodeLocale() and PyUnicode_EncodeLocale().
-    * Replace _Py_DecodeCurrentLocale() with _Py_DecodeLocaleEx().
-    * PyUnicode_DecodeLocale() now uses _Py_DecodeLocaleEx() for all
-      cases, especially for the strict error handler.
-    * Add _Py_DecodeUTF8Ex(): return more information on decoding error
-      and supports the strict error handler.
-    * Rename _Py_EncodeUTF8_surrogateescape() to _Py_EncodeUTF8Ex().
-    * Replace _Py_EncodeCurrentLocale() with _Py_EncodeLocaleEx().
-    * Ignore the UTF-8 mode to encode/decode localeconv(), strerror()
-      and time zone name.
-    * Remove PyUnicode_DecodeLocale(), PyUnicode_DecodeLocaleAndSize()
-      and PyUnicode_EncodeLocale() now ignore the UTF-8 mode: always use
-      the "current" locale.
-    * Remove _PyUnicode_DecodeCurrentLocale(),
-      _PyUnicode_DecodeCurrentLocaleAndSize() and
-      _PyUnicode_EncodeCurrentLocale().
+   Encoding, highest priority to lowest priority:
 
-XXX Android
+   * ``UTF-8`` on macOS and Android;
+   * ``UTF-8`` if the Python UTF-8 mode is enabled;
+   * ``ASCII`` if the ``LC_CTYPE`` locale is ``"C"``,
+     ``nl_langinfo(CODESET)`` returns the ``ASCII`` encoding (or an alias),
+     and ``mbstowcs()`` and ``wcstombs()`` functions uses the
+     ``ISO-8859-1`` encoding.
+   * the current locale encoding.
+
+The fix was complex to be written because I had to extend Py_DecodeLocale() and
+Py_EncodeLocale() to support internally the ``strict`` error handler. I also
+extended to API to report an error message (called "reason") on failure.
+
+For example, ``Py_DecodeLocale()`` has the prototype::
+
+    wchar_t*
+    Py_DecodeLocale(const char* arg, size_t *wlen)
+
+whereas the new extended and more generic ``_Py_DecodeLocaleEx()`` has a much
+more complex prototype::
+
+    int
+    _Py_DecodeLocaleEx(const char* arg, wchar_t **wstr, size_t *wlen,
+                       const char **reason,
+                       int current_locale, int surrogateescape)
+
+To decode, there are two main use cases:
+
+* (FILENAME) Use UTF-8 if the UTF-8 Mode is enabled, or the locale encoding
+  otherwise. See ``Py_DecodeLocale()`` documentation for the exact used
+  encoding, the truth is more complex.
+* (LOCALE) Always use the current locale encoding
+
+(FILENAME) examples:
+
+* ``Py_DecodeLocale()``, ``PyUnicode_DecodeFSDefaultAndSize()``: use the
+  ``surrogateescape`` error handler
+* ``os.fsdecode()``
+* ``os.listdir()``
+* ``os.environ``
+* ``sys.argv``
+* etc.
+
+(LOCALE) examples:
+
+* ``PyUnicode_DecodeLocale()``: the error handler is passed as an argument and
+  must be ``strict`` or ``surrogateescape``
+* ``time.strftime()``
+* ``locale.localeconv()``
+* ``time.tzname``
+* ``os.strerror()``
+* ``readline`` module: internal ``decode()`` function
+* etc.
+
 
 Summary of PEP 540 history
 ==========================
@@ -505,9 +584,10 @@ Abstract of the final approved PEP:
 Conclusion
 ==========
 
-It's now time for a well deserved nap... until the next Unicode issue.
+It's now time for a well deserved nap... until the next major Unicode issue in Python.
 
 .. image:: {filename}/images/tiger_nap.jpg
    :alt: Tiger nap
    :target: https://www.flickr.com/photos/manager_2000/2911858714/
 
+(I love tigers: my favorite animals!)
