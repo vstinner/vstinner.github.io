@@ -1,5 +1,504 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-23T13:00:00+01:00</updated><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-27T20:00:00+02:00</updated><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
+Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
+still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
+Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
+still not the best encoding in all cases&lt;/strong&gt;, even in 2018. The locale encoding
+remains the best default filesystem encoding for Python. I would say that &lt;strong&gt;the
+locale encoding is the least bad filesystem encoding&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This article tells the story of my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0540/"&gt;PEP 540: Add a new UTF-8 Mode&lt;/a&gt; which adds an opt-in option to
+&lt;strong&gt;&amp;quot;use UTF-8&amp;quot; everywhere&amp;quot;&lt;/strong&gt;. Moreover, the UTF-8 Mode is enabled by the POSIX
+locale: &lt;strong&gt;Python 3.7 now uses UTF-8 for the POSIX locale&lt;/strong&gt;. My
+PEP 540 is complementary to Nick Coghlan's PEP 538.&lt;/p&gt;
+&lt;p&gt;When I started to write this article, I wrote something like: &amp;quot;Hey! I added a
+new option to use UTF-8, enjoy!&amp;quot;. Written like that, it seems like using UTF-8
+was an obvious choice and that it was really easy to write such PEP. No.
+&lt;strong&gt;Nothing was obvious, nothing was simple.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;It took me one year to design and implement my PEP 540, and to get it accepted.
+I wrote five articles before this one to show that the PEP 540 only came after
+a long painful journey, starting with Python 3.0, to choose the best Python
+encoding.  My PEP rely on the all the great work done previously.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;This article is the sixth and last in a series of articles telling the
+history and rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html"&gt;Python 3.0 listdir() Bug on Undecodable Filenames&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/pep-383.html"&gt;Python 3.1 surrogateescape error handler (PEP 383)&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="3"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html"&gt;Python 3.2 Painful History of the Filesystem Encoding&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="4"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;Python 3.6 now uses UTF-8 on Windows&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="6"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python37-new-utf8-mode.html"&gt;Python 3.7 UTF-8 Mode&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="fallback-to-utf-8-if-getting-the-locale-encoding-fails"&gt;
+&lt;h2&gt;Fallback to UTF-8 if getting the locale encoding fails?&lt;/h2&gt;
+&lt;p&gt;May 2010, I reported &lt;a class="reference external" href="https://bugs.python.org/issue8610"&gt;bpo-8610&lt;/a&gt;:
+&amp;quot;Python3/POSIX:  errors if file system encoding is None&amp;quot;. I asked what should
+be the default encoding when getting the locale encoding fails. I proposed
+to fallback to UTF-8. &lt;a class="reference external" href="https://bugs.python.org/issue8610#msg105008"&gt;I wrote&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;UTF-8 is also an optimist choice&lt;/strong&gt;: I bet that more and more operating
+systems will move to UTF-8.&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue8610#msg105010"&gt;Marc-Andre commented&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Ouch, that was a poor choice. &lt;strong&gt;In Python we have a tradition to avoid
+guessing&lt;/strong&gt;, if possible. Since we cannot guarantee that the file system
+will indeed use UTF-8, it would have been safer to use ASCII. Not sure why
+this reasoning wasn't applied for the file system encoding.&lt;/blockquote&gt;
+&lt;p&gt;In practice, Python already used UTF-8 when the filesystem encoding was set to
+&lt;tt class="docutils literal"&gt;None&lt;/tt&gt;. I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/b744ba1d14c5487576c95d0311e357b707600b47"&gt;commit b744ba1d&lt;/a&gt;
+into the Python 3.2 development branch to make the default encoding (UTF-8)
+more obvious. But before Python 3.2 was released, I removed the fallback with
+my &lt;a class="reference external" href="https://github.com/python/cpython/commit/e474309bb7f0ba6e6ae824c215c45f00db691889"&gt;commit e474309b&lt;/a&gt;
+(Oct 2010):&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;initfsencoding()&lt;/tt&gt;: &lt;tt class="docutils literal"&gt;get_codeset()&lt;/tt&gt; failure is now a fatal error&lt;/p&gt;
+&lt;p&gt;Don't fallback to UTF-8 anymore to avoid mojibake. I never got any error
+from his function.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-utf8-option-proposed-for-windows"&gt;
+&lt;h2&gt;The utf8 option proposed for Windows&lt;/h2&gt;
+&lt;p&gt;August 2016, &lt;a class="reference external" href="https://bugs.python.org/issue27781"&gt;bpo-27781&lt;/a&gt;: when &lt;strong&gt;Steve
+Dower&lt;/strong&gt; &lt;a class="reference external" href="https://vstinner.github.io/python36-utf8-windows.html"&gt;was working on changing the filesystem encoding to UTF-8&lt;/a&gt;, I was not sure that Windows should use UTF-8
+by default. I was more in favor on &lt;strong&gt;making the backward incompatible change an
+opt-in option&lt;/strong&gt;. &lt;a class="reference external" href="https://bugs.python.org/issue27781#msg272950"&gt;I wrote&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;If you go in this direction, I would like to follow you for the UNIX/BSD
+side to make the switch portable. I was thinking about &amp;quot;-X utf8&amp;quot; which
+avoids to change the command line parser.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;If we agree on a plan, &lt;strong&gt;I would like to write it down as a PEP since I
+expect a lot of complains and questions which I would prefer to only answer
+once&lt;/strong&gt; (see for example the length of your thread on python-ideas where
+each people repeated the same things multiple times ;-))&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue27781#msg272962"&gt;I added&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I mean that &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; should force
+&lt;tt class="docutils literal"&gt;sys.getfilesystemencoding()&lt;/tt&gt; to UTF-8 on UNIX/BSD, it would ignore the
+current locale setting.&lt;/blockquote&gt;
+&lt;p&gt;Since Steve chose to &lt;strong&gt;change the default to UTF-8&lt;/strong&gt; on Windows, my &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt;
+option idea was ignored in this issue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-utf8-option-proposed-for-the-posix-locale"&gt;
+&lt;h2&gt;The utf8 option proposed for the POSIX locale&lt;/h2&gt;
+&lt;p&gt;September 2016: &lt;strong&gt;Jan Niklas Hasse&lt;/strong&gt; opened &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt; about Docker images,
+&lt;strong&gt;&amp;quot;sys.getfilesystemencoding() should default to utf-8&amp;quot;&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue28180#msg276707"&gt;I proposed again my option&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I proposed to add &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; command line option for UNIX to force utf8
+encoding. Would it work for you?&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Jan Niklas Hasse&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue28180#msg276709"&gt;answered&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Unfortunately no, as this would mean I'll have to change all my python
+invocations in my scripts and it wouldn't work for executable files with&lt;/blockquote&gt;
+&lt;p&gt;December 2016, &lt;a class="reference external" href="https://bugs.python.org/issue28180#msg283408"&gt;I added&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Usually, when a new option is added to Python, we add a command line option
+(-X utf8) but also an environment variable: &lt;strong&gt;I propose PYTHONUTF8=1&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Use your favorite method to define the env var &amp;quot;system wide&amp;quot; in your docker
+containers.&lt;/p&gt;
+&lt;p&gt;Note: Technically, I'm not sure that it's possible to support -E option
+with PYTHONUTF8, since -E comes from the command line, and we first need to
+decode command line arguments with an encoding to parse these options....
+Chicken-and-egg issue ;-)&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Nick Coghlan&lt;/strong&gt; &lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;wrote his PEP 538 &amp;quot;Coercing the C locale to a UTF-8 based
+locale&amp;quot;&lt;/a&gt; which has been approved in May 2017
+and finally implemented in June 2017.&lt;/p&gt;
+&lt;p&gt;Again, my utf8 idea was ignored in this issue.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-version-of-my-pep-540-add-a-new-utf-8-mode"&gt;
+&lt;h2&gt;First version of my PEP 540: Add a new UTF-8 Mode&lt;/h2&gt;
+&lt;p&gt;January 2017, as a follow-up of &lt;a class="reference external" href="https://bugs.python.org/issue27781"&gt;bpo-27781&lt;/a&gt; and &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt;, I wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0540/"&gt;PEP 540: Add a new UTF-8
+Mode&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044089.html"&gt;I posted it to
+python-ideas for comments&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Abstract:&lt;/p&gt;
+&lt;blockquote&gt;
+Add a new UTF-8 mode, opt-in option to use UTF-8 for operating system
+data instead of the locale encoding. Add &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; command line option
+and &lt;tt class="docutils literal"&gt;PYTHONUTF8&lt;/tt&gt; environment variable.&lt;/blockquote&gt;
+&lt;p&gt;After ten hours after and a few messages, I &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044099.html"&gt;wrote a second version&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I modified my PEP: &lt;strong&gt;the POSIX locale now enables the UTF-8 mode&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;INADA Naoki&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044112.html"&gt;wrote&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I want UTF-8 mode is &lt;strong&gt;enabled by default (opt-out option) even if locale
+is not POSIX&lt;/strong&gt;, like &lt;cite&gt;PYTHONLEGACYWINDOWSFSENCODING&lt;/cite&gt;.&lt;/p&gt;
+&lt;p&gt;Users depends on locale know what locale is and how to configure it.  They
+can understand difference between locale mode and UTF-8 mode and they can
+opt-out UTF-8 mode.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;But many people lives in &amp;quot;UTF-8 everywhere&amp;quot; world&lt;/strong&gt;, and don't know about
+locale.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Always ignoring the locale to &lt;strong&gt;always use UTF-8 would be a backward
+incompatible change&lt;/strong&gt;. I wasn't brave enough to propose it, I only
+wanted to propose an opt-in option, except of the specific case of the POSIX
+locale.&lt;/p&gt;
+&lt;p&gt;Not only people had different opinons, but most people had strong opinions on
+how to handle Unicode and were not ready for compromises.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="third-version-of-my-pep-540"&gt;
+&lt;h2&gt;Third version of my PEP 540&lt;/h2&gt;
+&lt;p&gt;One week and 59 emails later, I &lt;a class="reference external" href="https://bugs.python.org/issue29240"&gt;implemented my PEP 540&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044197.html"&gt;I wrote a third version of my PEP&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I made multiple changes since the first version of my PEP:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The &lt;strong&gt;UTF-8 Strict mode now only uses strict for inputs and outputs&lt;/strong&gt;:
+it keeps surrogateescape for operating system data. Read the &amp;quot;Use the
+strict error handler for operating system data&amp;quot; alternative for the
+rationale.&lt;/li&gt;
+&lt;li&gt;The POSIX locale now enables the UTF-8 mode. See the &amp;quot;Don't modify
+the encoding of the POSIX locale&amp;quot; alternative for the rationale.&lt;/li&gt;
+&lt;li&gt;Specify the priority between -X utf8, PYTHONUTF8, PYTHONIOENCODING, etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The PEP version 3 has a longer rationale with more example. (...)&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The new thread also got 19 emails, total: &lt;strong&gt;78 emails in one month&lt;/strong&gt;. The same
+month, Nick Coghlan's PEP 538 was also under discussion.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="silence-during-one-year"&gt;
+&lt;h2&gt;Silence during one year&lt;/h2&gt;
+&lt;p&gt;Because of the tone of the python-ideas threads and because I didn't know how
+to deal with Nick Coghlan's PEP 538, &lt;strong&gt;I decided to do nothing during one
+year&lt;/strong&gt; (January to December 2017).&lt;/p&gt;
+&lt;p&gt;April 2017, Nick &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147795.html"&gt;proposed&lt;/a&gt;
+&lt;strong&gt;INADA Naoki&lt;/strong&gt; as the BDFL Delegate for his PEP 538 and my PEP 540. Guido
+&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-April/147796.html"&gt;accepted to delegate&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;May 2017, Naoki approved Nick's PEP 538, and Nick implemented it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-540-version-3-posted-to-python-dev"&gt;
+&lt;h2&gt;PEP 540 version 3 posted to python-dev&lt;/h2&gt;
+&lt;p&gt;At the end of 2017, when I looked at my contributions in Python 3.7 in the
+&lt;a class="reference external" href="https://docs.python.org/dev/whatsnew/3.7.html"&gt;What’s New In Python 3.7&lt;/a&gt;
+document, I didn't see any significant contribution. I wanted to propose
+something. Moreover, the deadline for the Python 3.7 feature freeze (first beta
+version) was getting close, end of January 2018: see the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0537/"&gt;PEP 537: Python 3.7
+Release Schedule&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;December 2017, I decided to move to the next step: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151054.html"&gt;I sent my PEP to the
+python-dev mailing list&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Guido van Rossum &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151069.html"&gt;complained about the length of the PEP&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I've been discussing this PEP offline with Victor, but he suggested we
+should discuss it in public instead.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I am very worried about this long and rambling PEP, and I propose that it
+not be accepted without a major rewrite to focus on clarity of the
+specification. The &amp;quot;Unicode just works&amp;quot; summary is more a wish than a
+proper summary of the PEP.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;(...)&lt;/p&gt;
+&lt;p&gt;So I guess PEP acceptance week is over. :-(&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-rewritten-from-scratch"&gt;
+&lt;h2&gt;PEP rewritten from scratch&lt;/h2&gt;
+&lt;p&gt;Even if &lt;strong&gt;I was not fully convinced myself that my PEP was a good idea&lt;/strong&gt;, I
+wanted to get an official vote, to know if my idea should be implemented or
+abandonned. I decided to rewrite my PEP from scratch:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/python/peps/blob/f92b5fbdc2bcd9b182c1541da5a0f4ce32195fb6/pep-0540.txt"&gt;PEP version 3 (before rewrite)&lt;/a&gt;:
+1,017 lines&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/python/peps/blob/0bb19ff93af9855db327e9a02f3e86b6f932a25a/pep-0540.txt"&gt;PEP version 4 (after rewrite)&lt;/a&gt;:
+263 lines (26% of the previous version)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I reduced the rationale to the strict minimum, to explain &lt;strong&gt;key points&lt;/strong&gt; of the
+PEP:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Locale encoding and UTF-8&lt;/li&gt;
+&lt;li&gt;Passthough undecodable bytes: surrogateescape&lt;/li&gt;
+&lt;li&gt;Strict UTF-8 for correctness&lt;/li&gt;
+&lt;li&gt;No change by default for best backward compatibility&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reading-jpeg-pictures-with-surrogateescape"&gt;
+&lt;h2&gt;Reading JPEG pictures with surrogateescape&lt;/h2&gt;
+&lt;p&gt;December 2017, I sent the &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151074.html"&gt;shorter PEP version 4 to python-dev&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;INADA Naoki, the BDFL-delegate, &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151081.html"&gt;spotted a design issue&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;And I have one worrying point. With UTF-8 mode, &lt;strong&gt;open()'s default&lt;/strong&gt;
+encoding/error handler &lt;strong&gt;is UTF-8/surrogateescape&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;(...)&lt;/p&gt;
+&lt;p&gt;And &lt;strong&gt;opening binary file without &amp;quot;b&amp;quot; option is very common mistake&lt;/strong&gt; of
+new developers.  If default error handler is surrogateescape, &lt;strong&gt;they lose a
+chance to notice their bug&lt;/strong&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;He &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151101.html"&gt;gave a concrete example&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;With PEP 538 (C.UTF-8 locale), &lt;tt class="docutils literal"&gt;open()&lt;/tt&gt; uses UTF-8/strict, not
+UTF-8/surrogateescape.&lt;/p&gt;
+&lt;p&gt;For example, this code raises &lt;tt class="docutils literal"&gt;UnicodeDecodeError&lt;/tt&gt; with PEP 538 if the
+file is JPEG file.&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+with open(fn) as f:
+    f.read()
+&lt;/pre&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151132.html"&gt;I replied&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;While I'm not strongly convinced that &lt;tt class="docutils literal"&gt;open()&lt;/tt&gt; error handler must be
+changed for &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;, first &lt;strong&gt;I would like to make sure that
+it's really a very bad idea&lt;/strong&gt; before changing it :-)&lt;/p&gt;
+&lt;p&gt;(...)&lt;/p&gt;
+&lt;p&gt;Using a JPEG image, the example is obviously wrong.&lt;/p&gt;
+&lt;p&gt;But using surrogateescape on open() has been chosen to &lt;strong&gt;read text files
+which are mostly correctly encoded to UTF-8, except a few bytes&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;I'm not sure how to explain the issue. The Mercurial wiki page has a good
+example of this issue that they call the &lt;a class="reference external" href="https://www.mercurial-scm.org/wiki/EncodingStrategy#The_.22makefile_problem.22"&gt;&amp;quot;Makefile problem&amp;quot;&lt;/a&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Guido van Rossum&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151134.html"&gt;finished to convinced me&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+You will quickly get decoding errors, and that is &lt;strong&gt;INADA&lt;/strong&gt;'s point.
+(Unless you use &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;encoding='Latin-1'&lt;/span&gt;&lt;/tt&gt;.) His worry is that the
+surrogateescape error handler makes it so that you won't get decoding
+errors, and then &lt;strong&gt;the failure mode is much harder to debug&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;p&gt;I &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151136.html"&gt;wrote a 5th version of my PEP&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I made the following two changes to the PEP 540:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;open() error handler remains &lt;tt class="docutils literal"&gt;&amp;quot;strict&amp;quot;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Remove the &amp;quot;Strict UTF8 mode&amp;quot; which doesn't make much sense anymore&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="last-question-on-locale-getpreferredencoding"&gt;
+&lt;h2&gt;Last question on locale.getpreferredencoding()&lt;/h2&gt;
+&lt;p&gt;December 2017, &lt;strong&gt;INADA Naoki&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151144.html"&gt;asked&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Or &lt;tt class="docutils literal"&gt;locale.getpreferredencoding()&lt;/tt&gt; returns &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;'UTF-8'&lt;/span&gt;&lt;/tt&gt; in UTF-8 mode too?&lt;/blockquote&gt;
+&lt;p&gt;Oh, that's a good question! I &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151148.html"&gt;looked at the code&lt;/a&gt; and
+agreed to return UTF-8:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I checked the stdlib, and I found many places where
+&lt;tt class="docutils literal"&gt;locale.getpreferredencoding()&lt;/tt&gt; is used to get the user preferred
+encoding:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;builtin &lt;tt class="docutils literal"&gt;open()&lt;/tt&gt;: default encoding&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;cgi.FieldStorage&lt;/tt&gt;: encode the query string&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;encoding._alias_mbcs()&lt;/tt&gt;: check if the requested encoding is the ANSI
+code page&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;gettext.GNUTranslations&lt;/tt&gt;: &lt;tt class="docutils literal"&gt;lgettext()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;lngettext()&lt;/tt&gt; methods&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;xml.etree.ElementTree&lt;/tt&gt;: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;ElementTree.write(encoding='unicode')&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the UTF-8 mode, I would expect that cgi, gettext and xml.etree all use
+the UTF-8 encoding by default. So &lt;strong&gt;locale.getpreferredencoding() should
+return UTF-8 if the UTF-8 mode is enabled&lt;/strong&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151151.html"&gt;sent a 6th version of my PEP&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+locale.getpreferredencoding() now returns 'UTF-8' in the UTF-8 Mode.&lt;/blockquote&gt;
+&lt;p&gt;Moreover, I also wrote a new much better written &amp;quot;Relationship with the locale
+coercion (PEP 538)&amp;quot; section replacing the &amp;quot;Annex: Differences between
+PEP 538 and PEP 540&amp;quot; section. The new section was asked by many people who were
+confused by the relationship between PEP 538 and PEP 540.&lt;/p&gt;
+&lt;p&gt;Finally, one year after the first PEP version, INADA Naoki &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-December/151193.html"&gt;approved my PEP&lt;/a&gt;!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-incomplete-implementation"&gt;
+&lt;h2&gt;First incomplete implementation&lt;/h2&gt;
+&lt;p&gt;I started to work on the implementation of my PEP 540 in March 2017. Once the
+PEP has been approved, I asked INADA Naoki for a review. &lt;a class="reference external" href="https://github.com/python/cpython/pull/855#issuecomment-351089573"&gt;He asked me to fix the
+command line parsing&lt;/a&gt; to handle
+properly the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; option:&lt;/p&gt;
+&lt;blockquote&gt;
+And when &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; option is found, we can decode from &lt;tt class="docutils literal"&gt;char **argv&lt;/tt&gt;
+again.  Since &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt; doesn't guarantee round tripping, it is better
+than re-encode &lt;tt class="docutils literal"&gt;wchar_t **argv&lt;/tt&gt;.&lt;/blockquote&gt;
+&lt;p&gt;Implementing properly the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; option was tricky. Parsing the command line
+was done on &lt;tt class="docutils literal"&gt;wchar_t*&lt;/tt&gt; C strings (Unicode), which requires to decode the
+&lt;tt class="docutils literal"&gt;char** argv&lt;/tt&gt; C array of byte strings (bytes). Python starts by decoding byte
+strings from the locale encoding. If the utf8 option is detected, &lt;tt class="docutils literal"&gt;argv&lt;/tt&gt; byte
+strings must be decoded again, but now from UTF-8. The problem was that the
+code was not designed for that, and it required to refactor a lot of code in
+&lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/pull/855#issuecomment-351252873"&gt;I replied&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;main()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt; are very complex. With the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0432/"&gt;PEP 432&lt;/a&gt;, &lt;strong&gt;Nick Coghlan&lt;/strong&gt;, &lt;strong&gt;Eric
+Snow&lt;/strong&gt; and me are working on making this code better. See for example
+&lt;a class="reference external" href="https://bugs.python.org/issue32030"&gt;bpo-32030&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;(...)&lt;/p&gt;
+&lt;p&gt;For all these reasons, &lt;strong&gt;I propose to merge this uncomplete PR and write a
+different PR for the most complex part&lt;/strong&gt;, re-encode wchar_t* command line
+arguments, implement Py_UnixMain() or another even better option?&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I wanted to get my code merged as soon as possible to make sure that it will
+get into the first Python 3.7 beta, to get a longer testing period before
+Python 3.7 final.&lt;/p&gt;
+&lt;p&gt;December 2017, &lt;a class="reference external" href="https://bugs.python.org/issue29240"&gt;bpo-29240&lt;/a&gt;, I pushed my
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/91106cd9ff2f321c0f60fbaa09fd46c80aa5c266"&gt;commit 91106cd9&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;PEP 540: Add a new UTF-8 Mode&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; command line option, &lt;tt class="docutils literal"&gt;PYTHONUTF8&lt;/tt&gt; environment variable
+and a new &lt;tt class="docutils literal"&gt;sys.flags.utf8_mode&lt;/tt&gt; flag.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;locale.getpreferredencoding()&lt;/tt&gt; now returns 'UTF-8' in the UTF-8
+mode. As a side effect, open() now uses the UTF-8 encoding by
+default in this mode.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="split-py-main-into-subfunctions"&gt;
+&lt;h2&gt;Split Py_Main() into subfunctions&lt;/h2&gt;
+&lt;p&gt;November 2017, I created &lt;a class="reference external" href="https://bugs.python.org/issue32030"&gt;bpo-32030&lt;/a&gt; to
+split the big &lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt; function into smaller subfunctions. My motivation
+was to be able to properly implement my PEP 540.&lt;/p&gt;
+&lt;p&gt;It will take me &lt;strong&gt;3 months of work and 45 commits&lt;/strong&gt; to completely cleanup
+&lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt; and put almost all Python configuration options into the private
+C &lt;tt class="docutils literal"&gt;_PyCoreConfig&lt;/tt&gt; structure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="parse-again-the-command-line-when-x-utf8-is-used"&gt;
+&lt;h2&gt;Parse again the command line when -X utf8 is used&lt;/h2&gt;
+&lt;p&gt;December 2017, &lt;a class="reference external" href="https://bugs.python.org/issue32030"&gt;bpo-32030&lt;/a&gt;, thanks to
+the &lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt; refactoring, I was able to finish the implementation of my
+PEP.&lt;/p&gt;
+&lt;p&gt;I pushed my &lt;a class="reference external" href="https://github.com/python/cpython/commit/9454060e84a669dde63824d9e2fcaf295e34f687"&gt;commit 9454060e&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt; re-reads config if encoding changes&lt;/p&gt;
+&lt;p&gt;If the encoding change (C locale coerced or UTF-8 Mode changed),
+&lt;tt class="docutils literal"&gt;Py_Main()&lt;/tt&gt; now reads again the configuration with the new encoding.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;If the encoding changed after reading the Python configuration, cleanup the
+configuration and &lt;strong&gt;read again the configuration with the new encoding.&lt;/strong&gt; The
+key feature here allowed by the refactoring is to be able to cleanup properly
+all the configuration.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="utf-8-mode-and-the-locale-encoding"&gt;
+&lt;h2&gt;UTF-8 Mode and the locale encoding&lt;/h2&gt;
+&lt;p&gt;January 2018, while working on &lt;a class="reference external" href="https://bugs.python.org/issue31900"&gt;bpo-31900&lt;/a&gt; &amp;quot;localeconv() should decode numeric
+fields from LC_NUMERIC encoding, not from LC_CTYPE encoding&amp;quot;, I tested various
+combinations of locales and encodings. &lt;strong&gt;I found bugs with the UTF-8 mode.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;When the UTF-8 mode is enabled explicitly by &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt;, the intent is to use
+UTF-8 &amp;quot;everywhere&amp;quot;. Right. But &lt;strong&gt;there are some places, where the current
+locale encoding is really the correct encoding&lt;/strong&gt;, like the &lt;tt class="docutils literal"&gt;time.strftime()&lt;/tt&gt;
+function.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue29240"&gt;bpo-29240&lt;/a&gt;: I pushed a first fix,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/cb3ae5588bd7733e76dc09277bb7626652d9bb64"&gt;commit cb3ae558&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Ignore UTF-8 Mode in the &lt;tt class="docutils literal"&gt;time&lt;/tt&gt; module&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;time.strftime()&lt;/tt&gt; must use the current &lt;tt class="docutils literal"&gt;LC_CTYPE&lt;/tt&gt; encoding, not UTF-8
+if the UTF-8 mode is enabled.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I tested more cases and found... &lt;strong&gt;more bugs&lt;/strong&gt;. More functions must really use the
+current locale encoding, rather than UTF-8 if the UTF-8 Mode is enabled.&lt;/p&gt;
+&lt;p&gt;I pushed a second fix, &lt;a class="reference external" href="https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c"&gt;commit 7ed7aead&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Fix locale encodings in UTF-8 Mode&lt;/p&gt;
+&lt;p&gt;Modify &lt;tt class="docutils literal"&gt;locale.localeconv()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;time.tzname&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;os.strerror()&lt;/tt&gt; and
+other functions to ignore the UTF-8 Mode: always use the current locale
+encoding.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The second fix documented the encoding used by the public C functions
+&lt;a class="reference external" href="https://docs.python.org/dev/c-api/sys.html#c.Py_DecodeLocale"&gt;Py_DecodeLocale()&lt;/a&gt; and
+&lt;a class="reference external" href="https://docs.python.org/dev/c-api/sys.html#c.Py_EncodeLocale"&gt;Py_EncodeLocale()&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Encoding, highest priority to lowest priority:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;UTF-8&lt;/span&gt;&lt;/tt&gt; on macOS and Android;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;UTF-8&lt;/span&gt;&lt;/tt&gt; if the Python UTF-8 mode is enabled;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;ASCII&lt;/tt&gt; if the &lt;tt class="docutils literal"&gt;LC_CTYPE&lt;/tt&gt; locale is &lt;tt class="docutils literal"&gt;&amp;quot;C&amp;quot;&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;nl_langinfo(CODESET)&lt;/tt&gt; returns the &lt;tt class="docutils literal"&gt;ASCII&lt;/tt&gt; encoding (or an alias),
+and &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;wcstombs()&lt;/tt&gt; functions uses the
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;ISO-8859-1&lt;/span&gt;&lt;/tt&gt; encoding.&lt;/li&gt;
+&lt;li&gt;the current locale encoding.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The fix was complex to be written because I had to extend Py_DecodeLocale() and
+Py_EncodeLocale() to support internally the &lt;tt class="docutils literal"&gt;strict&lt;/tt&gt; error handler. I also
+extended to API to report an error message (called &amp;quot;reason&amp;quot;) on failure.&lt;/p&gt;
+&lt;p&gt;For example, &lt;tt class="docutils literal"&gt;Py_DecodeLocale()&lt;/tt&gt; has the prototype:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+wchar_t*
+Py_DecodeLocale(const char* arg, size_t *wlen)
+&lt;/pre&gt;
+&lt;p&gt;whereas the new extended and more generic &lt;tt class="docutils literal"&gt;_Py_DecodeLocaleEx()&lt;/tt&gt; has a much
+more complex prototype:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int
+_Py_DecodeLocaleEx(const char* arg, wchar_t **wstr, size_t *wlen,
+                   const char **reason,
+                   int current_locale, int surrogateescape)
+&lt;/pre&gt;
+&lt;p&gt;To decode, there are two main use cases:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;(FILENAME) Use UTF-8 if the UTF-8 Mode is enabled, or the locale encoding
+otherwise. See &lt;tt class="docutils literal"&gt;Py_DecodeLocale()&lt;/tt&gt; documentation for the exact used
+encoding, the truth is more complex.&lt;/li&gt;
+&lt;li&gt;(LOCALE) Always use the current locale encoding&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;(FILENAME) examples:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_DecodeLocale()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;PyUnicode_DecodeFSDefaultAndSize()&lt;/tt&gt;: use the
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.fsdecode()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.listdir()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.environ&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;sys.argv&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;(LOCALE) examples:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyUnicode_DecodeLocale()&lt;/tt&gt;: the error handler is passed as an argument and
+must be &lt;tt class="docutils literal"&gt;strict&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.strftime()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;locale.localeconv()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;time.tzname&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;os.strerror()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;readline&lt;/tt&gt; module: internal &lt;tt class="docutils literal"&gt;decode()&lt;/tt&gt; function&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="summary-of-pep-540-history"&gt;
+&lt;h2&gt;Summary of PEP 540 history&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Version 1: first version sent to python-ideas&lt;/li&gt;
+&lt;li&gt;Version 2: the POSIX locale now enables the UTF-8 mode&lt;/li&gt;
+&lt;li&gt;Version 3: the UTF-8 Strict mode now only uses the &lt;tt class="docutils literal"&gt;strict&lt;/tt&gt; error handler
+for inputs and outputs&lt;/li&gt;
+&lt;li&gt;Version 4: PEP rewritten from scratch to be shorter&lt;/li&gt;
+&lt;li&gt;Version 5: open() error handler remains &lt;tt class="docutils literal"&gt;strict&lt;/tt&gt;, and the &amp;quot;Strict UTF8
+mode&amp;quot; has been removed&lt;/li&gt;
+&lt;li&gt;Version 6: locale.getpreferredencoding() now returns 'UTF-8' in the UTF-8
+Mode.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Abstract of the final approved PEP:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Add a new &amp;quot;UTF-8 Mode&amp;quot; to enhance Python's use of UTF-8.  When UTF-8 Mode
+is active, Python will:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;use the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;utf-8&lt;/span&gt;&lt;/tt&gt; encoding, irregardless of the locale currently set by
+the current platform, and&lt;/li&gt;
+&lt;li&gt;change the &lt;tt class="docutils literal"&gt;stdin&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;stdout&lt;/tt&gt; error handlers to
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This mode is off by default, but is automatically activated when using
+the &amp;quot;POSIX&amp;quot; locale.&lt;/p&gt;
+&lt;p&gt;Add the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; command line option and &lt;tt class="docutils literal"&gt;PYTHONUTF8&lt;/tt&gt; environment
+variable to control UTF-8 Mode.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;It's now time for a well deserved nap... until the next major Unicode issue in Python.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
@@ -36,6 +535,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="6"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python37-new-utf8-mode.html"&gt;Python 3.7 UTF-8 Mode&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -296,6 +799,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="6"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python37-new-utf8-mode.html"&gt;Python 3.7 UTF-8 Mode&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="pep-529"&gt;
 &lt;h2&gt;PEP 529&lt;/h2&gt;
@@ -461,6 +968,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="6"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python37-new-utf8-mode.html"&gt;Python 3.7 UTF-8 Mode&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
@@ -887,6 +1398,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="6"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python37-new-utf8-mode.html"&gt;Python 3.7 UTF-8 Mode&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="first-attempt-to-propose-the-solution"&gt;
 &lt;h2&gt;First attempt to propose the solution&lt;/h2&gt;
@@ -1040,6 +1555,10 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/li&gt;
 &lt;li&gt;&lt;ol class="first arabic" start="5"&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/posix-locale.html"&gt;Python 3.7 and the POSIX locale&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="6"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/python37-new-utf8-mode.html"&gt;Python 3.7 UTF-8 Mode&lt;/a&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;

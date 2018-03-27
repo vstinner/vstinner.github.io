@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
-        <title>Victor Stinner blog 3 - python</title>
+        <title>Python 3.7 UTF-8 Mode</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
 
@@ -19,10 +19,15 @@
                     <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="bookmark"
+           title="Permalink to Python 3.7 UTF-8 Mode">Python 3.7 UTF-8 Mode</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python37-new-utf8-mode.html">Python 3.7 UTF-8 Mode</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2018-03-27T20:00:00+02:00">
                 Published: mar. 27 mars 2018
@@ -33,7 +38,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>Since Python 3.0 was released in 2008, each time an user reported an encoding
+</footer><!-- /.post-info -->      <p>Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &quot;simply&quot; always use UTF-8.
 Well, it's not that easy. <strong>UTF-8 is the best encoding in most cases, but it is
 still not the best encoding in all cases</strong>, even in 2018. The locale encoding
@@ -529,272 +534,11 @@ variable to control UTF-8 Mode.</p>
 <a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"><img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /></a>
 <p>(I love tigers: my favorite animals!)</p>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/posix-locale.html" rel="bookmark"
-                           title="Permalink to Python 3.7 and the POSIX locale">Python 3.7 and the POSIX locale</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-23T13:00:00+01:00">
-                Published: ven. 23 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>During the childhood of Python 3, encodings issues were common, even on well
-configured systems. Python used UTF-8 rather than the locale encoding, and so
-commonly produced <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>. For
-these reasons, when users complained about the Python behaviour with the POSIX
-locale, bug reports were closed with a message like …</p>
-                <a class="readmore" href="https://vstinner.github.io/posix-locale.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python36-utf8-windows.html" rel="bookmark"
-                           title="Permalink to Python 3.6 now uses UTF-8 on Windows">Python 3.6 now uses UTF-8 on Windows</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-22T17:00:00+01:00">
-                Published: jeu. 22 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>September 2016, a few days before the CPython core dev sprint, <strong>Steve Dower</strong>
-proposed two major backward incompatible changes for Python 3.6 on Windows:
-<a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
-filesystem encoding to UTF-8</a>.
-At the first read, I was sure that …</p>
-                <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="bookmark"
-                           title="Permalink to Python 3.2 Painful History of the Filesystem Encoding">Python 3.2 Painful History of the Filesystem Encoding</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-15T23:00:00+01:00">
-                Published: jeu. 15 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
-filesystem encoding changed multiple times. <strong>It took 6 years to choose the best
-Python filesystem encoding on each platform.</strong></p>
-<p><strong>I have been officially promoted as a core developer</strong> in January 2010 by
-<strong>Martin von …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/pep-383.html" rel="bookmark"
-                           title="Permalink to Python 3.1 surrogateescape error handler (PEP 383)">Python 3.1 surrogateescape error handler (PEP 383)</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-15T18:00:00+01:00">
-                Published: jeu. 15 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>In my previous article, I wrote that <tt class="docutils literal">os.listdir(str)</tt> ignored silently
-undecodable filenames in Python 3.0 and that lying on the real content of a
-directory looks like a very bad idea.</p>
-<p><strong>Martin v. Löwis</strong> found a very smart solution to this problem: the
-<tt class="docutils literal">surrogateescape</tt> error handler.</p>
-<p><strong>This …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/pep-383.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="bookmark"
-                           title="Permalink to Python 3.0 listdir() Bug on Undecodable Filenames">Python 3.0 listdir() Bug on Undecodable Filenames</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-09T13:00:00+01:00">
-                Published: ven. 09 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Ten years ago, when Python 3.0 final was released, <tt class="docutils literal">os.listdir(str)</tt>
-<strong>ignored silently undecodable filenames</strong>:</p>
-<pre class="literal-block">
-$ python3.0
-&gt;&gt;&gt; os.mkdir(b'x')
-&gt;&gt;&gt; open(b'x/nonascii\xff', 'w').close()
-&gt;&gt;&gt; os.listdir('x')
-[]
-</pre>
-<p>You had to use bytes to see all filenames:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; os.listdir(b'x')
-[b'nonascii\xff']
-</pre>
-<p>If the locale is POSIX …</p>
-                <a class="readmore" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-gil-change.html" rel="bookmark"
-                           title="Permalink to How I fixed a very old GIL race condition in Python 3.7">How I fixed a very old GIL race condition in Python 3.7</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-08T10:00:00+01:00">
-                Published: jeu. 08 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL</strong> (Global
-Interpreter Lock), one of the most critical part of Python. I had to dig the
-Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
-this time, <em>threads were …</em></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-gil-change.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="bookmark"
-                           title="Permalink to Python 3.7 nanoseconds">Python 3.7 nanoseconds</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-06T16:30:00+01:00">
-                Published: mar. 06 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
-nanoseconds as integer internally. It became possible to propose again my old
-idea of getting time as nanoseconds at Python level and so I wrote a new
-<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond …</p>
-                <a class="readmore" href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="bookmark"
-                           title="Permalink to Python 3.7 perf_counter() nanoseconds">Python 3.7 perf_counter() nanoseconds</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-06T15:00:00+01:00">
-                Published: mar. 06 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Since 2012, I have been trying to convert all Python clocks to use internally
-nanoseconds. The last clock which still used floating point internally was
-<tt class="docutils literal">time.perf_counter()</tt>. INADA Naoki's new importtime tool was an opportunity
-for me to have a new look on a tricky integer overflow issue.</p>
-<div class="section" id="modify-importtime-to-use-time-perf-counter-clock">
-<h2>Modify importtime …</h2></div>
-                <a class="readmore" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q3: Part 3 (funny bugs)">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-10-19T16:00:00+02:00">
-                Published: jeu. 19 octobre 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
-(july, august, september), Part 3 (funny bugs).</p>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
-threads)</a>.</p>
-<p>Summary:</p>
-<ul class="simple">
-<li>FreeBSD bug: minor() device regression</li>
-<li>regrtest snowball effect when hunting memory leaks</li>
-<li>Bugfixes</li>
-<li>Other Changes</li>
-</ul>
-<div class="section" id="freebsd-bug-minor-device-regression">
-<h2>FreeBSD bug: minor() device regression</h2>
-<a class="reference external image-reference" href="https://www.freebsd.org/"><img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /></a>
-<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-<p class="paginator">
-    Page 1 / 4
-        <a href="https://vstinner.github.io/category/python2.html">&raquo;</a>
-</p>
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>
