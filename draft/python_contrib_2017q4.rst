@@ -55,6 +55,12 @@ It will take me **3 months of work and 45 commits** to completely cleanup
 ``Py_Main()`` and put almost all Python configuration options into the private
 C ``_PyCoreConfig`` structure.
 
+Sadly, the API is still private because Nick Coghlan didn't have the bandwidth
+to review and polish the API. I hope that the PEP 432 will become a reality in
+Python 3.8. Embedding Python should be much simpler with this new C API: a
+single C structure using clean and simple C types, rather than scattered C
+functions using Python objects before Python initialization.
+
 `bpo-32124 <https://bugs.python.org/issue32124>`__: Document C functions safe before init. Explicitly document C
 functions and C variables that can be set before Py_Initialize().
 
