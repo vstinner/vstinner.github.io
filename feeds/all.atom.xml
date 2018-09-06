@@ -8,6 +8,7 @@ I also decided to move the code which selects the Python &amp;quot;filesystem en
 I didn't expect that I would spend 2 weeks on these issues... This article
 tells me about my recent journey in locales and encodings on AIX, HP-UX,
 Windows, Linux, macOS, Solaris and FreeBSD.&lt;/p&gt;
+&lt;img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" /&gt;
 &lt;p&gt;Table of Contents:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Lying HP-UX&lt;/li&gt;
