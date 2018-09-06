@@ -1,11 +1,11 @@
-+++++++++++++++++++++++++++++
-Python, locales and encodings
-+++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++
+Python 3, locales and encodings
++++++++++++++++++++++++++++++++
 
 :date: 2018-09-06 16:00
 :tags: unicode, locales
 :category: cpython
-:slug: python-locales-encodings
+:slug: python3-locales-encodings
 :authors: Victor Stinner
 
 Recently, I worked on a change which looked simple: move the code to initialize
