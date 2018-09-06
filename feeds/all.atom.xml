@@ -1,5 +1,505 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-03-27T20:00:00+02:00</updated><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-09-06T16:00:00+02:00</updated><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
+the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
+I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
+I didn't expect that I would spend 2 weeks on these issues …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
+the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
+I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
+I didn't expect that I would spend 2 weeks on these issues... This article
+tells me about my recent journey in locales and encodings on AIX, HP-UX,
+Windows, Linux, macOS, Solaris and FreeBSD.&lt;/p&gt;
+&lt;p&gt;Table of Contents:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Lying HP-UX&lt;/li&gt;
+&lt;li&gt;Standard streams and filesystem encodings&lt;/li&gt;
+&lt;li&gt;POSIX locale on FreeBSD&lt;/li&gt;
+&lt;li&gt;C locale on Windows&lt;/li&gt;
+&lt;li&gt;Back to stdio encoding&lt;/li&gt;
+&lt;li&gt;Back to filesystem encoding&lt;/li&gt;
+&lt;li&gt;Use surrogatepass on Windows&lt;/li&gt;
+&lt;li&gt;Filesystem encoding documentation&lt;/li&gt;
+&lt;li&gt;Final FreeBSD 10 issue&lt;/li&gt;
+&lt;li&gt;Configuration of locales and encodings&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="lying-hp-ux"&gt;
+&lt;h2&gt;Lying HP-UX&lt;/h2&gt;
+&lt;p&gt;At 2018-08-14, Michael Osipov reported &lt;a class="reference external" href="https://bugs.python.org/issue34403"&gt;bpo-34403&lt;/a&gt;:
+&amp;quot;test_utf8_mode.test_cmd_line() fails on HP-UX due to false assumptions&amp;quot;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+======================================================================
+FAIL: test_cmd_line (test.test_utf8_mode.UTF8ModeTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  (...)
+AssertionError: &amp;quot;['h\\xc3\\xa9\\xe2\\x82\\xac']&amp;quot; != &amp;quot;['h\\udcc3\\udca9\\udce2\\udc82\\udcac']&amp;quot;
+- ['h\xc3\xa9\xe2\x82\xac']
++ ['h\udcc3\udca9\udce2\udc82\udcac']
+ : roman8:['h\xc3\xa9\xe2\x82\xac']
+&lt;/pre&gt;
+&lt;p&gt;Interesting, HP-UX uses &amp;quot;roman8&amp;quot; as its locale encoding. What is this &amp;quot;new&amp;quot;
+encoding? Wikipedia: &lt;a class="reference external" href="https://en.wikipedia.org/wiki/HP_Roman#Roman-8"&gt;HP Roman-8&lt;/a&gt;. Oh, that's even older than
+the common ISO 8859 encodings like Latin1!&lt;/p&gt;
+&lt;p&gt;Michael Felt was working on a similar test_utf8_mode failure on AIX, so they
+tried to debug the issue together, but failed to understand the issue. Osipov
+proposed to give up and just skip the test on HP-UX...&lt;/p&gt;
+&lt;p&gt;I showed up and proposed a fix for the unit test: &lt;a class="reference external" href="https://github.com/python/cpython/pull/8967/files"&gt;PR 8967&lt;/a&gt;. The test was hardcoding
+the expected locale encoding. I modified the test to query the locale encoding
+at runtime instead.&lt;/p&gt;
+&lt;p&gt;Bad surprise, the test still fails, oh. &lt;a class="reference external" href="https://bugs.python.org/issue34403#msg324219"&gt;I commented&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Hum, it looks like a bug in the C library of HP-UX.&lt;/blockquote&gt;
+&lt;p&gt;I wrote a C program calling mbstowcs() to check what is the actual encoding
+used by the C library: &lt;a class="reference external" href="https://bugs.python.org/file47767/c_locale.c"&gt;c_locale.c&lt;/a&gt;. &lt;a class="reference external" href="https://bugs.python.org/issue34403#msg324225"&gt;Result&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Well, it confirms what I expected: &lt;tt class="docutils literal"&gt;nl_langinfo(CODESET)&lt;/tt&gt; announces
+&lt;tt class="docutils literal"&gt;&amp;quot;roman8&amp;quot;&lt;/tt&gt;, but &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt; uses Latin1 encoding in practice.&lt;/blockquote&gt;
+&lt;p&gt;So I wrote a workaround similar to the one used on FreeBSD and Solaris: check
+if the libc is announcing an encoding different than the real encoding, and if
+it's the case: force the usage of the ASCII encoding in Python. See
+my &lt;a class="reference external" href="https://github.com/python/cpython/commit/d500e5307aec9c5d535f66d567fadb9c587a9a36"&gt;commit d500e530&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Tue Aug 28 17:27:36 2018 +0200
+
+    bpo-34403: On HP-UX, force ASCII for C locale (GH-8969)
+
+    On HP-UX with C or POSIX locale, sys.getfilesystemencoding() now returns
+    &amp;quot;ascii&amp;quot; instead of &amp;quot;roman8&amp;quot; (when the UTF-8 Mode is disabled and the C locale
+    is not coerced).
+
+    nl_langinfo(CODESET) announces &amp;quot;roman8&amp;quot; whereas it uses the Latin1
+    encoding in practice.
+&lt;/pre&gt;
+&lt;p&gt;Extract of the heuristic code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if (strcmp(encoding, &amp;quot;roman8&amp;quot;) == 0) {
+    unsigned char ch = (unsigned char)0xA7;
+    wchar_t wch;
+    size_t res = mbstowcs(&amp;amp;wch, (char*)&amp;amp;ch, 1);
+    if (res != (size_t)-1 &amp;amp;&amp;amp; wch == L'\xA7') {
+        /* On HP-UX withe C locale or the POSIX locale,
+           nl_langinfo(CODESET) announces &amp;quot;roman8&amp;quot;,
+           whereas mbstowcs() uses Latin1 encoding in practice.
+           Force ASCII in this case.  Roman8 decodes 0xA7
+           to U+00CF. Latin1 decodes 0xA7 to U+00A7. */
+        return 1;
+    }
+}
+&lt;/pre&gt;
+&lt;p&gt;Python 3.8 will handle better Unicode support on HP-UX. The test_utf8_mode
+failure was just a hint for a real underlying bug!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="standard-streams-and-filesystem-encodings"&gt;
+&lt;h2&gt;Standard streams and filesystem encodings&lt;/h2&gt;
+&lt;p&gt;While reworking the Python initialization, I tried to move &lt;strong&gt;all&lt;/strong&gt;
+configuration parameters to a new &lt;tt class="docutils literal"&gt;_PyCoreConfig&lt;/tt&gt; structure. But I know that
+I missed at least the standard streams encoding (ex: &lt;tt class="docutils literal"&gt;sys.stdout.encoding&lt;/tt&gt;).
+My first attempt failed to move the code, it broke many tests. I created
+&lt;a class="reference external" href="https://bugs.python.org/issue34485"&gt;bpo-34485&lt;/a&gt;: &amp;quot;_PyCoreConfig: add
+stdio_encoding and stdio_errors&amp;quot;.&lt;/p&gt;
+&lt;p&gt;While I was working on stdio encoding, I also recalled that the Python
+filesystem encoding is also initialized &amp;quot;late&amp;quot;. I also created &lt;a class="reference external" href="https://bugs.python.org/issue34523"&gt;bpo-34523&lt;/a&gt;: &amp;quot;Choose the filesystem encoding before
+Python initialization (add _PyCoreConfig.filesystem_encoding)&amp;quot; to move this
+code as well.&lt;/p&gt;
+&lt;p&gt;I quickly had an implementation, but it didn't go as well as expected...&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="posix-locale-on-freebsd"&gt;
+&lt;h2&gt;POSIX locale on FreeBSD&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue34485"&gt;bpo-34485&lt;/a&gt;: For me, the &amp;quot;C&amp;quot; and &amp;quot;POSIX&amp;quot;
+locales were the same locale: C is an alias to POSIX, or the opposite, it
+didn't really matter for me. But Python handles them differently in some corner
+cases. For example, Nick Coghlan's PEP 538 (C locale coercion) is only enabled
+if the LC_CTYPE locale is equal to &amp;quot;C&amp;quot;, not if it's equal to &amp;quot;POSIX&amp;quot;.&lt;/p&gt;
+&lt;p&gt;In Python 3.5, I changed stdin and stdout error handlers from strict to
+surrogateescape if the LC_CTYPE locale is &amp;quot;C&amp;quot;: &lt;a class="reference external" href="https://bugs.python.org/issue19977"&gt;bpo-19977&lt;/a&gt;. But when I tested my
+stdio and filesystem changes on Linux, FreeBSD and Windows, I noticed that
+I forgot to handle the &amp;quot;POSIX&amp;quot; locale. On FreeBSD, &lt;tt class="docutils literal"&gt;LC_ALL=POSIX&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;LC_ALL=C&lt;/tt&gt;
+behave differently:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;With &lt;tt class="docutils literal"&gt;LC_ALL=POSIX&lt;/tt&gt; environment, &lt;tt class="docutils literal"&gt;setlocale(LC_CTYPE, &amp;quot;&amp;quot;)&lt;/tt&gt; returns &lt;tt class="docutils literal"&gt;&amp;quot;POSIX&amp;quot;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;With &lt;tt class="docutils literal"&gt;LC_ALL=C&lt;/tt&gt; environment, &lt;tt class="docutils literal"&gt;setlocale(LC_CTYPE, &amp;quot;&amp;quot;)&lt;/tt&gt; returns &lt;tt class="docutils literal"&gt;&amp;quot;C&amp;quot;&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I fixed that to also use the &amp;quot;surrogateescape&amp;quot; error handler for the POSIX
+locale on FreeBSD. &lt;a class="reference external" href="https://github.com/python/cpython/commit/315877dc361d554bec34b4b62c270479ad36a1be"&gt;Commit 315877dc&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 09:58:12 2018 +0200
+
+    bpo-34485: stdout uses surrogateescape on POSIX locale (GH-8986)
+
+    Standard streams like sys.stdout now use the &amp;quot;surrogateescape&amp;quot; error
+    handler, instead of &amp;quot;strict&amp;quot;, on the POSIX locale (when the C locale is not
+    coerced and the UTF-8 Mode is disabled).
+
+    Add tests on sys.stdout.errors with LC_ALL=POSIX.
+&lt;/pre&gt;
+&lt;p&gt;The most important change is just one line:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+-        if (strcmp(ctype_loc, &amp;quot;C&amp;quot;) == 0) {
++        if (strcmp(ctype_loc, &amp;quot;C&amp;quot;) == 0 || strcmp(ctype_loc, &amp;quot;POSIX&amp;quot;) == 0) {
+             return &amp;quot;surrogateescape&amp;quot;;
+         }
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue34527"&gt;bpo-34527&lt;/a&gt;: Since I was testing
+various configurations, I also noticed that my UTF-8 Mode (PEP 540) had the
+same bug. Python 3.7 enables it if the LC_CTYPE locale is equal to &amp;quot;C&amp;quot;,
+but not if it's equal to &amp;quot;POSIX&amp;quot;. I also changed that (&lt;a class="reference external" href="https://github.com/python/cpython/commit/5cb258950ce9b69b1f65646431c464c0c17b1510"&gt;commit 5cb25895&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="c-locale-on-windows"&gt;
+&lt;h2&gt;C locale on Windows&lt;/h2&gt;
+&lt;p&gt;While testing my changes on Windows, I noticed that Python starts with the
+LC_CTYPE locale equal to &amp;quot;C&amp;quot;, whereas &lt;tt class="docutils literal"&gt;locale.setlocale(locale.LC_CTYPE, &amp;quot;&amp;quot;)&lt;/tt&gt;
+changes the LC_CTYPE locale to something like &lt;tt class="docutils literal"&gt;English_United States.1252&lt;/tt&gt;
+(English with the code page 1252). Example with Python 3.6:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+C:\&amp;gt; python
+Python 3.6.4 (v3.6.4:d48eceb, Dec 19 2017, 06:54:40) [MSC v.1900 64 bit (AMD64)] on win32
+&amp;gt;&amp;gt;&amp;gt; import locale
+&amp;gt;&amp;gt;&amp;gt; locale.setlocale(locale.LC_CTYPE, None)
+'C'
+&amp;gt;&amp;gt;&amp;gt; locale.setlocale(locale.LC_CTYPE, &amp;quot;&amp;quot;)
+'English_United States.1252'
+&amp;gt;&amp;gt;&amp;gt; locale.setlocale(locale.LC_CTYPE, None)
+'English_United States.1252'
+&lt;/pre&gt;
+&lt;p&gt;On UNIX, Python 2 starts with the default C locale, whereas Python 3 always
+sets the LC_CTYPE locale to my preference. Example on Fedora 28 with
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;LANG=fr_FR.UTF-8&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python2 -c 'import locale; print(locale.setlocale(locale.LC_CTYPE, None))'
+C
+$ python3 -c 'import locale; print(locale.setlocale(locale.LC_CTYPE, None))'
+fr_FR.UTF-8
+&lt;/pre&gt;
+&lt;p&gt;I modified Windows to behave as UNIX, &lt;a class="reference external" href="https://github.com/python/cpython/commit/177d921c8c03d30daa32994362023f777624b10d"&gt;commit 177d921c&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 11:25:15 2018 +0200
+
+    bpo-34485, Windows: LC_CTYPE set to user preference (GH-8988)
+
+    On Windows, the LC_CTYPE is now set to the user preferred locale at
+    startup: _Py_SetLocaleFromEnv(LC_CTYPE) is now called during the
+    Python initialization. Previously, the LC_CTYPE locale was &amp;quot;C&amp;quot; at
+    startup, but changed when calling setlocale(LC_CTYPE, &amp;quot;&amp;quot;) or
+    setlocale(LC_ALL, &amp;quot;&amp;quot;).
+
+    pymain_read_conf() now also calls _Py_SetLocaleFromEnv(LC_CTYPE) to
+    behave as _Py_InitializeCore(). Moreover, it doesn't save/restore the
+    LC_ALL anymore.
+
+    On Windows, standard streams like sys.stdout now always use
+    surrogateescape error handler by default (ignore the locale).
+&lt;/pre&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+C:\&amp;gt; python3.6 -c &amp;quot;import locale; print(locale.setlocale(locale.LC_CTYPE, None))&amp;quot;
+C
+C:\&amp;gt; python3.8 -c &amp;quot;import locale; print(locale.setlocale(locale.LC_CTYPE, None))&amp;quot;
+English_United States.1252
+&lt;/pre&gt;
+&lt;p&gt;On Windows, Python 3.8 now starts with the LC_CTYPE locale set to my
+preference, as it was already previously done on UNIX.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="back-to-stdio-encoding"&gt;
+&lt;h2&gt;Back to stdio encoding&lt;/h2&gt;
+&lt;p&gt;After all previous changes and fixes, I was able to push my &lt;a class="reference external" href="https://github.com/python/cpython/commit/dfe0dc74536dfb6f331131d9b2b49557675bb6b7"&gt;commit dfe0dc74&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 11:47:29 2018 +0200
+
+    bpo-34485: Add _PyCoreConfig.stdio_encoding (GH-8881)
+
+    * Add stdio_encoding and stdio_errors fields to _PyCoreConfig.
+    * Add unit tests on stdio_encoding and stdio_errors.
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="back-to-filesystem-encoding"&gt;
+&lt;h2&gt;Back to filesystem encoding&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/b2457efc78b74a1d6d1b77d11a939e886b8a4e2c"&gt;Commit b2457efc&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 13:25:36 2018 +0200
+
+    bpo-34523: Add _PyCoreConfig.filesystem_encoding (GH-8963)
+
+    _PyCoreConfig_Read() is now responsible to choose the filesystem
+    encoding and error handler. Using Py_Main(), the encoding is now
+    chosen even before calling Py_Initialize().
+
+    _PyCoreConfig.filesystem_encoding is now the reference, instead of
+    Py_FileSystemDefaultEncoding, for the Python filesystem encoding.
+
+    Changes:
+
+    * Add filesystem_encoding and filesystem_errors to _PyCoreConfig
+    * _PyCoreConfig_Read() now reads the locale encoding for the file
+      system encoding.
+    * PyUnicode_EncodeFSDefault() and PyUnicode_DecodeFSDefaultAndSize()
+      now use the interpreter configuration rather than
+      Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors
+      global configuration variables.
+    * Add _Py_SetFileSystemEncoding() and _Py_ClearFileSystemEncoding()
+      private functions to only modify Py_FileSystemDefaultEncoding and
+      Py_FileSystemDefaultEncodeErrors in coreconfig.c.
+    * _Py_CoerceLegacyLocale() now takes an int rather than
+      _PyCoreConfig for the warning.
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="use-surrogatepass-on-windows"&gt;
+&lt;h2&gt;Use surrogatepass on Windows&lt;/h2&gt;
+&lt;p&gt;While working on the filesystem encoding change, I had a bug in
+_freeze_importlib.exe which failed at startup:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+ValueError: only 'strict' and 'surrogateescape' error handlers are supported, not 'surrogatepass'
+&lt;/pre&gt;
+&lt;p&gt;I used the following workaround in &lt;tt class="docutils literal"&gt;_freeze_importlib.c&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#ifdef MS_WINDOWS
+    /* bpo-34523: initfsencoding() is not called if _install_importlib=0,
+       so interp-&amp;gt;fscodec_initialized value remains 0.
+       PyUnicode_EncodeFSDefault() doesn't support the &amp;quot;surrogatepass&amp;quot; error
+       handler in such case, whereas it's the default error handler on Windows.
+       Force the &amp;quot;strict&amp;quot; error handler to work around this bootstrap issue. */
+    config.filesystem_errors = &amp;quot;strict&amp;quot;;
+#endif
+&lt;/pre&gt;
+&lt;p&gt;But I wasn't fully happy with the workaround. When running more manual tests, I
+found that the &lt;tt class="docutils literal"&gt;PYTHONLEGACYWINDOWSFSENCODING&lt;/tt&gt; environment variable wasn't
+handled properly. I pushed a first fix,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/c5989cd87659acbfd4d19dc00dbe99c3a0fc9bd2"&gt;commit c5989cd8&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 19:32:47 2018 +0200
+
+    bpo-34523: Py_DecodeLocale() use UTF-8 on Windows (GH-8998)
+
+    Py_DecodeLocale() and Py_EncodeLocale() now use the UTF-8 encoding on
+    Windows if Py_LegacyWindowsFSEncodingFlag is zero.
+
+    pymain_read_conf() now sets Py_LegacyWindowsFSEncodingFlag in its
+    loop, but restore its value at exit.
+&lt;/pre&gt;
+&lt;p&gt;My intent was to be able to use the &lt;tt class="docutils literal"&gt;surrogatepass&lt;/tt&gt; error handler. If
+&lt;tt class="docutils literal"&gt;Py_DecodeLocale()&lt;/tt&gt; is hardcoded to use UTF-8 on Windows, we should get
+access to the &lt;tt class="docutils literal"&gt;surrogatepass&lt;/tt&gt; error handler. Previously, &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt;
+function was used and this function only support &lt;tt class="docutils literal"&gt;strict&lt;/tt&gt; or
+&lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handlers.&lt;/p&gt;
+&lt;p&gt;I pushed a second big change to add support for the &lt;tt class="docutils literal"&gt;surrogatepass&lt;/tt&gt; error
+handler in locale codecs, &lt;a class="reference external" href="https://github.com/python/cpython/commit/3d4226a832cabc630402589cc671cc4035d504e5"&gt;commit 3d4226a8&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 22:21:32 2018 +0200
+
+    bpo-34523: Support surrogatepass in locale codecs (GH-8995)
+
+    Add support for the &amp;quot;surrogatepass&amp;quot; error handler in
+    PyUnicode_DecodeFSDefault() and PyUnicode_EncodeFSDefault()
+    for the UTF-8 encoding.
+
+    Changes:
+
+    * _Py_DecodeUTF8Ex() and _Py_EncodeUTF8Ex() now support the
+      surrogatepass error handler (_Py_ERROR_SURROGATEPASS).
+    * _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx() now use
+      the _Py_error_handler enum instead of &amp;quot;int surrogateescape&amp;quot; to pass
+      the error handler. These functions now return -3 if the error
+      handler is unknown.
+    * Add unit tests on _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx()
+      in test_codecs.
+    * Rename get_error_handler() to _Py_GetErrorHandler() and expose it
+      as a private function.
+    * _freeze_importlib doesn't need config.filesystem_errors=&amp;quot;strict&amp;quot;
+      workaround anymore.
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyUnicode_DecodeFSDefault()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyUnicode_EncodeFSDefault()&lt;/tt&gt; functions
+use &lt;tt class="docutils literal"&gt;Py_DecodeLocale()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_EncodeLocale()&lt;/tt&gt; before the Python codec of
+the filesystem encoding is loaded. With this big change, &lt;tt class="docutils literal"&gt;Py_DecodeLocale()&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;Py_EncodeLocale()&lt;/tt&gt; now really behave as the Python codec.&lt;/p&gt;
+&lt;p&gt;Previously, Python started with the &lt;tt class="docutils literal"&gt;surrogateescape&lt;/tt&gt; error handler, and
+switched to the &lt;tt class="docutils literal"&gt;surrogatepass&lt;/tt&gt; error handler once the Python codec was
+loaded.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="filesystem-encoding-documentation"&gt;
+&lt;h2&gt;Filesystem encoding documentation&lt;/h2&gt;
+&lt;p&gt;One &amp;quot;last&amp;quot; change, I documented how Python selects the filesystem encoding,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/de427556746aa41a8b5198924ce423021bc0c718"&gt;commit de427556&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed Aug 29 23:26:55 2018 +0200
+
+    bpo-34523: Py_FileSystemDefaultEncoding NULL by default (GH-9003)
+
+    * Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors
+      default value is now NULL: initfsencoding() set them
+      during Python initialization.
+    * Document how Python chooses the filesystem encoding and error
+      handler.
+    * Add an assertion to _PyCoreConfig_Read().
+&lt;/pre&gt;
+&lt;p&gt;Documentation:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* Python filesystem encoding and error handler:
+   sys.getfilesystemencoding() and sys.getfilesystemencodeerrors().
+
+   Default encoding and error handler:
+
+   * if Py_SetStandardStreamEncoding() has been called: they have the
+     highest priority;
+   * PYTHONIOENCODING environment variable;
+   * The UTF-8 Mode uses UTF-8/surrogateescape;
+   * locale encoding: ANSI code page on Windows, UTF-8 on Android,
+     LC_CTYPE locale encoding on other platforms;
+   * On Windows, &amp;quot;surrogateescape&amp;quot; error handler;
+   * &amp;quot;surrogateescape&amp;quot; error handler if the LC_CTYPE locale is &amp;quot;C&amp;quot; or &amp;quot;POSIX&amp;quot;;
+   * &amp;quot;surrogateescape&amp;quot; error handler if the LC_CTYPE locale has been coerced
+     (PEP 538);
+   * &amp;quot;strict&amp;quot; error handler.
+
+   Supported error handlers: &amp;quot;strict&amp;quot;, &amp;quot;surrogateescape&amp;quot; and
+   &amp;quot;surrogatepass&amp;quot;. The surrogatepass error handler is only supported
+   if Py_DecodeLocale() and Py_EncodeLocale() use directly the UTF-8 codec;
+   it's only used on Windows.
+
+   initfsencoding() updates the encoding to the Python codec name.
+   For example, &amp;quot;ANSI_X3.4-1968&amp;quot; is replaced with &amp;quot;ascii&amp;quot;.
+
+   On Windows, sys._enablelegacywindowsfsencoding() sets the
+   encoding/errors to mbcs/replace at runtime.
+
+
+   See Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors.
+   */
+char *filesystem_encoding;
+char *filesystem_errors;
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="final-freebsd-10-issue"&gt;
+&lt;h2&gt;Final FreeBSD 10 issue&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue34544"&gt;bpo-34544&lt;/a&gt;: The stdio and filesystem
+encodings are now properly selected before Py_Initialize(), the LC_CTYPE locale
+should be properly initialized, the &amp;quot;POSIX&amp;quot; locale is now properly handled, but
+the FreeBSD 10 buildbot still complained about my recent changes... Many
+&lt;tt class="docutils literal"&gt;test_c_locale_coerce&lt;/tt&gt; tests started to fail with:&lt;/p&gt;
+&lt;blockquote&gt;
+Fatal Python error: get_locale_encoding: failed to get the locale encoding: nl_langinfo(CODESET) failed&lt;/blockquote&gt;
+&lt;p&gt;Sadly, I wasn't able to reproduce the issue on my FreeBSD 11 VM. I also got
+access to the FreeBSD CURRENT buildbot, but I also failed to reproduce the bug
+there. I was supposed to get access to the FreeBSD 10 buildbot, but there was a
+DNS issue.&lt;/p&gt;
+&lt;p&gt;I had to &lt;em&gt;guess&lt;/em&gt; the origin of the bug and I attempted a fix, &lt;a class="reference external" href="https://github.com/python/cpython/commit/f01b2a1b84ee08df73a78cf1017eecf15e3cb995"&gt;commit f01b2a1b&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Mon Sep 3 14:38:21 2018 +0200
+
+    bpo-34544: Fix setlocale() in pymain_read_conf() (GH-9041)
+
+    bpo-34485, bpo-34544: On some FreeBSD, nl_langinfo(CODESET) fails if
+    LC_ALL or LC_CTYPE is set to an invalid locale name. Replace
+    _Py_SetLocaleFromEnv(LC_CTYPE) with _Py_SetLocaleFromEnv(LC_ALL) to
+    initialize properly locales.
+
+    Partially revert commit 177d921c8c03d30daa32994362023f777624b10d.
+&lt;/pre&gt;
+&lt;p&gt;... but it didn't work.&lt;/p&gt;
+&lt;p&gt;I decided to install a FreeBSD 10 VM and one week later... I finally succeded
+to reproduce the issue!&lt;/p&gt;
+&lt;p&gt;The bug was that the &lt;tt class="docutils literal"&gt;_Py_CoerceLegacyLocale()&lt;/tt&gt; function doesn't restore the
+LC_CTYPE to its previous value if it attempted to coerce the LC_CTYPE locale
+but no locale worked.&lt;/p&gt;
+&lt;p&gt;Previously, it didn't matter, since the LC_CTYPE locale was initialized again
+later, or it was saved/restored indirectly. But with my latest changes, the
+LC_CTYPE was left unchanged.&lt;/p&gt;
+&lt;p&gt;The fix is just to restore LC_CTYPE if &lt;tt class="docutils literal"&gt;_Py_CoerceLegacyLocale()&lt;/tt&gt; fails,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/8ea09110d413829f71d979d8c7073008cb87fb03"&gt;commit 8ea09110&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Mon Sep 3 17:05:18 2018 +0200
+
+    _Py_CoerceLegacyLocale() restores LC_CTYPE on fail (GH-9044)
+
+    bpo-34544: If _Py_CoerceLegacyLocale() fails to coerce the C locale,
+    restore the LC_CTYPE locale to the its previous value.
+&lt;/pre&gt;
+&lt;p&gt;Finally, I succeded to do what I wanted to do initially, remove the code which
+saved/restored the LC_ALL locale: &lt;tt class="docutils literal"&gt;pymain_read_conf()&lt;/tt&gt; is now really
+responsible to set the LC_CTYPE locale, and it doesn't modify the LC_ALL locale
+anymore.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="configuration-of-locales-and-encodings"&gt;
+&lt;h2&gt;Configuration of locales and encodings&lt;/h2&gt;
+&lt;p&gt;Python has &lt;strong&gt;many&lt;/strong&gt; options to configure the locales and encodings.&lt;/p&gt;
+&lt;p&gt;Main options of Python 3.7:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Legacy Windows stdio (PEP 528)&lt;/li&gt;
+&lt;li&gt;Legacy Windows filesystem encoding (PEP 529)&lt;/li&gt;
+&lt;li&gt;C locale coercion (PEP 538)&lt;/li&gt;
+&lt;li&gt;UTF-8 mode (PEP 540)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The combination of C locale coercion and UTF-8 mode is non-obvious and should
+be carefully tested!&lt;/p&gt;
+&lt;p&gt;Environment variables:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONCOERCECLOCALE=0&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONCOERCECLOCALE=1&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONCOERCECLOCALE=warn&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONLEGACYWINDOWSFSENCODING=1&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONLEGACYWINDOWSSTDIO=1&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONUTF8=0&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONUTF8=1&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Command line options:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8=0&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; utf8=1&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-E&lt;/span&gt;&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-I&lt;/span&gt;&lt;/tt&gt; (ignore &lt;tt class="docutils literal"&gt;PYTHON*&lt;/tt&gt; environment variables)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Global configuration variables:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_FileSystemDefaultEncodeErrors&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_FileSystemDefaultEncoding&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_LegacyWindowsFSEncodingFlag&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_LegacyWindowsStdioFlag&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_UTF8Mode&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;_PyCoreConfig:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;coerce_c_locale&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;coerce_c_locale_warn&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;filesystem_encoding&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;filesystem_errors&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;stdio_encoding&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;stdio_errors&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The LC_CTYPE locale depends on 3 environment variables:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_ALL&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_CTYPE&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LANG&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Depending on the platform, the following configuration gives a different
+LC_CTYPE locale:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_ALL= LC_CTYPE= LANG=&lt;/tt&gt; (no variable set)&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_ALL= LC_CTYPE=C LANG=&lt;/tt&gt; (C locale)&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_ALL= LC_CTYPE=POSIX LANG=&lt;/tt&gt; (POSIX locale)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In case of doubt, I also tested:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_ALL=C LC_CTYPE= LANG=&lt;/tt&gt; (C locale)&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;LC_ALL=POSIX LC_CTYPE= LANG=&lt;/tt&gt; (POSIX locale)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The LC_CTYPE encoding (locale encoding) can be queried using
+&lt;tt class="docutils literal"&gt;nl_langinfo(CODESET)&lt;/tt&gt;. On FreeBSD, Solaris, HP-UX and maybe other platforms,
+&lt;tt class="docutils literal"&gt;nl_langinfo(CODESET)&lt;/tt&gt; announces an encoding which is different than the
+codec used by &lt;tt class="docutils literal"&gt;mbstowcs()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;wcstombs()&lt;/tt&gt; functions, and so Python forces
+the usage of the ASCII encoding.&lt;/p&gt;
+&lt;p&gt;The test matrix of all these configurations and all platforms is quite big.
+Honestly, I would not bet that Python 3.8 will behave properly in all possible
+cases. At least, I tried to fix all issues that I spotted! Moreover, I added
+many tests which should help to detect bugs and prevent regressions.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
 still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
