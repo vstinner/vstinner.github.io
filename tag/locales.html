@@ -5,10 +5,6 @@
         <title>Victor Stinner blog 3 - locales</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
-
-        <!--[if IE]>
-            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-        <![endif]-->
 </head>
 
 <body id="index" class="home">
@@ -23,7 +19,355 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python3-locales-encodings.html">Python 3, locales and encodings</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/locale-bugfixes-python3.html">Locale Bugfixes in Python 3</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-01-09T00:30:00+01:00">
+                Published: mer. 09 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
+</footer><!-- /.post-info --><p>This article describes a few locales bugs that I fixed in Python 3 between 2012
+(Python 3.3) and 2018 (Python 3.7):</p>
+<ul class="simple">
+<li>Support non-ASCII decimal point and thousands separator</li>
+<li>Crash with non-ASCII decimal point</li>
+<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
+<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
+<li>Tests non-ASCII locales</li>
+</ul>
+<p>See also my previous locale bugfixes: <a class="reference external" href="https://vstinner.github.io/python3-locales-encodings.html">Python 3, locales and encodings</a></p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"><img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /></a>
+<div class="section" id="introduction">
+<h2>Introduction</h2>
+<p>Each language and each country has different ways to represent dates, monetary
+values, numbers, etc. Unix has &quot;locales&quot; to configure applications for a
+specific language and a specific country. For example, there are <tt class="docutils literal">fr_BE</tt> for
+Belgium (french) and <tt class="docutils literal">fr_FR</tt> for France (french).</p>
+<p>In practice, each locale uses its own encoding and problems arise when an
+application uses a different encoding than the locale. There are LC_NUMERIC
+locale for numbers, LC_MONETARY locale for monetary and LC_CTYPE for the
+encoding. Not only it's possible to configure an application to use LC_NUMERIC
+with a different encoding than LC_CTYPE, but some users use such configuration!</p>
+<p>In an application which only uses bytes for text, as Python 2 does mostly, it's
+mostly fine: in the worst case, users see <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>, but the application doesn't
+&quot;crash&quot; (exit and/or data loss). On the other side, <strong>Python 3 is designed to
+use Unicode for text and fail with hard Unicode errors if it fails to decode
+bytes and fails to encode text</strong>.</p>
+</div>
+<div class="section" id="support-non-ascii-decimal-point-and-thousands-separator">
+<h2>Support non-ASCII decimal point and thousands separator</h2>
+<p>The Unicode type has been reimplemented in Python 3.3 to use &quot;compact string&quot;:
+<a class="reference external" href="https://www.python.org/dev/peps/pep-0393/">PEP 393 &quot;Flexible String Representation&quot;</a>. The new implementation is more
+complex and the format() function has been limited to ASCII for the decimal
+point and thousands separator (format a number using the &quot;n&quot; type).</p>
+<p>In January 2012, Stefan Krah noticed the regression (compared to Python 3.2)
+and reported <a class="reference external" href="https://bugs.python.org/issue13706">bpo-13706</a>. I fixed the
+code to support non-ASCII in format (<a class="reference external" href="https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8">commit a4ac600d</a>).
+But when I did more tests, I noticed that the &quot;n&quot; type doesn't decode properly
+the decimal point and thousands seprator which come from the <tt class="docutils literal">localeconv()</tt>
+function which uses byte strings.</p>
+<p>I fixed <tt class="docutils literal">format(int, &quot;n&quot;)</tt> with <a class="reference external" href="https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc">commit 41a863cb</a>,
+decode decimal point and the thousands separator (<tt class="docutils literal">localeconv()</tt> fields) from
+the locale encoding, rather than latin1, using <tt class="docutils literal">PyUnicode_DecodeLocale()</tt>:</p>
+<pre class="literal-block">
+commit 41a863cb81608c779d60b49e7be8a115816734fc
+Author: Victor Stinner &lt;victor.stinner&#64;haypocalc.com&gt;
+Date:   Fri Feb 24 00:37:51 2012 +0100
+
+    Issue #13706: Fix format(int, &quot;n&quot;) for locale with non-ASCII thousands separator
+
+     * Decode thousands separator and decimal point using PyUnicode_DecodeLocale()
+       (from the locale encoding), instead of decoding them implicitly from latin1
+     * Remove _PyUnicode_InsertThousandsGroupingLocale(), it was not used
+     * Change _PyUnicode_InsertThousandsGrouping() API to return the maximum
+       character if unicode is NULL
+     * (...)
+</pre>
+<p>Note: I decided to not fix Python 3.2:</p>
+<blockquote>
+Hum, <strong>it is not trivial to redo the work on Python 3.2</strong>. I prefer to leave
+the code unchanged to not introduce a regression, and I wait until a Python
+3.2 user complains (the bug exists since Python 3.0 and nobody complained).</blockquote>
+</div>
+<div class="section" id="crash-with-non-ascii-decimal-point">
+<h2>Crash with non-ASCII decimal point</h2>
+<p>Six years later, in June 2018, I noticed that Python does crash when running
+tests on locales:</p>
+<pre class="literal-block">
+$ ./python
+Python 3.8.0a0 (heads/master-dirty:bcd3a1a18d, Jun 23 2018, 10:31:03)
+[GCC 8.1.1 20180502 (Red Hat 8.1.1-1)] on linux
+&gt;&gt;&gt; import locale
+&gt;&gt;&gt; locale.str(2.5)
+'2.5'
+&gt;&gt;&gt; '{:n}'.format(2.5)
+'2.5'
+
+&gt;&gt;&gt; locale.setlocale(locale.LC_ALL, '')
+'fr_FR.UTF-8'
+&gt;&gt;&gt; locale.str(2.5)
+'2,5'
+&gt;&gt;&gt; '{:n}'.format(2.5)
+python: Objects/unicodeobject.c:474: _PyUnicode_CheckConsistency: Assertion `maxchar &lt; 128' failed.
+Aborted (core dumped)
+</pre>
+<p>I reported the issue as <a class="reference external" href="https://bugs.python.org/issue33954">bpo-33954</a>. The
+bug only occurrs for decimal point larger than U+00FF (code point greater than
+255). It was a bug in my <a class="reference external" href="https://bugs.python.org/issue13706">bpo-13706</a>
+fix: <a class="reference external" href="https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8">commit a4ac600d</a>.</p>
+<p>I pushed a second fix to properly support all cases, <a class="reference external" href="https://github.com/python/cpython/commit/59423e3ddd736387cef8f7632c71954c1859bed0">commit 59423e3d</a>:</p>
+<pre class="literal-block">
+commit 59423e3ddd736387cef8f7632c71954c1859bed0
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Mon Nov 26 13:40:01 2018 +0100
+
+    bpo-33954: Fix _PyUnicode_InsertThousandsGrouping() (GH-10623)
+
+    Fix str.format(), float.__format__() and complex.__format__() methods
+    for non-ASCII decimal point when using the &quot;n&quot; formatter.
+
+    Changes:
+
+    * Rewrite _PyUnicode_InsertThousandsGrouping(): it now requires
+      a _PyUnicodeWriter object for the buffer and a Python str object
+      for digits.
+    * Rename FILL() macro to unicode_fill(), convert it to static inline function,
+      add &quot;assert(0 &lt;= start);&quot; and rework its code.
+</pre>
+</div>
+<div class="section" id="lc-numeric-encoding-different-than-lc-ctype-encoding">
+<h2>LC_NUMERIC encoding different than LC_CTYPE encoding</h2>
+<p>In August 2017, Petr Viktorin identified a bug in Koji (server building Fedora
+packages): <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1484497">UnicodeDecodeError in localeconv() makes test_float fail in Koji</a></p>
+<blockquote>
+&quot;This is tripped by Python's test suite, namely
+test_float.GeneralFloatCases.test_float_with_comma&quot;</blockquote>
+<p>He wrote a short reproducer script:</p>
+<pre class="literal-block">
+import locale
+locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+locale.setlocale(locale.LC_NUMERIC, 'fr_FR.ISO8859-1')
+print(locale.localeconv())
+</pre>
+<p>Two months later, Charalampos Stratakis reported the bug upstream: <a class="reference external" href="https://bugs.python.org/issue31900">bpo-31900</a>.  The problem arises when <strong>the
+LC_NUMERIC locale uses a different encoding than the LC_CTYPE encoding</strong>.</p>
+<p>The bug was already known:</p>
+<ul class="simple">
+<li>2015-12-05: Serhiy Storchaka reported <a class="reference external" href="https://bugs.python.org/issue25812">bpo-25812</a> with uk_UA locale</li>
+<li>2016-11-03: Guillaume Pasquet reported <a class="reference external" href="https://bugs.python.org/issue28604">bpo-28604</a> with en_GB locale</li>
+</ul>
+<p>Moreover, <strong>the bug was known since 2009</strong>, Stefan Krah reported a very similar
+bug: <a class="reference external" href="https://bugs.python.org/issue7442">bpo-7442</a>. I was even involved in
+this issue in 2013, but then I forgot about it (as usual, I am working on too
+many issues in parallel :-)).</p>
+<p>In 2010, PostgreSQL <a class="reference external" href="https://www.postgresql.org/message-id/20100422015552.4B7E07541D0&#64;cvs.postgresql.org">had the same issue</a>
+and <a class="reference external" href="https://anoncvs.postgresql.org/cvsweb.cgi/pgsql/src/backend/utils/adt/pg_locale.c?r1=1.53&amp;r2=1.54">fixed the bug by changing temporarily the LC_CTYPE locale to the
+LC_NUMERIC locale</a>.</p>
+<p>In January 2018, I came back to this 9 years old bug. I was fixing bugs in the
+implementation of my <a class="reference external" href="https://www.python.org/dev/peps/pep-0540/">PEP 540 &quot;Add a new UTF-8 Mode&quot;</a>. I pushed a large change to fix
+locale encodings in <a class="reference external" href="https://bugs.python.org/issue29240">bpo-29240</a>, <a class="reference external" href="https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c">commit
+7ed7aead</a>:</p>
+<pre class="literal-block">
+commit 7ed7aead9503102d2ed316175f198104e0cd674c
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jan 15 10:45:49 2018 +0100
+
+    bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
+
+    Modify locale.localeconv(), time.tzname, os.strerror() and other
+    functions to ignore the UTF-8 Mode: always use the current locale
+    encoding.
+
+    Changes: (...)
+</pre>
+<p>Stefan Krah asked:</p>
+<blockquote>
+I have the exact same questions as Marc-Andre.  This is one of the reasons
+why I blocked the _decimal change.  I don't fully understand the role of the
+new glibc, since #7442 has existed for ages -- and <strong>it is a open question
+whether it is a bug or not</strong>.</blockquote>
+<p>I replied:</p>
+<blockquote>
+<p>Past 10 years, I repeated to every single user I met that &quot;Python 3 is
+right, your system setup is wrong&quot;. But that's a waste of time. People
+continue to associate Python3 and Unicode to annoying bugs, because they
+don't understand how locales work.</p>
+<p>Instead of having to repeat to each user that &quot;hum, maybe your config is
+wrong&quot;, <strong>I prefer to support this non convential setup and work as expected
+(&quot;it just works&quot;)</strong>. With my latest implementation, setlocale() is only done
+when LC_CTYPE and LC_NUMERIC are different, which is the corner case which
+&quot;shouldn't occur in practice&quot;.</p>
+</blockquote>
+<p>Marc-Andre Lemburg added:</p>
+<blockquote>
+Sounds like a good compromise :-)</blockquote>
+<p>After doing more tests on FreeBSD, Linux and macOS, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/cb064fc2321ce8673fe365e9ef60445a27657f54">commit cb064fc2</a>
+to fix <a class="reference external" href="https://bugs.python.org/issue31900">bpo-31900</a> by changing
+temporarily the LC_CTYPE locale to the LC_NUMERIC locale:</p>
+<pre class="literal-block">
+commit cb064fc2321ce8673fe365e9ef60445a27657f54
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jan 15 15:58:02 2018 +0100
+
+    bpo-31900: Fix localeconv() encoding for LC_NUMERIC (#4174)
+
+    * Add _Py_GetLocaleconvNumeric() function: decode decimal_point and
+      thousands_sep fields of localeconv() from the LC_NUMERIC encoding,
+      rather than decoding from the LC_CTYPE encoding.
+    * Modify locale.localeconv() and &quot;n&quot; formatter of str.format() (for
+      int, float and complex to use _Py_GetLocaleconvNumeric()
+      internally.
+</pre>
+<p>I dislike my own fix because changing temporarily the LC_CTYPE locale impacts
+all threads, not only the current thread. But we failed to find another
+solution. <strong>The LC_CTYPE locale is only changed if the LC_NUMERIC locale is
+different than the LC_CTYPE locale and if the decimal point or the thousands
+separator is non-ASCII.</strong></p>
+<p>Note: I proposed a change to fix the same bug in the <tt class="docutils literal">decimal</tt> module: <a class="reference external" href="https://github.com/python/cpython/pull/5191">PR
+#5191</a>, but I abandonned my
+patch.</p>
+</div>
+<div class="section" id="lc-monetary-encoding-different-than-lc-ctype-encoding">
+<h2>LC_MONETARY encoding different than LC_CTYPE encoding</h2>
+<p>Fixing <a class="reference external" href="https://bugs.python.org/issue31900">bpo-31900</a> drained all my
+energy, but sadly... there was a similar bug with LC_MONETARY!</p>
+<p>At 2016-11-03, Guillaume Pasquet reported <a class="reference external" href="https://bugs.python.org/issue28604">bpo-28604: Exception raised by
+python3.5 when using en_GB locale</a>.</p>
+<p>The fix is similar to the LC_NUMERIC fix: change temporarily the LC_CTYPE
+locale to the LC_MONETARY locale, <a class="reference external" href="https://github.com/python/cpython/commit/02e6bf7f2025cddcbde6432f6b6396198ab313f4">commit 02e6bf7f</a>:</p>
+<pre class="literal-block">
+commit 02e6bf7f2025cddcbde6432f6b6396198ab313f4
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Tue Nov 20 16:20:16 2018 +0100
+
+    bpo-28604: Fix localeconv() for different LC_MONETARY (GH-10606)
+
+    locale.localeconv() now sets temporarily the LC_CTYPE locale to the
+    LC_MONETARY locale if the two locales are different and monetary
+    strings are non-ASCII. This temporary change affects other threads.
+
+    Changes:
+
+    * locale.localeconv() can now set LC_CTYPE to LC_MONETARY to decode
+      monetary fields.
+    * (...)
+</pre>
+</div>
+<div class="section" id="tests-non-ascii-locales">
+<h2>Tests non-ASCII locales</h2>
+<p>To test my bugfixes, I used manual tests. The first issue was to identify
+locales with problematic characters: non-ASCII decimal point or thousands
+separator for example. I wrote my own &quot;test suite&quot; for Windows, Linux, macOS
+and FreeBSD on my website: <a class="reference external" href="https://vstinner.readthedocs.io/unicode.html#test-non-ascii-characters-with-locales">Test non-ASCII characters with locales</a>.</p>
+<p>Example with localeconv() on Fedora 27:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="15%" />
+<col width="8%" />
+<col width="16%" />
+<col width="25%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">LC_ALL locale</th>
+<th class="head">Encoding</th>
+<th class="head">Field</th>
+<th class="head">Bytes</th>
+<th class="head">Text</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>es_MX.utf8</td>
+<td>UTF-8</td>
+<td>thousands_sep</td>
+<td><tt class="docutils literal">0xE2 0x80 0x89</tt></td>
+<td>U+2009</td>
+</tr>
+<tr><td>fr_FR.UTF-8</td>
+<td>UTF-8</td>
+<td>currency_symbol</td>
+<td><tt class="docutils literal">0xE2 0x82 0xAC</tt></td>
+<td>U+20AC (€)</td>
+</tr>
+<tr><td>ps_AF.utf8</td>
+<td>UTF-8</td>
+<td>thousands_sep</td>
+<td><tt class="docutils literal">0xD9 0xAC</tt></td>
+<td>U+066C (٬)</td>
+</tr>
+<tr><td>uk_UA.koi8u</td>
+<td>KOI8-U</td>
+<td>currency_symbol</td>
+<td><tt class="docutils literal">0xC7 0xD2 0xCE 0x2E</tt></td>
+<td>U+0433 U+0440 U+043d U+002E (грн.)</td>
+</tr>
+<tr><td>uk_UA.koi8u</td>
+<td>KOI8-U</td>
+<td>thousands_sep</td>
+<td><tt class="docutils literal">0x9A</tt></td>
+<td>U+00A0</td>
+</tr>
+</tbody>
+</table>
+<p>Manual tests became more and more complex, since there are so many cases: each
+operating system use different locale names and the result depends on the libc
+version. After months of manual tests, I wrote my small personal <strong>portable</strong>
+locale test suite: <a class="reference external" href="https://github.com/vstinner/misc/blob/master/python/test_all_locales.py">test_all_locales.py</a>.
+It supports:</p>
+<ul class="simple">
+<li>FreeBSD 11</li>
+<li>macOS</li>
+<li>Fedora (Linux)</li>
+</ul>
+<p>Example:</p>
+<pre class="literal-block">
+def test_zh_TW_Big5(self):
+    loc = &quot;zh_TW.Big5&quot; if BSD else &quot;zh_TW.big5&quot;
+    if FREEBSD:
+        currency_symbol = u'\uff2e\uff34\uff04'
+        decimal_point = u'\uff0e'
+        thousands_sep = u'\uff0c'
+        date_str = u'\u661f\u671f\u56db 2\u6708'
+    else:
+        currency_symbol = u'NT$'
+        decimal_point = u'.'
+        thousands_sep = u','
+        if MACOS:
+            date_str =  u'\u9031\u56db 2\u6708'
+        else:
+            date_str = u'\u9031\u56db \u4e8c\u6708'
+
+    self.set_locale(loc, &quot;Big5&quot;)
+
+    lc = locale.localeconv()
+    self.assertLocaleEqual(lc['currency_symbol'], currency_symbol)
+    self.assertLocaleEqual(lc['decimal_point'], decimal_point)
+    self.assertLocaleEqual(lc['thousands_sep'], thousands_sep)
+
+    self.assertLocaleEqual(time.strftime('%A %B', FEBRUARY), date_str)
+</pre>
+<p>The best would be to integrate directly these tests into the Python test suite,
+but it's not portable nor future-proof, since most constants are hardcoded and
+depends on the operating sytem and the libc version.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/python3-locales-encodings.html" rel="bookmark"
+                           title="Permalink to Python 3, locales and encodings">Python 3, locales and encodings</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2018-09-06T16:00:00+02:00">
                 Published: jeu. 06 septembre 2018
@@ -34,506 +378,15 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
-</footer><!-- /.post-info --><p>Recently, I worked on a change which looked simple: move the code to initialize
+</footer><!-- /.post-info -->                <p>Recently, I worked on a change which looked simple: move the code to initialize
 the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
 I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
-I didn't expect that I would spend 2 weeks on these issues... This article
-tells me about my recent journey in locales and encodings on AIX, HP-UX,
-Windows, Linux, macOS, Solaris and FreeBSD.</p>
-<img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" />
-<p>Table of Contents:</p>
-<ul class="simple">
-<li>Lying HP-UX</li>
-<li>Standard streams and filesystem encodings</li>
-<li>POSIX locale on FreeBSD</li>
-<li>C locale on Windows</li>
-<li>Back to stdio encoding</li>
-<li>Back to filesystem encoding</li>
-<li>Use surrogatepass on Windows</li>
-<li>Filesystem encoding documentation</li>
-<li>Final FreeBSD 10 issue</li>
-<li>Configuration of locales and encodings</li>
-</ul>
-<div class="section" id="lying-hp-ux">
-<h2>Lying HP-UX</h2>
-<p>At 2018-08-14, Michael Osipov reported <a class="reference external" href="https://bugs.python.org/issue34403">bpo-34403</a>:
-&quot;test_utf8_mode.test_cmd_line() fails on HP-UX due to false assumptions&quot;:</p>
-<pre class="literal-block">
-======================================================================
-FAIL: test_cmd_line (test.test_utf8_mode.UTF8ModeTests)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  (...)
-AssertionError: &quot;['h\\xc3\\xa9\\xe2\\x82\\xac']&quot; != &quot;['h\\udcc3\\udca9\\udce2\\udc82\\udcac']&quot;
-- ['h\xc3\xa9\xe2\x82\xac']
-+ ['h\udcc3\udca9\udce2\udc82\udcac']
- : roman8:['h\xc3\xa9\xe2\x82\xac']
-</pre>
-<p>Interesting, HP-UX uses &quot;roman8&quot; as its locale encoding. What is this &quot;new&quot;
-encoding? Wikipedia: <a class="reference external" href="https://en.wikipedia.org/wiki/HP_Roman#Roman-8">HP Roman-8</a>. Oh, that's even older than
-the common ISO 8859 encodings like Latin1!</p>
-<p>Michael Felt was working on a similar test_utf8_mode failure on AIX, so they
-tried to debug the issue together, but failed to understand the issue. Osipov
-proposed to give up and just skip the test on HP-UX...</p>
-<p>I showed up and proposed a fix for the unit test: <a class="reference external" href="https://github.com/python/cpython/pull/8967/files">PR 8967</a>. The test was hardcoding
-the expected locale encoding. I modified the test to query the locale encoding
-at runtime instead.</p>
-<p>Bad surprise, the test still fails, oh. <a class="reference external" href="https://bugs.python.org/issue34403#msg324219">I commented</a>:</p>
-<blockquote>
-Hum, it looks like a bug in the C library of HP-UX.</blockquote>
-<p>I wrote a C program calling mbstowcs() to check what is the actual encoding
-used by the C library: <a class="reference external" href="https://bugs.python.org/file47767/c_locale.c">c_locale.c</a>. <a class="reference external" href="https://bugs.python.org/issue34403#msg324225">Result</a>:</p>
-<blockquote>
-Well, it confirms what I expected: <tt class="docutils literal">nl_langinfo(CODESET)</tt> announces
-<tt class="docutils literal">&quot;roman8&quot;</tt>, but <tt class="docutils literal">mbstowcs()</tt> uses Latin1 encoding in practice.</blockquote>
-<p>So I wrote a workaround similar to the one used on FreeBSD and Solaris: check
-if the libc is announcing an encoding different than the real encoding, and if
-it's the case: force the usage of the ASCII encoding in Python. See
-my <a class="reference external" href="https://github.com/python/cpython/commit/d500e5307aec9c5d535f66d567fadb9c587a9a36">commit d500e530</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Tue Aug 28 17:27:36 2018 +0200
-
-    bpo-34403: On HP-UX, force ASCII for C locale (GH-8969)
-
-    On HP-UX with C or POSIX locale, sys.getfilesystemencoding() now returns
-    &quot;ascii&quot; instead of &quot;roman8&quot; (when the UTF-8 Mode is disabled and the C locale
-    is not coerced).
-
-    nl_langinfo(CODESET) announces &quot;roman8&quot; whereas it uses the Latin1
-    encoding in practice.
-</pre>
-<p>Extract of the heuristic code:</p>
-<pre class="literal-block">
-if (strcmp(encoding, &quot;roman8&quot;) == 0) {
-    unsigned char ch = (unsigned char)0xA7;
-    wchar_t wch;
-    size_t res = mbstowcs(&amp;wch, (char*)&amp;ch, 1);
-    if (res != (size_t)-1 &amp;&amp; wch == L'\xA7') {
-        /* On HP-UX withe C locale or the POSIX locale,
-           nl_langinfo(CODESET) announces &quot;roman8&quot;,
-           whereas mbstowcs() uses Latin1 encoding in practice.
-           Force ASCII in this case.  Roman8 decodes 0xA7
-           to U+00CF. Latin1 decodes 0xA7 to U+00A7. */
-        return 1;
-    }
-}
-</pre>
-<p>Python 3.8 will handle better Unicode support on HP-UX. The test_utf8_mode
-failure was just a hint for a real underlying bug!</p>
-</div>
-<div class="section" id="standard-streams-and-filesystem-encodings">
-<h2>Standard streams and filesystem encodings</h2>
-<p>While reworking the Python initialization, I tried to move <strong>all</strong>
-configuration parameters to a new <tt class="docutils literal">_PyCoreConfig</tt> structure. But I know that
-I missed at least the standard streams encoding (ex: <tt class="docutils literal">sys.stdout.encoding</tt>).
-My first attempt failed to move the code, it broke many tests. I created
-<a class="reference external" href="https://bugs.python.org/issue34485">bpo-34485</a>: &quot;_PyCoreConfig: add
-stdio_encoding and stdio_errors&quot;.</p>
-<p>While I was working on stdio encoding, I also recalled that the Python
-filesystem encoding is also initialized &quot;late&quot;. I also created <a class="reference external" href="https://bugs.python.org/issue34523">bpo-34523</a>: &quot;Choose the filesystem encoding before
-Python initialization (add _PyCoreConfig.filesystem_encoding)&quot; to move this
-code as well.</p>
-<p>I quickly had an implementation, but it didn't go as well as expected...</p>
-</div>
-<div class="section" id="posix-locale-on-freebsd">
-<h2>POSIX locale on FreeBSD</h2>
-<p><a class="reference external" href="https://bugs.python.org/issue34485">bpo-34485</a>: For me, the &quot;C&quot; and &quot;POSIX&quot;
-locales were the same locale: C is an alias to POSIX, or the opposite, it
-didn't really matter for me. But Python handles them differently in some corner
-cases. For example, Nick Coghlan's PEP 538 (C locale coercion) is only enabled
-if the LC_CTYPE locale is equal to &quot;C&quot;, not if it's equal to &quot;POSIX&quot;.</p>
-<p>In Python 3.5, I changed stdin and stdout error handlers from strict to
-surrogateescape if the LC_CTYPE locale is &quot;C&quot;: <a class="reference external" href="https://bugs.python.org/issue19977">bpo-19977</a>. But when I tested my
-stdio and filesystem changes on Linux, FreeBSD and Windows, I noticed that
-I forgot to handle the &quot;POSIX&quot; locale. On FreeBSD, <tt class="docutils literal">LC_ALL=POSIX</tt> and <tt class="docutils literal">LC_ALL=C</tt>
-behave differently:</p>
-<ul class="simple">
-<li>With <tt class="docutils literal">LC_ALL=POSIX</tt> environment, <tt class="docutils literal">setlocale(LC_CTYPE, &quot;&quot;)</tt> returns <tt class="docutils literal">&quot;POSIX&quot;</tt></li>
-<li>With <tt class="docutils literal">LC_ALL=C</tt> environment, <tt class="docutils literal">setlocale(LC_CTYPE, &quot;&quot;)</tt> returns <tt class="docutils literal">&quot;C&quot;</tt></li>
-</ul>
-<p>I fixed that to also use the &quot;surrogateescape&quot; error handler for the POSIX
-locale on FreeBSD. <a class="reference external" href="https://github.com/python/cpython/commit/315877dc361d554bec34b4b62c270479ad36a1be">Commit 315877dc</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 09:58:12 2018 +0200
-
-    bpo-34485: stdout uses surrogateescape on POSIX locale (GH-8986)
-
-    Standard streams like sys.stdout now use the &quot;surrogateescape&quot; error
-    handler, instead of &quot;strict&quot;, on the POSIX locale (when the C locale is not
-    coerced and the UTF-8 Mode is disabled).
-
-    Add tests on sys.stdout.errors with LC_ALL=POSIX.
-</pre>
-<p>The most important change is just one line:</p>
-<pre class="literal-block">
--        if (strcmp(ctype_loc, &quot;C&quot;) == 0) {
-+        if (strcmp(ctype_loc, &quot;C&quot;) == 0 || strcmp(ctype_loc, &quot;POSIX&quot;) == 0) {
-             return &quot;surrogateescape&quot;;
-         }
-</pre>
-<p><a class="reference external" href="https://bugs.python.org/issue34527">bpo-34527</a>: Since I was testing
-various configurations, I also noticed that my UTF-8 Mode (PEP 540) had the
-same bug. Python 3.7 enables it if the LC_CTYPE locale is equal to &quot;C&quot;,
-but not if it's equal to &quot;POSIX&quot;. I also changed that (<a class="reference external" href="https://github.com/python/cpython/commit/5cb258950ce9b69b1f65646431c464c0c17b1510">commit 5cb25895</a>).</p>
-</div>
-<div class="section" id="c-locale-on-windows">
-<h2>C locale on Windows</h2>
-<p>While testing my changes on Windows, I noticed that Python starts with the
-LC_CTYPE locale equal to &quot;C&quot;, whereas <tt class="docutils literal">locale.setlocale(locale.LC_CTYPE, &quot;&quot;)</tt>
-changes the LC_CTYPE locale to something like <tt class="docutils literal">English_United States.1252</tt>
-(English with the code page 1252). Example with Python 3.6:</p>
-<pre class="literal-block">
-C:\&gt; python
-Python 3.6.4 (v3.6.4:d48eceb, Dec 19 2017, 06:54:40) [MSC v.1900 64 bit (AMD64)] on win32
-&gt;&gt;&gt; import locale
-&gt;&gt;&gt; locale.setlocale(locale.LC_CTYPE, None)
-'C'
-&gt;&gt;&gt; locale.setlocale(locale.LC_CTYPE, &quot;&quot;)
-'English_United States.1252'
-&gt;&gt;&gt; locale.setlocale(locale.LC_CTYPE, None)
-'English_United States.1252'
-</pre>
-<p>On UNIX, Python 2 starts with the default C locale, whereas Python 3 always
-sets the LC_CTYPE locale to my preference. Example on Fedora 28 with
-<tt class="docutils literal"><span class="pre">LANG=fr_FR.UTF-8</span></tt>:</p>
-<pre class="literal-block">
-$ python2 -c 'import locale; print(locale.setlocale(locale.LC_CTYPE, None))'
-C
-$ python3 -c 'import locale; print(locale.setlocale(locale.LC_CTYPE, None))'
-fr_FR.UTF-8
-</pre>
-<p>I modified Windows to behave as UNIX, <a class="reference external" href="https://github.com/python/cpython/commit/177d921c8c03d30daa32994362023f777624b10d">commit 177d921c</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 11:25:15 2018 +0200
-
-    bpo-34485, Windows: LC_CTYPE set to user preference (GH-8988)
-
-    On Windows, the LC_CTYPE is now set to the user preferred locale at
-    startup: _Py_SetLocaleFromEnv(LC_CTYPE) is now called during the
-    Python initialization. Previously, the LC_CTYPE locale was &quot;C&quot; at
-    startup, but changed when calling setlocale(LC_CTYPE, &quot;&quot;) or
-    setlocale(LC_ALL, &quot;&quot;).
-
-    pymain_read_conf() now also calls _Py_SetLocaleFromEnv(LC_CTYPE) to
-    behave as _Py_InitializeCore(). Moreover, it doesn't save/restore the
-    LC_ALL anymore.
-
-    On Windows, standard streams like sys.stdout now always use
-    surrogateescape error handler by default (ignore the locale).
-</pre>
-<p>Example:</p>
-<pre class="literal-block">
-C:\&gt; python3.6 -c &quot;import locale; print(locale.setlocale(locale.LC_CTYPE, None))&quot;
-C
-C:\&gt; python3.8 -c &quot;import locale; print(locale.setlocale(locale.LC_CTYPE, None))&quot;
-English_United States.1252
-</pre>
-<p>On Windows, Python 3.8 now starts with the LC_CTYPE locale set to my
-preference, as it was already previously done on UNIX.</p>
-</div>
-<div class="section" id="back-to-stdio-encoding">
-<h2>Back to stdio encoding</h2>
-<p>After all previous changes and fixes, I was able to push my <a class="reference external" href="https://github.com/python/cpython/commit/dfe0dc74536dfb6f331131d9b2b49557675bb6b7">commit dfe0dc74</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 11:47:29 2018 +0200
-
-    bpo-34485: Add _PyCoreConfig.stdio_encoding (GH-8881)
-
-    * Add stdio_encoding and stdio_errors fields to _PyCoreConfig.
-    * Add unit tests on stdio_encoding and stdio_errors.
-</pre>
-</div>
-<div class="section" id="back-to-filesystem-encoding">
-<h2>Back to filesystem encoding</h2>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/b2457efc78b74a1d6d1b77d11a939e886b8a4e2c">Commit b2457efc</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 13:25:36 2018 +0200
-
-    bpo-34523: Add _PyCoreConfig.filesystem_encoding (GH-8963)
-
-    _PyCoreConfig_Read() is now responsible to choose the filesystem
-    encoding and error handler. Using Py_Main(), the encoding is now
-    chosen even before calling Py_Initialize().
-
-    _PyCoreConfig.filesystem_encoding is now the reference, instead of
-    Py_FileSystemDefaultEncoding, for the Python filesystem encoding.
-
-    Changes:
-
-    * Add filesystem_encoding and filesystem_errors to _PyCoreConfig
-    * _PyCoreConfig_Read() now reads the locale encoding for the file
-      system encoding.
-    * PyUnicode_EncodeFSDefault() and PyUnicode_DecodeFSDefaultAndSize()
-      now use the interpreter configuration rather than
-      Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors
-      global configuration variables.
-    * Add _Py_SetFileSystemEncoding() and _Py_ClearFileSystemEncoding()
-      private functions to only modify Py_FileSystemDefaultEncoding and
-      Py_FileSystemDefaultEncodeErrors in coreconfig.c.
-    * _Py_CoerceLegacyLocale() now takes an int rather than
-      _PyCoreConfig for the warning.
-</pre>
-</div>
-<div class="section" id="use-surrogatepass-on-windows">
-<h2>Use surrogatepass on Windows</h2>
-<p>While working on the filesystem encoding change, I had a bug in
-_freeze_importlib.exe which failed at startup:</p>
-<pre class="literal-block">
-ValueError: only 'strict' and 'surrogateescape' error handlers are supported, not 'surrogatepass'
-</pre>
-<p>I used the following workaround in <tt class="docutils literal">_freeze_importlib.c</tt>:</p>
-<pre class="literal-block">
-#ifdef MS_WINDOWS
-    /* bpo-34523: initfsencoding() is not called if _install_importlib=0,
-       so interp-&gt;fscodec_initialized value remains 0.
-       PyUnicode_EncodeFSDefault() doesn't support the &quot;surrogatepass&quot; error
-       handler in such case, whereas it's the default error handler on Windows.
-       Force the &quot;strict&quot; error handler to work around this bootstrap issue. */
-    config.filesystem_errors = &quot;strict&quot;;
-#endif
-</pre>
-<p>But I wasn't fully happy with the workaround. When running more manual tests, I
-found that the <tt class="docutils literal">PYTHONLEGACYWINDOWSFSENCODING</tt> environment variable wasn't
-handled properly. I pushed a first fix,
-<a class="reference external" href="https://github.com/python/cpython/commit/c5989cd87659acbfd4d19dc00dbe99c3a0fc9bd2">commit c5989cd8</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 19:32:47 2018 +0200
-
-    bpo-34523: Py_DecodeLocale() use UTF-8 on Windows (GH-8998)
-
-    Py_DecodeLocale() and Py_EncodeLocale() now use the UTF-8 encoding on
-    Windows if Py_LegacyWindowsFSEncodingFlag is zero.
-
-    pymain_read_conf() now sets Py_LegacyWindowsFSEncodingFlag in its
-    loop, but restore its value at exit.
-</pre>
-<p>My intent was to be able to use the <tt class="docutils literal">surrogatepass</tt> error handler. If
-<tt class="docutils literal">Py_DecodeLocale()</tt> is hardcoded to use UTF-8 on Windows, we should get
-access to the <tt class="docutils literal">surrogatepass</tt> error handler. Previously, <tt class="docutils literal">mbstowcs()</tt>
-function was used and this function only support <tt class="docutils literal">strict</tt> or
-<tt class="docutils literal">surrogateescape</tt> error handlers.</p>
-<p>I pushed a second big change to add support for the <tt class="docutils literal">surrogatepass</tt> error
-handler in locale codecs, <a class="reference external" href="https://github.com/python/cpython/commit/3d4226a832cabc630402589cc671cc4035d504e5">commit 3d4226a8</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 22:21:32 2018 +0200
-
-    bpo-34523: Support surrogatepass in locale codecs (GH-8995)
-
-    Add support for the &quot;surrogatepass&quot; error handler in
-    PyUnicode_DecodeFSDefault() and PyUnicode_EncodeFSDefault()
-    for the UTF-8 encoding.
-
-    Changes:
-
-    * _Py_DecodeUTF8Ex() and _Py_EncodeUTF8Ex() now support the
-      surrogatepass error handler (_Py_ERROR_SURROGATEPASS).
-    * _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx() now use
-      the _Py_error_handler enum instead of &quot;int surrogateescape&quot; to pass
-      the error handler. These functions now return -3 if the error
-      handler is unknown.
-    * Add unit tests on _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx()
-      in test_codecs.
-    * Rename get_error_handler() to _Py_GetErrorHandler() and expose it
-      as a private function.
-    * _freeze_importlib doesn't need config.filesystem_errors=&quot;strict&quot;
-      workaround anymore.
-</pre>
-<p><tt class="docutils literal">PyUnicode_DecodeFSDefault()</tt> and <tt class="docutils literal">PyUnicode_EncodeFSDefault()</tt> functions
-use <tt class="docutils literal">Py_DecodeLocale()</tt> and <tt class="docutils literal">Py_EncodeLocale()</tt> before the Python codec of
-the filesystem encoding is loaded. With this big change, <tt class="docutils literal">Py_DecodeLocale()</tt>
-and <tt class="docutils literal">Py_EncodeLocale()</tt> now really behave as the Python codec.</p>
-<p>Previously, Python started with the <tt class="docutils literal">surrogateescape</tt> error handler, and
-switched to the <tt class="docutils literal">surrogatepass</tt> error handler once the Python codec was
-loaded.</p>
-</div>
-<div class="section" id="filesystem-encoding-documentation">
-<h2>Filesystem encoding documentation</h2>
-<p>One &quot;last&quot; change, I documented how Python selects the filesystem encoding,
-<a class="reference external" href="https://github.com/python/cpython/commit/de427556746aa41a8b5198924ce423021bc0c718">commit de427556</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 23:26:55 2018 +0200
-
-    bpo-34523: Py_FileSystemDefaultEncoding NULL by default (GH-9003)
-
-    * Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors
-      default value is now NULL: initfsencoding() set them
-      during Python initialization.
-    * Document how Python chooses the filesystem encoding and error
-      handler.
-    * Add an assertion to _PyCoreConfig_Read().
-</pre>
-<p>Documentation:</p>
-<pre class="literal-block">
-/* Python filesystem encoding and error handler:
-   sys.getfilesystemencoding() and sys.getfilesystemencodeerrors().
-
-   Default encoding and error handler:
-
-   * if Py_SetStandardStreamEncoding() has been called: they have the
-     highest priority;
-   * PYTHONIOENCODING environment variable;
-   * The UTF-8 Mode uses UTF-8/surrogateescape;
-   * locale encoding: ANSI code page on Windows, UTF-8 on Android,
-     LC_CTYPE locale encoding on other platforms;
-   * On Windows, &quot;surrogateescape&quot; error handler;
-   * &quot;surrogateescape&quot; error handler if the LC_CTYPE locale is &quot;C&quot; or &quot;POSIX&quot;;
-   * &quot;surrogateescape&quot; error handler if the LC_CTYPE locale has been coerced
-     (PEP 538);
-   * &quot;strict&quot; error handler.
-
-   Supported error handlers: &quot;strict&quot;, &quot;surrogateescape&quot; and
-   &quot;surrogatepass&quot;. The surrogatepass error handler is only supported
-   if Py_DecodeLocale() and Py_EncodeLocale() use directly the UTF-8 codec;
-   it's only used on Windows.
-
-   initfsencoding() updates the encoding to the Python codec name.
-   For example, &quot;ANSI_X3.4-1968&quot; is replaced with &quot;ascii&quot;.
-
-   On Windows, sys._enablelegacywindowsfsencoding() sets the
-   encoding/errors to mbcs/replace at runtime.
-
-
-   See Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors.
-   */
-char *filesystem_encoding;
-char *filesystem_errors;
-</pre>
-</div>
-<div class="section" id="final-freebsd-10-issue">
-<h2>Final FreeBSD 10 issue</h2>
-<p><a class="reference external" href="https://bugs.python.org/issue34544">bpo-34544</a>: The stdio and filesystem
-encodings are now properly selected before Py_Initialize(), the LC_CTYPE locale
-should be properly initialized, the &quot;POSIX&quot; locale is now properly handled, but
-the FreeBSD 10 buildbot still complained about my recent changes... Many
-<tt class="docutils literal">test_c_locale_coerce</tt> tests started to fail with:</p>
-<blockquote>
-Fatal Python error: get_locale_encoding: failed to get the locale encoding: nl_langinfo(CODESET) failed</blockquote>
-<p>Sadly, I wasn't able to reproduce the issue on my FreeBSD 11 VM. I also got
-access to the FreeBSD CURRENT buildbot, but I also failed to reproduce the bug
-there. I was supposed to get access to the FreeBSD 10 buildbot, but there was a
-DNS issue.</p>
-<p>I had to <em>guess</em> the origin of the bug and I attempted a fix, <a class="reference external" href="https://github.com/python/cpython/commit/f01b2a1b84ee08df73a78cf1017eecf15e3cb995">commit f01b2a1b</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Mon Sep 3 14:38:21 2018 +0200
-
-    bpo-34544: Fix setlocale() in pymain_read_conf() (GH-9041)
-
-    bpo-34485, bpo-34544: On some FreeBSD, nl_langinfo(CODESET) fails if
-    LC_ALL or LC_CTYPE is set to an invalid locale name. Replace
-    _Py_SetLocaleFromEnv(LC_CTYPE) with _Py_SetLocaleFromEnv(LC_ALL) to
-    initialize properly locales.
-
-    Partially revert commit 177d921c8c03d30daa32994362023f777624b10d.
-</pre>
-<p>... but it didn't work.</p>
-<p>I decided to install a FreeBSD 10 VM and one week later... I finally succeded
-to reproduce the issue!</p>
-<p>The bug was that the <tt class="docutils literal">_Py_CoerceLegacyLocale()</tt> function doesn't restore the
-LC_CTYPE to its previous value if it attempted to coerce the LC_CTYPE locale
-but no locale worked.</p>
-<p>Previously, it didn't matter, since the LC_CTYPE locale was initialized again
-later, or it was saved/restored indirectly. But with my latest changes, the
-LC_CTYPE was left unchanged.</p>
-<p>The fix is just to restore LC_CTYPE if <tt class="docutils literal">_Py_CoerceLegacyLocale()</tt> fails,
-<a class="reference external" href="https://github.com/python/cpython/commit/8ea09110d413829f71d979d8c7073008cb87fb03">commit 8ea09110</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Mon Sep 3 17:05:18 2018 +0200
-
-    _Py_CoerceLegacyLocale() restores LC_CTYPE on fail (GH-9044)
-
-    bpo-34544: If _Py_CoerceLegacyLocale() fails to coerce the C locale,
-    restore the LC_CTYPE locale to the its previous value.
-</pre>
-<p>Finally, I succeded to do what I wanted to do initially, remove the code which
-saved/restored the LC_ALL locale: <tt class="docutils literal">pymain_read_conf()</tt> is now really
-responsible to set the LC_CTYPE locale, and it doesn't modify the LC_ALL locale
-anymore.</p>
-</div>
-<div class="section" id="configuration-of-locales-and-encodings">
-<h2>Configuration of locales and encodings</h2>
-<p>Python has <strong>many</strong> options to configure the locales and encodings.</p>
-<p>Main options of Python 3.7:</p>
-<ul class="simple">
-<li>Legacy Windows stdio (PEP 528)</li>
-<li>Legacy Windows filesystem encoding (PEP 529)</li>
-<li>C locale coercion (PEP 538)</li>
-<li>UTF-8 mode (PEP 540)</li>
-</ul>
-<p>The combination of C locale coercion and UTF-8 mode is non-obvious and should
-be carefully tested!</p>
-<p>Environment variables:</p>
-<ul class="simple">
-<li><tt class="docutils literal">PYTHONCOERCECLOCALE=0</tt></li>
-<li><tt class="docutils literal">PYTHONCOERCECLOCALE=1</tt></li>
-<li><tt class="docutils literal">PYTHONCOERCECLOCALE=warn</tt></li>
-<li><tt class="docutils literal">PYTHONLEGACYWINDOWSFSENCODING=1</tt></li>
-<li><tt class="docutils literal">PYTHONLEGACYWINDOWSSTDIO=1</tt></li>
-<li><tt class="docutils literal">PYTHONUTF8=0</tt></li>
-<li><tt class="docutils literal">PYTHONUTF8=1</tt></li>
-</ul>
-<p>Command line options:</p>
-<ul class="simple">
-<li><tt class="docutils literal"><span class="pre">-X</span> utf8=0</tt></li>
-<li><tt class="docutils literal"><span class="pre">-X</span> utf8</tt> or <tt class="docutils literal"><span class="pre">-X</span> utf8=1</tt></li>
-<li><tt class="docutils literal"><span class="pre">-E</span></tt> or <tt class="docutils literal"><span class="pre">-I</span></tt> (ignore <tt class="docutils literal">PYTHON*</tt> environment variables)</li>
-</ul>
-<p>Global configuration variables:</p>
-<ul class="simple">
-<li><tt class="docutils literal">Py_FileSystemDefaultEncodeErrors</tt></li>
-<li><tt class="docutils literal">Py_FileSystemDefaultEncoding</tt></li>
-<li><tt class="docutils literal">Py_LegacyWindowsFSEncodingFlag</tt></li>
-<li><tt class="docutils literal">Py_LegacyWindowsStdioFlag</tt></li>
-<li><tt class="docutils literal">Py_UTF8Mode</tt></li>
-</ul>
-<p>_PyCoreConfig:</p>
-<ul class="simple">
-<li><tt class="docutils literal">coerce_c_locale</tt></li>
-<li><tt class="docutils literal">coerce_c_locale_warn</tt></li>
-<li><tt class="docutils literal">filesystem_encoding</tt></li>
-<li><tt class="docutils literal">filesystem_errors</tt></li>
-<li><tt class="docutils literal">stdio_encoding</tt></li>
-<li><tt class="docutils literal">stdio_errors</tt></li>
-</ul>
-<p>The LC_CTYPE locale depends on 3 environment variables:</p>
-<ul class="simple">
-<li><tt class="docutils literal">LC_ALL</tt></li>
-<li><tt class="docutils literal">LC_CTYPE</tt></li>
-<li><tt class="docutils literal">LANG</tt></li>
-</ul>
-<p>Depending on the platform, the following configuration gives a different
-LC_CTYPE locale:</p>
-<ul class="simple">
-<li><tt class="docutils literal">LC_ALL= LC_CTYPE= LANG=</tt> (no variable set)</li>
-<li><tt class="docutils literal">LC_ALL= LC_CTYPE=C LANG=</tt> (C locale)</li>
-<li><tt class="docutils literal">LC_ALL= LC_CTYPE=POSIX LANG=</tt> (POSIX locale)</li>
-</ul>
-<p>In case of doubt, I also tested:</p>
-<ul class="simple">
-<li><tt class="docutils literal">LC_ALL=C LC_CTYPE= LANG=</tt> (C locale)</li>
-<li><tt class="docutils literal">LC_ALL=POSIX LC_CTYPE= LANG=</tt> (POSIX locale)</li>
-</ul>
-<p>The LC_CTYPE encoding (locale encoding) can be queried using
-<tt class="docutils literal">nl_langinfo(CODESET)</tt>. On FreeBSD, Solaris, HP-UX and maybe other platforms,
-<tt class="docutils literal">nl_langinfo(CODESET)</tt> announces an encoding which is different than the
-codec used by <tt class="docutils literal">mbstowcs()</tt> and <tt class="docutils literal">wcstombs()</tt> functions, and so Python forces
-the usage of the ASCII encoding.</p>
-<p>The test matrix of all these configurations and all platforms is quite big.
-Honestly, I would not bet that Python 3.8 will behave properly in all possible
-cases. At least, I tried to fix all issues that I spotted! Moreover, I added
-many tests which should help to detect bugs and prevent regressions.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
+I didn't expect that I would spend 2 weeks on these issues …</p>
+                <a class="readmore" href="https://vstinner.github.io/python3-locales-encodings.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+                </ol><!-- /#posts-list -->
+                </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>Victor Stinner blog 3 - asyncio</title>
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <nav><ul>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
+                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+
+            <aside id="featured" class="body">
+                <article>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Asyncio: Proactor Cancellation From Hell</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-01-28T20:20:00+01:00">
+                Published: lun. 28 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
+</footer><!-- /.post-info --><p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
+(module added to Python 3.4 released in March 2014). I helped to stabilize the
+Windows implementation because... well, nobody else was paying attention to it,
+and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
+<p>One bug really annoyed me, I started to fix it in July 2014, but I only
+succeeded to <strong>fix the root issue</strong> in January 2015: <strong>six months later</strong>!</p>
+<p>It was really difficult to find documentation on IOCP and asynchronous
+programming on Windows. <strong>I had to ask for help to someone who had access to
+the Windows source code</strong> to understand the bug...</p>
+<p><strong>Spoiler:</strong> cancelling an overlapped <tt class="docutils literal">RegisterWaitForSingleObject()</tt> with
+<tt class="docutils literal">UnregisterWait()</tt> is asynchronous. The asynchronous part is not well
+documented and it took me months of debug to understand it. Moreover, the bug
+was well hidden for various reasons that we will see below.</p>
+<img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" />
+<div class="section" id="fix-cancel-when-called-twice">
+<h2>Fix cancel() when called twice</h2>
+<p>July 2014, <a class="reference external" href="https://github.com/python/asyncio/issues/195">asyncio issue #195</a>: while working on a
+<tt class="docutils literal">SIGINT</tt> signal handler for the <tt class="docutils literal">ProactorEventLoop</tt> on Windows (<a class="reference external" href="https://github.com/python/asyncio/issues/195">asyncio
+issue #191</a>), I hit a bug on
+Windows: <tt class="docutils literal">_WaitHandleFuture.cancel()</tt> crash if the wait event was already
+unregistered by <tt class="docutils literal">finish_wait_for_handle()</tt>. The bug was that
+<tt class="docutils literal">UnregisterWait()</tt> was called twice.</p>
+<p>I pushed <a class="reference external" href="https://github.com/python/cpython/commit/fea6a100dc51012cb0187374ad31de330ebc0035">commit fea6a100</a>
+to fix this crash:</p>
+<pre class="literal-block">
+commit fea6a100dc51012cb0187374ad31de330ebc0035
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Fri Jul 25 00:54:53 2014 +0200
+
+    Improve stability of the proactor event loop, especially operations on
+    overlapped objects (...)
+</pre>
+<p>Main changes:</p>
+<ul class="simple">
+<li>Fix a crash: <strong>don't call UnregisterWait() twice if a _WaitHandleFuture
+is cancelled twice</strong>.</li>
+<li>Fix another crash: <tt class="docutils literal">_OverlappedFuture.cancel()</tt> doesn't cancel the
+overlapped anymore if it is already cancelled or completed. Log also an error
+if the cancellation failed.</li>
+<li><tt class="docutils literal">IocpProactor.close()</tt> now cancels futures rather than cancelling directly
+underlaying overlapped objects.</li>
+<li>Add a destructor to the <tt class="docutils literal">IocpProactor</tt> class which closes it</li>
+</ul>
+</div>
+<div class="section" id="clear-reference-from-overlappedfuture-to-overlapped">
+<h2>Clear reference from _OverlappedFuture to overlapped</h2>
+<p>July 2014, I created <a class="reference external" href="https://github.com/python/asyncio/issues/196">asyncio issue #196</a>:
+<tt class="docutils literal">_OverlappedFuture.set_result()</tt> should clear the its reference to the
+overlapped object.</p>
+<p>It is important to explicitly clear references to Python objects as soon as
+possible to release resources. Otherwise, an object can remain alive
+longer than expected.</p>
+<p>I noticed that _OverlappedFuture kept a reference to the undelying overlapped
+object even after the asynchronous operation completed. I started to work on a
+fix but I had many issues to fix completely this bug... it is just the
+beginning of a long journey.</p>
+<div class="section" id="clear-the-reference-on-cancellation-and-error">
+<h3>Clear the reference on cancellation and error</h3>
+<p>I pushed a first fix: <a class="reference external" href="https://github.com/python/cpython/commit/18a28dc5c28ae9a953f537486780159ddb768702">commit 18a28dc5</a>
+clears the reference to the overlapped in <tt class="docutils literal">cancel()</tt> and <tt class="docutils literal">set_exception()</tt>
+methods of <tt class="docutils literal">_OverlappedFuture</tt>:</p>
+<pre class="literal-block">
+commit 18a28dc5c28ae9a953f537486780159ddb768702
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Fri Jul 25 13:05:20 2014 +0200
+
+    * _OverlappedFuture.cancel() now clears its reference to the overlapped object.
+      Make also the _OverlappedFuture.ov attribute private.
+    * _OverlappedFuture.set_exception() now cancels the overlapped operation.
+    * (...)
+</pre>
+<p>I started by this change because it didn't make the tests less stable.</p>
+</div>
+<div class="section" id="clear-the-reference-in-poll">
+<h3>Clear the reference in poll()</h3>
+<p>Clearing the reference to the overlapped in <tt class="docutils literal">cancel()</tt> and
+<tt class="docutils literal">set_exception()</tt> <strong>works well</strong>. But when I try to do the same on success (in
+<tt class="docutils literal">set_result()</tt>), <strong>I get random errors</strong>. Example:</p>
+<pre class="literal-block">
+C:\haypo\tulip&gt;\python33\python.exe runtests.py test_pipe
+...
+Exception RuntimeError: '&lt;_overlapped.Overlapped object at 0x00000000035E7660&gt; s
+till has pending operation at deallocation, the process may crash' ignored
+...
+Fatal read error on pipe transport
+protocol: &lt;asyncio.streams.StreamReaderProtocol object at 0x00000000035EE668&gt;
+transport: &lt;_ProactorDuplexPipeTransport fd=348&gt;
+Traceback (most recent call last):
+  File &quot;C:\haypo\tulip\asyncio\proactor_events.py&quot;, line 159, in _loop_reading
+    data = fut.result()  # deliver data later in &quot;finally&quot; clause
+  File &quot;C:\haypo\tulip\asyncio\futures.py&quot;, line 271, in result
+    raise self._exception
+  File &quot;C:\haypo\tulip\asyncio\windows_events.py&quot;, line 488, in _poll
+    value = callback(transferred, key, ov)
+  File &quot;C:\haypo\tulip\asyncio\windows_events.py&quot;, line 279, in finish_recv
+    return ov.getresult()
+OSError: [WinError 996] Overlapped I/O event is not in a signaled state
+...
+</pre>
+<p>It seems that the problem only occurs in the fast-path of
+<tt class="docutils literal">IocpProactor._register()</tt>, when the overlapped is not added to <tt class="docutils literal">_cache</tt>.</p>
+<p>Clearing the reference in <tt class="docutils literal">_poll()</tt>, when <tt class="docutils literal">GetQueuedCompletionStatus()</tt> read
+the status, <strong>works</strong>! I pushed a second fix, <a class="reference external" href="https://github.com/python/cpython/commit/65dd69a3da16257bd86b92900e5ec5a8dd26f1d9">commit 65dd69a3</a>
+changes <tt class="docutils literal">_poll()</tt>:</p>
+<pre class="literal-block">
+commit 65dd69a3da16257bd86b92900e5ec5a8dd26f1d9
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Fri Jul 25 22:36:05 2014 +0200
+
+    IocpProactor._poll() clears the reference to the overlapped operation
+    when the operation is done. (...)
+</pre>
+</div>
+<div class="section" id="ignore-false-alarms">
+<h3>Ignore false alarms</h3>
+<p>I tried to add the overlapped into <tt class="docutils literal">_cache</tt> but <strong>then the event loop started
+to hang or to fail with new errors</strong>.</p>
+<p>I analyzed an overlapped <tt class="docutils literal">WSARecv()</tt> which has been cancelled. Just after
+calling <tt class="docutils literal">CancelIoEx()</tt>, <tt class="docutils literal">HasOverlappedIoCompleted()</tt> returns 0.</p>
+<p>Even after <tt class="docutils literal">GetQueuedCompletionStatus()</tt> read the status,
+<tt class="docutils literal">HasOverlappedIoCompleted()</tt> still returns 0.</p>
+<p><strong>After hours of debug, I eventually found the main issue!</strong></p>
+<p>Sometimes <tt class="docutils literal">GetQueuedCompletionStatus()</tt> returns an overlapped operation which
+has not completed yet. I modified <tt class="docutils literal">IocpProactor._poll()</tt> to ignore the false
+alarm, <a class="reference external" href="https://github.com/python/cpython/commit/51e44ea66aefb4229e506263acf40d35596d279c">commit 51e44ea6</a>:</p>
+<pre class="literal-block">
+commit 51e44ea66aefb4229e506263acf40d35596d279c
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Sat Jul 26 00:58:34 2014 +0200
+
+    _OverlappedFuture.set_result() now clears its reference to the
+    overlapped object.
+
+    IocpProactor._poll() now also ignores false alarms:
+    GetQueuedCompletionStatus() returns the overlapped but it is still
+    pending.
+</pre>
+<p>The fix adds this comment:</p>
+<pre class="literal-block">
+# FIXME: why do we get false alarms?
+</pre>
+</div>
+<div class="section" id="keep-a-reference-of-overlapped">
+<h3>Keep a reference of overlapped</h3>
+<p>To stabilize the code, I modified <tt class="docutils literal">ProactorIocp</tt> to keep a reference to the
+overlapped object (it already kept a reference previously but not in all cases).
+<strong>Otherwise the memory may be reused and GetQueuedCompletionStatus() may use
+random bytes and behaves badly</strong>. I pushed <a class="reference external" href="https://github.com/python/cpython/commit/42d3bdeed6e34117b787d61a471563a0dba6a894">commit 42d3bdee</a>:</p>
+<pre class="literal-block">
+commit 42d3bdeed6e34117b787d61a471563a0dba6a894
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jul 28 00:18:43 2014 +0200
+
+    ProactorIocp._register() now registers the overlapped
+    in the _cache dictionary, even if we already got the result. We need to keep a
+    reference to the overlapped object, otherwise the memory may be reused and
+    GetQueuedCompletionStatus() may use random bytes and behaves badly.
+
+    There is still a hack for ConnectNamedPipe(): the overlapped object is not
+    registered into _cache if the overlapped object completed directly.
+
+    Log also an error in debug mode in ProactorIocp._loop() if we get an unexpected
+    event.
+
+    Add a protection in ProactorIocp.close() to avoid blocking, even if it should
+    not happen. I still don't understand exactly why some the completion of some
+    overlapped objects are not notified.
+</pre>
+<p>The change adds a long comment:</p>
+<pre class="literal-block">
+# Even if GetOverlappedResult() was called, we have to wait for the
+# notification of the completion in GetQueuedCompletionStatus().
+# Register the overlapped operation to keep a reference to the
+# OVERLAPPED object, otherwise the memory is freed and Windows may
+# read uninitialized memory.
+#
+# For an unknown reason, ConnectNamedPipe() behaves differently:
+# the completion is not notified by GetOverlappedResult() if we
+# already called GetOverlappedResult(). For this specific case, we
+# don't expect notification (register is set to False).
+</pre>
+<p>I pushed another change to attempt to stabilize the code, <a class="reference external" href="https://github.com/python/cpython/commit/313a9809043ed2ed1ad25282af7169e08cdc92a3">commit 313a9809</a>:</p>
+<pre class="literal-block">
+commit 313a9809043ed2ed1ad25282af7169e08cdc92a3
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Tue Jul 29 12:58:23 2014 +0200
+
+    * _WaitHandleFuture.cancel() now notify IocpProactor through the overlapped
+      object that the wait was cancelled.
+    * Optimize IocpProactor.wait_for_handle() gets the result if the wait is
+      signaled immediatly.
+    (...)
+</pre>
+</div>
+<div class="section" id="asyncio-issue-196-closed">
+<h3>asyncio issue #196 closed</h3>
+<p>The initial issue &quot;_OverlappedFuture.set_result() should clear its reference to
+the overlapped object&quot; has been fixed, so <strong>I closed this issue</strong>. I didn't
+know at this point that all bugs were not fixed yet...</p>
+<p>I also opened the new <a class="reference external" href="https://github.com/python/asyncio/issues/204">asyncio issue #204</a> to investigate
+<tt class="docutils literal">accept_pipe()</tt> special case. We will analyze this funny bug in another article.</p>
+</div>
+</div>
+<div class="section" id="bpo-23095-race-condition-when-cancelling-a-waithandlefuture">
+<h2>bpo-23095: race condition when cancelling a _WaitHandleFuture</h2>
+<p>At December 21, 2014, five months after a long serie of changes to stabilize
+asyncio...  <strong>asyncio was still crashing randomly on Windows</strong>! I created
+<a class="reference external" href="https://bugs.python.org/issue23095">bpo-23095: race condition when cancelling a _WaitHandleFuture</a>.</p>
+<p>On Windows using the IOCP (proactor) event loop, I noticed race conditions when
+running the test suite of Trollius (my old deprecated asyncio port to Python
+2). For example, sometimes the return code of a process was <tt class="docutils literal">None</tt>, whereas
+this case <strong>must never happen</strong>. It looks like the <tt class="docutils literal">wait_for_handle()</tt> method
+doesn't behave properly.</p>
+<p>When I run the test suite of asyncio in debug mode (PYTHONASYNCIODEBUG=1),
+sometimes I see the message &quot;GetQueuedCompletionStatus() returned an unexpected
+event&quot; which <strong>should never occur neither</strong>.</p>
+<p>I added debug traces. I saw that the <tt class="docutils literal">IocpProactor.wait_for_handle()</tt> calls
+later <tt class="docutils literal">PostQueuedCompletionStatus()</tt> through its internal C callback
+(<tt class="docutils literal">PostToQueueCallback</tt>). It looks like <strong>sometimes the callback is called
+whereas the wait was cancelled/acked</strong> by <tt class="docutils literal">UnregisterWait()</tt>.</p>
+<p>... I didn't understand the logic between <tt class="docutils literal">RegisterWaitForSingleObject()</tt>,
+<tt class="docutils literal">UnregisterWait()</tt> and the callback ....</p>
+<p>It looks like sometimes the overlapped object created in Python
+(<tt class="docutils literal">ov = _overlapped.Overlapped(NULL)</tt>) is destroyed, before
+<tt class="docutils literal">PostToQueueCallback()</tt> is called. In the unit tests, <strong>it doesn't crash
+because a different overlapped object is created and it gets the same memory
+address</strong> (the memory allocator reuses a just freed memory block).</p>
+<p>The implementation of <tt class="docutils literal">wait_for_handle()</tt> had an optimization: it polls
+immediatly the wait to check if it already completed. I tried to remove it, but
+I got some different issues. If I understood correctly, <strong>this optimization
+hides other bugs and reduce the probability of getting the race condition</strong>.</p>
+<p><tt class="docutils literal">wait_for_handle()</tt> is used to wait for the completion of a subprocess, so by
+all unit tests running subprocesses, but also in <tt class="docutils literal">test_wait_for_handle()</tt> and
+<tt class="docutils literal">test_wait_for_handle_cancel()</tt> tests. I suspect that running
+<tt class="docutils literal">test_wait_for_handle()</tt> or <tt class="docutils literal">test_wait_for_handle_cancel()</tt> triggers the
+bug.</p>
+<p>Removing <tt class="docutils literal">_winapi.CloseHandle(self._iocp)</tt> in <tt class="docutils literal">IocpProactor.close()</tt>
+works around the bug. The bug looks to be an expected call to
+<tt class="docutils literal">PostToQueueCallback()</tt> which calls <tt class="docutils literal">PostQueuedCompletionStatus()</tt> on an
+IOCP. Not closing the IOCP means using a different IOCP for each test, so the
+unexpected call to <tt class="docutils literal">PostQueuedCompletionStatus()</tt> has no effect on following
+tests.</p>
+<p>I rewrote some parts of the IOCP code in asyncio. Maybe I introduced this issue
+during the refactoring. Maybe <strong>it already existed before but nobody noticed
+it, asyncio had fewer unit tests before</strong>.</p>
+</div>
+<div class="section" id="fixing-the-root-issue-overlapped-cancellation-from-hell">
+<h2>Fixing the root issue: Overlapped Cancellation From Hell</h2>
+<p>I looked into Twisted implemented of proactor, but it didn't support
+subprocesses.</p>
+<p>I looked at libuv: it supported processes but not cancelling a wait on a
+process handle...</p>
+<p><strong>I had to ask for help to someone who had access to the Windows source code</strong>
+to understand the bug...</p>
+<p><strong>After six months of intense debugging, I eventually identified the root
+issue</strong> (I pushed the first fix at July 25, 2014). I pushed the <a class="reference external" href="https://github.com/python/cpython/commit/d0a28dee78d099fcadc71147cba4affb6efa0c97">commit
+d0a28dee</a>
+(<a class="reference external" href="https://bugs.python.org/issue23095">bpo-23095</a>):</p>
+<pre class="literal-block">
+commit d0a28dee78d099fcadc71147cba4affb6efa0c97
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Wed Jan 21 23:39:51 2015 +0100
+
+    Issue #23095, asyncio: Rewrite _WaitHandleFuture.cancel()
+</pre>
+<p>This change fixes a race conditon related to <tt class="docutils literal">_WaitHandleFuture.cancel()</tt>
+leading to a Python crash or &quot;GetQueuedCompletionStatus() returned an
+unexpected event&quot; logs. Previously, <strong>it was possible that the cancelled wait
+completes whereas the overlapped object was already destroyed</strong>. Sometimes, a
+different overlapped was allocated at the same address, emitting a log about
+unexpected completition (but no crash).</p>
+<p><tt class="docutils literal">_WaitHandleFuture.cancel()</tt> now <strong>waits until the handle wait is cancelled</strong>
+(until the cancellation completes) before clearing its reference to the
+overlapped object. To wait until the cancellation completes,
+<tt class="docutils literal">UnregisterWaitEx()</tt> is used with an event (instead of using
+<tt class="docutils literal">UnregisterWait()</tt>).</p>
+<p>To wait for this event, a new <tt class="docutils literal">_WaitCancelFuture</tt> class was added. It's a
+simplified version of <tt class="docutils literal">_WaitCancelFuture</tt>. For example, its <tt class="docutils literal">cancel()</tt>
+method calls <tt class="docutils literal">UnregisterWait()</tt>, not <tt class="docutils literal">UnregisterWaitEx()</tt>.
+<tt class="docutils literal">_WaitCancelFuture</tt> should not be cancelled.</p>
+<p>The overlapped object is <strong>kept alive</strong> in <tt class="docutils literal">_WaitHandleFuture</tt> <strong>until the
+wait is unregistered</strong>.</p>
+<p>Later, I pushed a few more changes to fix corner cases.</p>
+<p><a class="reference external" href="https://github.com/python/cpython/commit/1ca9392c7083972c1953c02e6f2cca54934ce0a6">commit 1ca9392c</a>:</p>
+<pre class="literal-block">
+commit 1ca9392c7083972c1953c02e6f2cca54934ce0a6
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Thu Jan 22 00:17:54 2015 +0100
+
+    Issue #23095, asyncio: IocpProactor.close() must not cancel pending
+    _WaitCancelFuture futures
+</pre>
+<p><a class="reference external" href="https://github.com/python/cpython/commit/752aba7f999b08c833979464a36840de8be0baf0">commit 752aba7f</a>:</p>
+<pre class="literal-block">
+commit 752aba7f999b08c833979464a36840de8be0baf0
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Thu Jan 22 22:47:13 2015 +0100
+
+    asyncio: IocpProactor.close() doesn't cancel anymore futures which are already
+    cancelled
+</pre>
+<p><a class="reference external" href="https://github.com/python/cpython/commit/24dfa3c1d6b21e731bd167a13153968bba8fa5ce">commit 24dfa3c1</a>:</p>
+<pre class="literal-block">
+commit 24dfa3c1d6b21e731bd167a13153968bba8fa5ce
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jan 26 22:30:28 2015 +0100
+
+    Issue #23095, asyncio: Fix _WaitHandleFuture.cancel()
+
+    If UnregisterWaitEx() fais with ERROR_IO_PENDING, it doesn't mean that the wait
+    is unregistered yet. We still have to wait until the wait is cancelled.
+</pre>
+<p>I think that <em>this</em> issue can now be closed: <tt class="docutils literal">UnregisterWaitEx()</tt> really do
+what we need in asyncio.</p>
+<p>I don't like the complexity of the IocpProactor._unregister() method and of the
+_WaitCancelFuture class, but it looks that it's how we are supposed to wait
+until a wait for a handle is cancelled...</p>
+<p>Windows IOCP API is much more complex that what I expected. It's probably
+because some parts (especially <tt class="docutils literal">RegisterWaitForSingleObject()</tt>) are
+implemented with threads in user land, not in the kernel.</p>
+<p>In short, I'm very happy that have fixed this very complex but also very
+annoying IOCP bug in asyncio.</p>
+<p>I got a nice comment from <a class="reference external" href="https://bugs.python.org/issue23095#msg234453">Guido van Rossum</a>:</p>
+<blockquote>
+<strong>Congrats with the fix, and thanks for your perseverance!</strong></blockquote>
+</div>
+<div class="section" id="summary-of-the-race-condition">
+<h2>Summary of the race condition</h2>
+<p>Events of the crashing unit test:</p>
+<ul class="simple">
+<li>The loop (ProactorEventLoop) spawns a subprocess.</li>
+<li>The loop creates a _WaitHandleFuture object which creates an overlapped to
+wait until the process completes (call <tt class="docutils literal">RegisterWaitForSingleObject()</tt>):
+<strong>allocate</strong> memory for the overlapped.</li>
+<li>The wait future is cancelled (call <tt class="docutils literal">UnregisterWait()</tt>).</li>
+<li>The overlapped is destroyed: <strong>free</strong> overlapped memory.</li>
+<li>The overlapped completes: <strong>write</strong> into the overlapped memory.</li>
+</ul>
+<p>The main issue is the order of the two last events.</p>
+<p>Sometimes, the overlapped completed before the memory was freed: everything is
+fine.</p>
+<p>Sometimes, the overlapped completed after the memory was freed: Python crashed
+(segmentation fault).</p>
+<p>Sometimes, another _WaitHandleFuture was created in the meanwhile and created a
+second overlapped which was allocated at the same memory address than the freed
+memory of the previous overlapped. In this case, when the first overlapped
+completes, Python didn't crash but logged an unexpected completion message.</p>
+<p>Sometimes, the write was done in freed memory: the write didn't crash Python,
+but caused bugs which didn't make sense.</p>
+<p>There were even more cases causing even more surprising behaviors.</p>
+<p>Summary of the fix:</p>
+<ul class="simple">
+<li>(... similar steps for the beginning ...)</li>
+<li>The wait future is cancelled: <strong>create an event</strong> to wait until the
+cancellation completes (call <tt class="docutils literal">UnregisterWaitEx()</tt>).</li>
+<li>Wait for the event.</li>
+<li>The event is signalled which means that the cancellation completed: <strong>write</strong>
+into the overlapped memory.</li>
+<li>The overlapped is destroyed: <strong>free</strong> overlapped memory.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

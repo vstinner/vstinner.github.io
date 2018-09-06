@@ -1,5 +1,701 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2018-09-06T16:00:00+02:00</updated><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-01-28T20:20:00+01:00</updated><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
+(module added to Python 3.4 released in March 2014). I helped to stabilize the
+Windows implementation because... well, nobody else was paying attention to it,
+and I was worried that test_asyncio &lt;strong&gt;randomly crashed&lt;/strong&gt; on Windows.&lt;/p&gt;
+&lt;p&gt;One …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
+(module added to Python 3.4 released in March 2014). I helped to stabilize the
+Windows implementation because... well, nobody else was paying attention to it,
+and I was worried that test_asyncio &lt;strong&gt;randomly crashed&lt;/strong&gt; on Windows.&lt;/p&gt;
+&lt;p&gt;One bug really annoyed me, I started to fix it in July 2014, but I only
+succeeded to &lt;strong&gt;fix the root issue&lt;/strong&gt; in January 2015: &lt;strong&gt;six months later&lt;/strong&gt;!&lt;/p&gt;
+&lt;p&gt;It was really difficult to find documentation on IOCP and asynchronous
+programming on Windows. &lt;strong&gt;I had to ask for help to someone who had access to
+the Windows source code&lt;/strong&gt; to understand the bug...&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Spoiler:&lt;/strong&gt; cancelling an overlapped &lt;tt class="docutils literal"&gt;RegisterWaitForSingleObject()&lt;/tt&gt; with
+&lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt; is asynchronous. The asynchronous part is not well
+documented and it took me months of debug to understand it. Moreover, the bug
+was well hidden for various reasons that we will see below.&lt;/p&gt;
+&lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
+&lt;div class="section" id="fix-cancel-when-called-twice"&gt;
+&lt;h2&gt;Fix cancel() when called twice&lt;/h2&gt;
+&lt;p&gt;July 2014, &lt;a class="reference external" href="https://github.com/python/asyncio/issues/195"&gt;asyncio issue #195&lt;/a&gt;: while working on a
+&lt;tt class="docutils literal"&gt;SIGINT&lt;/tt&gt; signal handler for the &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; on Windows (&lt;a class="reference external" href="https://github.com/python/asyncio/issues/195"&gt;asyncio
+issue #191&lt;/a&gt;), I hit a bug on
+Windows: &lt;tt class="docutils literal"&gt;_WaitHandleFuture.cancel()&lt;/tt&gt; crash if the wait event was already
+unregistered by &lt;tt class="docutils literal"&gt;finish_wait_for_handle()&lt;/tt&gt;. The bug was that
+&lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt; was called twice.&lt;/p&gt;
+&lt;p&gt;I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/fea6a100dc51012cb0187374ad31de330ebc0035"&gt;commit fea6a100&lt;/a&gt;
+to fix this crash:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit fea6a100dc51012cb0187374ad31de330ebc0035
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Fri Jul 25 00:54:53 2014 +0200
+
+    Improve stability of the proactor event loop, especially operations on
+    overlapped objects (...)
+&lt;/pre&gt;
+&lt;p&gt;Main changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Fix a crash: &lt;strong&gt;don't call UnregisterWait() twice if a _WaitHandleFuture
+is cancelled twice&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;Fix another crash: &lt;tt class="docutils literal"&gt;_OverlappedFuture.cancel()&lt;/tt&gt; doesn't cancel the
+overlapped anymore if it is already cancelled or completed. Log also an error
+if the cancellation failed.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;IocpProactor.close()&lt;/tt&gt; now cancels futures rather than cancelling directly
+underlaying overlapped objects.&lt;/li&gt;
+&lt;li&gt;Add a destructor to the &lt;tt class="docutils literal"&gt;IocpProactor&lt;/tt&gt; class which closes it&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="clear-reference-from-overlappedfuture-to-overlapped"&gt;
+&lt;h2&gt;Clear reference from _OverlappedFuture to overlapped&lt;/h2&gt;
+&lt;p&gt;July 2014, I created &lt;a class="reference external" href="https://github.com/python/asyncio/issues/196"&gt;asyncio issue #196&lt;/a&gt;:
+&lt;tt class="docutils literal"&gt;_OverlappedFuture.set_result()&lt;/tt&gt; should clear the its reference to the
+overlapped object.&lt;/p&gt;
+&lt;p&gt;It is important to explicitly clear references to Python objects as soon as
+possible to release resources. Otherwise, an object can remain alive
+longer than expected.&lt;/p&gt;
+&lt;p&gt;I noticed that _OverlappedFuture kept a reference to the undelying overlapped
+object even after the asynchronous operation completed. I started to work on a
+fix but I had many issues to fix completely this bug... it is just the
+beginning of a long journey.&lt;/p&gt;
+&lt;div class="section" id="clear-the-reference-on-cancellation-and-error"&gt;
+&lt;h3&gt;Clear the reference on cancellation and error&lt;/h3&gt;
+&lt;p&gt;I pushed a first fix: &lt;a class="reference external" href="https://github.com/python/cpython/commit/18a28dc5c28ae9a953f537486780159ddb768702"&gt;commit 18a28dc5&lt;/a&gt;
+clears the reference to the overlapped in &lt;tt class="docutils literal"&gt;cancel()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;set_exception()&lt;/tt&gt;
+methods of &lt;tt class="docutils literal"&gt;_OverlappedFuture&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 18a28dc5c28ae9a953f537486780159ddb768702
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Fri Jul 25 13:05:20 2014 +0200
+
+    * _OverlappedFuture.cancel() now clears its reference to the overlapped object.
+      Make also the _OverlappedFuture.ov attribute private.
+    * _OverlappedFuture.set_exception() now cancels the overlapped operation.
+    * (...)
+&lt;/pre&gt;
+&lt;p&gt;I started by this change because it didn't make the tests less stable.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="clear-the-reference-in-poll"&gt;
+&lt;h3&gt;Clear the reference in poll()&lt;/h3&gt;
+&lt;p&gt;Clearing the reference to the overlapped in &lt;tt class="docutils literal"&gt;cancel()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;set_exception()&lt;/tt&gt; &lt;strong&gt;works well&lt;/strong&gt;. But when I try to do the same on success (in
+&lt;tt class="docutils literal"&gt;set_result()&lt;/tt&gt;), &lt;strong&gt;I get random errors&lt;/strong&gt;. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+C:\haypo\tulip&amp;gt;\python33\python.exe runtests.py test_pipe
+...
+Exception RuntimeError: '&amp;lt;_overlapped.Overlapped object at 0x00000000035E7660&amp;gt; s
+till has pending operation at deallocation, the process may crash' ignored
+...
+Fatal read error on pipe transport
+protocol: &amp;lt;asyncio.streams.StreamReaderProtocol object at 0x00000000035EE668&amp;gt;
+transport: &amp;lt;_ProactorDuplexPipeTransport fd=348&amp;gt;
+Traceback (most recent call last):
+  File &amp;quot;C:\haypo\tulip\asyncio\proactor_events.py&amp;quot;, line 159, in _loop_reading
+    data = fut.result()  # deliver data later in &amp;quot;finally&amp;quot; clause
+  File &amp;quot;C:\haypo\tulip\asyncio\futures.py&amp;quot;, line 271, in result
+    raise self._exception
+  File &amp;quot;C:\haypo\tulip\asyncio\windows_events.py&amp;quot;, line 488, in _poll
+    value = callback(transferred, key, ov)
+  File &amp;quot;C:\haypo\tulip\asyncio\windows_events.py&amp;quot;, line 279, in finish_recv
+    return ov.getresult()
+OSError: [WinError 996] Overlapped I/O event is not in a signaled state
+...
+&lt;/pre&gt;
+&lt;p&gt;It seems that the problem only occurs in the fast-path of
+&lt;tt class="docutils literal"&gt;IocpProactor._register()&lt;/tt&gt;, when the overlapped is not added to &lt;tt class="docutils literal"&gt;_cache&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Clearing the reference in &lt;tt class="docutils literal"&gt;_poll()&lt;/tt&gt;, when &lt;tt class="docutils literal"&gt;GetQueuedCompletionStatus()&lt;/tt&gt; read
+the status, &lt;strong&gt;works&lt;/strong&gt;! I pushed a second fix, &lt;a class="reference external" href="https://github.com/python/cpython/commit/65dd69a3da16257bd86b92900e5ec5a8dd26f1d9"&gt;commit 65dd69a3&lt;/a&gt;
+changes &lt;tt class="docutils literal"&gt;_poll()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 65dd69a3da16257bd86b92900e5ec5a8dd26f1d9
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Fri Jul 25 22:36:05 2014 +0200
+
+    IocpProactor._poll() clears the reference to the overlapped operation
+    when the operation is done. (...)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="ignore-false-alarms"&gt;
+&lt;h3&gt;Ignore false alarms&lt;/h3&gt;
+&lt;p&gt;I tried to add the overlapped into &lt;tt class="docutils literal"&gt;_cache&lt;/tt&gt; but &lt;strong&gt;then the event loop started
+to hang or to fail with new errors&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;I analyzed an overlapped &lt;tt class="docutils literal"&gt;WSARecv()&lt;/tt&gt; which has been cancelled. Just after
+calling &lt;tt class="docutils literal"&gt;CancelIoEx()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;HasOverlappedIoCompleted()&lt;/tt&gt; returns 0.&lt;/p&gt;
+&lt;p&gt;Even after &lt;tt class="docutils literal"&gt;GetQueuedCompletionStatus()&lt;/tt&gt; read the status,
+&lt;tt class="docutils literal"&gt;HasOverlappedIoCompleted()&lt;/tt&gt; still returns 0.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;After hours of debug, I eventually found the main issue!&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Sometimes &lt;tt class="docutils literal"&gt;GetQueuedCompletionStatus()&lt;/tt&gt; returns an overlapped operation which
+has not completed yet. I modified &lt;tt class="docutils literal"&gt;IocpProactor._poll()&lt;/tt&gt; to ignore the false
+alarm, &lt;a class="reference external" href="https://github.com/python/cpython/commit/51e44ea66aefb4229e506263acf40d35596d279c"&gt;commit 51e44ea6&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 51e44ea66aefb4229e506263acf40d35596d279c
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Sat Jul 26 00:58:34 2014 +0200
+
+    _OverlappedFuture.set_result() now clears its reference to the
+    overlapped object.
+
+    IocpProactor._poll() now also ignores false alarms:
+    GetQueuedCompletionStatus() returns the overlapped but it is still
+    pending.
+&lt;/pre&gt;
+&lt;p&gt;The fix adds this comment:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# FIXME: why do we get false alarms?
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="keep-a-reference-of-overlapped"&gt;
+&lt;h3&gt;Keep a reference of overlapped&lt;/h3&gt;
+&lt;p&gt;To stabilize the code, I modified &lt;tt class="docutils literal"&gt;ProactorIocp&lt;/tt&gt; to keep a reference to the
+overlapped object (it already kept a reference previously but not in all cases).
+&lt;strong&gt;Otherwise the memory may be reused and GetQueuedCompletionStatus() may use
+random bytes and behaves badly&lt;/strong&gt;. I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/42d3bdeed6e34117b787d61a471563a0dba6a894"&gt;commit 42d3bdee&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 42d3bdeed6e34117b787d61a471563a0dba6a894
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jul 28 00:18:43 2014 +0200
+
+    ProactorIocp._register() now registers the overlapped
+    in the _cache dictionary, even if we already got the result. We need to keep a
+    reference to the overlapped object, otherwise the memory may be reused and
+    GetQueuedCompletionStatus() may use random bytes and behaves badly.
+
+    There is still a hack for ConnectNamedPipe(): the overlapped object is not
+    registered into _cache if the overlapped object completed directly.
+
+    Log also an error in debug mode in ProactorIocp._loop() if we get an unexpected
+    event.
+
+    Add a protection in ProactorIocp.close() to avoid blocking, even if it should
+    not happen. I still don't understand exactly why some the completion of some
+    overlapped objects are not notified.
+&lt;/pre&gt;
+&lt;p&gt;The change adds a long comment:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# Even if GetOverlappedResult() was called, we have to wait for the
+# notification of the completion in GetQueuedCompletionStatus().
+# Register the overlapped operation to keep a reference to the
+# OVERLAPPED object, otherwise the memory is freed and Windows may
+# read uninitialized memory.
+#
+# For an unknown reason, ConnectNamedPipe() behaves differently:
+# the completion is not notified by GetOverlappedResult() if we
+# already called GetOverlappedResult(). For this specific case, we
+# don't expect notification (register is set to False).
+&lt;/pre&gt;
+&lt;p&gt;I pushed another change to attempt to stabilize the code, &lt;a class="reference external" href="https://github.com/python/cpython/commit/313a9809043ed2ed1ad25282af7169e08cdc92a3"&gt;commit 313a9809&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 313a9809043ed2ed1ad25282af7169e08cdc92a3
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Tue Jul 29 12:58:23 2014 +0200
+
+    * _WaitHandleFuture.cancel() now notify IocpProactor through the overlapped
+      object that the wait was cancelled.
+    * Optimize IocpProactor.wait_for_handle() gets the result if the wait is
+      signaled immediatly.
+    (...)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="asyncio-issue-196-closed"&gt;
+&lt;h3&gt;asyncio issue #196 closed&lt;/h3&gt;
+&lt;p&gt;The initial issue &amp;quot;_OverlappedFuture.set_result() should clear its reference to
+the overlapped object&amp;quot; has been fixed, so &lt;strong&gt;I closed this issue&lt;/strong&gt;. I didn't
+know at this point that all bugs were not fixed yet...&lt;/p&gt;
+&lt;p&gt;I also opened the new &lt;a class="reference external" href="https://github.com/python/asyncio/issues/204"&gt;asyncio issue #204&lt;/a&gt; to investigate
+&lt;tt class="docutils literal"&gt;accept_pipe()&lt;/tt&gt; special case. We will analyze this funny bug in another article.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bpo-23095-race-condition-when-cancelling-a-waithandlefuture"&gt;
+&lt;h2&gt;bpo-23095: race condition when cancelling a _WaitHandleFuture&lt;/h2&gt;
+&lt;p&gt;At December 21, 2014, five months after a long serie of changes to stabilize
+asyncio...  &lt;strong&gt;asyncio was still crashing randomly on Windows&lt;/strong&gt;! I created
+&lt;a class="reference external" href="https://bugs.python.org/issue23095"&gt;bpo-23095: race condition when cancelling a _WaitHandleFuture&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;On Windows using the IOCP (proactor) event loop, I noticed race conditions when
+running the test suite of Trollius (my old deprecated asyncio port to Python
+2). For example, sometimes the return code of a process was &lt;tt class="docutils literal"&gt;None&lt;/tt&gt;, whereas
+this case &lt;strong&gt;must never happen&lt;/strong&gt;. It looks like the &lt;tt class="docutils literal"&gt;wait_for_handle()&lt;/tt&gt; method
+doesn't behave properly.&lt;/p&gt;
+&lt;p&gt;When I run the test suite of asyncio in debug mode (PYTHONASYNCIODEBUG=1),
+sometimes I see the message &amp;quot;GetQueuedCompletionStatus() returned an unexpected
+event&amp;quot; which &lt;strong&gt;should never occur neither&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;I added debug traces. I saw that the &lt;tt class="docutils literal"&gt;IocpProactor.wait_for_handle()&lt;/tt&gt; calls
+later &lt;tt class="docutils literal"&gt;PostQueuedCompletionStatus()&lt;/tt&gt; through its internal C callback
+(&lt;tt class="docutils literal"&gt;PostToQueueCallback&lt;/tt&gt;). It looks like &lt;strong&gt;sometimes the callback is called
+whereas the wait was cancelled/acked&lt;/strong&gt; by &lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;... I didn't understand the logic between &lt;tt class="docutils literal"&gt;RegisterWaitForSingleObject()&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt; and the callback ....&lt;/p&gt;
+&lt;p&gt;It looks like sometimes the overlapped object created in Python
+(&lt;tt class="docutils literal"&gt;ov = _overlapped.Overlapped(NULL)&lt;/tt&gt;) is destroyed, before
+&lt;tt class="docutils literal"&gt;PostToQueueCallback()&lt;/tt&gt; is called. In the unit tests, &lt;strong&gt;it doesn't crash
+because a different overlapped object is created and it gets the same memory
+address&lt;/strong&gt; (the memory allocator reuses a just freed memory block).&lt;/p&gt;
+&lt;p&gt;The implementation of &lt;tt class="docutils literal"&gt;wait_for_handle()&lt;/tt&gt; had an optimization: it polls
+immediatly the wait to check if it already completed. I tried to remove it, but
+I got some different issues. If I understood correctly, &lt;strong&gt;this optimization
+hides other bugs and reduce the probability of getting the race condition&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;wait_for_handle()&lt;/tt&gt; is used to wait for the completion of a subprocess, so by
+all unit tests running subprocesses, but also in &lt;tt class="docutils literal"&gt;test_wait_for_handle()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;test_wait_for_handle_cancel()&lt;/tt&gt; tests. I suspect that running
+&lt;tt class="docutils literal"&gt;test_wait_for_handle()&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;test_wait_for_handle_cancel()&lt;/tt&gt; triggers the
+bug.&lt;/p&gt;
+&lt;p&gt;Removing &lt;tt class="docutils literal"&gt;_winapi.CloseHandle(self._iocp)&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;IocpProactor.close()&lt;/tt&gt;
+works around the bug. The bug looks to be an expected call to
+&lt;tt class="docutils literal"&gt;PostToQueueCallback()&lt;/tt&gt; which calls &lt;tt class="docutils literal"&gt;PostQueuedCompletionStatus()&lt;/tt&gt; on an
+IOCP. Not closing the IOCP means using a different IOCP for each test, so the
+unexpected call to &lt;tt class="docutils literal"&gt;PostQueuedCompletionStatus()&lt;/tt&gt; has no effect on following
+tests.&lt;/p&gt;
+&lt;p&gt;I rewrote some parts of the IOCP code in asyncio. Maybe I introduced this issue
+during the refactoring. Maybe &lt;strong&gt;it already existed before but nobody noticed
+it, asyncio had fewer unit tests before&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fixing-the-root-issue-overlapped-cancellation-from-hell"&gt;
+&lt;h2&gt;Fixing the root issue: Overlapped Cancellation From Hell&lt;/h2&gt;
+&lt;p&gt;I looked into Twisted implemented of proactor, but it didn't support
+subprocesses.&lt;/p&gt;
+&lt;p&gt;I looked at libuv: it supported processes but not cancelling a wait on a
+process handle...&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I had to ask for help to someone who had access to the Windows source code&lt;/strong&gt;
+to understand the bug...&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;After six months of intense debugging, I eventually identified the root
+issue&lt;/strong&gt; (I pushed the first fix at July 25, 2014). I pushed the &lt;a class="reference external" href="https://github.com/python/cpython/commit/d0a28dee78d099fcadc71147cba4affb6efa0c97"&gt;commit
+d0a28dee&lt;/a&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue23095"&gt;bpo-23095&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit d0a28dee78d099fcadc71147cba4affb6efa0c97
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Wed Jan 21 23:39:51 2015 +0100
+
+    Issue #23095, asyncio: Rewrite _WaitHandleFuture.cancel()
+&lt;/pre&gt;
+&lt;p&gt;This change fixes a race conditon related to &lt;tt class="docutils literal"&gt;_WaitHandleFuture.cancel()&lt;/tt&gt;
+leading to a Python crash or &amp;quot;GetQueuedCompletionStatus() returned an
+unexpected event&amp;quot; logs. Previously, &lt;strong&gt;it was possible that the cancelled wait
+completes whereas the overlapped object was already destroyed&lt;/strong&gt;. Sometimes, a
+different overlapped was allocated at the same address, emitting a log about
+unexpected completition (but no crash).&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_WaitHandleFuture.cancel()&lt;/tt&gt; now &lt;strong&gt;waits until the handle wait is cancelled&lt;/strong&gt;
+(until the cancellation completes) before clearing its reference to the
+overlapped object. To wait until the cancellation completes,
+&lt;tt class="docutils literal"&gt;UnregisterWaitEx()&lt;/tt&gt; is used with an event (instead of using
+&lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;To wait for this event, a new &lt;tt class="docutils literal"&gt;_WaitCancelFuture&lt;/tt&gt; class was added. It's a
+simplified version of &lt;tt class="docutils literal"&gt;_WaitCancelFuture&lt;/tt&gt;. For example, its &lt;tt class="docutils literal"&gt;cancel()&lt;/tt&gt;
+method calls &lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt;, not &lt;tt class="docutils literal"&gt;UnregisterWaitEx()&lt;/tt&gt;.
+&lt;tt class="docutils literal"&gt;_WaitCancelFuture&lt;/tt&gt; should not be cancelled.&lt;/p&gt;
+&lt;p&gt;The overlapped object is &lt;strong&gt;kept alive&lt;/strong&gt; in &lt;tt class="docutils literal"&gt;_WaitHandleFuture&lt;/tt&gt; &lt;strong&gt;until the
+wait is unregistered&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Later, I pushed a few more changes to fix corner cases.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/1ca9392c7083972c1953c02e6f2cca54934ce0a6"&gt;commit 1ca9392c&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 1ca9392c7083972c1953c02e6f2cca54934ce0a6
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Thu Jan 22 00:17:54 2015 +0100
+
+    Issue #23095, asyncio: IocpProactor.close() must not cancel pending
+    _WaitCancelFuture futures
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/752aba7f999b08c833979464a36840de8be0baf0"&gt;commit 752aba7f&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 752aba7f999b08c833979464a36840de8be0baf0
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Thu Jan 22 22:47:13 2015 +0100
+
+    asyncio: IocpProactor.close() doesn't cancel anymore futures which are already
+    cancelled
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/24dfa3c1d6b21e731bd167a13153968bba8fa5ce"&gt;commit 24dfa3c1&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 24dfa3c1d6b21e731bd167a13153968bba8fa5ce
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 26 22:30:28 2015 +0100
+
+    Issue #23095, asyncio: Fix _WaitHandleFuture.cancel()
+
+    If UnregisterWaitEx() fais with ERROR_IO_PENDING, it doesn't mean that the wait
+    is unregistered yet. We still have to wait until the wait is cancelled.
+&lt;/pre&gt;
+&lt;p&gt;I think that &lt;em&gt;this&lt;/em&gt; issue can now be closed: &lt;tt class="docutils literal"&gt;UnregisterWaitEx()&lt;/tt&gt; really do
+what we need in asyncio.&lt;/p&gt;
+&lt;p&gt;I don't like the complexity of the IocpProactor._unregister() method and of the
+_WaitCancelFuture class, but it looks that it's how we are supposed to wait
+until a wait for a handle is cancelled...&lt;/p&gt;
+&lt;p&gt;Windows IOCP API is much more complex that what I expected. It's probably
+because some parts (especially &lt;tt class="docutils literal"&gt;RegisterWaitForSingleObject()&lt;/tt&gt;) are
+implemented with threads in user land, not in the kernel.&lt;/p&gt;
+&lt;p&gt;In short, I'm very happy that have fixed this very complex but also very
+annoying IOCP bug in asyncio.&lt;/p&gt;
+&lt;p&gt;I got a nice comment from &lt;a class="reference external" href="https://bugs.python.org/issue23095#msg234453"&gt;Guido van Rossum&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;Congrats with the fix, and thanks for your perseverance!&lt;/strong&gt;&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="summary-of-the-race-condition"&gt;
+&lt;h2&gt;Summary of the race condition&lt;/h2&gt;
+&lt;p&gt;Events of the crashing unit test:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The loop (ProactorEventLoop) spawns a subprocess.&lt;/li&gt;
+&lt;li&gt;The loop creates a _WaitHandleFuture object which creates an overlapped to
+wait until the process completes (call &lt;tt class="docutils literal"&gt;RegisterWaitForSingleObject()&lt;/tt&gt;):
+&lt;strong&gt;allocate&lt;/strong&gt; memory for the overlapped.&lt;/li&gt;
+&lt;li&gt;The wait future is cancelled (call &lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt;).&lt;/li&gt;
+&lt;li&gt;The overlapped is destroyed: &lt;strong&gt;free&lt;/strong&gt; overlapped memory.&lt;/li&gt;
+&lt;li&gt;The overlapped completes: &lt;strong&gt;write&lt;/strong&gt; into the overlapped memory.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The main issue is the order of the two last events.&lt;/p&gt;
+&lt;p&gt;Sometimes, the overlapped completed before the memory was freed: everything is
+fine.&lt;/p&gt;
+&lt;p&gt;Sometimes, the overlapped completed after the memory was freed: Python crashed
+(segmentation fault).&lt;/p&gt;
+&lt;p&gt;Sometimes, another _WaitHandleFuture was created in the meanwhile and created a
+second overlapped which was allocated at the same memory address than the freed
+memory of the previous overlapped. In this case, when the first overlapped
+completes, Python didn't crash but logged an unexpected completion message.&lt;/p&gt;
+&lt;p&gt;Sometimes, the write was done in freed memory: the write didn't crash Python,
+but caused bugs which didn't make sense.&lt;/p&gt;
+&lt;p&gt;There were even more cases causing even more surprising behaviors.&lt;/p&gt;
+&lt;p&gt;Summary of the fix:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;(... similar steps for the beginning ...)&lt;/li&gt;
+&lt;li&gt;The wait future is cancelled: &lt;strong&gt;create an event&lt;/strong&gt; to wait until the
+cancellation completes (call &lt;tt class="docutils literal"&gt;UnregisterWaitEx()&lt;/tt&gt;).&lt;/li&gt;
+&lt;li&gt;Wait for the event.&lt;/li&gt;
+&lt;li&gt;The event is signalled which means that the cancellation completed: &lt;strong&gt;write&lt;/strong&gt;
+into the overlapped memory.&lt;/li&gt;
+&lt;li&gt;The overlapped is destroyed: &lt;strong&gt;free&lt;/strong&gt; overlapped memory.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</content><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
+(Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Support non-ASCII decimal point and thousands separator&lt;/li&gt;
+&lt;li&gt;Crash with non-ASCII decimal point&lt;/li&gt;
+&lt;li&gt;LC_NUMERIC encoding different than LC_CTYPE encoding&lt;/li&gt;
+&lt;li&gt;LC_MONETARY encoding different than LC_CTYPE encoding&lt;/li&gt;
+&lt;li&gt;Tests non-ASCII locales …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
+(Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Support non-ASCII decimal point and thousands separator&lt;/li&gt;
+&lt;li&gt;Crash with non-ASCII decimal point&lt;/li&gt;
+&lt;li&gt;LC_NUMERIC encoding different than LC_CTYPE encoding&lt;/li&gt;
+&lt;li&gt;LC_MONETARY encoding different than LC_CTYPE encoding&lt;/li&gt;
+&lt;li&gt;Tests non-ASCII locales&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See also my previous locale bugfixes: &lt;a class="reference external" href="https://vstinner.github.io/python3-locales-encodings.html"&gt;Python 3, locales and encodings&lt;/a&gt;&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="introduction"&gt;
+&lt;h2&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Each language and each country has different ways to represent dates, monetary
+values, numbers, etc. Unix has &amp;quot;locales&amp;quot; to configure applications for a
+specific language and a specific country. For example, there are &lt;tt class="docutils literal"&gt;fr_BE&lt;/tt&gt; for
+Belgium (french) and &lt;tt class="docutils literal"&gt;fr_FR&lt;/tt&gt; for France (french).&lt;/p&gt;
+&lt;p&gt;In practice, each locale uses its own encoding and problems arise when an
+application uses a different encoding than the locale. There are LC_NUMERIC
+locale for numbers, LC_MONETARY locale for monetary and LC_CTYPE for the
+encoding. Not only it's possible to configure an application to use LC_NUMERIC
+with a different encoding than LC_CTYPE, but some users use such configuration!&lt;/p&gt;
+&lt;p&gt;In an application which only uses bytes for text, as Python 2 does mostly, it's
+mostly fine: in the worst case, users see &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;, but the application doesn't
+&amp;quot;crash&amp;quot; (exit and/or data loss). On the other side, &lt;strong&gt;Python 3 is designed to
+use Unicode for text and fail with hard Unicode errors if it fails to decode
+bytes and fails to encode text&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="support-non-ascii-decimal-point-and-thousands-separator"&gt;
+&lt;h2&gt;Support non-ASCII decimal point and thousands separator&lt;/h2&gt;
+&lt;p&gt;The Unicode type has been reimplemented in Python 3.3 to use &amp;quot;compact string&amp;quot;:
+&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0393/"&gt;PEP 393 &amp;quot;Flexible String Representation&amp;quot;&lt;/a&gt;. The new implementation is more
+complex and the format() function has been limited to ASCII for the decimal
+point and thousands separator (format a number using the &amp;quot;n&amp;quot; type).&lt;/p&gt;
+&lt;p&gt;In January 2012, Stefan Krah noticed the regression (compared to Python 3.2)
+and reported &lt;a class="reference external" href="https://bugs.python.org/issue13706"&gt;bpo-13706&lt;/a&gt;. I fixed the
+code to support non-ASCII in format (&lt;a class="reference external" href="https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8"&gt;commit a4ac600d&lt;/a&gt;).
+But when I did more tests, I noticed that the &amp;quot;n&amp;quot; type doesn't decode properly
+the decimal point and thousands seprator which come from the &lt;tt class="docutils literal"&gt;localeconv()&lt;/tt&gt;
+function which uses byte strings.&lt;/p&gt;
+&lt;p&gt;I fixed &lt;tt class="docutils literal"&gt;format(int, &amp;quot;n&amp;quot;)&lt;/tt&gt; with &lt;a class="reference external" href="https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc"&gt;commit 41a863cb&lt;/a&gt;,
+decode decimal point and the thousands separator (&lt;tt class="docutils literal"&gt;localeconv()&lt;/tt&gt; fields) from
+the locale encoding, rather than latin1, using &lt;tt class="docutils literal"&gt;PyUnicode_DecodeLocale()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 41a863cb81608c779d60b49e7be8a115816734fc
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;haypocalc.com&amp;gt;
+Date:   Fri Feb 24 00:37:51 2012 +0100
+
+    Issue #13706: Fix format(int, &amp;quot;n&amp;quot;) for locale with non-ASCII thousands separator
+
+     * Decode thousands separator and decimal point using PyUnicode_DecodeLocale()
+       (from the locale encoding), instead of decoding them implicitly from latin1
+     * Remove _PyUnicode_InsertThousandsGroupingLocale(), it was not used
+     * Change _PyUnicode_InsertThousandsGrouping() API to return the maximum
+       character if unicode is NULL
+     * (...)
+&lt;/pre&gt;
+&lt;p&gt;Note: I decided to not fix Python 3.2:&lt;/p&gt;
+&lt;blockquote&gt;
+Hum, &lt;strong&gt;it is not trivial to redo the work on Python 3.2&lt;/strong&gt;. I prefer to leave
+the code unchanged to not introduce a regression, and I wait until a Python
+3.2 user complains (the bug exists since Python 3.0 and nobody complained).&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="crash-with-non-ascii-decimal-point"&gt;
+&lt;h2&gt;Crash with non-ASCII decimal point&lt;/h2&gt;
+&lt;p&gt;Six years later, in June 2018, I noticed that Python does crash when running
+tests on locales:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python
+Python 3.8.0a0 (heads/master-dirty:bcd3a1a18d, Jun 23 2018, 10:31:03)
+[GCC 8.1.1 20180502 (Red Hat 8.1.1-1)] on linux
+&amp;gt;&amp;gt;&amp;gt; import locale
+&amp;gt;&amp;gt;&amp;gt; locale.str(2.5)
+'2.5'
+&amp;gt;&amp;gt;&amp;gt; '{:n}'.format(2.5)
+'2.5'
+
+&amp;gt;&amp;gt;&amp;gt; locale.setlocale(locale.LC_ALL, '')
+'fr_FR.UTF-8'
+&amp;gt;&amp;gt;&amp;gt; locale.str(2.5)
+'2,5'
+&amp;gt;&amp;gt;&amp;gt; '{:n}'.format(2.5)
+python: Objects/unicodeobject.c:474: _PyUnicode_CheckConsistency: Assertion `maxchar &amp;lt; 128' failed.
+Aborted (core dumped)
+&lt;/pre&gt;
+&lt;p&gt;I reported the issue as &lt;a class="reference external" href="https://bugs.python.org/issue33954"&gt;bpo-33954&lt;/a&gt;. The
+bug only occurrs for decimal point larger than U+00FF (code point greater than
+255). It was a bug in my &lt;a class="reference external" href="https://bugs.python.org/issue13706"&gt;bpo-13706&lt;/a&gt;
+fix: &lt;a class="reference external" href="https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8"&gt;commit a4ac600d&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I pushed a second fix to properly support all cases, &lt;a class="reference external" href="https://github.com/python/cpython/commit/59423e3ddd736387cef8f7632c71954c1859bed0"&gt;commit 59423e3d&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 59423e3ddd736387cef8f7632c71954c1859bed0
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Mon Nov 26 13:40:01 2018 +0100
+
+    bpo-33954: Fix _PyUnicode_InsertThousandsGrouping() (GH-10623)
+
+    Fix str.format(), float.__format__() and complex.__format__() methods
+    for non-ASCII decimal point when using the &amp;quot;n&amp;quot; formatter.
+
+    Changes:
+
+    * Rewrite _PyUnicode_InsertThousandsGrouping(): it now requires
+      a _PyUnicodeWriter object for the buffer and a Python str object
+      for digits.
+    * Rename FILL() macro to unicode_fill(), convert it to static inline function,
+      add &amp;quot;assert(0 &amp;lt;= start);&amp;quot; and rework its code.
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="lc-numeric-encoding-different-than-lc-ctype-encoding"&gt;
+&lt;h2&gt;LC_NUMERIC encoding different than LC_CTYPE encoding&lt;/h2&gt;
+&lt;p&gt;In August 2017, Petr Viktorin identified a bug in Koji (server building Fedora
+packages): &lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1484497"&gt;UnicodeDecodeError in localeconv() makes test_float fail in Koji&lt;/a&gt;&lt;/p&gt;
+&lt;blockquote&gt;
+&amp;quot;This is tripped by Python's test suite, namely
+test_float.GeneralFloatCases.test_float_with_comma&amp;quot;&lt;/blockquote&gt;
+&lt;p&gt;He wrote a short reproducer script:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+import locale
+locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+locale.setlocale(locale.LC_NUMERIC, 'fr_FR.ISO8859-1')
+print(locale.localeconv())
+&lt;/pre&gt;
+&lt;p&gt;Two months later, Charalampos Stratakis reported the bug upstream: &lt;a class="reference external" href="https://bugs.python.org/issue31900"&gt;bpo-31900&lt;/a&gt;.  The problem arises when &lt;strong&gt;the
+LC_NUMERIC locale uses a different encoding than the LC_CTYPE encoding&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;The bug was already known:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2015-12-05: Serhiy Storchaka reported &lt;a class="reference external" href="https://bugs.python.org/issue25812"&gt;bpo-25812&lt;/a&gt; with uk_UA locale&lt;/li&gt;
+&lt;li&gt;2016-11-03: Guillaume Pasquet reported &lt;a class="reference external" href="https://bugs.python.org/issue28604"&gt;bpo-28604&lt;/a&gt; with en_GB locale&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Moreover, &lt;strong&gt;the bug was known since 2009&lt;/strong&gt;, Stefan Krah reported a very similar
+bug: &lt;a class="reference external" href="https://bugs.python.org/issue7442"&gt;bpo-7442&lt;/a&gt;. I was even involved in
+this issue in 2013, but then I forgot about it (as usual, I am working on too
+many issues in parallel :-)).&lt;/p&gt;
+&lt;p&gt;In 2010, PostgreSQL &lt;a class="reference external" href="https://www.postgresql.org/message-id/20100422015552.4B7E07541D0&amp;#64;cvs.postgresql.org"&gt;had the same issue&lt;/a&gt;
+and &lt;a class="reference external" href="https://anoncvs.postgresql.org/cvsweb.cgi/pgsql/src/backend/utils/adt/pg_locale.c?r1=1.53&amp;amp;r2=1.54"&gt;fixed the bug by changing temporarily the LC_CTYPE locale to the
+LC_NUMERIC locale&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In January 2018, I came back to this 9 years old bug. I was fixing bugs in the
+implementation of my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0540/"&gt;PEP 540 &amp;quot;Add a new UTF-8 Mode&amp;quot;&lt;/a&gt;. I pushed a large change to fix
+locale encodings in &lt;a class="reference external" href="https://bugs.python.org/issue29240"&gt;bpo-29240&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c"&gt;commit
+7ed7aead&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 7ed7aead9503102d2ed316175f198104e0cd674c
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 15 10:45:49 2018 +0100
+
+    bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
+
+    Modify locale.localeconv(), time.tzname, os.strerror() and other
+    functions to ignore the UTF-8 Mode: always use the current locale
+    encoding.
+
+    Changes: (...)
+&lt;/pre&gt;
+&lt;p&gt;Stefan Krah asked:&lt;/p&gt;
+&lt;blockquote&gt;
+I have the exact same questions as Marc-Andre.  This is one of the reasons
+why I blocked the _decimal change.  I don't fully understand the role of the
+new glibc, since #7442 has existed for ages -- and &lt;strong&gt;it is a open question
+whether it is a bug or not&lt;/strong&gt;.&lt;/blockquote&gt;
+&lt;p&gt;I replied:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Past 10 years, I repeated to every single user I met that &amp;quot;Python 3 is
+right, your system setup is wrong&amp;quot;. But that's a waste of time. People
+continue to associate Python3 and Unicode to annoying bugs, because they
+don't understand how locales work.&lt;/p&gt;
+&lt;p&gt;Instead of having to repeat to each user that &amp;quot;hum, maybe your config is
+wrong&amp;quot;, &lt;strong&gt;I prefer to support this non convential setup and work as expected
+(&amp;quot;it just works&amp;quot;)&lt;/strong&gt;. With my latest implementation, setlocale() is only done
+when LC_CTYPE and LC_NUMERIC are different, which is the corner case which
+&amp;quot;shouldn't occur in practice&amp;quot;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Marc-Andre Lemburg added:&lt;/p&gt;
+&lt;blockquote&gt;
+Sounds like a good compromise :-)&lt;/blockquote&gt;
+&lt;p&gt;After doing more tests on FreeBSD, Linux and macOS, I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/cb064fc2321ce8673fe365e9ef60445a27657f54"&gt;commit cb064fc2&lt;/a&gt;
+to fix &lt;a class="reference external" href="https://bugs.python.org/issue31900"&gt;bpo-31900&lt;/a&gt; by changing
+temporarily the LC_CTYPE locale to the LC_NUMERIC locale:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit cb064fc2321ce8673fe365e9ef60445a27657f54
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 15 15:58:02 2018 +0100
+
+    bpo-31900: Fix localeconv() encoding for LC_NUMERIC (#4174)
+
+    * Add _Py_GetLocaleconvNumeric() function: decode decimal_point and
+      thousands_sep fields of localeconv() from the LC_NUMERIC encoding,
+      rather than decoding from the LC_CTYPE encoding.
+    * Modify locale.localeconv() and &amp;quot;n&amp;quot; formatter of str.format() (for
+      int, float and complex to use _Py_GetLocaleconvNumeric()
+      internally.
+&lt;/pre&gt;
+&lt;p&gt;I dislike my own fix because changing temporarily the LC_CTYPE locale impacts
+all threads, not only the current thread. But we failed to find another
+solution. &lt;strong&gt;The LC_CTYPE locale is only changed if the LC_NUMERIC locale is
+different than the LC_CTYPE locale and if the decimal point or the thousands
+separator is non-ASCII.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Note: I proposed a change to fix the same bug in the &lt;tt class="docutils literal"&gt;decimal&lt;/tt&gt; module: &lt;a class="reference external" href="https://github.com/python/cpython/pull/5191"&gt;PR
+#5191&lt;/a&gt;, but I abandonned my
+patch.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="lc-monetary-encoding-different-than-lc-ctype-encoding"&gt;
+&lt;h2&gt;LC_MONETARY encoding different than LC_CTYPE encoding&lt;/h2&gt;
+&lt;p&gt;Fixing &lt;a class="reference external" href="https://bugs.python.org/issue31900"&gt;bpo-31900&lt;/a&gt; drained all my
+energy, but sadly... there was a similar bug with LC_MONETARY!&lt;/p&gt;
+&lt;p&gt;At 2016-11-03, Guillaume Pasquet reported &lt;a class="reference external" href="https://bugs.python.org/issue28604"&gt;bpo-28604: Exception raised by
+python3.5 when using en_GB locale&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The fix is similar to the LC_NUMERIC fix: change temporarily the LC_CTYPE
+locale to the LC_MONETARY locale, &lt;a class="reference external" href="https://github.com/python/cpython/commit/02e6bf7f2025cddcbde6432f6b6396198ab313f4"&gt;commit 02e6bf7f&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 02e6bf7f2025cddcbde6432f6b6396198ab313f4
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Tue Nov 20 16:20:16 2018 +0100
+
+    bpo-28604: Fix localeconv() for different LC_MONETARY (GH-10606)
+
+    locale.localeconv() now sets temporarily the LC_CTYPE locale to the
+    LC_MONETARY locale if the two locales are different and monetary
+    strings are non-ASCII. This temporary change affects other threads.
+
+    Changes:
+
+    * locale.localeconv() can now set LC_CTYPE to LC_MONETARY to decode
+      monetary fields.
+    * (...)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="tests-non-ascii-locales"&gt;
+&lt;h2&gt;Tests non-ASCII locales&lt;/h2&gt;
+&lt;p&gt;To test my bugfixes, I used manual tests. The first issue was to identify
+locales with problematic characters: non-ASCII decimal point or thousands
+separator for example. I wrote my own &amp;quot;test suite&amp;quot; for Windows, Linux, macOS
+and FreeBSD on my website: &lt;a class="reference external" href="https://vstinner.readthedocs.io/unicode.html#test-non-ascii-characters-with-locales"&gt;Test non-ASCII characters with locales&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Example with localeconv() on Fedora 27:&lt;/p&gt;
+&lt;table border="1" class="docutils"&gt;
+&lt;colgroup&gt;
+&lt;col width="15%" /&gt;
+&lt;col width="8%" /&gt;
+&lt;col width="16%" /&gt;
+&lt;col width="25%" /&gt;
+&lt;col width="36%" /&gt;
+&lt;/colgroup&gt;
+&lt;thead valign="bottom"&gt;
+&lt;tr&gt;&lt;th class="head"&gt;LC_ALL locale&lt;/th&gt;
+&lt;th class="head"&gt;Encoding&lt;/th&gt;
+&lt;th class="head"&gt;Field&lt;/th&gt;
+&lt;th class="head"&gt;Bytes&lt;/th&gt;
+&lt;th class="head"&gt;Text&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody valign="top"&gt;
+&lt;tr&gt;&lt;td&gt;es_MX.utf8&lt;/td&gt;
+&lt;td&gt;UTF-8&lt;/td&gt;
+&lt;td&gt;thousands_sep&lt;/td&gt;
+&lt;td&gt;&lt;tt class="docutils literal"&gt;0xE2 0x80 0x89&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;U+2009&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;fr_FR.UTF-8&lt;/td&gt;
+&lt;td&gt;UTF-8&lt;/td&gt;
+&lt;td&gt;currency_symbol&lt;/td&gt;
+&lt;td&gt;&lt;tt class="docutils literal"&gt;0xE2 0x82 0xAC&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;U+20AC (€)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;ps_AF.utf8&lt;/td&gt;
+&lt;td&gt;UTF-8&lt;/td&gt;
+&lt;td&gt;thousands_sep&lt;/td&gt;
+&lt;td&gt;&lt;tt class="docutils literal"&gt;0xD9 0xAC&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;U+066C (٬)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;uk_UA.koi8u&lt;/td&gt;
+&lt;td&gt;KOI8-U&lt;/td&gt;
+&lt;td&gt;currency_symbol&lt;/td&gt;
+&lt;td&gt;&lt;tt class="docutils literal"&gt;0xC7 0xD2 0xCE 0x2E&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;U+0433 U+0440 U+043d U+002E (грн.)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;&lt;td&gt;uk_UA.koi8u&lt;/td&gt;
+&lt;td&gt;KOI8-U&lt;/td&gt;
+&lt;td&gt;thousands_sep&lt;/td&gt;
+&lt;td&gt;&lt;tt class="docutils literal"&gt;0x9A&lt;/tt&gt;&lt;/td&gt;
+&lt;td&gt;U+00A0&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Manual tests became more and more complex, since there are so many cases: each
+operating system use different locale names and the result depends on the libc
+version. After months of manual tests, I wrote my small personal &lt;strong&gt;portable&lt;/strong&gt;
+locale test suite: &lt;a class="reference external" href="https://github.com/vstinner/misc/blob/master/python/test_all_locales.py"&gt;test_all_locales.py&lt;/a&gt;.
+It supports:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;FreeBSD 11&lt;/li&gt;
+&lt;li&gt;macOS&lt;/li&gt;
+&lt;li&gt;Fedora (Linux)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def test_zh_TW_Big5(self):
+    loc = &amp;quot;zh_TW.Big5&amp;quot; if BSD else &amp;quot;zh_TW.big5&amp;quot;
+    if FREEBSD:
+        currency_symbol = u'\uff2e\uff34\uff04'
+        decimal_point = u'\uff0e'
+        thousands_sep = u'\uff0c'
+        date_str = u'\u661f\u671f\u56db 2\u6708'
+    else:
+        currency_symbol = u'NT$'
+        decimal_point = u'.'
+        thousands_sep = u','
+        if MACOS:
+            date_str =  u'\u9031\u56db 2\u6708'
+        else:
+            date_str = u'\u9031\u56db \u4e8c\u6708'
+
+    self.set_locale(loc, &amp;quot;Big5&amp;quot;)
+
+    lc = locale.localeconv()
+    self.assertLocaleEqual(lc['currency_symbol'], currency_symbol)
+    self.assertLocaleEqual(lc['decimal_point'], decimal_point)
+    self.assertLocaleEqual(lc['thousands_sep'], thousands_sep)
+
+    self.assertLocaleEqual(time.strftime('%A %B', FEBRUARY), date_str)
+&lt;/pre&gt;
+&lt;p&gt;The best would be to integrate directly these tests into the Python test suite,
+but it's not portable nor future-proof, since most constants are hardcoded and
+depends on the operating sytem and the libc version.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
 the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
 I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
 I didn't expect that I would spend 2 weeks on these issues …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
@@ -444,6 +1140,9 @@ be carefully tested!&lt;/p&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONCOERCECLOCALE=0&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONCOERCECLOCALE=1&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONCOERCECLOCALE=warn&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;PYTHONIOENCODING=:&amp;lt;errors&amp;gt;&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;PYTHONIOENCODING=&amp;lt;encoding&amp;gt;:&amp;lt;errors&amp;gt;&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;PYTHONIOENCODING=&amp;lt;encoding&amp;gt;&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONLEGACYWINDOWSFSENCODING=1&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONLEGACYWINDOWSSTDIO=1&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;PYTHONUTF8=0&lt;/tt&gt;&lt;/li&gt;

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>Locale Bugfixes in Python 3</title>
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <nav><ul>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
+                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="bookmark"
+           title="Permalink to Locale Bugfixes in Python 3">Locale Bugfixes in Python 3</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2019-01-09T00:30:00+01:00">
+                Published: mer. 09 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
+</footer><!-- /.post-info -->      <p>This article describes a few locales bugs that I fixed in Python 3 between 2012
+(Python 3.3) and 2018 (Python 3.7):</p>
+<ul class="simple">
+<li>Support non-ASCII decimal point and thousands separator</li>
+<li>Crash with non-ASCII decimal point</li>
+<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
+<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
+<li>Tests non-ASCII locales</li>
+</ul>
+<p>See also my previous locale bugfixes: <a class="reference external" href="https://vstinner.github.io/python3-locales-encodings.html">Python 3, locales and encodings</a></p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"><img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /></a>
+<div class="section" id="introduction">
+<h2>Introduction</h2>
+<p>Each language and each country has different ways to represent dates, monetary
+values, numbers, etc. Unix has &quot;locales&quot; to configure applications for a
+specific language and a specific country. For example, there are <tt class="docutils literal">fr_BE</tt> for
+Belgium (french) and <tt class="docutils literal">fr_FR</tt> for France (french).</p>
+<p>In practice, each locale uses its own encoding and problems arise when an
+application uses a different encoding than the locale. There are LC_NUMERIC
+locale for numbers, LC_MONETARY locale for monetary and LC_CTYPE for the
+encoding. Not only it's possible to configure an application to use LC_NUMERIC
+with a different encoding than LC_CTYPE, but some users use such configuration!</p>
+<p>In an application which only uses bytes for text, as Python 2 does mostly, it's
+mostly fine: in the worst case, users see <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>, but the application doesn't
+&quot;crash&quot; (exit and/or data loss). On the other side, <strong>Python 3 is designed to
+use Unicode for text and fail with hard Unicode errors if it fails to decode
+bytes and fails to encode text</strong>.</p>
+</div>
+<div class="section" id="support-non-ascii-decimal-point-and-thousands-separator">
+<h2>Support non-ASCII decimal point and thousands separator</h2>
+<p>The Unicode type has been reimplemented in Python 3.3 to use &quot;compact string&quot;:
+<a class="reference external" href="https://www.python.org/dev/peps/pep-0393/">PEP 393 &quot;Flexible String Representation&quot;</a>. The new implementation is more
+complex and the format() function has been limited to ASCII for the decimal
+point and thousands separator (format a number using the &quot;n&quot; type).</p>
+<p>In January 2012, Stefan Krah noticed the regression (compared to Python 3.2)
+and reported <a class="reference external" href="https://bugs.python.org/issue13706">bpo-13706</a>. I fixed the
+code to support non-ASCII in format (<a class="reference external" href="https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8">commit a4ac600d</a>).
+But when I did more tests, I noticed that the &quot;n&quot; type doesn't decode properly
+the decimal point and thousands seprator which come from the <tt class="docutils literal">localeconv()</tt>
+function which uses byte strings.</p>
+<p>I fixed <tt class="docutils literal">format(int, &quot;n&quot;)</tt> with <a class="reference external" href="https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc">commit 41a863cb</a>,
+decode decimal point and the thousands separator (<tt class="docutils literal">localeconv()</tt> fields) from
+the locale encoding, rather than latin1, using <tt class="docutils literal">PyUnicode_DecodeLocale()</tt>:</p>
+<pre class="literal-block">
+commit 41a863cb81608c779d60b49e7be8a115816734fc
+Author: Victor Stinner &lt;victor.stinner&#64;haypocalc.com&gt;
+Date:   Fri Feb 24 00:37:51 2012 +0100
+
+    Issue #13706: Fix format(int, &quot;n&quot;) for locale with non-ASCII thousands separator
+
+     * Decode thousands separator and decimal point using PyUnicode_DecodeLocale()
+       (from the locale encoding), instead of decoding them implicitly from latin1
+     * Remove _PyUnicode_InsertThousandsGroupingLocale(), it was not used
+     * Change _PyUnicode_InsertThousandsGrouping() API to return the maximum
+       character if unicode is NULL
+     * (...)
+</pre>
+<p>Note: I decided to not fix Python 3.2:</p>
+<blockquote>
+Hum, <strong>it is not trivial to redo the work on Python 3.2</strong>. I prefer to leave
+the code unchanged to not introduce a regression, and I wait until a Python
+3.2 user complains (the bug exists since Python 3.0 and nobody complained).</blockquote>
+</div>
+<div class="section" id="crash-with-non-ascii-decimal-point">
+<h2>Crash with non-ASCII decimal point</h2>
+<p>Six years later, in June 2018, I noticed that Python does crash when running
+tests on locales:</p>
+<pre class="literal-block">
+$ ./python
+Python 3.8.0a0 (heads/master-dirty:bcd3a1a18d, Jun 23 2018, 10:31:03)
+[GCC 8.1.1 20180502 (Red Hat 8.1.1-1)] on linux
+&gt;&gt;&gt; import locale
+&gt;&gt;&gt; locale.str(2.5)
+'2.5'
+&gt;&gt;&gt; '{:n}'.format(2.5)
+'2.5'
+
+&gt;&gt;&gt; locale.setlocale(locale.LC_ALL, '')
+'fr_FR.UTF-8'
+&gt;&gt;&gt; locale.str(2.5)
+'2,5'
+&gt;&gt;&gt; '{:n}'.format(2.5)
+python: Objects/unicodeobject.c:474: _PyUnicode_CheckConsistency: Assertion `maxchar &lt; 128' failed.
+Aborted (core dumped)
+</pre>
+<p>I reported the issue as <a class="reference external" href="https://bugs.python.org/issue33954">bpo-33954</a>. The
+bug only occurrs for decimal point larger than U+00FF (code point greater than
+255). It was a bug in my <a class="reference external" href="https://bugs.python.org/issue13706">bpo-13706</a>
+fix: <a class="reference external" href="https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8">commit a4ac600d</a>.</p>
+<p>I pushed a second fix to properly support all cases, <a class="reference external" href="https://github.com/python/cpython/commit/59423e3ddd736387cef8f7632c71954c1859bed0">commit 59423e3d</a>:</p>
+<pre class="literal-block">
+commit 59423e3ddd736387cef8f7632c71954c1859bed0
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Mon Nov 26 13:40:01 2018 +0100
+
+    bpo-33954: Fix _PyUnicode_InsertThousandsGrouping() (GH-10623)
+
+    Fix str.format(), float.__format__() and complex.__format__() methods
+    for non-ASCII decimal point when using the &quot;n&quot; formatter.
+
+    Changes:
+
+    * Rewrite _PyUnicode_InsertThousandsGrouping(): it now requires
+      a _PyUnicodeWriter object for the buffer and a Python str object
+      for digits.
+    * Rename FILL() macro to unicode_fill(), convert it to static inline function,
+      add &quot;assert(0 &lt;= start);&quot; and rework its code.
+</pre>
+</div>
+<div class="section" id="lc-numeric-encoding-different-than-lc-ctype-encoding">
+<h2>LC_NUMERIC encoding different than LC_CTYPE encoding</h2>
+<p>In August 2017, Petr Viktorin identified a bug in Koji (server building Fedora
+packages): <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1484497">UnicodeDecodeError in localeconv() makes test_float fail in Koji</a></p>
+<blockquote>
+&quot;This is tripped by Python's test suite, namely
+test_float.GeneralFloatCases.test_float_with_comma&quot;</blockquote>
+<p>He wrote a short reproducer script:</p>
+<pre class="literal-block">
+import locale
+locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+locale.setlocale(locale.LC_NUMERIC, 'fr_FR.ISO8859-1')
+print(locale.localeconv())
+</pre>
+<p>Two months later, Charalampos Stratakis reported the bug upstream: <a class="reference external" href="https://bugs.python.org/issue31900">bpo-31900</a>.  The problem arises when <strong>the
+LC_NUMERIC locale uses a different encoding than the LC_CTYPE encoding</strong>.</p>
+<p>The bug was already known:</p>
+<ul class="simple">
+<li>2015-12-05: Serhiy Storchaka reported <a class="reference external" href="https://bugs.python.org/issue25812">bpo-25812</a> with uk_UA locale</li>
+<li>2016-11-03: Guillaume Pasquet reported <a class="reference external" href="https://bugs.python.org/issue28604">bpo-28604</a> with en_GB locale</li>
+</ul>
+<p>Moreover, <strong>the bug was known since 2009</strong>, Stefan Krah reported a very similar
+bug: <a class="reference external" href="https://bugs.python.org/issue7442">bpo-7442</a>. I was even involved in
+this issue in 2013, but then I forgot about it (as usual, I am working on too
+many issues in parallel :-)).</p>
+<p>In 2010, PostgreSQL <a class="reference external" href="https://www.postgresql.org/message-id/20100422015552.4B7E07541D0&#64;cvs.postgresql.org">had the same issue</a>
+and <a class="reference external" href="https://anoncvs.postgresql.org/cvsweb.cgi/pgsql/src/backend/utils/adt/pg_locale.c?r1=1.53&amp;r2=1.54">fixed the bug by changing temporarily the LC_CTYPE locale to the
+LC_NUMERIC locale</a>.</p>
+<p>In January 2018, I came back to this 9 years old bug. I was fixing bugs in the
+implementation of my <a class="reference external" href="https://www.python.org/dev/peps/pep-0540/">PEP 540 &quot;Add a new UTF-8 Mode&quot;</a>. I pushed a large change to fix
+locale encodings in <a class="reference external" href="https://bugs.python.org/issue29240">bpo-29240</a>, <a class="reference external" href="https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c">commit
+7ed7aead</a>:</p>
+<pre class="literal-block">
+commit 7ed7aead9503102d2ed316175f198104e0cd674c
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jan 15 10:45:49 2018 +0100
+
+    bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
+
+    Modify locale.localeconv(), time.tzname, os.strerror() and other
+    functions to ignore the UTF-8 Mode: always use the current locale
+    encoding.
+
+    Changes: (...)
+</pre>
+<p>Stefan Krah asked:</p>
+<blockquote>
+I have the exact same questions as Marc-Andre.  This is one of the reasons
+why I blocked the _decimal change.  I don't fully understand the role of the
+new glibc, since #7442 has existed for ages -- and <strong>it is a open question
+whether it is a bug or not</strong>.</blockquote>
+<p>I replied:</p>
+<blockquote>
+<p>Past 10 years, I repeated to every single user I met that &quot;Python 3 is
+right, your system setup is wrong&quot;. But that's a waste of time. People
+continue to associate Python3 and Unicode to annoying bugs, because they
+don't understand how locales work.</p>
+<p>Instead of having to repeat to each user that &quot;hum, maybe your config is
+wrong&quot;, <strong>I prefer to support this non convential setup and work as expected
+(&quot;it just works&quot;)</strong>. With my latest implementation, setlocale() is only done
+when LC_CTYPE and LC_NUMERIC are different, which is the corner case which
+&quot;shouldn't occur in practice&quot;.</p>
+</blockquote>
+<p>Marc-Andre Lemburg added:</p>
+<blockquote>
+Sounds like a good compromise :-)</blockquote>
+<p>After doing more tests on FreeBSD, Linux and macOS, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/cb064fc2321ce8673fe365e9ef60445a27657f54">commit cb064fc2</a>
+to fix <a class="reference external" href="https://bugs.python.org/issue31900">bpo-31900</a> by changing
+temporarily the LC_CTYPE locale to the LC_NUMERIC locale:</p>
+<pre class="literal-block">
+commit cb064fc2321ce8673fe365e9ef60445a27657f54
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jan 15 15:58:02 2018 +0100
+
+    bpo-31900: Fix localeconv() encoding for LC_NUMERIC (#4174)
+
+    * Add _Py_GetLocaleconvNumeric() function: decode decimal_point and
+      thousands_sep fields of localeconv() from the LC_NUMERIC encoding,
+      rather than decoding from the LC_CTYPE encoding.
+    * Modify locale.localeconv() and &quot;n&quot; formatter of str.format() (for
+      int, float and complex to use _Py_GetLocaleconvNumeric()
+      internally.
+</pre>
+<p>I dislike my own fix because changing temporarily the LC_CTYPE locale impacts
+all threads, not only the current thread. But we failed to find another
+solution. <strong>The LC_CTYPE locale is only changed if the LC_NUMERIC locale is
+different than the LC_CTYPE locale and if the decimal point or the thousands
+separator is non-ASCII.</strong></p>
+<p>Note: I proposed a change to fix the same bug in the <tt class="docutils literal">decimal</tt> module: <a class="reference external" href="https://github.com/python/cpython/pull/5191">PR
+#5191</a>, but I abandonned my
+patch.</p>
+</div>
+<div class="section" id="lc-monetary-encoding-different-than-lc-ctype-encoding">
+<h2>LC_MONETARY encoding different than LC_CTYPE encoding</h2>
+<p>Fixing <a class="reference external" href="https://bugs.python.org/issue31900">bpo-31900</a> drained all my
+energy, but sadly... there was a similar bug with LC_MONETARY!</p>
+<p>At 2016-11-03, Guillaume Pasquet reported <a class="reference external" href="https://bugs.python.org/issue28604">bpo-28604: Exception raised by
+python3.5 when using en_GB locale</a>.</p>
+<p>The fix is similar to the LC_NUMERIC fix: change temporarily the LC_CTYPE
+locale to the LC_MONETARY locale, <a class="reference external" href="https://github.com/python/cpython/commit/02e6bf7f2025cddcbde6432f6b6396198ab313f4">commit 02e6bf7f</a>:</p>
+<pre class="literal-block">
+commit 02e6bf7f2025cddcbde6432f6b6396198ab313f4
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Tue Nov 20 16:20:16 2018 +0100
+
+    bpo-28604: Fix localeconv() for different LC_MONETARY (GH-10606)
+
+    locale.localeconv() now sets temporarily the LC_CTYPE locale to the
+    LC_MONETARY locale if the two locales are different and monetary
+    strings are non-ASCII. This temporary change affects other threads.
+
+    Changes:
+
+    * locale.localeconv() can now set LC_CTYPE to LC_MONETARY to decode
+      monetary fields.
+    * (...)
+</pre>
+</div>
+<div class="section" id="tests-non-ascii-locales">
+<h2>Tests non-ASCII locales</h2>
+<p>To test my bugfixes, I used manual tests. The first issue was to identify
+locales with problematic characters: non-ASCII decimal point or thousands
+separator for example. I wrote my own &quot;test suite&quot; for Windows, Linux, macOS
+and FreeBSD on my website: <a class="reference external" href="https://vstinner.readthedocs.io/unicode.html#test-non-ascii-characters-with-locales">Test non-ASCII characters with locales</a>.</p>
+<p>Example with localeconv() on Fedora 27:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="15%" />
+<col width="8%" />
+<col width="16%" />
+<col width="25%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">LC_ALL locale</th>
+<th class="head">Encoding</th>
+<th class="head">Field</th>
+<th class="head">Bytes</th>
+<th class="head">Text</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>es_MX.utf8</td>
+<td>UTF-8</td>
+<td>thousands_sep</td>
+<td><tt class="docutils literal">0xE2 0x80 0x89</tt></td>
+<td>U+2009</td>
+</tr>
+<tr><td>fr_FR.UTF-8</td>
+<td>UTF-8</td>
+<td>currency_symbol</td>
+<td><tt class="docutils literal">0xE2 0x82 0xAC</tt></td>
+<td>U+20AC (€)</td>
+</tr>
+<tr><td>ps_AF.utf8</td>
+<td>UTF-8</td>
+<td>thousands_sep</td>
+<td><tt class="docutils literal">0xD9 0xAC</tt></td>
+<td>U+066C (٬)</td>
+</tr>
+<tr><td>uk_UA.koi8u</td>
+<td>KOI8-U</td>
+<td>currency_symbol</td>
+<td><tt class="docutils literal">0xC7 0xD2 0xCE 0x2E</tt></td>
+<td>U+0433 U+0440 U+043d U+002E (грн.)</td>
+</tr>
+<tr><td>uk_UA.koi8u</td>
+<td>KOI8-U</td>
+<td>thousands_sep</td>
+<td><tt class="docutils literal">0x9A</tt></td>
+<td>U+00A0</td>
+</tr>
+</tbody>
+</table>
+<p>Manual tests became more and more complex, since there are so many cases: each
+operating system use different locale names and the result depends on the libc
+version. After months of manual tests, I wrote my small personal <strong>portable</strong>
+locale test suite: <a class="reference external" href="https://github.com/vstinner/misc/blob/master/python/test_all_locales.py">test_all_locales.py</a>.
+It supports:</p>
+<ul class="simple">
+<li>FreeBSD 11</li>
+<li>macOS</li>
+<li>Fedora (Linux)</li>
+</ul>
+<p>Example:</p>
+<pre class="literal-block">
+def test_zh_TW_Big5(self):
+    loc = &quot;zh_TW.Big5&quot; if BSD else &quot;zh_TW.big5&quot;
+    if FREEBSD:
+        currency_symbol = u'\uff2e\uff34\uff04'
+        decimal_point = u'\uff0e'
+        thousands_sep = u'\uff0c'
+        date_str = u'\u661f\u671f\u56db 2\u6708'
+    else:
+        currency_symbol = u'NT$'
+        decimal_point = u'.'
+        thousands_sep = u','
+        if MACOS:
+            date_str =  u'\u9031\u56db 2\u6708'
+        else:
+            date_str = u'\u9031\u56db \u4e8c\u6708'
+
+    self.set_locale(loc, &quot;Big5&quot;)
+
+    lc = locale.localeconv()
+    self.assertLocaleEqual(lc['currency_symbol'], currency_symbol)
+    self.assertLocaleEqual(lc['decimal_point'], decimal_point)
+    self.assertLocaleEqual(lc['thousands_sep'], thousands_sep)
+
+    self.assertLocaleEqual(time.strftime('%A %B', FEBRUARY), date_str)
+</pre>
+<p>The best would be to integrate directly these tests into the Python test suite,
+but it's not portable nor future-proof, since most constants are hardcoded and
+depends on the operating sytem and the libc version.</p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>

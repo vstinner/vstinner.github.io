@@ -5,10 +5,6 @@
         <title>Victor Stinner blog 3 - cpython</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
-
-        <!--[if IE]>
-            <script src="https://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-        <![endif]-->
 </head>
 
 <body id="index" class="home">
@@ -23,7 +19,421 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python3-locales-encodings.html">Python 3, locales and encodings</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Asyncio: Proactor Cancellation From Hell</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-01-28T20:20:00+01:00">
+                Published: lun. 28 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
+</footer><!-- /.post-info --><p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
+(module added to Python 3.4 released in March 2014). I helped to stabilize the
+Windows implementation because... well, nobody else was paying attention to it,
+and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
+<p>One bug really annoyed me, I started to fix it in July 2014, but I only
+succeeded to <strong>fix the root issue</strong> in January 2015: <strong>six months later</strong>!</p>
+<p>It was really difficult to find documentation on IOCP and asynchronous
+programming on Windows. <strong>I had to ask for help to someone who had access to
+the Windows source code</strong> to understand the bug...</p>
+<p><strong>Spoiler:</strong> cancelling an overlapped <tt class="docutils literal">RegisterWaitForSingleObject()</tt> with
+<tt class="docutils literal">UnregisterWait()</tt> is asynchronous. The asynchronous part is not well
+documented and it took me months of debug to understand it. Moreover, the bug
+was well hidden for various reasons that we will see below.</p>
+<img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" />
+<div class="section" id="fix-cancel-when-called-twice">
+<h2>Fix cancel() when called twice</h2>
+<p>July 2014, <a class="reference external" href="https://github.com/python/asyncio/issues/195">asyncio issue #195</a>: while working on a
+<tt class="docutils literal">SIGINT</tt> signal handler for the <tt class="docutils literal">ProactorEventLoop</tt> on Windows (<a class="reference external" href="https://github.com/python/asyncio/issues/195">asyncio
+issue #191</a>), I hit a bug on
+Windows: <tt class="docutils literal">_WaitHandleFuture.cancel()</tt> crash if the wait event was already
+unregistered by <tt class="docutils literal">finish_wait_for_handle()</tt>. The bug was that
+<tt class="docutils literal">UnregisterWait()</tt> was called twice.</p>
+<p>I pushed <a class="reference external" href="https://github.com/python/cpython/commit/fea6a100dc51012cb0187374ad31de330ebc0035">commit fea6a100</a>
+to fix this crash:</p>
+<pre class="literal-block">
+commit fea6a100dc51012cb0187374ad31de330ebc0035
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Fri Jul 25 00:54:53 2014 +0200
+
+    Improve stability of the proactor event loop, especially operations on
+    overlapped objects (...)
+</pre>
+<p>Main changes:</p>
+<ul class="simple">
+<li>Fix a crash: <strong>don't call UnregisterWait() twice if a _WaitHandleFuture
+is cancelled twice</strong>.</li>
+<li>Fix another crash: <tt class="docutils literal">_OverlappedFuture.cancel()</tt> doesn't cancel the
+overlapped anymore if it is already cancelled or completed. Log also an error
+if the cancellation failed.</li>
+<li><tt class="docutils literal">IocpProactor.close()</tt> now cancels futures rather than cancelling directly
+underlaying overlapped objects.</li>
+<li>Add a destructor to the <tt class="docutils literal">IocpProactor</tt> class which closes it</li>
+</ul>
+</div>
+<div class="section" id="clear-reference-from-overlappedfuture-to-overlapped">
+<h2>Clear reference from _OverlappedFuture to overlapped</h2>
+<p>July 2014, I created <a class="reference external" href="https://github.com/python/asyncio/issues/196">asyncio issue #196</a>:
+<tt class="docutils literal">_OverlappedFuture.set_result()</tt> should clear the its reference to the
+overlapped object.</p>
+<p>It is important to explicitly clear references to Python objects as soon as
+possible to release resources. Otherwise, an object can remain alive
+longer than expected.</p>
+<p>I noticed that _OverlappedFuture kept a reference to the undelying overlapped
+object even after the asynchronous operation completed. I started to work on a
+fix but I had many issues to fix completely this bug... it is just the
+beginning of a long journey.</p>
+<div class="section" id="clear-the-reference-on-cancellation-and-error">
+<h3>Clear the reference on cancellation and error</h3>
+<p>I pushed a first fix: <a class="reference external" href="https://github.com/python/cpython/commit/18a28dc5c28ae9a953f537486780159ddb768702">commit 18a28dc5</a>
+clears the reference to the overlapped in <tt class="docutils literal">cancel()</tt> and <tt class="docutils literal">set_exception()</tt>
+methods of <tt class="docutils literal">_OverlappedFuture</tt>:</p>
+<pre class="literal-block">
+commit 18a28dc5c28ae9a953f537486780159ddb768702
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Fri Jul 25 13:05:20 2014 +0200
+
+    * _OverlappedFuture.cancel() now clears its reference to the overlapped object.
+      Make also the _OverlappedFuture.ov attribute private.
+    * _OverlappedFuture.set_exception() now cancels the overlapped operation.
+    * (...)
+</pre>
+<p>I started by this change because it didn't make the tests less stable.</p>
+</div>
+<div class="section" id="clear-the-reference-in-poll">
+<h3>Clear the reference in poll()</h3>
+<p>Clearing the reference to the overlapped in <tt class="docutils literal">cancel()</tt> and
+<tt class="docutils literal">set_exception()</tt> <strong>works well</strong>. But when I try to do the same on success (in
+<tt class="docutils literal">set_result()</tt>), <strong>I get random errors</strong>. Example:</p>
+<pre class="literal-block">
+C:\haypo\tulip&gt;\python33\python.exe runtests.py test_pipe
+...
+Exception RuntimeError: '&lt;_overlapped.Overlapped object at 0x00000000035E7660&gt; s
+till has pending operation at deallocation, the process may crash' ignored
+...
+Fatal read error on pipe transport
+protocol: &lt;asyncio.streams.StreamReaderProtocol object at 0x00000000035EE668&gt;
+transport: &lt;_ProactorDuplexPipeTransport fd=348&gt;
+Traceback (most recent call last):
+  File &quot;C:\haypo\tulip\asyncio\proactor_events.py&quot;, line 159, in _loop_reading
+    data = fut.result()  # deliver data later in &quot;finally&quot; clause
+  File &quot;C:\haypo\tulip\asyncio\futures.py&quot;, line 271, in result
+    raise self._exception
+  File &quot;C:\haypo\tulip\asyncio\windows_events.py&quot;, line 488, in _poll
+    value = callback(transferred, key, ov)
+  File &quot;C:\haypo\tulip\asyncio\windows_events.py&quot;, line 279, in finish_recv
+    return ov.getresult()
+OSError: [WinError 996] Overlapped I/O event is not in a signaled state
+...
+</pre>
+<p>It seems that the problem only occurs in the fast-path of
+<tt class="docutils literal">IocpProactor._register()</tt>, when the overlapped is not added to <tt class="docutils literal">_cache</tt>.</p>
+<p>Clearing the reference in <tt class="docutils literal">_poll()</tt>, when <tt class="docutils literal">GetQueuedCompletionStatus()</tt> read
+the status, <strong>works</strong>! I pushed a second fix, <a class="reference external" href="https://github.com/python/cpython/commit/65dd69a3da16257bd86b92900e5ec5a8dd26f1d9">commit 65dd69a3</a>
+changes <tt class="docutils literal">_poll()</tt>:</p>
+<pre class="literal-block">
+commit 65dd69a3da16257bd86b92900e5ec5a8dd26f1d9
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Fri Jul 25 22:36:05 2014 +0200
+
+    IocpProactor._poll() clears the reference to the overlapped operation
+    when the operation is done. (...)
+</pre>
+</div>
+<div class="section" id="ignore-false-alarms">
+<h3>Ignore false alarms</h3>
+<p>I tried to add the overlapped into <tt class="docutils literal">_cache</tt> but <strong>then the event loop started
+to hang or to fail with new errors</strong>.</p>
+<p>I analyzed an overlapped <tt class="docutils literal">WSARecv()</tt> which has been cancelled. Just after
+calling <tt class="docutils literal">CancelIoEx()</tt>, <tt class="docutils literal">HasOverlappedIoCompleted()</tt> returns 0.</p>
+<p>Even after <tt class="docutils literal">GetQueuedCompletionStatus()</tt> read the status,
+<tt class="docutils literal">HasOverlappedIoCompleted()</tt> still returns 0.</p>
+<p><strong>After hours of debug, I eventually found the main issue!</strong></p>
+<p>Sometimes <tt class="docutils literal">GetQueuedCompletionStatus()</tt> returns an overlapped operation which
+has not completed yet. I modified <tt class="docutils literal">IocpProactor._poll()</tt> to ignore the false
+alarm, <a class="reference external" href="https://github.com/python/cpython/commit/51e44ea66aefb4229e506263acf40d35596d279c">commit 51e44ea6</a>:</p>
+<pre class="literal-block">
+commit 51e44ea66aefb4229e506263acf40d35596d279c
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Sat Jul 26 00:58:34 2014 +0200
+
+    _OverlappedFuture.set_result() now clears its reference to the
+    overlapped object.
+
+    IocpProactor._poll() now also ignores false alarms:
+    GetQueuedCompletionStatus() returns the overlapped but it is still
+    pending.
+</pre>
+<p>The fix adds this comment:</p>
+<pre class="literal-block">
+# FIXME: why do we get false alarms?
+</pre>
+</div>
+<div class="section" id="keep-a-reference-of-overlapped">
+<h3>Keep a reference of overlapped</h3>
+<p>To stabilize the code, I modified <tt class="docutils literal">ProactorIocp</tt> to keep a reference to the
+overlapped object (it already kept a reference previously but not in all cases).
+<strong>Otherwise the memory may be reused and GetQueuedCompletionStatus() may use
+random bytes and behaves badly</strong>. I pushed <a class="reference external" href="https://github.com/python/cpython/commit/42d3bdeed6e34117b787d61a471563a0dba6a894">commit 42d3bdee</a>:</p>
+<pre class="literal-block">
+commit 42d3bdeed6e34117b787d61a471563a0dba6a894
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jul 28 00:18:43 2014 +0200
+
+    ProactorIocp._register() now registers the overlapped
+    in the _cache dictionary, even if we already got the result. We need to keep a
+    reference to the overlapped object, otherwise the memory may be reused and
+    GetQueuedCompletionStatus() may use random bytes and behaves badly.
+
+    There is still a hack for ConnectNamedPipe(): the overlapped object is not
+    registered into _cache if the overlapped object completed directly.
+
+    Log also an error in debug mode in ProactorIocp._loop() if we get an unexpected
+    event.
+
+    Add a protection in ProactorIocp.close() to avoid blocking, even if it should
+    not happen. I still don't understand exactly why some the completion of some
+    overlapped objects are not notified.
+</pre>
+<p>The change adds a long comment:</p>
+<pre class="literal-block">
+# Even if GetOverlappedResult() was called, we have to wait for the
+# notification of the completion in GetQueuedCompletionStatus().
+# Register the overlapped operation to keep a reference to the
+# OVERLAPPED object, otherwise the memory is freed and Windows may
+# read uninitialized memory.
+#
+# For an unknown reason, ConnectNamedPipe() behaves differently:
+# the completion is not notified by GetOverlappedResult() if we
+# already called GetOverlappedResult(). For this specific case, we
+# don't expect notification (register is set to False).
+</pre>
+<p>I pushed another change to attempt to stabilize the code, <a class="reference external" href="https://github.com/python/cpython/commit/313a9809043ed2ed1ad25282af7169e08cdc92a3">commit 313a9809</a>:</p>
+<pre class="literal-block">
+commit 313a9809043ed2ed1ad25282af7169e08cdc92a3
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Tue Jul 29 12:58:23 2014 +0200
+
+    * _WaitHandleFuture.cancel() now notify IocpProactor through the overlapped
+      object that the wait was cancelled.
+    * Optimize IocpProactor.wait_for_handle() gets the result if the wait is
+      signaled immediatly.
+    (...)
+</pre>
+</div>
+<div class="section" id="asyncio-issue-196-closed">
+<h3>asyncio issue #196 closed</h3>
+<p>The initial issue &quot;_OverlappedFuture.set_result() should clear its reference to
+the overlapped object&quot; has been fixed, so <strong>I closed this issue</strong>. I didn't
+know at this point that all bugs were not fixed yet...</p>
+<p>I also opened the new <a class="reference external" href="https://github.com/python/asyncio/issues/204">asyncio issue #204</a> to investigate
+<tt class="docutils literal">accept_pipe()</tt> special case. We will analyze this funny bug in another article.</p>
+</div>
+</div>
+<div class="section" id="bpo-23095-race-condition-when-cancelling-a-waithandlefuture">
+<h2>bpo-23095: race condition when cancelling a _WaitHandleFuture</h2>
+<p>At December 21, 2014, five months after a long serie of changes to stabilize
+asyncio...  <strong>asyncio was still crashing randomly on Windows</strong>! I created
+<a class="reference external" href="https://bugs.python.org/issue23095">bpo-23095: race condition when cancelling a _WaitHandleFuture</a>.</p>
+<p>On Windows using the IOCP (proactor) event loop, I noticed race conditions when
+running the test suite of Trollius (my old deprecated asyncio port to Python
+2). For example, sometimes the return code of a process was <tt class="docutils literal">None</tt>, whereas
+this case <strong>must never happen</strong>. It looks like the <tt class="docutils literal">wait_for_handle()</tt> method
+doesn't behave properly.</p>
+<p>When I run the test suite of asyncio in debug mode (PYTHONASYNCIODEBUG=1),
+sometimes I see the message &quot;GetQueuedCompletionStatus() returned an unexpected
+event&quot; which <strong>should never occur neither</strong>.</p>
+<p>I added debug traces. I saw that the <tt class="docutils literal">IocpProactor.wait_for_handle()</tt> calls
+later <tt class="docutils literal">PostQueuedCompletionStatus()</tt> through its internal C callback
+(<tt class="docutils literal">PostToQueueCallback</tt>). It looks like <strong>sometimes the callback is called
+whereas the wait was cancelled/acked</strong> by <tt class="docutils literal">UnregisterWait()</tt>.</p>
+<p>... I didn't understand the logic between <tt class="docutils literal">RegisterWaitForSingleObject()</tt>,
+<tt class="docutils literal">UnregisterWait()</tt> and the callback ....</p>
+<p>It looks like sometimes the overlapped object created in Python
+(<tt class="docutils literal">ov = _overlapped.Overlapped(NULL)</tt>) is destroyed, before
+<tt class="docutils literal">PostToQueueCallback()</tt> is called. In the unit tests, <strong>it doesn't crash
+because a different overlapped object is created and it gets the same memory
+address</strong> (the memory allocator reuses a just freed memory block).</p>
+<p>The implementation of <tt class="docutils literal">wait_for_handle()</tt> had an optimization: it polls
+immediatly the wait to check if it already completed. I tried to remove it, but
+I got some different issues. If I understood correctly, <strong>this optimization
+hides other bugs and reduce the probability of getting the race condition</strong>.</p>
+<p><tt class="docutils literal">wait_for_handle()</tt> is used to wait for the completion of a subprocess, so by
+all unit tests running subprocesses, but also in <tt class="docutils literal">test_wait_for_handle()</tt> and
+<tt class="docutils literal">test_wait_for_handle_cancel()</tt> tests. I suspect that running
+<tt class="docutils literal">test_wait_for_handle()</tt> or <tt class="docutils literal">test_wait_for_handle_cancel()</tt> triggers the
+bug.</p>
+<p>Removing <tt class="docutils literal">_winapi.CloseHandle(self._iocp)</tt> in <tt class="docutils literal">IocpProactor.close()</tt>
+works around the bug. The bug looks to be an expected call to
+<tt class="docutils literal">PostToQueueCallback()</tt> which calls <tt class="docutils literal">PostQueuedCompletionStatus()</tt> on an
+IOCP. Not closing the IOCP means using a different IOCP for each test, so the
+unexpected call to <tt class="docutils literal">PostQueuedCompletionStatus()</tt> has no effect on following
+tests.</p>
+<p>I rewrote some parts of the IOCP code in asyncio. Maybe I introduced this issue
+during the refactoring. Maybe <strong>it already existed before but nobody noticed
+it, asyncio had fewer unit tests before</strong>.</p>
+</div>
+<div class="section" id="fixing-the-root-issue-overlapped-cancellation-from-hell">
+<h2>Fixing the root issue: Overlapped Cancellation From Hell</h2>
+<p>I looked into Twisted implemented of proactor, but it didn't support
+subprocesses.</p>
+<p>I looked at libuv: it supported processes but not cancelling a wait on a
+process handle...</p>
+<p><strong>I had to ask for help to someone who had access to the Windows source code</strong>
+to understand the bug...</p>
+<p><strong>After six months of intense debugging, I eventually identified the root
+issue</strong> (I pushed the first fix at July 25, 2014). I pushed the <a class="reference external" href="https://github.com/python/cpython/commit/d0a28dee78d099fcadc71147cba4affb6efa0c97">commit
+d0a28dee</a>
+(<a class="reference external" href="https://bugs.python.org/issue23095">bpo-23095</a>):</p>
+<pre class="literal-block">
+commit d0a28dee78d099fcadc71147cba4affb6efa0c97
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Wed Jan 21 23:39:51 2015 +0100
+
+    Issue #23095, asyncio: Rewrite _WaitHandleFuture.cancel()
+</pre>
+<p>This change fixes a race conditon related to <tt class="docutils literal">_WaitHandleFuture.cancel()</tt>
+leading to a Python crash or &quot;GetQueuedCompletionStatus() returned an
+unexpected event&quot; logs. Previously, <strong>it was possible that the cancelled wait
+completes whereas the overlapped object was already destroyed</strong>. Sometimes, a
+different overlapped was allocated at the same address, emitting a log about
+unexpected completition (but no crash).</p>
+<p><tt class="docutils literal">_WaitHandleFuture.cancel()</tt> now <strong>waits until the handle wait is cancelled</strong>
+(until the cancellation completes) before clearing its reference to the
+overlapped object. To wait until the cancellation completes,
+<tt class="docutils literal">UnregisterWaitEx()</tt> is used with an event (instead of using
+<tt class="docutils literal">UnregisterWait()</tt>).</p>
+<p>To wait for this event, a new <tt class="docutils literal">_WaitCancelFuture</tt> class was added. It's a
+simplified version of <tt class="docutils literal">_WaitCancelFuture</tt>. For example, its <tt class="docutils literal">cancel()</tt>
+method calls <tt class="docutils literal">UnregisterWait()</tt>, not <tt class="docutils literal">UnregisterWaitEx()</tt>.
+<tt class="docutils literal">_WaitCancelFuture</tt> should not be cancelled.</p>
+<p>The overlapped object is <strong>kept alive</strong> in <tt class="docutils literal">_WaitHandleFuture</tt> <strong>until the
+wait is unregistered</strong>.</p>
+<p>Later, I pushed a few more changes to fix corner cases.</p>
+<p><a class="reference external" href="https://github.com/python/cpython/commit/1ca9392c7083972c1953c02e6f2cca54934ce0a6">commit 1ca9392c</a>:</p>
+<pre class="literal-block">
+commit 1ca9392c7083972c1953c02e6f2cca54934ce0a6
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Thu Jan 22 00:17:54 2015 +0100
+
+    Issue #23095, asyncio: IocpProactor.close() must not cancel pending
+    _WaitCancelFuture futures
+</pre>
+<p><a class="reference external" href="https://github.com/python/cpython/commit/752aba7f999b08c833979464a36840de8be0baf0">commit 752aba7f</a>:</p>
+<pre class="literal-block">
+commit 752aba7f999b08c833979464a36840de8be0baf0
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Thu Jan 22 22:47:13 2015 +0100
+
+    asyncio: IocpProactor.close() doesn't cancel anymore futures which are already
+    cancelled
+</pre>
+<p><a class="reference external" href="https://github.com/python/cpython/commit/24dfa3c1d6b21e731bd167a13153968bba8fa5ce">commit 24dfa3c1</a>:</p>
+<pre class="literal-block">
+commit 24dfa3c1d6b21e731bd167a13153968bba8fa5ce
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Mon Jan 26 22:30:28 2015 +0100
+
+    Issue #23095, asyncio: Fix _WaitHandleFuture.cancel()
+
+    If UnregisterWaitEx() fais with ERROR_IO_PENDING, it doesn't mean that the wait
+    is unregistered yet. We still have to wait until the wait is cancelled.
+</pre>
+<p>I think that <em>this</em> issue can now be closed: <tt class="docutils literal">UnregisterWaitEx()</tt> really do
+what we need in asyncio.</p>
+<p>I don't like the complexity of the IocpProactor._unregister() method and of the
+_WaitCancelFuture class, but it looks that it's how we are supposed to wait
+until a wait for a handle is cancelled...</p>
+<p>Windows IOCP API is much more complex that what I expected. It's probably
+because some parts (especially <tt class="docutils literal">RegisterWaitForSingleObject()</tt>) are
+implemented with threads in user land, not in the kernel.</p>
+<p>In short, I'm very happy that have fixed this very complex but also very
+annoying IOCP bug in asyncio.</p>
+<p>I got a nice comment from <a class="reference external" href="https://bugs.python.org/issue23095#msg234453">Guido van Rossum</a>:</p>
+<blockquote>
+<strong>Congrats with the fix, and thanks for your perseverance!</strong></blockquote>
+</div>
+<div class="section" id="summary-of-the-race-condition">
+<h2>Summary of the race condition</h2>
+<p>Events of the crashing unit test:</p>
+<ul class="simple">
+<li>The loop (ProactorEventLoop) spawns a subprocess.</li>
+<li>The loop creates a _WaitHandleFuture object which creates an overlapped to
+wait until the process completes (call <tt class="docutils literal">RegisterWaitForSingleObject()</tt>):
+<strong>allocate</strong> memory for the overlapped.</li>
+<li>The wait future is cancelled (call <tt class="docutils literal">UnregisterWait()</tt>).</li>
+<li>The overlapped is destroyed: <strong>free</strong> overlapped memory.</li>
+<li>The overlapped completes: <strong>write</strong> into the overlapped memory.</li>
+</ul>
+<p>The main issue is the order of the two last events.</p>
+<p>Sometimes, the overlapped completed before the memory was freed: everything is
+fine.</p>
+<p>Sometimes, the overlapped completed after the memory was freed: Python crashed
+(segmentation fault).</p>
+<p>Sometimes, another _WaitHandleFuture was created in the meanwhile and created a
+second overlapped which was allocated at the same memory address than the freed
+memory of the previous overlapped. In this case, when the first overlapped
+completes, Python didn't crash but logged an unexpected completion message.</p>
+<p>Sometimes, the write was done in freed memory: the write didn't crash Python,
+but caused bugs which didn't make sense.</p>
+<p>There were even more cases causing even more surprising behaviors.</p>
+<p>Summary of the fix:</p>
+<ul class="simple">
+<li>(... similar steps for the beginning ...)</li>
+<li>The wait future is cancelled: <strong>create an event</strong> to wait until the
+cancellation completes (call <tt class="docutils literal">UnregisterWaitEx()</tt>).</li>
+<li>Wait for the event.</li>
+<li>The event is signalled which means that the cancellation completed: <strong>write</strong>
+into the overlapped memory.</li>
+<li>The overlapped is destroyed: <strong>free</strong> overlapped memory.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="bookmark"
+                           title="Permalink to Locale Bugfixes in Python 3">Locale Bugfixes in Python 3</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2019-01-09T00:30:00+01:00">
+                Published: mer. 09 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
+</footer><!-- /.post-info -->                <p>This article describes a few locales bugs that I fixed in Python 3 between 2012
+(Python 3.3) and 2018 (Python 3.7):</p>
+<ul class="simple">
+<li>Support non-ASCII decimal point and thousands separator</li>
+<li>Crash with non-ASCII decimal point</li>
+<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
+<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
+<li>Tests non-ASCII locales …</li></ul>
+                <a class="readmore" href="https://vstinner.github.io/locale-bugfixes-python3.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/python3-locales-encodings.html" rel="bookmark"
+                           title="Permalink to Python 3, locales and encodings">Python 3, locales and encodings</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2018-09-06T16:00:00+02:00">
                 Published: jeu. 06 septembre 2018
@@ -34,506 +444,15 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
-</footer><!-- /.post-info --><p>Recently, I worked on a change which looked simple: move the code to initialize
+</footer><!-- /.post-info -->                <p>Recently, I worked on a change which looked simple: move the code to initialize
 the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
 I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
-I didn't expect that I would spend 2 weeks on these issues... This article
-tells me about my recent journey in locales and encodings on AIX, HP-UX,
-Windows, Linux, macOS, Solaris and FreeBSD.</p>
-<img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" />
-<p>Table of Contents:</p>
-<ul class="simple">
-<li>Lying HP-UX</li>
-<li>Standard streams and filesystem encodings</li>
-<li>POSIX locale on FreeBSD</li>
-<li>C locale on Windows</li>
-<li>Back to stdio encoding</li>
-<li>Back to filesystem encoding</li>
-<li>Use surrogatepass on Windows</li>
-<li>Filesystem encoding documentation</li>
-<li>Final FreeBSD 10 issue</li>
-<li>Configuration of locales and encodings</li>
-</ul>
-<div class="section" id="lying-hp-ux">
-<h2>Lying HP-UX</h2>
-<p>At 2018-08-14, Michael Osipov reported <a class="reference external" href="https://bugs.python.org/issue34403">bpo-34403</a>:
-&quot;test_utf8_mode.test_cmd_line() fails on HP-UX due to false assumptions&quot;:</p>
-<pre class="literal-block">
-======================================================================
-FAIL: test_cmd_line (test.test_utf8_mode.UTF8ModeTests)
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  (...)
-AssertionError: &quot;['h\\xc3\\xa9\\xe2\\x82\\xac']&quot; != &quot;['h\\udcc3\\udca9\\udce2\\udc82\\udcac']&quot;
-- ['h\xc3\xa9\xe2\x82\xac']
-+ ['h\udcc3\udca9\udce2\udc82\udcac']
- : roman8:['h\xc3\xa9\xe2\x82\xac']
-</pre>
-<p>Interesting, HP-UX uses &quot;roman8&quot; as its locale encoding. What is this &quot;new&quot;
-encoding? Wikipedia: <a class="reference external" href="https://en.wikipedia.org/wiki/HP_Roman#Roman-8">HP Roman-8</a>. Oh, that's even older than
-the common ISO 8859 encodings like Latin1!</p>
-<p>Michael Felt was working on a similar test_utf8_mode failure on AIX, so they
-tried to debug the issue together, but failed to understand the issue. Osipov
-proposed to give up and just skip the test on HP-UX...</p>
-<p>I showed up and proposed a fix for the unit test: <a class="reference external" href="https://github.com/python/cpython/pull/8967/files">PR 8967</a>. The test was hardcoding
-the expected locale encoding. I modified the test to query the locale encoding
-at runtime instead.</p>
-<p>Bad surprise, the test still fails, oh. <a class="reference external" href="https://bugs.python.org/issue34403#msg324219">I commented</a>:</p>
-<blockquote>
-Hum, it looks like a bug in the C library of HP-UX.</blockquote>
-<p>I wrote a C program calling mbstowcs() to check what is the actual encoding
-used by the C library: <a class="reference external" href="https://bugs.python.org/file47767/c_locale.c">c_locale.c</a>. <a class="reference external" href="https://bugs.python.org/issue34403#msg324225">Result</a>:</p>
-<blockquote>
-Well, it confirms what I expected: <tt class="docutils literal">nl_langinfo(CODESET)</tt> announces
-<tt class="docutils literal">&quot;roman8&quot;</tt>, but <tt class="docutils literal">mbstowcs()</tt> uses Latin1 encoding in practice.</blockquote>
-<p>So I wrote a workaround similar to the one used on FreeBSD and Solaris: check
-if the libc is announcing an encoding different than the real encoding, and if
-it's the case: force the usage of the ASCII encoding in Python. See
-my <a class="reference external" href="https://github.com/python/cpython/commit/d500e5307aec9c5d535f66d567fadb9c587a9a36">commit d500e530</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Tue Aug 28 17:27:36 2018 +0200
-
-    bpo-34403: On HP-UX, force ASCII for C locale (GH-8969)
-
-    On HP-UX with C or POSIX locale, sys.getfilesystemencoding() now returns
-    &quot;ascii&quot; instead of &quot;roman8&quot; (when the UTF-8 Mode is disabled and the C locale
-    is not coerced).
-
-    nl_langinfo(CODESET) announces &quot;roman8&quot; whereas it uses the Latin1
-    encoding in practice.
-</pre>
-<p>Extract of the heuristic code:</p>
-<pre class="literal-block">
-if (strcmp(encoding, &quot;roman8&quot;) == 0) {
-    unsigned char ch = (unsigned char)0xA7;
-    wchar_t wch;
-    size_t res = mbstowcs(&amp;wch, (char*)&amp;ch, 1);
-    if (res != (size_t)-1 &amp;&amp; wch == L'\xA7') {
-        /* On HP-UX withe C locale or the POSIX locale,
-           nl_langinfo(CODESET) announces &quot;roman8&quot;,
-           whereas mbstowcs() uses Latin1 encoding in practice.
-           Force ASCII in this case.  Roman8 decodes 0xA7
-           to U+00CF. Latin1 decodes 0xA7 to U+00A7. */
-        return 1;
-    }
-}
-</pre>
-<p>Python 3.8 will handle better Unicode support on HP-UX. The test_utf8_mode
-failure was just a hint for a real underlying bug!</p>
-</div>
-<div class="section" id="standard-streams-and-filesystem-encodings">
-<h2>Standard streams and filesystem encodings</h2>
-<p>While reworking the Python initialization, I tried to move <strong>all</strong>
-configuration parameters to a new <tt class="docutils literal">_PyCoreConfig</tt> structure. But I know that
-I missed at least the standard streams encoding (ex: <tt class="docutils literal">sys.stdout.encoding</tt>).
-My first attempt failed to move the code, it broke many tests. I created
-<a class="reference external" href="https://bugs.python.org/issue34485">bpo-34485</a>: &quot;_PyCoreConfig: add
-stdio_encoding and stdio_errors&quot;.</p>
-<p>While I was working on stdio encoding, I also recalled that the Python
-filesystem encoding is also initialized &quot;late&quot;. I also created <a class="reference external" href="https://bugs.python.org/issue34523">bpo-34523</a>: &quot;Choose the filesystem encoding before
-Python initialization (add _PyCoreConfig.filesystem_encoding)&quot; to move this
-code as well.</p>
-<p>I quickly had an implementation, but it didn't go as well as expected...</p>
-</div>
-<div class="section" id="posix-locale-on-freebsd">
-<h2>POSIX locale on FreeBSD</h2>
-<p><a class="reference external" href="https://bugs.python.org/issue34485">bpo-34485</a>: For me, the &quot;C&quot; and &quot;POSIX&quot;
-locales were the same locale: C is an alias to POSIX, or the opposite, it
-didn't really matter for me. But Python handles them differently in some corner
-cases. For example, Nick Coghlan's PEP 538 (C locale coercion) is only enabled
-if the LC_CTYPE locale is equal to &quot;C&quot;, not if it's equal to &quot;POSIX&quot;.</p>
-<p>In Python 3.5, I changed stdin and stdout error handlers from strict to
-surrogateescape if the LC_CTYPE locale is &quot;C&quot;: <a class="reference external" href="https://bugs.python.org/issue19977">bpo-19977</a>. But when I tested my
-stdio and filesystem changes on Linux, FreeBSD and Windows, I noticed that
-I forgot to handle the &quot;POSIX&quot; locale. On FreeBSD, <tt class="docutils literal">LC_ALL=POSIX</tt> and <tt class="docutils literal">LC_ALL=C</tt>
-behave differently:</p>
-<ul class="simple">
-<li>With <tt class="docutils literal">LC_ALL=POSIX</tt> environment, <tt class="docutils literal">setlocale(LC_CTYPE, &quot;&quot;)</tt> returns <tt class="docutils literal">&quot;POSIX&quot;</tt></li>
-<li>With <tt class="docutils literal">LC_ALL=C</tt> environment, <tt class="docutils literal">setlocale(LC_CTYPE, &quot;&quot;)</tt> returns <tt class="docutils literal">&quot;C&quot;</tt></li>
-</ul>
-<p>I fixed that to also use the &quot;surrogateescape&quot; error handler for the POSIX
-locale on FreeBSD. <a class="reference external" href="https://github.com/python/cpython/commit/315877dc361d554bec34b4b62c270479ad36a1be">Commit 315877dc</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 09:58:12 2018 +0200
-
-    bpo-34485: stdout uses surrogateescape on POSIX locale (GH-8986)
-
-    Standard streams like sys.stdout now use the &quot;surrogateescape&quot; error
-    handler, instead of &quot;strict&quot;, on the POSIX locale (when the C locale is not
-    coerced and the UTF-8 Mode is disabled).
-
-    Add tests on sys.stdout.errors with LC_ALL=POSIX.
-</pre>
-<p>The most important change is just one line:</p>
-<pre class="literal-block">
--        if (strcmp(ctype_loc, &quot;C&quot;) == 0) {
-+        if (strcmp(ctype_loc, &quot;C&quot;) == 0 || strcmp(ctype_loc, &quot;POSIX&quot;) == 0) {
-             return &quot;surrogateescape&quot;;
-         }
-</pre>
-<p><a class="reference external" href="https://bugs.python.org/issue34527">bpo-34527</a>: Since I was testing
-various configurations, I also noticed that my UTF-8 Mode (PEP 540) had the
-same bug. Python 3.7 enables it if the LC_CTYPE locale is equal to &quot;C&quot;,
-but not if it's equal to &quot;POSIX&quot;. I also changed that (<a class="reference external" href="https://github.com/python/cpython/commit/5cb258950ce9b69b1f65646431c464c0c17b1510">commit 5cb25895</a>).</p>
-</div>
-<div class="section" id="c-locale-on-windows">
-<h2>C locale on Windows</h2>
-<p>While testing my changes on Windows, I noticed that Python starts with the
-LC_CTYPE locale equal to &quot;C&quot;, whereas <tt class="docutils literal">locale.setlocale(locale.LC_CTYPE, &quot;&quot;)</tt>
-changes the LC_CTYPE locale to something like <tt class="docutils literal">English_United States.1252</tt>
-(English with the code page 1252). Example with Python 3.6:</p>
-<pre class="literal-block">
-C:\&gt; python
-Python 3.6.4 (v3.6.4:d48eceb, Dec 19 2017, 06:54:40) [MSC v.1900 64 bit (AMD64)] on win32
-&gt;&gt;&gt; import locale
-&gt;&gt;&gt; locale.setlocale(locale.LC_CTYPE, None)
-'C'
-&gt;&gt;&gt; locale.setlocale(locale.LC_CTYPE, &quot;&quot;)
-'English_United States.1252'
-&gt;&gt;&gt; locale.setlocale(locale.LC_CTYPE, None)
-'English_United States.1252'
-</pre>
-<p>On UNIX, Python 2 starts with the default C locale, whereas Python 3 always
-sets the LC_CTYPE locale to my preference. Example on Fedora 28 with
-<tt class="docutils literal"><span class="pre">LANG=fr_FR.UTF-8</span></tt>:</p>
-<pre class="literal-block">
-$ python2 -c 'import locale; print(locale.setlocale(locale.LC_CTYPE, None))'
-C
-$ python3 -c 'import locale; print(locale.setlocale(locale.LC_CTYPE, None))'
-fr_FR.UTF-8
-</pre>
-<p>I modified Windows to behave as UNIX, <a class="reference external" href="https://github.com/python/cpython/commit/177d921c8c03d30daa32994362023f777624b10d">commit 177d921c</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 11:25:15 2018 +0200
-
-    bpo-34485, Windows: LC_CTYPE set to user preference (GH-8988)
-
-    On Windows, the LC_CTYPE is now set to the user preferred locale at
-    startup: _Py_SetLocaleFromEnv(LC_CTYPE) is now called during the
-    Python initialization. Previously, the LC_CTYPE locale was &quot;C&quot; at
-    startup, but changed when calling setlocale(LC_CTYPE, &quot;&quot;) or
-    setlocale(LC_ALL, &quot;&quot;).
-
-    pymain_read_conf() now also calls _Py_SetLocaleFromEnv(LC_CTYPE) to
-    behave as _Py_InitializeCore(). Moreover, it doesn't save/restore the
-    LC_ALL anymore.
-
-    On Windows, standard streams like sys.stdout now always use
-    surrogateescape error handler by default (ignore the locale).
-</pre>
-<p>Example:</p>
-<pre class="literal-block">
-C:\&gt; python3.6 -c &quot;import locale; print(locale.setlocale(locale.LC_CTYPE, None))&quot;
-C
-C:\&gt; python3.8 -c &quot;import locale; print(locale.setlocale(locale.LC_CTYPE, None))&quot;
-English_United States.1252
-</pre>
-<p>On Windows, Python 3.8 now starts with the LC_CTYPE locale set to my
-preference, as it was already previously done on UNIX.</p>
-</div>
-<div class="section" id="back-to-stdio-encoding">
-<h2>Back to stdio encoding</h2>
-<p>After all previous changes and fixes, I was able to push my <a class="reference external" href="https://github.com/python/cpython/commit/dfe0dc74536dfb6f331131d9b2b49557675bb6b7">commit dfe0dc74</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 11:47:29 2018 +0200
-
-    bpo-34485: Add _PyCoreConfig.stdio_encoding (GH-8881)
-
-    * Add stdio_encoding and stdio_errors fields to _PyCoreConfig.
-    * Add unit tests on stdio_encoding and stdio_errors.
-</pre>
-</div>
-<div class="section" id="back-to-filesystem-encoding">
-<h2>Back to filesystem encoding</h2>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/b2457efc78b74a1d6d1b77d11a939e886b8a4e2c">Commit b2457efc</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 13:25:36 2018 +0200
-
-    bpo-34523: Add _PyCoreConfig.filesystem_encoding (GH-8963)
-
-    _PyCoreConfig_Read() is now responsible to choose the filesystem
-    encoding and error handler. Using Py_Main(), the encoding is now
-    chosen even before calling Py_Initialize().
-
-    _PyCoreConfig.filesystem_encoding is now the reference, instead of
-    Py_FileSystemDefaultEncoding, for the Python filesystem encoding.
-
-    Changes:
-
-    * Add filesystem_encoding and filesystem_errors to _PyCoreConfig
-    * _PyCoreConfig_Read() now reads the locale encoding for the file
-      system encoding.
-    * PyUnicode_EncodeFSDefault() and PyUnicode_DecodeFSDefaultAndSize()
-      now use the interpreter configuration rather than
-      Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors
-      global configuration variables.
-    * Add _Py_SetFileSystemEncoding() and _Py_ClearFileSystemEncoding()
-      private functions to only modify Py_FileSystemDefaultEncoding and
-      Py_FileSystemDefaultEncodeErrors in coreconfig.c.
-    * _Py_CoerceLegacyLocale() now takes an int rather than
-      _PyCoreConfig for the warning.
-</pre>
-</div>
-<div class="section" id="use-surrogatepass-on-windows">
-<h2>Use surrogatepass on Windows</h2>
-<p>While working on the filesystem encoding change, I had a bug in
-_freeze_importlib.exe which failed at startup:</p>
-<pre class="literal-block">
-ValueError: only 'strict' and 'surrogateescape' error handlers are supported, not 'surrogatepass'
-</pre>
-<p>I used the following workaround in <tt class="docutils literal">_freeze_importlib.c</tt>:</p>
-<pre class="literal-block">
-#ifdef MS_WINDOWS
-    /* bpo-34523: initfsencoding() is not called if _install_importlib=0,
-       so interp-&gt;fscodec_initialized value remains 0.
-       PyUnicode_EncodeFSDefault() doesn't support the &quot;surrogatepass&quot; error
-       handler in such case, whereas it's the default error handler on Windows.
-       Force the &quot;strict&quot; error handler to work around this bootstrap issue. */
-    config.filesystem_errors = &quot;strict&quot;;
-#endif
-</pre>
-<p>But I wasn't fully happy with the workaround. When running more manual tests, I
-found that the <tt class="docutils literal">PYTHONLEGACYWINDOWSFSENCODING</tt> environment variable wasn't
-handled properly. I pushed a first fix,
-<a class="reference external" href="https://github.com/python/cpython/commit/c5989cd87659acbfd4d19dc00dbe99c3a0fc9bd2">commit c5989cd8</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 19:32:47 2018 +0200
-
-    bpo-34523: Py_DecodeLocale() use UTF-8 on Windows (GH-8998)
-
-    Py_DecodeLocale() and Py_EncodeLocale() now use the UTF-8 encoding on
-    Windows if Py_LegacyWindowsFSEncodingFlag is zero.
-
-    pymain_read_conf() now sets Py_LegacyWindowsFSEncodingFlag in its
-    loop, but restore its value at exit.
-</pre>
-<p>My intent was to be able to use the <tt class="docutils literal">surrogatepass</tt> error handler. If
-<tt class="docutils literal">Py_DecodeLocale()</tt> is hardcoded to use UTF-8 on Windows, we should get
-access to the <tt class="docutils literal">surrogatepass</tt> error handler. Previously, <tt class="docutils literal">mbstowcs()</tt>
-function was used and this function only support <tt class="docutils literal">strict</tt> or
-<tt class="docutils literal">surrogateescape</tt> error handlers.</p>
-<p>I pushed a second big change to add support for the <tt class="docutils literal">surrogatepass</tt> error
-handler in locale codecs, <a class="reference external" href="https://github.com/python/cpython/commit/3d4226a832cabc630402589cc671cc4035d504e5">commit 3d4226a8</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 22:21:32 2018 +0200
-
-    bpo-34523: Support surrogatepass in locale codecs (GH-8995)
-
-    Add support for the &quot;surrogatepass&quot; error handler in
-    PyUnicode_DecodeFSDefault() and PyUnicode_EncodeFSDefault()
-    for the UTF-8 encoding.
-
-    Changes:
-
-    * _Py_DecodeUTF8Ex() and _Py_EncodeUTF8Ex() now support the
-      surrogatepass error handler (_Py_ERROR_SURROGATEPASS).
-    * _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx() now use
-      the _Py_error_handler enum instead of &quot;int surrogateescape&quot; to pass
-      the error handler. These functions now return -3 if the error
-      handler is unknown.
-    * Add unit tests on _Py_DecodeLocaleEx() and _Py_EncodeLocaleEx()
-      in test_codecs.
-    * Rename get_error_handler() to _Py_GetErrorHandler() and expose it
-      as a private function.
-    * _freeze_importlib doesn't need config.filesystem_errors=&quot;strict&quot;
-      workaround anymore.
-</pre>
-<p><tt class="docutils literal">PyUnicode_DecodeFSDefault()</tt> and <tt class="docutils literal">PyUnicode_EncodeFSDefault()</tt> functions
-use <tt class="docutils literal">Py_DecodeLocale()</tt> and <tt class="docutils literal">Py_EncodeLocale()</tt> before the Python codec of
-the filesystem encoding is loaded. With this big change, <tt class="docutils literal">Py_DecodeLocale()</tt>
-and <tt class="docutils literal">Py_EncodeLocale()</tt> now really behave as the Python codec.</p>
-<p>Previously, Python started with the <tt class="docutils literal">surrogateescape</tt> error handler, and
-switched to the <tt class="docutils literal">surrogatepass</tt> error handler once the Python codec was
-loaded.</p>
-</div>
-<div class="section" id="filesystem-encoding-documentation">
-<h2>Filesystem encoding documentation</h2>
-<p>One &quot;last&quot; change, I documented how Python selects the filesystem encoding,
-<a class="reference external" href="https://github.com/python/cpython/commit/de427556746aa41a8b5198924ce423021bc0c718">commit de427556</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed Aug 29 23:26:55 2018 +0200
-
-    bpo-34523: Py_FileSystemDefaultEncoding NULL by default (GH-9003)
-
-    * Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors
-      default value is now NULL: initfsencoding() set them
-      during Python initialization.
-    * Document how Python chooses the filesystem encoding and error
-      handler.
-    * Add an assertion to _PyCoreConfig_Read().
-</pre>
-<p>Documentation:</p>
-<pre class="literal-block">
-/* Python filesystem encoding and error handler:
-   sys.getfilesystemencoding() and sys.getfilesystemencodeerrors().
-
-   Default encoding and error handler:
-
-   * if Py_SetStandardStreamEncoding() has been called: they have the
-     highest priority;
-   * PYTHONIOENCODING environment variable;
-   * The UTF-8 Mode uses UTF-8/surrogateescape;
-   * locale encoding: ANSI code page on Windows, UTF-8 on Android,
-     LC_CTYPE locale encoding on other platforms;
-   * On Windows, &quot;surrogateescape&quot; error handler;
-   * &quot;surrogateescape&quot; error handler if the LC_CTYPE locale is &quot;C&quot; or &quot;POSIX&quot;;
-   * &quot;surrogateescape&quot; error handler if the LC_CTYPE locale has been coerced
-     (PEP 538);
-   * &quot;strict&quot; error handler.
-
-   Supported error handlers: &quot;strict&quot;, &quot;surrogateescape&quot; and
-   &quot;surrogatepass&quot;. The surrogatepass error handler is only supported
-   if Py_DecodeLocale() and Py_EncodeLocale() use directly the UTF-8 codec;
-   it's only used on Windows.
-
-   initfsencoding() updates the encoding to the Python codec name.
-   For example, &quot;ANSI_X3.4-1968&quot; is replaced with &quot;ascii&quot;.
-
-   On Windows, sys._enablelegacywindowsfsencoding() sets the
-   encoding/errors to mbcs/replace at runtime.
-
-
-   See Py_FileSystemDefaultEncoding and Py_FileSystemDefaultEncodeErrors.
-   */
-char *filesystem_encoding;
-char *filesystem_errors;
-</pre>
-</div>
-<div class="section" id="final-freebsd-10-issue">
-<h2>Final FreeBSD 10 issue</h2>
-<p><a class="reference external" href="https://bugs.python.org/issue34544">bpo-34544</a>: The stdio and filesystem
-encodings are now properly selected before Py_Initialize(), the LC_CTYPE locale
-should be properly initialized, the &quot;POSIX&quot; locale is now properly handled, but
-the FreeBSD 10 buildbot still complained about my recent changes... Many
-<tt class="docutils literal">test_c_locale_coerce</tt> tests started to fail with:</p>
-<blockquote>
-Fatal Python error: get_locale_encoding: failed to get the locale encoding: nl_langinfo(CODESET) failed</blockquote>
-<p>Sadly, I wasn't able to reproduce the issue on my FreeBSD 11 VM. I also got
-access to the FreeBSD CURRENT buildbot, but I also failed to reproduce the bug
-there. I was supposed to get access to the FreeBSD 10 buildbot, but there was a
-DNS issue.</p>
-<p>I had to <em>guess</em> the origin of the bug and I attempted a fix, <a class="reference external" href="https://github.com/python/cpython/commit/f01b2a1b84ee08df73a78cf1017eecf15e3cb995">commit f01b2a1b</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Mon Sep 3 14:38:21 2018 +0200
-
-    bpo-34544: Fix setlocale() in pymain_read_conf() (GH-9041)
-
-    bpo-34485, bpo-34544: On some FreeBSD, nl_langinfo(CODESET) fails if
-    LC_ALL or LC_CTYPE is set to an invalid locale name. Replace
-    _Py_SetLocaleFromEnv(LC_CTYPE) with _Py_SetLocaleFromEnv(LC_ALL) to
-    initialize properly locales.
-
-    Partially revert commit 177d921c8c03d30daa32994362023f777624b10d.
-</pre>
-<p>... but it didn't work.</p>
-<p>I decided to install a FreeBSD 10 VM and one week later... I finally succeded
-to reproduce the issue!</p>
-<p>The bug was that the <tt class="docutils literal">_Py_CoerceLegacyLocale()</tt> function doesn't restore the
-LC_CTYPE to its previous value if it attempted to coerce the LC_CTYPE locale
-but no locale worked.</p>
-<p>Previously, it didn't matter, since the LC_CTYPE locale was initialized again
-later, or it was saved/restored indirectly. But with my latest changes, the
-LC_CTYPE was left unchanged.</p>
-<p>The fix is just to restore LC_CTYPE if <tt class="docutils literal">_Py_CoerceLegacyLocale()</tt> fails,
-<a class="reference external" href="https://github.com/python/cpython/commit/8ea09110d413829f71d979d8c7073008cb87fb03">commit 8ea09110</a>:</p>
-<pre class="literal-block">
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Mon Sep 3 17:05:18 2018 +0200
-
-    _Py_CoerceLegacyLocale() restores LC_CTYPE on fail (GH-9044)
-
-    bpo-34544: If _Py_CoerceLegacyLocale() fails to coerce the C locale,
-    restore the LC_CTYPE locale to the its previous value.
-</pre>
-<p>Finally, I succeded to do what I wanted to do initially, remove the code which
-saved/restored the LC_ALL locale: <tt class="docutils literal">pymain_read_conf()</tt> is now really
-responsible to set the LC_CTYPE locale, and it doesn't modify the LC_ALL locale
-anymore.</p>
-</div>
-<div class="section" id="configuration-of-locales-and-encodings">
-<h2>Configuration of locales and encodings</h2>
-<p>Python has <strong>many</strong> options to configure the locales and encodings.</p>
-<p>Main options of Python 3.7:</p>
-<ul class="simple">
-<li>Legacy Windows stdio (PEP 528)</li>
-<li>Legacy Windows filesystem encoding (PEP 529)</li>
-<li>C locale coercion (PEP 538)</li>
-<li>UTF-8 mode (PEP 540)</li>
-</ul>
-<p>The combination of C locale coercion and UTF-8 mode is non-obvious and should
-be carefully tested!</p>
-<p>Environment variables:</p>
-<ul class="simple">
-<li><tt class="docutils literal">PYTHONCOERCECLOCALE=0</tt></li>
-<li><tt class="docutils literal">PYTHONCOERCECLOCALE=1</tt></li>
-<li><tt class="docutils literal">PYTHONCOERCECLOCALE=warn</tt></li>
-<li><tt class="docutils literal">PYTHONLEGACYWINDOWSFSENCODING=1</tt></li>
-<li><tt class="docutils literal">PYTHONLEGACYWINDOWSSTDIO=1</tt></li>
-<li><tt class="docutils literal">PYTHONUTF8=0</tt></li>
-<li><tt class="docutils literal">PYTHONUTF8=1</tt></li>
-</ul>
-<p>Command line options:</p>
-<ul class="simple">
-<li><tt class="docutils literal"><span class="pre">-X</span> utf8=0</tt></li>
-<li><tt class="docutils literal"><span class="pre">-X</span> utf8</tt> or <tt class="docutils literal"><span class="pre">-X</span> utf8=1</tt></li>
-<li><tt class="docutils literal"><span class="pre">-E</span></tt> or <tt class="docutils literal"><span class="pre">-I</span></tt> (ignore <tt class="docutils literal">PYTHON*</tt> environment variables)</li>
-</ul>
-<p>Global configuration variables:</p>
-<ul class="simple">
-<li><tt class="docutils literal">Py_FileSystemDefaultEncodeErrors</tt></li>
-<li><tt class="docutils literal">Py_FileSystemDefaultEncoding</tt></li>
-<li><tt class="docutils literal">Py_LegacyWindowsFSEncodingFlag</tt></li>
-<li><tt class="docutils literal">Py_LegacyWindowsStdioFlag</tt></li>
-<li><tt class="docutils literal">Py_UTF8Mode</tt></li>
-</ul>
-<p>_PyCoreConfig:</p>
-<ul class="simple">
-<li><tt class="docutils literal">coerce_c_locale</tt></li>
-<li><tt class="docutils literal">coerce_c_locale_warn</tt></li>
-<li><tt class="docutils literal">filesystem_encoding</tt></li>
-<li><tt class="docutils literal">filesystem_errors</tt></li>
-<li><tt class="docutils literal">stdio_encoding</tt></li>
-<li><tt class="docutils literal">stdio_errors</tt></li>
-</ul>
-<p>The LC_CTYPE locale depends on 3 environment variables:</p>
-<ul class="simple">
-<li><tt class="docutils literal">LC_ALL</tt></li>
-<li><tt class="docutils literal">LC_CTYPE</tt></li>
-<li><tt class="docutils literal">LANG</tt></li>
-</ul>
-<p>Depending on the platform, the following configuration gives a different
-LC_CTYPE locale:</p>
-<ul class="simple">
-<li><tt class="docutils literal">LC_ALL= LC_CTYPE= LANG=</tt> (no variable set)</li>
-<li><tt class="docutils literal">LC_ALL= LC_CTYPE=C LANG=</tt> (C locale)</li>
-<li><tt class="docutils literal">LC_ALL= LC_CTYPE=POSIX LANG=</tt> (POSIX locale)</li>
-</ul>
-<p>In case of doubt, I also tested:</p>
-<ul class="simple">
-<li><tt class="docutils literal">LC_ALL=C LC_CTYPE= LANG=</tt> (C locale)</li>
-<li><tt class="docutils literal">LC_ALL=POSIX LC_CTYPE= LANG=</tt> (POSIX locale)</li>
-</ul>
-<p>The LC_CTYPE encoding (locale encoding) can be queried using
-<tt class="docutils literal">nl_langinfo(CODESET)</tt>. On FreeBSD, Solaris, HP-UX and maybe other platforms,
-<tt class="docutils literal">nl_langinfo(CODESET)</tt> announces an encoding which is different than the
-codec used by <tt class="docutils literal">mbstowcs()</tt> and <tt class="docutils literal">wcstombs()</tt> functions, and so Python forces
-the usage of the ASCII encoding.</p>
-<p>The test matrix of all these configurations and all platforms is quite big.
-Honestly, I would not bet that Python 3.8 will behave properly in all possible
-cases. At least, I tried to fix all issues that I spotted! Moreover, I added
-many tests which should help to detect bugs and prevent regressions.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
+I didn't expect that I would spend 2 weeks on these issues …</p>
+                <a class="readmore" href="https://vstinner.github.io/python3-locales-encodings.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+                </ol><!-- /#posts-list -->
+                </section><!-- /#content -->
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>
