@@ -15,6 +15,9 @@ I didn't expect that I would spend 2 weeks on these issues... This article
 tells me about my recent journey in locales and encodings on AIX, HP-UX,
 Windows, Linux, macOS, Solaris and FreeBSD.
 
+.. image:: {filename}/images/i-square-unicode.jpg
+   :alt: I □ Unicode
+
 Table of Contents:
 
 * Lying HP-UX
