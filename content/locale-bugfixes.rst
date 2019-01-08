@@ -8,9 +8,24 @@ Locale Bugfixes in Python 3
 :slug: locale-bugfixes-python3
 :authors: Victor Stinner
 
-
 Each language and each country has different ways to represent dates, monetary
-values, numbers, etc.
+values, numbers, etc. Unix has "locales" to configure applications for a
+specific language and a specific country. For example, there are fr_BE for
+Belgium (french) and fr_FR for France (french) locales.
+
+In practice, each locale uses its own encoding and problems arise when an
+application uses a different encoding than the locale. There are LC_NUMERIC
+locale for numbers, LC_MONETARY locale for monetary and LC_CTYPE for the
+encoding. Not only it's possible to configure an application to use LC_NUMERIC
+with a different encoding than LC_CTYPE, but some users use such configuration!
+
+In an application which only uses bytes for text, as Python 2 does mostly, it's
+mostly fine: in the worst case, users see mojibake, but the application doesn't
+"crash" (exit and/or data loss). On the other side, Python 3 is designed to use
+Unicode for text and fail with hard Unicode errors if it fails to decode bytes
+and fails to encode text.
+
+This article describes 3 locale bugs that I fixed in Python 3.
 
 See also my previous locale bugfixes: `Python 3, locales and encodings
 <{filename}/python3_locales_encodings.rst>`_
@@ -18,7 +33,26 @@ See also my previous locale bugfixes: `Python 3, locales and encodings
 Bug 1: non-ascii fill character
 ===============================
 
-2012-01-03
+January 2012, I fixed the first locale issue in Python 3.3: `bpo-13706
+<https://bugs.python.org/issue13706>`__ and `commit 41a863cb
+<https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc>`__::
+
+   commit 41a863cb81608c779d60b49e7be8a115816734fc
+   Author: Victor Stinner <victor.stinner@haypocalc.com>
+   Date:   Fri Feb 24 00:37:51 2012 +0100
+
+       Issue #13706: Fix format(int, "n") for locale with non-ASCII thousands separator
+
+        * Decode thousands separator and decimal point using PyUnicode_DecodeLocale()
+          (from the locale encoding), instead of decoding them implicitly from latin1
+        * Remove _PyUnicode_InsertThousandsGroupingLocale(), it was not used
+        * Change _PyUnicode_InsertThousandsGrouping() API to return the maximum
+          character if unicode is NULL
+        * Replace MIN/MAX macros by Py_MIN/Py_MAX
+        * stringlib/undef.h undefines STRINGLIB_IS_UNICODE
+        * stringlib/localeutil.h only supports Unicode
+
+
 https://bugs.python.org/issue13706
 non-ascii fill characters no longer work in formatting
 
@@ -36,9 +70,9 @@ Aha, the problem occurs when the thousands separator code point is greater than 
 
 Ref::
 
-   It seems like I introduced the regression 6 years ago in bpo-13706:
+   It seems like I introduced the regression 6 years ago in `bpo-13706 <https://bugs.python.org/issue13706>`__:
 
-   commit 90f50d4df9e21093f006427fd7ed11a0d704f792
+   `commit 90f50d4d <https://github.com/python/cpython/commit/90f50d4df9e21093f006427fd7ed11a0d704f792>`__
    Author: Victor Stinner <victor.stinner@haypocalc.com>
    Date:   Fri Feb 24 01:44:47 2012 +0100
 
@@ -52,7 +86,7 @@ Bug 2: LC_NUMERIC
 https://bugs.python.org/issue31900
 localeconv() should decode numeric fields from LC_NUMERIC encoding, not from LC_CTYPE encoding
 
-   bpo-31900: The locale.localeconv() function now sets temporarily the LC_CTYPE locale to the LC_NUMERIC locale to decode decimal_point and thousands_sep byte strings if they are non-ASCII or longer than 1 byte, and the LC_NUMERIC locale is different than the LC_CTYPE locale. This temporary change affects other threads.
+   `bpo-31900 <https://bugs.python.org/issue31900>`__: The locale.localeconv() function now sets temporarily the LC_CTYPE locale to the LC_NUMERIC locale to decode decimal_point and thousands_sep byte strings if they are non-ASCII or longer than 1 byte, and the LC_NUMERIC locale is different than the LC_CTYPE locale. This temporary change affects other threads.
 
    Same change for the str.format() method when formatting a number (int, float, float and subclasses) with the n type (ex: '{:n}'.format(1234)).
 
@@ -68,7 +102,7 @@ Bug 3: LC_MONETARY
 ==================
 
 2016-11-03
-bpo-28604: locale.localeconv() now sets temporarily the LC_CTYPE locale to the LC_MONETARY locale if the two locales are different and monetary strings are non-ASCII. This temporary change affects other threads.
+`bpo-28604 <https://bugs.python.org/issue28604>`__: locale.localeconv() now sets temporarily the LC_CTYPE locale to the LC_MONETARY locale if the two locales are different and monetary strings are non-ASCII. This temporary change affects other threads.
 https://bugs.python.org/issue28604
 
    After switching the monetary locale to en_GB, python then raises an exception when calling locale.localeconv()
