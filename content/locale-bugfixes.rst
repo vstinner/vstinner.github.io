@@ -30,10 +30,13 @@ This article describes 3 locale bugs that I fixed in Python 3.
 See also my previous locale bugfixes: `Python 3, locales and encodings
 <{filename}/python3_locales_encodings.rst>`_
 
-Bug 1: non-ascii fill character
-===============================
+Support non-ASCII decimal point and thousands separator
+=======================================================
 
-January 2012, I fixed the first locale issue in Python 3.3: `bpo-13706
+The Unicode type has been reimplemented in Python 3.3 to use "compact string":
+PEP 393.
+
+In January 2012, I fixed the first locale issue in Python 3.3: `bpo-13706
 <https://bugs.python.org/issue13706>`__ and `commit 41a863cb
 <https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc>`__::
 
@@ -52,9 +55,15 @@ January 2012, I fixed the first locale issue in Python 3.3: `bpo-13706
         * stringlib/undef.h undefines STRINGLIB_IS_UNICODE
         * stringlib/localeutil.h only supports Unicode
 
+The main change is that "decimal_point" and "thousands_sep" options which come
+from ``localeconv()`` are now decoded from by ``PyUnicode_DecodeLocale()``
+which uses the LC_CTYPE locale encoding.
 
-https://bugs.python.org/issue13706
-non-ascii fill characters no longer work in formatting
+I decided to not fix Python 3.2:
+
+   Hum, it is not trivial to redo the work on Python 3.2. I prefer to leave the
+   code unchanged to not introduce a regression, and I wait until a Python 3.2
+   user complains (the bug exists since Python 3.0 and nobody complained).
 
 
 Bug 1 reoccurs: Crash on formatting a number with the locale
