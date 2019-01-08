@@ -2,6 +2,8 @@
 import re
 import sys
 
+import requests
+
 
 FMT_BPO_URL = 'https://bugs.python.org/issue%s'
 FMT_COMMIT_URL = 'https://github.com/python/cpython/commit/%s'
