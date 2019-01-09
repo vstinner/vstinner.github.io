@@ -8,7 +8,8 @@ Locale Bugfixes in Python 3
 :slug: locale-bugfixes-python3
 :authors: Victor Stinner
 
-This article describes a few locales bugs that I fixed in Python 3:
+This article describes a few locales bugs that I fixed in Python 3 since 2012
+(Python 3.3) and 2018 (Python 3.7):
 
 * Support non-ASCII decimal point and thousands separator
 * Crash with non-ASCII decimal point
@@ -57,9 +58,10 @@ But when I did more tests, I noticed that the "n" type doesn't decode properly
 the decimal point and thousands seprator which come from the ``localeconv()``
 function which uses byte strings.
 
-The first locale issue fix was `commit 41a863cb
-<https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc>`__
-in Python 3.3 to use the decode from the correct encoding::
+I fixed ``format(int, "n")`` with `commit 41a863cb
+<https://github.com/python/cpython/commit/41a863cb81608c779d60b49e7be8a115816734fc>`__,
+decode decimal point and the thousands separator (``localeconv()`` fields) from
+the locale encoding, rather than latin1, using ``PyUnicode_DecodeLocale()``::
 
    commit 41a863cb81608c779d60b49e7be8a115816734fc
    Author: Victor Stinner <victor.stinner@haypocalc.com>
@@ -72,25 +74,20 @@ in Python 3.3 to use the decode from the correct encoding::
         * Remove _PyUnicode_InsertThousandsGroupingLocale(), it was not used
         * Change _PyUnicode_InsertThousandsGrouping() API to return the maximum
           character if unicode is NULL
-        * Replace MIN/MAX macros by Py_MIN/Py_MAX
-        * stringlib/undef.h undefines STRINGLIB_IS_UNICODE
-        * stringlib/localeutil.h only supports Unicode
-
-The main change is that the decimal point and the thousands separator are now
-decoded from the locale encoding by ``PyUnicode_DecodeLocale()``.
+        * (...)
 
 Note: I decided to not fix Python 3.2:
 
-   Hum, it is not trivial to redo the work on Python 3.2. I prefer to leave the
-   code unchanged to not introduce a regression, and I wait until a Python 3.2
-   user complains (the bug exists since Python 3.0 and nobody complained).
+   Hum, **it is not trivial to redo the work on Python 3.2**. I prefer to leave
+   the code unchanged to not introduce a regression, and I wait until a Python
+   3.2 user complains (the bug exists since Python 3.0 and nobody complained).
 
 
 Crash with non-ASCII decimal point
 ==================================
 
-Six years later, June 2018, I noticed that Python does crash when running tests
-on locales::
+Six years later, in June 2018, I noticed that Python does crash when running
+tests on locales::
 
    $ ./python
    Python 3.8.0a0 (heads/master-dirty:bcd3a1a18d, Jun 23 2018, 10:31:03)
@@ -100,6 +97,7 @@ on locales::
    '2.5'
    >>> '{:n}'.format(2.5)
    '2.5'
+
    >>> locale.setlocale(locale.LC_ALL, '')
    'fr_FR.UTF-8'
    >>> locale.str(2.5)
@@ -108,11 +106,11 @@ on locales::
    python: Objects/unicodeobject.c:474: _PyUnicode_CheckConsistency: Assertion `maxchar < 128' failed.
    Aborted (core dumped)
 
-I opened the issue `bpo-33954 <https://bugs.python.org/issue33954>`__. The bug
-only occurred for decimal point larger than U+00FF (code point greater than
-255). It was a bug in my fix (`commit a4ac600d
-<https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8>`__)
-for `bpo-13706 <https://bugs.python.org/issue13706>`__.
+I reported the issue as `bpo-33954 <https://bugs.python.org/issue33954>`__. The
+bug only occurrs for decimal point larger than U+00FF (code point greater than
+255). It was a bug in my `bpo-13706 <https://bugs.python.org/issue13706>`__
+fix: `commit a4ac600d
+<https://github.com/python/cpython/commit/a4ac600d6f9c5b74b97b99888b7cf3a7973cadc8>`__.
 
 I pushed a second fix to properly support all cases, `commit 59423e3d
 <https://github.com/python/cpython/commit/59423e3ddd736387cef8f7632c71954c1859bed0>`__::
@@ -156,17 +154,17 @@ Two months later, Charalampos Stratakis reported the bug upstream: `bpo-31900
 <https://bugs.python.org/issue31900>`__.  The problem arises when **the
 LC_NUMERIC locale uses a different encoding than the LC_CTYPE encoding**.
 
-In fact, the bug was already known:
+The bug was already known:
 
 * 2015-12-05: Serhiy Storchaka reported `bpo-25812
   <https://bugs.python.org/issue25812>`__ with uk_UA locale
 * 2016-11-03: Guillaume Pasquet reported `bpo-28604
   <https://bugs.python.org/issue28604>`__ with en_GB locale
 
-In fact, the bug was known since 2009, Stefan Krah reported a very similar bug
-(LC_NUMERIC locale using an encoding different than the LC_CTYPE locale
-encoding): `bpo-7442 <https://bugs.python.org/issue7442>`__. I was even
-involved in this issue in 2013, but then I forgot about it.
+Moreover, **the bug was known since 2009**, Stefan Krah reported a very similar
+bug: `bpo-7442 <https://bugs.python.org/issue7442>`__. I was even involved in
+this issue in 2013, but then I forgot about it (as usual, I am working on too
+many issues in parallel :-)).
 
 In 2010, PostgreSQL `had the same issue
 <https://www.postgresql.org/message-id/20100422015552.4B7E07541D0@cvs.postgresql.org>`__
@@ -200,7 +198,7 @@ Stefan Krah asked:
    new glibc, since #7442 has existed for ages -- and **it is a open question
    whether it is a bug or not**.
 
-I replied (to Marc-Andre Lemburg):
+I replied:
 
    Past 10 years, I repeated to every single user I met that "Python 3 is
    right, your system setup is wrong". But that's a waste of time. People
@@ -248,13 +246,13 @@ rejected my fix.
 LC_MONETARY encoding different than LC_CTYPE encoding
 =====================================================
 
-Fixing `bpo-31900 <https://bugs.python.org/issue31900>`__ drained my energy,
-but sadly there was a similar bug with LC_MONETARY.
+Fixing `bpo-31900 <https://bugs.python.org/issue31900>`__ drained all my
+energy, but sadly... there was a similar bug with LC_MONETARY!
 
 At 2016-11-03, Guillaume Pasquet reported `bpo-28604: Exception raised by
 python3.5 when using en_GB locale <https://bugs.python.org/issue28604>`__.
 
-The fix is similar than the LC_NUMERIC fix: change temporarily the LC_CTYPE
+The fix is similar to the LC_NUMERIC fix: change temporarily the LC_CTYPE
 locale to the LC_MONETARY locale, `commit 02e6bf7f
 <https://github.com/python/cpython/commit/02e6bf7f2025cddcbde6432f6b6396198ab313f4>`__::
 
