@@ -20,6 +20,11 @@ This article describes a few locales bugs that I fixed in Python 3 since 2012
 See also my previous locale bugfixes: `Python 3, locales and encodings
 <{filename}/python3_locales_encodings.rst>`_
 
+.. image:: {filename}/images/unicode_bag.jpg
+   :alt: Unicode Mixed Bag
+   :target: https://www.flickr.com/photos/svensson/40467591/
+
+
 Introduction
 ============
 
