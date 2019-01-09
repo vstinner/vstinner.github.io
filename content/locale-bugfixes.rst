@@ -245,8 +245,8 @@ different than the LC_CTYPE locale and if the decimal point or the thousands
 separator is non-ASCII.**
 
 Note: I proposed a change to fix the same bug in the ``decimal`` module: `PR
-#5191 <https://github.com/python/cpython/pull/5191>`__, but Stefan Krah
-rejected my fix.
+#5191 <https://github.com/python/cpython/pull/5191>`__, but I abandonned my
+patch.
 
 LC_MONETARY encoding different than LC_CTYPE encoding
 =====================================================
