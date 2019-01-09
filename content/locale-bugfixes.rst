@@ -8,7 +8,7 @@ Locale Bugfixes in Python 3
 :slug: locale-bugfixes-python3
 :authors: Victor Stinner
 
-This article describes a few locales bugs that I fixed in Python 3 since 2012
+This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):
 
 * Support non-ASCII decimal point and thousands separator
