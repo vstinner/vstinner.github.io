@@ -1,18 +1,21 @@
-++++++++++++++++++++++++++++++
-More asyncio proactor bugfixes
-++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++
+Asyncio: Proactor ConnectPipe() Race Condition
+++++++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2019-01-28 22:00
+:date: 2019-01-30 18:00
 :tags: asyncio
 :category: cpython
-:slug: more-asyncio-proactor-bugfixes
+:slug: asyncio-proactor-connect-pipe
 :authors: Victor Stinner
 
-XXX Bugfixes in 2017..2019.
+Once I succeeded to fix the root issue of the random asyncio crashes on Windows
+`Proactor Cancellation From Hell <{filename}/proactor-cancellation-hell.rst>`_,
+I started to look at the ConnectPipe special case: `asyncio issue #204:
+Investigate IocpProactor.accept_pipe() special case (don't register overlapped)
+<https://github.com/python/asyncio/issues/204>`__.
 
-
-ConnectPipe
-===========
+ConnectPipe() Race Condition
+============================
 
 While fixing crashes in ProactorEventLoop, I noticed a weird "special case" for
 pipes. At XXX (25 Aug 2014), I opened `asyncio issue #204: Investigate
