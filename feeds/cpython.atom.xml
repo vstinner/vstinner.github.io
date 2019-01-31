@@ -1,5 +1,215 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-01-28T20:20:00+01:00</updated><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-01-30T18:00:00+01:00</updated><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
+of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
+and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;ConnectPipe()&lt;/tt&gt; Race Condition&lt;/li&gt;
+&lt;li&gt;Race Condition in &lt;tt class="docutils literal"&gt;BaseSubprocessTransport._try_finish()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Close the transport on failure: ResourceWarning&lt;/li&gt;
+&lt;li&gt;Cleanup code …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
+of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
+and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;ConnectPipe()&lt;/tt&gt; Race Condition&lt;/li&gt;
+&lt;li&gt;Race Condition in &lt;tt class="docutils literal"&gt;BaseSubprocessTransport._try_finish()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Close the transport on failure: ResourceWarning&lt;/li&gt;
+&lt;li&gt;Cleanup code handling pipes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="connectpipe-race-condition"&gt;
+&lt;h2&gt;ConnectPipe() Race Condition&lt;/h2&gt;
+&lt;p&gt;Once I succeeded to fix the root issue of the random asyncio crashes on Windows
+(&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I started to look at the
+ConnectPipe special case: &lt;a class="reference external" href="https://github.com/python/asyncio/issues/204"&gt;asyncio issue #204: Investigate
+IocpProactor.accept_pipe() special case (don't register overlapped)&lt;/a&gt; (issue created at 25 Aug
+2014).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;At January 21, 2015, I opened &lt;a class="reference external" href="https://bugs.python.org/issue23293"&gt;bpo-23293: race condition related to
+IocpProactor.connect_pipe()&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;While fixing &lt;a class="reference external" href="https://bugs.python.org/issue23095"&gt;bpo-23095 (race condition when cancelling a _WaitHandleFuture)&lt;/a&gt;, I saw that
+&lt;tt class="docutils literal"&gt;IocpProactor.connect_pipe()&lt;/tt&gt; causes &amp;quot;GetQueuedCompletionStatus() returned an
+unexpected event&amp;quot; messages to be logged, but also to hang the test suite.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;IocpProactor._register()&lt;/tt&gt; contains the comment:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# Even if GetOverlappedResult() was called, we have to wait for the
+# notification of the completion in GetQueuedCompletionStatus().
+# Register the overlapped operation to keep a reference to the
+# OVERLAPPED object, otherwise the memory is freed and Windows may
+# read uninitialized memory.
+#
+# For an unknown reason, ConnectNamedPipe() behaves differently:
+# the completion is not notified by GetOverlappedResult() if we
+# already called GetOverlappedResult(). For this specific case, we
+# don't expect notification (register is set to False).
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;IocpProactor.close()&lt;/tt&gt; contains this comment:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# The operation was started with connect_pipe() which
+# queues a task to Windows' thread pool.  This cannot
+# be cancelled, so just forget it.
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;IocpProactor.connect_pipe()&lt;/tt&gt; is implemented with &lt;tt class="docutils literal"&gt;QueueUserWorkItem()&lt;/tt&gt;
+which &lt;strong&gt;starts a thread that cannot be interrupted&lt;/strong&gt;. Because of that, this
+function requires special cases in &lt;tt class="docutils literal"&gt;_register()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;close()&lt;/tt&gt; methods of
+&lt;tt class="docutils literal"&gt;IocpProactor&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I proposed a solution to reimplement &lt;tt class="docutils literal"&gt;IocpProactor.connect_pipe()&lt;/tt&gt; &lt;strong&gt;without
+a thread&lt;/strong&gt;: &lt;a class="reference external" href="https://code.google.com/p/tulip/issues/detail?id=197"&gt;asyncio issue #197: Rewrite IocpProactor.connect_pipe() with
+non-blocking calls to avoid non interruptible QueueUserWorkItem()&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;At January 22, 2015, I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/7ffa2c5fdda8a9cc254edf67c4458b15db1252fa"&gt;commit 7ffa2c5f&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 7ffa2c5fdda8a9cc254edf67c4458b15db1252fa
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Thu Jan 22 22:55:08 2015 +0100
+
+    Issue #23293, asyncio: Rewrite IocpProactor.connect_pipe()
+&lt;/pre&gt;
+&lt;p&gt;The change adds &lt;tt class="docutils literal"&gt;_overlapped.ConnectPipe()&lt;/tt&gt; which tries to connect to the
+pipe for asynchronous I/O (overlapped): &lt;strong&gt;call CreateFile() in a loop until
+it doesn't fail with ERROR_PIPE_BUSY&lt;/strong&gt;. Use an increasing delay between 1 ms
+and 100 ms.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="race-condition-in-basesubprocesstransport-try-finish"&gt;
+&lt;h2&gt;Race Condition in BaseSubprocessTransport._try_finish()&lt;/h2&gt;
+&lt;p&gt;If the process exited before the &lt;tt class="docutils literal"&gt;_post_init()&lt;/tt&gt; method was called, scheduling
+the call to &lt;tt class="docutils literal"&gt;_call_connection_lost()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;call_soon()&lt;/tt&gt; is wrong:
+&lt;tt class="docutils literal"&gt;connection_made()&lt;/tt&gt; must be called before &lt;tt class="docutils literal"&gt;connection_lost()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Reuse the &lt;tt class="docutils literal"&gt;BaseSubprocessTransport._call()&lt;/tt&gt; method to schedule the call to
+&lt;tt class="docutils literal"&gt;_call_connection_lost()&lt;/tt&gt; to ensure that &lt;tt class="docutils literal"&gt;connection_made()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;connection_lost()&lt;/tt&gt; are called in the correct order.&lt;/p&gt;
+&lt;p&gt;At Dec 18, 2014, I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/1b9763d0a9c62c13dc2a06770032e5906b610c96"&gt;commit 1b9763d0&lt;/a&gt;.
+The explanation is long, but the change is basically a single line change,
+extract:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+- self._loop.call_soon(self._call_connection_lost, None)
++ self._call(self._call_connection_lost, None)
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;Ordering properly callbacks in asyncio is challenging!&lt;/strong&gt; The order matters
+for the semantics of asyncio: it is part of the design of the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-3156/"&gt;PEP 3156 --
+Asynchronous IO Support Rebooted: the &amp;quot;asyncio&amp;quot; Module&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="close-the-transport-on-failure-resourcewarning"&gt;
+&lt;h2&gt;Close the transport on failure: ResourceWarning&lt;/h2&gt;
+&lt;p&gt;At January 15, 2015, I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/4bf22e033e975f61c33752db5a3764dc0f7d0b03"&gt;commit 4bf22e03&lt;/a&gt;,
+extract:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+-  yield from transp._post_init()
++  try:
++      yield from transp._post_init()
++  except:
++      transp.close()
++      raise
+&lt;/pre&gt;
+&lt;p&gt;Later, I will spend a lot of time (push many more changes) to ensure that
+resources are properly released (especially close transports on failure,
+similar to this change).&lt;/p&gt;
+&lt;p&gt;I will add many &lt;strong&gt;ResourceWarnings&lt;/strong&gt; warnings in destructors when a transport,
+subprocess or event loop is not closed explicitly.&lt;/p&gt;
+&lt;p&gt;For example, notice the &lt;tt class="docutils literal"&gt;ResourceWarnings&lt;/tt&gt; in the current destructor of
+&lt;tt class="docutils literal"&gt;_SelectorTransport&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+class _SelectorTransport(transports._FlowControlMixin,
+                         transports.Transport):
+
+    def __del__(self, _warn=warnings.warn):
+        if self._sock is not None:
+            _warn(f&amp;quot;unclosed transport {self!r}&amp;quot;, ResourceWarning, source=self)
+            self._sock.close()
+&lt;/pre&gt;
+&lt;p&gt;I even enhanced Python 3.6 to be able to provide the &lt;strong&gt;traceback where the
+leaked resource has been allocated&lt;/strong&gt; thanks to my &lt;tt class="docutils literal"&gt;tracemalloc&lt;/tt&gt; module.
+Example with &lt;tt class="docutils literal"&gt;filebug.py&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def func():
+    f = open(__file__)
+    f = None
+
+func()
+&lt;/pre&gt;
+&lt;p&gt;Output with Python 3.6:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -Wd -X tracemalloc=5 filebug.py
+filebug.py:3: ResourceWarning: unclosed file &amp;lt;_io.TextIOWrapper name='filebug.py' mode='r' encoding='UTF-8'&amp;gt;
+  f = None
+Object allocated at (most recent call first):
+  File &amp;quot;filebug.py&amp;quot;, lineno 2
+    f = open(__file__)
+  File &amp;quot;filebug.py&amp;quot;, lineno 5
+    func()
+&lt;/pre&gt;
+&lt;p&gt;The line where the warning is emitted is usually useless to understand the bug,
+whereas the traceback is very useful to identify the leaked resource.&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://pythondev.readthedocs.io/debug_tools.html#resourcewarning"&gt;my ResourceWarning documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cleanup-code-handling-pipes"&gt;
+&lt;h2&gt;Cleanup code handling pipes&lt;/h2&gt;
+&lt;p&gt;Thanks to the new implementation of &lt;tt class="docutils literal"&gt;connect_pipe()&lt;/tt&gt;, I was able to push
+changes to simplify the code and remove various hacks in code handling pipes.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/2b77c5467f376257ae22cbfbcb3a0e5e6349e92d"&gt;commit 2b77c546&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 2b77c5467f376257ae22cbfbcb3a0e5e6349e92d
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Thu Jan 22 23:50:03 2015 +0100
+
+    asyncio, Tulip issue 204: Fix IocpProactor.accept_pipe()
+
+    Overlapped.ConnectNamedPipe() now returns a boolean: True if the pipe is
+    connected (if ConnectNamedPipe() failed with ERROR_PIPE_CONNECTED), False if
+    the connection is in progress.
+
+    This change removes multiple hacks in IocpProactor.
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/3d2256f671b7ed5c769dd34b27ae597cbc69047c"&gt;commit 3d2256f6&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 3d2256f671b7ed5c769dd34b27ae597cbc69047c
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 26 11:02:59 2015 +0100
+
+    Issue #23293, asyncio: Cleanup IocpProactor.close()
+
+    The special case for connect_pipe() is not more needed. connect_pipe() doesn't
+    use overlapped operations anymore.
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/a19b7b3fcafe52b98245e14466ffc4d6750ca4f1"&gt;commit a19b7b3f&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit a19b7b3fcafe52b98245e14466ffc4d6750ca4f1
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 26 15:03:20 2015 +0100
+
+    asyncio: Fix ProactorEventLoop.start_serving_pipe()
+
+    If a client connected before the server was closed: drop the client (close the
+    pipe) and exit.
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/e0fd157ba0cc92e435e7520b4ff641ca68d72244"&gt;commit e0fd157b&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit e0fd157ba0cc92e435e7520b4ff641ca68d72244
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 26 15:04:03 2015 +0100
+
+    Issue #23293, asyncio: Rewrite IocpProactor.connect_pipe() as a coroutine
+
+    Use a coroutine with asyncio.sleep() instead of call_later() to ensure that the
+    schedule call is cancelled.
+
+    Add also a unit test cancelling connect_pipe().
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/41063d2a59a24e257cd9ce62137e36c862e3ab1e"&gt;commit 41063d2a&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 41063d2a59a24e257cd9ce62137e36c862e3ab1e
+Author: Victor Stinner &amp;lt;victor.stinner&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 26 22:30:49 2015 +0100
+
+    asyncio, Tulip issue 204: Fix IocpProactor.recv()
+
+    If ReadFile() fails with ERROR_BROKEN_PIPE, the operation is not pending: don't
+    register the overlapped.
+
+    I don't know if WSARecv() can fail with ERROR_BROKEN_PIPE. Since
+    Overlapped.WSARecv() already handled ERROR_BROKEN_PIPE, let me guess that it
+    has the same behaviour than ReadFile().
+&lt;/pre&gt;
+&lt;/div&gt;
+</content><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
 and I was worried that test_asyncio &lt;strong&gt;randomly crashed&lt;/strong&gt; on Windows.&lt;/p&gt;
@@ -16,6 +226,7 @@ the Windows source code&lt;/strong&gt; to understand the bug...&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;UnregisterWait()&lt;/tt&gt; is asynchronous. The asynchronous part is not well
 documented and it took me months of debug to understand it. Moreover, the bug
 was well hidden for various reasons that we will see below.&lt;/p&gt;
+&lt;p&gt;Next article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html"&gt;Asyncio: Proactor ConnectPipe() Race Condition&lt;/a&gt;.&lt;/p&gt;
 &lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
 &lt;div class="section" id="fix-cancel-when-called-twice"&gt;
 &lt;h2&gt;Fix cancel() when called twice&lt;/h2&gt;

@@ -48,6 +48,7 @@ the Windows source code</strong> to understand the bug...</p>
 <tt class="docutils literal">UnregisterWait()</tt> is asynchronous. The asynchronous part is not well
 documented and it took me months of debug to understand it. Moreover, the bug
 was well hidden for various reasons that we will see below.</p>
+<p>Next article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">Asyncio: Proactor ConnectPipe() Race Condition</a>.</p>
 <img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" />
 <div class="section" id="fix-cancel-when-called-twice">
 <h2>Fix cancel() when called twice</h2>
