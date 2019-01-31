@@ -5,25 +5,28 @@ Asyncio: Proactor ConnectPipe() Race Condition
 :date: 2019-01-30 18:00
 :tags: asyncio
 :category: cpython
-:slug: asyncio-proactor-connect-pipe
+:slug: asyncio-proactor-connect-pipe-race-condition
 :authors: Victor Stinner
 
-Between December 2014 and January 2015, I fixed more bugs in
+Between December 2014 and January 2015, I fixed race conditions and bugs in
 ``ProactorEventLoop``:
 
 * ``ConnectPipe()`` Race Condition
-* Cleanup code handling pipes
 * Race Condition in ``BaseSubprocessTransport._try_finish()``
-* Close the transport on failure
-* Fix ``IocpProactor.recv()``
+* Close the transport on failure: ResourceWarning
+* Cleanup code handling pipes
+
+Previous article: `Proactor Cancellation From Hell
+<{filename}/proactor-cancellation-hell.rst>`__.
 
 ConnectPipe() Race Condition
 ============================
 
 Once I succeeded to fix the root issue of the random asyncio crashes on Windows
-`Proactor Cancellation From Hell <{filename}/proactor-cancellation-hell.rst>`_,
-I started to look at the ConnectPipe special case: `asyncio issue #204:
-Investigate IocpProactor.accept_pipe() special case (don't register overlapped)
+(`Proactor Cancellation From Hell
+<{filename}/proactor-cancellation-hell.rst>`__), I started to look at the
+ConnectPipe special case: `asyncio issue #204: Investigate
+IocpProactor.accept_pipe() special case (don't register overlapped)
 <https://github.com/python/asyncio/issues/204>`__ (issue created at 25 Aug
 2014).
 
@@ -59,12 +62,12 @@ unexpected event" messages to be logged, but also to hang the test suite.
    # be cancelled, so just forget it.
 
 ``IocpProactor.connect_pipe()`` is implemented with ``QueueUserWorkItem()``
-which starts a thread that cannot be interrupted. Because of that, this
+which **starts a thread that cannot be interrupted**. Because of that, this
 function requires special cases in ``_register()`` and ``close()`` methods of
 ``IocpProactor``.
 
-I proposed a solution to reimplement ``IocpProactor.connect_pipe()`` without a
-thread: `asyncio issue #197: Rewrite IocpProactor.connect_pipe() with
+I proposed a solution to reimplement ``IocpProactor.connect_pipe()`` **without
+a thread**: `asyncio issue #197: Rewrite IocpProactor.connect_pipe() with
 non-blocking calls to avoid non interruptible QueueUserWorkItem()
 <https://code.google.com/p/tulip/issues/detail?id=197>`__.
 
@@ -78,15 +81,102 @@ At January 22, 2015, I pushed `commit 7ffa2c5f
        Issue #23293, asyncio: Rewrite IocpProactor.connect_pipe()
 
 The change adds ``_overlapped.ConnectPipe()`` which tries to connect to the
-pipe for asynchronous I/O (overlapped): call ``CreateFile()`` in a loop until
-it doesn't fail with ``ERROR_PIPE_BUSY``. Use an increasing delay between 1 ms
+pipe for asynchronous I/O (overlapped): **call CreateFile() in a loop until
+it doesn't fail with ERROR_PIPE_BUSY**. Use an increasing delay between 1 ms
 and 100 ms.
+
+
+Race Condition in BaseSubprocessTransport._try_finish()
+=======================================================
+
+If the process exited before the ``_post_init()`` method was called, scheduling
+the call to ``_call_connection_lost()`` with ``call_soon()`` is wrong:
+``connection_made()`` must be called before ``connection_lost()``.
+
+Reuse the ``BaseSubprocessTransport._call()`` method to schedule the call to
+``_call_connection_lost()`` to ensure that ``connection_made()`` and
+``connection_lost()`` are called in the correct order.
+
+
+At Dec 18, 2014, I pushed `commit 1b9763d0
+<https://github.com/python/cpython/commit/1b9763d0a9c62c13dc2a06770032e5906b610c96>`__.
+The explanation is long, but the change is basically a single line change,
+extract::
+
+      - self._loop.call_soon(self._call_connection_lost, None)
+      + self._call(self._call_connection_lost, None)
+
+**Ordering properly callbacks in asyncio is challenging!** The order matters
+for the semantics of asyncio: it is part of the design of the `PEP 3156 --
+Asynchronous IO Support Rebooted: the "asyncio" Module
+<https://www.python.org/dev/peps/pep-3156/>`__.
+
+
+Close the transport on failure: ResourceWarning
+===============================================
+
+At January 15, 2015, I pushed `commit 4bf22e03
+<https://github.com/python/cpython/commit/4bf22e033e975f61c33752db5a3764dc0f7d0b03>`__,
+extract::
+
+   -  yield from transp._post_init()
+   +  try:
+   +      yield from transp._post_init()
+   +  except:
+   +      transp.close()
+   +      raise
+
+Later, I will spend a lot of time (push many more changes) to ensure that
+resources are properly released (especially close transports on failure,
+similar to this change).
+
+I will add many **ResourceWarnings** warnings in destructors when a transport,
+subprocess or event loop is not closed explicitly.
+
+For example, notice the ``ResourceWarnings`` in the current destructor of
+``_SelectorTransport``::
+
+   class _SelectorTransport(transports._FlowControlMixin,
+                            transports.Transport):
+
+       def __del__(self, _warn=warnings.warn):
+           if self._sock is not None:
+               _warn(f"unclosed transport {self!r}", ResourceWarning, source=self)
+               self._sock.close()
+
+I even enhanced Python 3.6 to be able to provide the **traceback where the
+leaked resource has been allocated** thanks to my ``tracemalloc`` module.
+Example with ``filebug.py``::
+
+   def func():
+       f = open(__file__)
+       f = None
+
+   func()
+
+Output with Python 3.6::
+
+   $ python3 -Wd -X tracemalloc=5 filebug.py
+   filebug.py:3: ResourceWarning: unclosed file <_io.TextIOWrapper name='filebug.py' mode='r' encoding='UTF-8'>
+     f = None
+   Object allocated at (most recent call first):
+     File "filebug.py", lineno 2
+       f = open(__file__)
+     File "filebug.py", lineno 5
+       func()
+
+The line where the warning is emitted is usually useless to understand the bug,
+whereas the traceback is very useful to identify the leaked resource.
+
+See `my ResourceWarning documentation
+<https://pythondev.readthedocs.io/debug_tools.html#resourcewarning>`__.
+
 
 Cleanup code handling pipes
 ===========================
 
-Thanks to the new implementation of ``connect_pipe()``, I was able to push changes
-to simplify the code and remove hacks.
+Thanks to the new implementation of ``connect_pipe()``, I was able to push
+changes to simplify the code and remove various hacks in code handling pipes.
 
 `commit 2b77c546
 <https://github.com/python/cpython/commit/2b77c5467f376257ae22cbfbcb3a0e5e6349e92d>`__::
@@ -140,66 +230,8 @@ to simplify the code and remove hacks.
 
        Add also a unit test cancelling connect_pipe().
 
-
-Race Condition in BaseSubprocessTransport._try_finish()
-=======================================================
-
-If the process exited before the ``_post_init()`` method was called, scheduling
-the call to ``_call_connection_lost()`` with call_soon() is wrong:
-``connection_made()`` must be called before ``connection_lost()``.
-
-Reuse the ``BaseSubprocessTransport._call()`` method to schedule the call to
-``_call_connection_lost()`` to ensure that ``connection_made()`` and
-``connection_lost()`` are called in the correct order.
-
-
-At Dec 18, 2014, I pushed `commit 1b9763d0
-<https://github.com/python/cpython/commit/1b9763d0a9c62c13dc2a06770032e5906b610c96>`__.
-The explanation is long, but the change is basically a single line change,
-extract::
-
-      - self._loop.call_soon(self._call_connection_lost, None)
-      + self._call(self._call_connection_lost, None)
-
-Ordering properly events in asyncio is challenging!
-
-
-Close the transport on failure
-==============================
-
-At January 15, 2015, I pushed `commit 4bf22e03
-<https://github.com/python/cpython/commit/4bf22e033e975f61c33752db5a3764dc0f7d0b03>`__,
-extract::
-
-   -  yield from transp._post_init()
-   +  try:
-   +      yield from transp._post_init()
-   +  except:
-   +      transp.close()
-   +      raise
-
-Later, I will spend a lot of time to ensure that resources are properly
-released. I will add many ``ResourceWarnings`` warnings in destructors when a
-transport, subprocess or event loop is not closed explicitly.
-
-For example, extract of the current destructor of ``_SelectorTransport``::
-
-   class _SelectorTransport(transports._FlowControlMixin,
-                            transports.Transport):
-
-       def __del__(self, _warn=warnings.warn):
-           if self._sock is not None:
-               _warn(f"unclosed transport {self!r}",
-                     ResourceWarning, source=self)
-               self._sock.close()
-
-Fix IocpProactor.recv()
-=======================
-
-At January 26, 2015, I pushed `commit 41063d2a
-<https://github.com/python/cpython/commit/41063d2a59a24e257cd9ce62137e36c862e3ab1e>`__
-to fix ``IocpProactor.recv()`` when ``ReadFile()`` or ``WSARecv()`` with
-``ERROR_BROKEN_PIPE``::
+`commit 41063d2a
+<https://github.com/python/cpython/commit/41063d2a59a24e257cd9ce62137e36c862e3ab1e>`__::
 
    commit 41063d2a59a24e257cd9ce62137e36c862e3ab1e
    Author: Victor Stinner <victor.stinner@gmail.com>
@@ -213,4 +245,3 @@ to fix ``IocpProactor.recv()`` when ``ReadFile()`` or ``WSARecv()`` with
        I don't know if WSARecv() can fail with ERROR_BROKEN_PIPE. Since
        Overlapped.WSARecv() already handled ERROR_BROKEN_PIPE, let me guess that it
        has the same behaviour than ReadFile().
-

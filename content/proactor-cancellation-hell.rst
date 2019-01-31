@@ -25,6 +25,9 @@ the Windows source code** to understand the bug...
 documented and it took me months of debug to understand it. Moreover, the bug
 was well hidden for various reasons that we will see below.
 
+Next article: `Asyncio: Proactor ConnectPipe() Race Condition
+<{filename}/proactor-connect-pipe-race-condition.rst>`__.
+
 .. image:: {filename}/images/south_park_hell.jpg
    :alt: South Park Hell
 
