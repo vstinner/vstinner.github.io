@@ -16,7 +16,7 @@ idea of getting time as nanoseconds at Python level and so I wrote a new
 was discussed, I also deprecated ``time.clock()`` and removed
 ``os.stat_float_times()``.
 
-.. image:: {filename}/images/clock.jpg
+.. image:: {static}/images/clock.jpg
    :alt: Old clock
    :target: https://www.flickr.com/photos/dkalo/2909921582/
 

@@ -41,7 +41,7 @@ history and rationale of the Python 3 Unicode model for the operating system:**
 * 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
 * 6. `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_
 
-.. image:: {filename}/images/sunrise.jpg
+.. image:: {static}/images/sunrise.jpg
    :alt: Sunrise
    :target: https://www.flickr.com/photos/99444752@N06/9368903367/
 
@@ -586,7 +586,7 @@ Conclusion
 
 It's now time for a well deserved nap... until the next major Unicode issue in Python.
 
-.. image:: {filename}/images/tiger_nap.jpg
+.. image:: {static}/images/tiger_nap.jpg
    :alt: Tiger nap
    :target: https://www.flickr.com/photos/manager_2000/2911858714/
 

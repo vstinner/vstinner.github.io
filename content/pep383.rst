@@ -58,7 +58,7 @@ He amended this proposal:
 
 **But Martin's smart idea was lost** in the middle of long discussion.
 
-.. image:: {filename}/images/martin_von_loewis.jpg
+.. image:: {static}/images/martin_von_loewis.jpg
    :alt: Martin v. Löwis
    :target: https://github.com/loewis
 

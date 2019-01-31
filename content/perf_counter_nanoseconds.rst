@@ -92,7 +92,7 @@ To fix the precision loss, I modified again ``time.clock()`` and
 Grumpy Victor
 =============
 
-.. image:: {filename}/images/grumpy.jpg
+.. image:: {static}/images/grumpy.jpg
    :alt: Grumpy
 
 My change to replace ``_PyTime_t`` with ``double`` made me grumpy. I have been
@@ -131,7 +131,7 @@ Using a pencil, a sheet of paper and some maths, I found a solution! ::
 
     (a * b) / q == (a / q) * b + ((a % q) * b) / q
 
-.. image:: {filename}/images/math_rocks.jpg
+.. image:: {static}/images/math_rocks.jpg
    :alt: Math rocks
 
 This prevents the risk of integer overflow. C implementation::

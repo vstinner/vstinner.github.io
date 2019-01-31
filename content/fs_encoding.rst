@@ -30,7 +30,7 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
 * 6. `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_
 
-.. image:: {filename}/images/maze.jpg
+.. image:: {static}/images/maze.jpg
    :alt: Maze
    :target: https://commons.wikimedia.org/wiki/File:Longleat-maze.jpg
 
@@ -350,7 +350,7 @@ encoding. There is a big temptation to use multiple encodings, but at the end,
 (``LOG_FILE=log.txt``), in file content (ex: ``Makefile`` or a configuration
 file), etc. Using multiple encodings does not work in practice.
 
-.. image:: {filename}/images/dead_end.jpg
+.. image:: {static}/images/dead_end.jpg
    :alt: Dead end
 
 Remove PYTHONFSENCODING

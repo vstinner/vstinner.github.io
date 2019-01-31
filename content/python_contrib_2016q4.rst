@@ -46,7 +46,7 @@ better: **13.4 ms**. But suddenly, at september 19, it became much worse:
 
 Timeline of Python startup performance on speed.python.org:
 
-.. image:: {filename}/images/python_startup_regression.png
+.. image:: {static}/images/python_startup_regression.png
    :alt: Timeline of Python startup performance
    :target: https://speed.python.org/timeline/#/?exe=5&ben=python_startup&env=1&revs=50&equid=off&quarts=on&extr=on
 
@@ -89,7 +89,7 @@ performance by default, the ``enum`` change was restored at November 14.
 Sadly, the ``enum`` change still have an impact on performance:
 ``re.compile()`` became 1.2x slower (312 ms => 376 ms: +20%).
 
-.. image:: {filename}/images/regex_compile_perf.png
+.. image:: {static}/images/regex_compile_perf.png
    :alt: Timeline of re.compile() performance
    :target: https://speed.python.org/timeline/#/?exe=5&ben=regex_compile&env=1&revs=50&equid=off&quarts=on&extr=on
 

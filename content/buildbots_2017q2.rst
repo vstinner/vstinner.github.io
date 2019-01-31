@@ -111,7 +111,7 @@ detect warnings and tests failing randomly (test fail then pass when re-run).
 
 Example of orange build, x86-64 El Capitain 3.x:
 
-.. image:: {filename}/images/buildbot_orange.png
+.. image:: {static}/images/buildbot_orange.png
    :alt: Buildbot: orange build
 
 Extract of the current ``master/custom/steps.py``::
@@ -168,7 +168,7 @@ view of four Python branches: 2.7, 3.5, 3.6 and master ("3.x").
 
 Example of typical buildbot waterfall:
 
-.. image:: {filename}/images/buildbot_waterfall.png
+.. image:: {static}/images/buildbot_waterfall.png
    :alt: Buildbot waterfall
    :target: http://buildbot.python.org/all/waterfall?category=3.x.stable&category=3.x.unstable
 

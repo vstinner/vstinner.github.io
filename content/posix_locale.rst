@@ -33,7 +33,7 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
 * 6. `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_
 
-.. image:: {filename}/images/bee.jpg
+.. image:: {static}/images/bee.jpg
    :alt: Bee
    :target: https://www.flickr.com/photos/rj65/15010849568/
 
@@ -283,7 +283,7 @@ see `Python 3 C.UTF-8 locale
 PEP 538: Coercing the C locale to a UTF-8 based locale
 ======================================================
 
-.. image:: {filename}/images/nick_coghlan.jpg
+.. image:: {static}/images/nick_coghlan.jpg
    :alt: Nick Coghlan
    :target: http://www.curiousefficiency.org/
 

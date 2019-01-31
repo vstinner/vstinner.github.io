@@ -44,7 +44,7 @@ rationale of the Python 3 Unicode model for the operating system:**
 The os.walk() bug
 =================
 
-.. image:: {filename}/images/car_accident_hole.jpg
+.. image:: {static}/images/car_accident_hole.jpg
    :alt: Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston
    :target: http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html
 
@@ -170,7 +170,7 @@ Example to use a custom filename class::
 Emit a warning on undecodable filename
 ======================================
 
-.. image:: {filename}/images/warning_venomous_snakes.png
+.. image:: {static}/images/warning_venomous_snakes.png
    :alt: Warning: venoumous snakes
    :target: http://www.unicode.org/
 

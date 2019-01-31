@@ -220,7 +220,7 @@ where it got a bit of traction. Terry Jan Reedy also `posted it on python-list
 
 Screenshot at 2017-07-13 showing Ruby, PHP and CPython:
 
-.. image:: {filename}/images/github_cpython_stars.png
+.. image:: {static}/images/github_cpython_stars.png
    :alt: GitHub showcase: Programming languages
    :target: https://github.com/showcases/programming-languages
 

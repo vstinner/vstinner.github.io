@@ -84,7 +84,7 @@ Note: socket.close() was modified in Python 3.6 to raise OSError on failure
 Removal of the macOS job of Travis CI
 =====================================
 
-.. image:: {filename}/images/travis-ci.png
+.. image:: {static}/images/travis-ci.png
    :alt: call_method microbenchmark
    :align: right
    :target: https://travis-ci.org/

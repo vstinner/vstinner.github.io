@@ -30,7 +30,7 @@ My first comment:
 
     IMO it's a bug in ``PyEval_InitThreads()``.
 
-.. image:: {filename}/images/release_the_gil.png
+.. image:: {static}/images/release_the_gil.png
    :alt: Release the GIL!
    :target: https://twitter.com/kwinkunks/status/619496450834087938
 
@@ -206,7 +206,7 @@ I'm back.
 
 No gift for you, Python 3.7.
 
-.. image:: {filename}/images/sad_christmas_tree.png
+.. image:: {static}/images/sad_christmas_tree.png
    :alt: Sad Christmas tree
    :target: https://drawception.com/panel/drawing/0teL3336/charlie-brown-sad-about-small-christmas-tree/
 

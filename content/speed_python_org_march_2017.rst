@@ -35,12 +35,12 @@ Python 3.7 compared to Python 2.7
 
 Benchmarks where Python 3.7 is **faster** than Python 2.7:
 
-.. image:: {filename}/images/speed2017/python37_faster_py27.png
+.. image:: {static}/images/speed2017/python37_faster_py27.png
    :alt: python37_faster_py27
 
 Benchmarks where Python 3.7 is **slower** than Python 2.7:
 
-.. image:: {filename}/images/speed2017/python37_slower_py27.png
+.. image:: {static}/images/speed2017/python37_slower_py27.png
    :alt: python37_slower_py27
 
 
@@ -52,57 +52,57 @@ CPython became regulary faster in 2016 on the following benchmarks.
 call_method, the main optimized was `Speedup method calls 1.2x
 <https://bugs.python.org/issue26110>`_:
 
-.. image:: {filename}/images/speed2017/call_method.png
+.. image:: {static}/images/speed2017/call_method.png
    :alt: call_method
 
 float:
 
-.. image:: {filename}/images/speed2017/float.png
+.. image:: {static}/images/speed2017/float.png
    :alt: float
 
 hexiom:
 
-.. image:: {filename}/images/speed2017/hexiom.png
+.. image:: {static}/images/speed2017/hexiom.png
    :alt: hexiom
 
 nqueens:
 
-.. image:: {filename}/images/speed2017/nqueens.png
+.. image:: {static}/images/speed2017/nqueens.png
    :alt: nqueens
 
 pickle_list, something happened near September 2016:
 
-.. image:: {filename}/images/speed2017/pickle_list.png
+.. image:: {static}/images/speed2017/pickle_list.png
    :alt: pickle_list
 
 richards:
 
-.. image:: {filename}/images/speed2017/richards.png
+.. image:: {static}/images/speed2017/richards.png
    :alt: richards
 
 scimark_lu, I like the latest dot!
 
-.. image:: {filename}/images/speed2017/scimark_lu.png
+.. image:: {static}/images/speed2017/scimark_lu.png
    :alt: scimark_lu
 
 scimark_sor:
 
-.. image:: {filename}/images/speed2017/scimark_sor.png
+.. image:: {static}/images/speed2017/scimark_sor.png
    :alt: scimark_sor
 
 sympy_sum:
 
-.. image:: {filename}/images/speed2017/sympy_sum.png
+.. image:: {static}/images/speed2017/sympy_sum.png
    :alt: sympy_sum
 
 telco is one of the most impressive, it became regulary faster:
 
-.. image:: {filename}/images/speed2017/telco.png
+.. image:: {static}/images/speed2017/telco.png
    :alt: telco
 
 unpickle_list, something happened between March and May 2016:
 
-.. image:: {filename}/images/speed2017/unpickle_list.png
+.. image:: {static}/images/speed2017/unpickle_list.png
    :alt: unpickle_list
 
 
@@ -114,7 +114,7 @@ following benchmarks.
 
 python_startup:
 
-.. image:: {filename}/images/speed2017/python_startup.png
+.. image:: {static}/images/speed2017/python_startup.png
    :alt: python_startup
 
 See "Python startup performance regression" section of `My contributions to
@@ -126,7 +126,7 @@ of the ``re`` module became ``enum`` objects: see `convert re flags to (much
 friendlier) IntFlag constants (issue #28082)
 <http://bugs.python.org/issue28082>`_.
 
-.. image:: {filename}/images/speed2017/regex_compile.png
+.. image:: {static}/images/speed2017/regex_compile.png
    :alt: regex_compile
 
 
@@ -140,12 +140,12 @@ to work on the project!
 
 call_simple:
 
-.. image:: {filename}/images/speed2017/call_simple.png
+.. image:: {static}/images/speed2017/call_simple.png
    :alt: call_simple
 
 spectral_norm:
 
-.. image:: {filename}/images/speed2017/spectral_norm.png
+.. image:: {static}/images/speed2017/spectral_norm.png
    :alt: spectral_norm
 
 
@@ -158,22 +158,22 @@ detect performance regression or significant optimization.
 
 dulwich_log:
 
-.. image:: {filename}/images/speed2017/dulwich_log.png
+.. image:: {static}/images/speed2017/dulwich_log.png
    :alt: dulwich_log
 
 pidigits:
 
-.. image:: {filename}/images/speed2017/pidigits.png
+.. image:: {static}/images/speed2017/pidigits.png
    :alt: pidigits
 
 sqlite_synth:
 
-.. image:: {filename}/images/speed2017/sqlite_synth.png
+.. image:: {static}/images/speed2017/sqlite_synth.png
    :alt: sqlite_synth
 
 Apart something around April 2016, tornado_http result is stable:
 
-.. image:: {filename}/images/speed2017/tornado_http.png
+.. image:: {static}/images/speed2017/tornado_http.png
    :alt: tornado_http
 
 
@@ -187,17 +187,17 @@ to see the size of previous tempoary performance spikes.
 
 regex_v8:
 
-.. image:: {filename}/images/speed2017/regex_v8.png
+.. image:: {static}/images/speed2017/regex_v8.png
    :alt: regex_v8
 
 scimark_sparse_mat_mult:
 
-.. image:: {filename}/images/speed2017/scimark_sparse_mat_mult.png
+.. image:: {static}/images/speed2017/scimark_sparse_mat_mult.png
    :alt: scimark_sparse_mat_mult
 
 unpickle_pure_python:
 
-.. image:: {filename}/images/speed2017/unpickle_pure_python.png
+.. image:: {static}/images/speed2017/unpickle_pure_python.png
    :alt: unpickle_pure_python
 
 
@@ -208,36 +208,36 @@ There is nothing interesting to say on the following benchmark results.
 
 2to3:
 
-.. image:: {filename}/images/speed2017/2to3.png
+.. image:: {static}/images/speed2017/2to3.png
    :alt: 2to3
 
 crypto_pyaes:
 
-.. image:: {filename}/images/speed2017/crypto_pyaes.png
+.. image:: {static}/images/speed2017/crypto_pyaes.png
    :alt: crypto_pyaes
 
 deltablue:
 
-.. image:: {filename}/images/speed2017/deltablue.png
+.. image:: {static}/images/speed2017/deltablue.png
    :alt: deltablue
 
 logging_silent:
 
-.. image:: {filename}/images/speed2017/logging_silent.png
+.. image:: {static}/images/speed2017/logging_silent.png
    :alt: logging_silent
 
 mako:
 
-.. image:: {filename}/images/speed2017/mako.png
+.. image:: {static}/images/speed2017/mako.png
    :alt: mako
 
 xml_etree_process:
 
-.. image:: {filename}/images/speed2017/xml_etree_process.png
+.. image:: {static}/images/speed2017/xml_etree_process.png
    :alt: xml_etree_process
 
 xml_etre_iterparse:
 
-.. image:: {filename}/images/speed2017/xml_etre_iterparse.png
+.. image:: {static}/images/speed2017/xml_etre_iterparse.png
    :alt: xml_etre_iterparse
 

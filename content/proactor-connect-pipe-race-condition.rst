@@ -32,7 +32,7 @@ IocpProactor.accept_pipe() special case (don't register overlapped)
 <https://github.com/python/asyncio/issues/204>`__ (issue created at 25 Aug
 2014).
 
-.. image:: {filename}/images/pipes.jpg
+.. image:: {static}/images/pipes.jpg
    :alt: Pipes
    :target: https://www.flickr.com/photos/phrawr/7612947262/
 

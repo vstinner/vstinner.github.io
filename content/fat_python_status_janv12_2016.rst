@@ -9,7 +9,7 @@ Status of the FAT Python project, January 12, 2016
 :authors: Victor Stinner
 :summary: Status of the FAT Python project, January 12, 2016
 
-.. image:: {filename}/images/fat_python.jpg
+.. image:: {static}/images/fat_python.jpg
    :alt: FAT Python project
    :align: right
    :target: http://faster-cpython.readthedocs.org/fat_python.html

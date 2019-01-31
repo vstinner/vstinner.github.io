@@ -35,7 +35,7 @@ Change Windows filesystem encoding to UTF-8
 <https://mail.python.org/pipermail/python-dev/2016-September/146051.html>`_ for
 comments.
 
-.. image:: {filename}/images/steve_dower.jpg
+.. image:: {static}/images/steve_dower.jpg
    :alt: Steve Dower
    :target: http://stevedower.id.au/blog/
 
@@ -114,7 +114,7 @@ Even if I liked the idea of using UTF-8, I was still not fully confident that th
 change will not break the world. **We agreed to try the change during Python
 3.6 beta phase**, but revert it if something bad happens.
 
-.. image:: {filename}/images/cpython_sprint_2016_photo.jpg
+.. image:: {static}/images/cpython_sprint_2016_photo.jpg
    :alt: CPython developers at the Facebook sprint
    :target: http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html
 

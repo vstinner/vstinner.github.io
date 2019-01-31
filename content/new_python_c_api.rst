@@ -12,7 +12,7 @@ I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
 of writing a new C API for CPython hiding implementation details and replacing
 macros with function calls.
 
-.. image:: {filename}/images/cpython_sprint_sept2017.jpg
+.. image:: {static}/images/cpython_sprint_sept2017.jpg
    :alt: CPython sprint at Facebook, september 2017
 
 This article tries to explain why the CPython C API needs to **evolve**.

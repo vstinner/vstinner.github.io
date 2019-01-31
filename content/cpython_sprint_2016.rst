@@ -14,7 +14,7 @@ Instagram, Microsoft, and the PSF.
 
 **First little game:** Many happy faces, but *Where is Victor?*
 
-.. image:: {filename}/images/cpython_sprint_2016_photo.jpg
+.. image:: {static}/images/cpython_sprint_2016_photo.jpg
    :alt: CPython developers at the Facebook sprint
    :target: http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html
 
@@ -26,7 +26,7 @@ implementations merged much faster than usual.
 **Second little game:** try to spot the sprint on the CPython commit statistics of
 the last 12 months (Feb, 2016-Feb, 2017) ;-)
 
-.. image:: {filename}/images/cpython_sprint_2016_commits.png
+.. image:: {static}/images/cpython_sprint_2016_commits.png
    :alt: CPython commits statistics
    :target: https://github.com/python/cpython/graphs/commit-activity
 

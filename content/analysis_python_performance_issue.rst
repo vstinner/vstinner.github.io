@@ -14,7 +14,7 @@ upload results to `speed.python.org <http://speed.python.org/>`_. While
 analying results, I noticed a temporary peak on the ``call_method``
 benchmark at October 19th:
 
-.. image:: {filename}/images/call_method.png
+.. image:: {static}/images/call_method.png
    :alt: call_method microbenchmark
 
 The graphic shows the performance of the ``call_method`` microbenchmark between

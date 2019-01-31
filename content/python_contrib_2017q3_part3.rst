@@ -25,7 +25,7 @@ Summary:
 FreeBSD bug: minor() device regression
 ======================================
 
-.. image:: {filename}/images/freebsd.png
+.. image:: {static}/images/freebsd.png
    :alt: Logo of the FreeBSD project
    :target: https://www.freebsd.org/
 

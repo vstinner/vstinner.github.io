@@ -28,7 +28,7 @@ was well hidden for various reasons that we will see below.
 Next article: `Asyncio: Proactor ConnectPipe() Race Condition
 <{filename}/proactor-connect-pipe-race-condition.rst>`__.
 
-.. image:: {filename}/images/south_park_hell.jpg
+.. image:: {static}/images/south_park_hell.jpg
    :alt: South Park Hell
 
 Fix cancel() when called twice

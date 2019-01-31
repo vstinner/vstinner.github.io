@@ -9,7 +9,7 @@ My journey to stable benchmark, part 3 (average)
 :authors: Victor Stinner
 :summary: My journey to stable benchmark, part 3 (average)
 
-.. image:: {filename}/images/fog.jpg
+.. image:: {static}/images/fog.jpg
    :alt: Fog
    :target: https://www.flickr.com/photos/stanzim/11100202065/
 

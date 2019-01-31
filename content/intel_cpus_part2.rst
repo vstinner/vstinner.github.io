@@ -114,7 +114,7 @@ wanted to `burn my CPU <https://www.youtube.com/watch?v=Xf0VuRG7MN4>`_! More
 seriously, I checked the CPU temperature every second using the ``sensors``
 command and was prepared to unblock the fan if sometimes gone wrong.
 
-.. image:: {filename}/images/paper_blocks_cpu_fan.jpg
+.. image:: {static}/images/paper_blocks_cpu_fan.jpg
    :alt: Sheet of paper blocking the CPU fan
 
 After one minute, the CPU reached 97°C. I expected a system crash, smoke or
@@ -138,7 +138,7 @@ I used my system_load.py script to get a system load over 200. I also opened 4
 tabs in Firefox playing Youtube videos to stress also the GPU which is
 integrated into the CPU (IGP) on such laptop.
 
-.. image:: {filename}/images/burn_cpu_firefox.jpg
+.. image:: {static}/images/burn_cpu_firefox.jpg
    :alt: Stress test playing Youtube videos in Firefox, CPU at 102°
 
 With such crazy stress test, the CPU temperature was "only" 83°C.
