@@ -8,8 +8,10 @@ Asyncio: Proactor ConnectPipe() Race Condition
 :slug: asyncio-proactor-connect-pipe-race-condition
 :authors: Victor Stinner
 
-Between December 2014 and January 2015, I fixed race conditions and bugs in
-``ProactorEventLoop``:
+Between December 2014 and January 2015, once I succeeded to fix the root issue
+of the random asyncio crashes on Windows (`Proactor Cancellation From Hell
+<{filename}/proactor-cancellation-hell.rst>`__), I fixed more race conditions
+and bugs in ``ProactorEventLoop``:
 
 * ``ConnectPipe()`` Race Condition
 * Race Condition in ``BaseSubprocessTransport._try_finish()``
