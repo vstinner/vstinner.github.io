@@ -11,15 +11,16 @@ asyncio: WSARecv() cancellation causing data loss
 In December 2017, **Yury Selivanov** pushed the long awaited ``start_tls()``
 function.
 
-A newly added test failed on Windows. Later, the test started to failed
+A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
 asynchronous handshake of ``SSLProtocol`` which will take 5 months of work to
-be identified and fixed.
+be identified and fixed. The bug wasn't a recent regression, but only spotted
+thanks to newly added tests.
 
 Even after this bug has been fixed, the same test still failed randomly on
-Windows! Once I reproduced the bug, I understood that it's a **very scary
-bug**: ``WSARecv()`` cancellation randomly caused **data loss**! Again, it was
-a very well hidden bug which likely existing since the early days of the
+Windows! Once I found how to reproduce the bug, I understood that it's a **very
+scary bug**: ``WSARecv()`` cancellation randomly caused **data loss**! Again,
+it was a very well hidden bug which likely existing since the early days of the
 ``ProactorEventLoop`` implementation.
 
 .. image:: {static}/images/lock.jpg
@@ -30,7 +31,7 @@ a very well hidden bug which likely existing since the early days of the
 New start_tls() function
 ========================
 
-The "starttls" feature have been requested since early days of asyncio. At
+The "starttls" feature have been requested since creation of asyncio. At
 October 24, 2013, **Guido van Rossum** created `asyncio issue #79
 <https://github.com/python/asyncio/issues/79>`__:
 
@@ -63,7 +64,7 @@ f111b3dc
        bpo-23749: Implement loop.start_tls() (#5039)
 
 
-SSLProtocol race condition
+SSLProtocol Race Condition
 ==========================
 
 Test fails on AppVeyor (Windows): temporary fix
@@ -89,7 +90,7 @@ sporadically on AppVeyor::
 
    I'm leaving on a two-weeks vacation today.  To avoid risking breaking the workflow, I'll mask this tests on AppVeyor.  I'll investigate this when I get back.
 
-and pushed a **temporary fix**, `commit 0c36bed1
+and skipped the test as a **temporary fix**, `commit 0c36bed1
 <https://github.com/python/cpython/commit/0c36bed1c46d07ef91d3e02e69e974e4f3ecd31a>`__::
 
    commit 0c36bed1c46d07ef91d3e02e69e974e4f3ecd31a
@@ -120,12 +121,13 @@ At May 28, 2018, I found a reliable way to `reproduce the issue on Linux
    (2) ``./python -m test -j16 -r``
    (3) ``./python -m test -j16 -r``
 
-   It's a race condition which doesn't depend on the OS, but on the system load.
+   It's a **race condition** which doesn't depend on the OS, but on the system
+   load.
 
 Root issue identified
 ---------------------
 
-Once I succeeded to reproduce the bug, I was able to investigate it. I created
+Once I found how to reproduce the bug, I was able to investigate it. I created
 `bpo-33674 <https://bugs.python.org/issue33674>`__.
 
 I found a race condition in ``SSLProtocol`` of ``asyncio/sslproto.py``.
@@ -157,7 +159,7 @@ Workaround::
 
 Yury Selivanov wrote:
 
-   **The fix is correct and the bug is now obvious**: ``data_received()`` occur
+   **The fix is correct and the bug is now obvious**: ``data_received()`` occurs
    pretty much any time after ``connection_made()`` call; if ``call_soon()`` is
    used in ``connection_made()``, ``data_received()`` may find the protocol in
    an incorrect state.
@@ -177,7 +179,7 @@ I pushed `commit be00a558 <https://github.com/python/cpython/commit/be00a5583a2c
        call_soon(). Previously, data_received() could be called before the
        handshake started, causing the handshake to hang or fail.
 
-... the core of the change is basically a single line change::
+... the change is basically a single line change::
 
    - self._loop.call_soon(self._process_write_backlog)
    + self._process_write_backlog()
@@ -185,7 +187,7 @@ I pushed `commit be00a558 <https://github.com/python/cpython/commit/be00a5583a2c
 I closed `bpo-32458 <https://bugs.python.org/issue32458>`__ and **Yury
 Selivanov** closed `bpo-33674 <https://bugs.python.org/issue33674>`__.
 
-Regression? nope
+Not a regression
 ----------------
 
 The SSLProtocol race condition wasn't new: it existed since January 2015,
@@ -229,9 +231,9 @@ Yet another very boring buildbot test failure
 At May 30, 2018, the day after I fixed SSLProtocol race condition, I created
 `bpo-33694 <https://bugs.python.org/issue33694>`__.
 
-test_asyncio.test_start_tls_server_1() got many fixes recently: see `bpo-32458
-<https://bugs.python.org/issue32458>`__ and `bpo-33674
-<https://bugs.python.org/issue33674>`__... but it still fails on Python on x86
+test_asyncio.test_start_tls_server_1() got multiple fixes recently (see
+`bpo-32458 <https://bugs.python.org/issue32458>`__ and `bpo-33674
+<https://bugs.python.org/issue33674>`__)... but it still fails on Python on x86
 Windows7 3.x at revision bb9474f1fb2fc7c7ed9f826b78262d6a12b5f9e8 which
 contains all these fixes.
 
@@ -264,18 +266,18 @@ Unable to reproduce the bug
 
 **Yury Selivanov** `failed to reproduce the issue <https://bugs.python.org/issue33694#msg318193>`__ in Windows 7 VM (on macOS) using:
 
-1. run test_asyncio
-2. run test_asyncio.test_sslproto
-3. run test_asyncio.test_sslproto -m test_start_tls_server_1
+1. run ``test_asyncio``
+2. run ``test_asyncio.test_sslproto``
+3. run ``test_asyncio.test_sslproto -m test_start_tls_server_1``
 
-Andrew Svetlov `added <https://bugs.python.org/issue33694#msg318194>`__:
+**Andrew Svetlov** `added <https://bugs.python.org/issue33694#msg318194>`__:
 
-   I used SNDBUF to enforce send buffer overloading. It is not required by
+   I used ``SNDBUF`` to enforce send buffer overloading. It is not required by
    sendfile tests but I thought that better to have non-mocked way to test such
    situations. We can remove the socket buffers size manipulation at all
    without any problem.
 
-But Yury Selivanov `replied to him
+But Yury Selivanov `replied
 <https://bugs.python.org/issue33694#msg318195>`__:
 
    When I tried to do that I think **I was having more failures** with that
@@ -297,7 +299,7 @@ the test".
 
 On the other hand, I found the root cause: calling ``pause_reading()`` and
 ``resume_reading()`` on the transport is not safe. Sometimes, we loose data.
-See the "TODO" comment below::
+See the **ugly hack** described in the TODO comment below::
 
    class _ProactorReadPipeTransport(_ProactorBasePipeTransport,
                                     transports.ReadTransport):
@@ -332,16 +334,16 @@ Extract of ``_ProactorReadPipeTransport.set_transport()``::
             self.pause_reading()
             self.resume_reading()
 
-This method cancels the pending overlapped ``WSARecv()``, and then creates a
-new overlapped ``WSARecv()``.
+This method **cancels the pending overlapped** ``WSARecv()``, and then creates
+a new overlapped ``WSARecv()``.
 
 Even after ``CancelIoEx(old overlapped)``, the IOCP loop still gets an event
 for the completion of the cancelled overlapped ``WSARecv()``. Problem: **since
 the Python future is cancelled, the event is ignored and so 176 bytes of data
 are lost**.
 
-I'm surprised that an overlapped ``WSARecv()`` cancelled by ``CancelIoEx()``
-still returns data when IOCP polls for events.
+I'm surprised that an overlapped ``WSARecv()`` **cancelled** by
+``CancelIoEx()`` still returns data when IOCP polls for events.
 
 Something else. The bug occurs when ``CancelIoEx()`` (on the current overlapped
 ``WSARecv()``) fails internally with ``ERROR_NOT_FOUND``. According to
@@ -397,9 +399,9 @@ sometime drops packets. The bug occurs when ``CancelIoEx()`` fails with
 ``ERROR_NOT_FOUND`` which means that the I/O (``WSARecv()``) completed.
 
 One solution would be to not cancel ``WSARecv()`` on pause_reading(): wait
-until the current ``WSARecv()`` completes, store data something but don't pass
-it to ``protocol.data_received()``!, and no schedule a new ``WSARecv()``. Once
-reading is resumed: call ``protocol.data_received()`` and schedule a new
+until the current ``WSARecv()`` completes, store data somewhere but don't pass
+it to ``protocol.data_received()``, and don't schedule a new ``WSARecv()``.
+Once reading is resumed: call ``protocol.data_received()`` and schedule a new
 ``WSARecv()``.
 
 That would be a workaround. I don't know how to really fix ``WSARecv()``
@@ -409,10 +411,10 @@ completed even if we just cancelled it. Currently, the corner case
 (``CancelIoEx()`` fails with ``ERROR_NOT_FOUND``) is silently ignored, and then
 the IOCP loop silently ignores the event of completed I/O...
 
-Fix the bug
------------
+Fix the bug: no longer cancel WSARecv()
+---------------------------------------
 
-At Jun 8, 2018, I pushed `commit 79790bc3
+At June 8, 2018, I pushed `commit 79790bc3
 <https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7>`__::
 
    commit 79790bc35fe722a49977b52647f9b5fe1deda2b7
@@ -443,10 +445,12 @@ I used my ``race.py`` script to validate that the issue is fixed for real.
 Conclusion
 ==========
 
-The bug was the cancellation of ``WSARecv()`` which causes indirectly data
-loss. The bug likely existed since the early days of asyncio, but was only
-spotted when more tests have been added for Transport Layer Security (TLS).
+I fixed one race condition in the asynchronous handshake of ``SSLProtocol``.
 
-* You should write an extensive test suite for your code.
-* You should keep an eye on your continuous integration (CI): any tiny test
+I found and fixed a data loss bug caused by ``WSARecv()`` cancellation.
+
+Lessons learnt from these two bugs:
+
+* You should **write an extensive test suite** for your code.
+* You should **keep an eye on your continuous integration (CI)**: any tiny test
   failure can hide a very severe bug.
