@@ -8,9 +8,76 @@ asyncio: WSARecv() dropping network packets bug
 :slug: asyncio-proactor-wsarecv-dropping-packets-bug
 :authors: Victor Stinner
 
-In May 2018, while looking yet another very boring buildbot test failure on
+My latest significant contribution to the Windows implementation of asyncio
+(ProactorEventLoop) was in January 2015. I wasn't aware of major issue.
+
+In May 2018, while looking at yet another very boring buildbot test failure on
 Windows, I discovered a really huge and critical bug in asyncio on Windows.
 The **ProactorEventLoop randomly dropped received network packets**!
+
+Introduction: SSLProtocol race condition
+========================================
+
+New start_tls() function. Many new tests using TLS.
+
+https://bugs.python.org/issue33674
+
+ msg317916 - (view) 	Author: STINNER Victor (vstinner) * (Python committer) 	Date: 2018-05-28 20:37
+
+While debugging `bpo-32458 <https://bugs.python.org/issue32458>`__ (functional test on START TLS), I found a race condition in SSLProtocol of asyncio/sslproto.py.
+
+Sometimes, _sslpipe.feed_ssldata() is called before _sslpipe.shutdown().
+
+* SSLProtocol.connection_made() -> SSLProtocol._start_handshake(): self._loop.call_soon(self._process_write_backlog)
+* SSLProtoco.data_received(): direct call to self._sslpipe.feed_ssldata(data)
+* Later, self._process_write_backlog() calls self._sslpipe.do_handshake()
+
+The first write is delayed by call_soon(), whereas the first read is a direct call to the SSL pipe.
+
+
+msg317923 - (view) 	Author: Yury Selivanov (yselivanov) * (Python committer) 	Date: 2018-05-28 21:05
+
+The fix is correct and the bug is now obvious: data_received() occur pretty much any time after connection_made() call; if call_soon() is used in connection_made(), data_received() may find the protocol in an incorrect state.
+
+Kudos Victor for debugging this.
+
+`commit be00a558 <https://github.com/python/cpython/commit/be00a5583a2cb696335c527b921d1868266a42c6>`__::
+
+   commit be00a5583a2cb696335c527b921d1868266a42c6
+   Author: Victor Stinner <vstinner@redhat.com>
+   Date:   Tue May 29 01:33:35 2018 +0200
+
+       bpo-33674: asyncio: Fix SSLProtocol race (GH-7175)
+
+       Fix a race condition in SSLProtocol.connection_made() of
+       asyncio.sslproto: start immediately the handshake instead of using
+       call_soon(). Previously, data_received() could be called before the
+       handshake started, causing the handshake to hang or fail.
+
+Other isuse:
+https://bugs.python.org/issue32458#msg317833
+
+msg318080 - (view) 	Author: STINNER Victor (vstinner) * (Python committer) 	Date: 2018-05-29 20:02
+
+I'm not 100% sure that all issues are fixed, but the tests seem much more reliable yet. I close the issue. If the bug reoccurs, I will reopen the issue or open a new one.
+
+Test enabled again by `commit dbf10227 <https://github.com/python/cpython/commit/dbf102271fcc316f353c7e0a283811b661d128f2>`__::
+
+   commit dbf102271fcc316f353c7e0a283811b661d128f2
+   Author: Yury Selivanov <yury@magic.io>
+   Date:   Mon May 28 14:31:28 2018 -0400
+
+       bpo-33654: Support BufferedProtocol in set_protocol() and start_tls() (GH-7130)
+
+       In this commit:
+
+       * Support BufferedProtocol in set_protocol() and start_tls()
+       * Fix proactor to cancel readers reliably
+       * Update tests to be compatible with OpenSSL 1.1.1
+       * Clarify BufferedProtocol docs
+       * Bump TLS tests timeouts to 60 seconds; eliminate possible race from start_serving
+       * Rewrite test_start_tls_server_1
+
 
 Yet another very boring buildbot test failure
 =============================================
@@ -145,29 +212,32 @@ The problem is that currently, ``Overlapped.cancel()`` also returns ``None`` in
 that case, and later the asyncio IOCP loop ignores the completion event and so
 **drops incoming received data**.
 
-Release blocker bug and functional test reproducing the bug
-===========================================================
+Release blocker bug?
+====================
 
 Yury, Andrew, Ned: I set the priority to release blocker because I'm scared by
 what I saw. The START TLS has a race condition in its ProactorEventLoop
 implementation. But the bug doesn't see to be specific to START TLS, but rather
-to transport.set_transport(), and even more generally to
-transport.pause_reading() / transport.resume_reading(). The bug is quite
+to ``transport.set_transport()``, and even more generally to
+``transport.pause_reading()`` / ``transport.resume_reading()``. The bug is quite
 severe: we loose data and it's really hard to know why (I spent a few hours to
 add many many print and try to reproduce on a very tiny reliable unit test). As
 an asyncio user, I expect that transports are 100% reliable, and I would first
-look into my look (like looking into start_tls() implementation in my case).
+look into my code (like looking into ``start_tls()`` implementation in my case).
 
-If the bug was very specific to start_tls(), I would suggest to "just"
+If the bug was very specific to ``start_tls()``, I would suggest to "just"
 "disable" start_tls() on ProactorEventLoop (sorry, Windows!). But since the
-data loss seems to concern basically any application using ProactorEventLoop, I
-don't see any simple workaround.
+data loss seems to concern basically any application using
+``ProactorEventLoop``, I don't see any simple workaround.
 
-My hope is that a fix can be written shortly to not block the 3.7.0 final
+**My hope is that a fix can be written shortly** to not block the 3.7.0 final
 release for too long :-(
 
 Yury, Andrew: Can you please just confirm that it's a regression and that a
 release blocker is justified?
+
+Functional test reproducing the bug
+===================================
 
 race.py: simple echo client and server sending packets in both directions.
 Pause/resume reading the client transport every 100 ms to trigger the bug.
@@ -223,6 +293,26 @@ At Jun 8, 2018, I pushed `commit 79790bc3
 I fixed the root issue (in Python 3.7 and future Python 3.8), a race condition
 in ProactorEventLoop. But I prefer to keep the issue open a few days to see if
 the bug is really gone from all CIs.
+
+Skipped test
+============
+
+`bpo-32458 <https://bugs.python.org/issue32458>`__, `commit 0c36bed1 <https://github.com/python/cpython/commit/0c36bed1c46d07ef91d3e02e69e974e4f3ecd31a>`__::
+
+   commit 0c36bed1c46d07ef91d3e02e69e974e4f3ecd31a
+   Author: Yury Selivanov <yury@magic.io>
+   Date:   Sat Dec 30 15:40:20 2017 -0500
+
+       bpo-32458: Temporarily mask start-tls proactor test on Windows (#5054)
+
+I wrote:
+https://bugs.python.org/issue32458#msg317468
+
+   test_start_tls_server_1() just failed on my Linux. It likely depends on the system load.
+
+Christian Heimes:
+
+   [On Linux,] It's failing reproducible with OpenSSL 1.1.1 and TLS 1.3 enabled. I haven't seen it failing with TLS 1.2 yet.
 
 Conclusion
 ==========
