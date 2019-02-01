@@ -19,7 +19,416 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-01-31T15:20:00+01:00">
+                Published: jeu. 31 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
+</footer><!-- /.post-info --><p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
+function.</p>
+<p>A newly added test failed on Windows. Later, the test started to fail
+randomly on Linux as well. In fact, it was a well hidden race condition in the
+asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which will take 5 months of work to
+be identified and fixed. The bug wasn't a recent regression, but only spotted
+thanks to newly added tests.</p>
+<p>Even after this bug has been fixed, the same test still failed randomly on
+Windows! Once I found how to reproduce the bug, I understood that it's a <strong>very
+scary bug</strong>: <tt class="docutils literal">WSARecv()</tt> cancellation randomly caused <strong>data loss</strong>! Again,
+it was a very well hidden bug which likely existing since the early days of the
+<tt class="docutils literal">ProactorEventLoop</tt> implementation.</p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
+<div class="section" id="new-start-tls-function">
+<h2>New start_tls() function</h2>
+<p>The &quot;starttls&quot; feature have been requested since creation of asyncio. At
+October 24, 2013, <strong>Guido van Rossum</strong> created <a class="reference external" href="https://github.com/python/asyncio/issues/79">asyncio issue #79</a>:</p>
+<blockquote>
+<strong>Glyph [Lefkowitz]</strong> and <strong>Antoine [Pitrou]</strong> really want a API to upgrade an
+existing Transport/Protocol pair to SSL/TLS, without having to create a new
+protocol.</blockquote>
+<p>At March 23, 2015, <strong>Giovanni Cannata</strong> created <a class="reference external" href="https://bugs.python.org/issue23749">bpo-23749</a> which is basically the same feature
+request. I <a class="reference external" href="https://bugs.python.org/issue23749#msg239022">replied</a>:</p>
+<blockquote>
+asyncio got a new SSL implementation which makes possible to implement
+STARTTLS. Are you interested to implement it?</blockquote>
+<p><strong>Elizabeth Myers</strong>, <strong>Antoine Pitrou</strong>, <strong>Guido van Rossum</strong> and
+<strong>Yury Selivanov</strong> designed the feature. Yury <a class="reference external" href="https://bugs.python.org/issue23749#msg253495">wrote a prototype</a> in 2015 for PostgreSQL.  In
+2017, <strong>Barry Warsaw</strong> <a class="reference external" href="https://bugs.python.org/issue23749#msg293912">wrote his own implementation for SMTP</a>.</p>
+<p>At the end of 2017, <strong>four year</strong> after Guido van Rossum created the feature
+request, <strong>Yury Selivanov</strong> implemented the feature and pushed the <a class="reference external" href="https://github.com/python/cpython/commit/f111b3dcb414093a4efb9d74b69925e535ddc470">commit
+f111b3dc</a>:</p>
+<pre class="literal-block">
+commit f111b3dcb414093a4efb9d74b69925e535ddc470
+Author: Yury Selivanov &lt;yury&#64;magic.io&gt;
+Date:   Sat Dec 30 00:35:36 2017 -0500
+
+    bpo-23749: Implement loop.start_tls() (#5039)
+</pre>
+</div>
+<div class="section" id="sslprotocol-race-condition">
+<h2>SSLProtocol Race Condition</h2>
+<div class="section" id="test-fails-on-appveyor-windows-temporary-fix">
+<h3>Test fails on AppVeyor (Windows): temporary fix</h3>
+<p>At December 30, 2017, just after Yury pushed his implementation of
+<tt class="docutils literal">start_tls()</tt> (the same day), <strong>Antoine Pitrou</strong> reported <a class="reference external" href="https://bugs.python.org/issue32458">bpo-32458</a>: it seems test_asyncio fails
+sporadically on AppVeyor:</p>
+<pre class="literal-block">
+ERROR: test_start_tls_server_1 (test.test_asyncio.test_sslproto.ProactorStartTLS)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File &quot;C:\projects\cpython\lib\test\test_asyncio\test_sslproto.py&quot;, line 284, in test_start_tls_server_1
+    asyncio.wait_for(main(), loop=self.loop, timeout=10))
+  File &quot;C:\projects\cpython\lib\asyncio\base_events.py&quot;, line 440, in run_until_complete
+    return future.result()
+  File &quot;C:\projects\cpython\lib\asyncio\tasks.py&quot;, line 398, in wait_for
+    raise futures.TimeoutError()
+concurrent.futures._base.TimeoutError
+</pre>
+<p><strong>Yury Selivanov</strong> <a class="reference external" href="https://bugs.python.org/issue32458#msg309254">wrote</a>:</p>
+<blockquote>
+I'm leaving on a two-weeks vacation today.  To avoid risking breaking the workflow, I'll mask this tests on AppVeyor.  I'll investigate this when I get back.</blockquote>
+<p>and skipped the test as a <strong>temporary fix</strong>, <a class="reference external" href="https://github.com/python/cpython/commit/0c36bed1c46d07ef91d3e02e69e974e4f3ecd31a">commit 0c36bed1</a>:</p>
+<pre class="literal-block">
+commit 0c36bed1c46d07ef91d3e02e69e974e4f3ecd31a
+Author: Yury Selivanov &lt;yury&#64;magic.io&gt;
+Date:   Sat Dec 30 15:40:20 2017 -0500
+
+    bpo-32458: Temporarily mask start-tls proactor test on Windows (#5054)
+</pre>
+</div>
+<div class="section" id="bug-reproduced-on-linux">
+<h3>Bug reproduced on Linux</h3>
+<p>At May 23, 2018, five month after the bug have been reported, <a class="reference external" href="https://bugs.python.org/issue32458#msg317468">I wrote</a>:</p>
+<blockquote>
+test_start_tls_server_1() just failed on my Linux. It likely depends on the system load.</blockquote>
+<p>Christian Heimes <a class="reference external" href="https://bugs.python.org/issue32458#msg317760">added</a>:</p>
+<blockquote>
+[On Linux,] It's failing reproducible with OpenSSL 1.1.1 and TLS 1.3
+enabled. I haven't seen it failing with TLS 1.2 yet.</blockquote>
+<p>At May 28, 2018, I found a reliable way to <a class="reference external" href="https://bugs.python.org/issue32458#msg317833">reproduce the issue on Linux</a>:</p>
+<blockquote>
+<p>Open 3 terminals and run these commands in parallel:</p>
+<ol class="arabic simple">
+<li><tt class="docutils literal">./python <span class="pre">-m</span> test test_asyncio <span class="pre">-m</span> test_start_tls_server_1 <span class="pre">-F</span></tt></li>
+<li><tt class="docutils literal">./python <span class="pre">-m</span> test <span class="pre">-j16</span> <span class="pre">-r</span></tt></li>
+<li><tt class="docutils literal">./python <span class="pre">-m</span> test <span class="pre">-j16</span> <span class="pre">-r</span></tt></li>
+</ol>
+<p>It's a <strong>race condition</strong> which doesn't depend on the OS, but on the system
+load.</p>
+</blockquote>
+</div>
+<div class="section" id="root-issue-identified">
+<h3>Root issue identified</h3>
+<p>Once I found how to reproduce the bug, I was able to investigate it. I created
+<a class="reference external" href="https://bugs.python.org/issue33674">bpo-33674</a>.</p>
+<p>I found a race condition in <tt class="docutils literal">SSLProtocol</tt> of <tt class="docutils literal">asyncio/sslproto.py</tt>.
+Sometimes, <tt class="docutils literal">_sslpipe.feed_ssldata()</tt> is called before
+<tt class="docutils literal">_sslpipe.shutdown()</tt>.</p>
+<ul class="simple">
+<li><tt class="docutils literal">SSLProtocol.connection_made()</tt> -&gt; <tt class="docutils literal">SSLProtocol._start_handshake()</tt>: <tt class="docutils literal">self._loop.call_soon(self._process_write_backlog)</tt></li>
+<li><tt class="docutils literal">SSLProtoco.data_received()</tt>: direct call to <tt class="docutils literal">self._sslpipe.feed_ssldata(data)</tt></li>
+<li>Later, <tt class="docutils literal">self._process_write_backlog()</tt> calls <tt class="docutils literal">self._sslpipe.do_handshake()</tt></li>
+</ul>
+<p>The first <strong>write</strong> is <strong>delayed</strong> by <tt class="docutils literal">call_soon()</tt>, whereas the first
+<strong>read</strong> is a <strong>direct call</strong> to the SSL pipe.</p>
+<p>Workaround:</p>
+<pre class="literal-block">
+diff --git a/Lib/asyncio/sslproto.py b/Lib/asyncio/sslproto.py
+index 2bfa45dd15..4a5dbb38a1 100644
+--- a/Lib/asyncio/sslproto.py
++++ b/Lib/asyncio/sslproto.py
+&#64;&#64; -592,7 +592,7 &#64;&#64; class SSLProtocol(protocols.Protocol):
+         # (b'', 1) is a special value in _process_write_backlog() to do
+         # the SSL handshake
+         self._write_backlog.append((b'', 1))
+-        self._loop.call_soon(self._process_write_backlog)
++        self._process_write_backlog()
+         self._handshake_timeout_handle = \
+             self._loop.call_later(self._ssl_handshake_timeout,
+                                   self._check_handshake_timeout)
+</pre>
+<p>Yury Selivanov wrote:</p>
+<blockquote>
+<p><strong>The fix is correct and the bug is now obvious</strong>: <tt class="docutils literal">data_received()</tt> occurs
+pretty much any time after <tt class="docutils literal">connection_made()</tt> call; if <tt class="docutils literal">call_soon()</tt> is
+used in <tt class="docutils literal">connection_made()</tt>, <tt class="docutils literal">data_received()</tt> may find the protocol in
+an incorrect state.</p>
+<p><strong>Kudos Victor for debugging this.</strong></p>
+</blockquote>
+<p>I pushed <a class="reference external" href="https://github.com/python/cpython/commit/be00a5583a2cb696335c527b921d1868266a42c6">commit be00a558</a>:</p>
+<pre class="literal-block">
+commit be00a5583a2cb696335c527b921d1868266a42c6
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Tue May 29 01:33:35 2018 +0200
+
+    bpo-33674: asyncio: Fix SSLProtocol race (GH-7175)
+
+    Fix a race condition in SSLProtocol.connection_made() of
+    asyncio.sslproto: start immediately the handshake instead of using
+    call_soon(). Previously, data_received() could be called before the
+    handshake started, causing the handshake to hang or fail.
+</pre>
+<p>... the change is basically a single line change:</p>
+<pre class="literal-block">
+- self._loop.call_soon(self._process_write_backlog)
++ self._process_write_backlog()
+</pre>
+<p>I closed <a class="reference external" href="https://bugs.python.org/issue32458">bpo-32458</a> and <strong>Yury
+Selivanov</strong> closed <a class="reference external" href="https://bugs.python.org/issue33674">bpo-33674</a>.</p>
+</div>
+<div class="section" id="not-a-regression">
+<h3>Not a regression</h3>
+<p>The SSLProtocol race condition wasn't new: it existed since January 2015,
+<a class="reference external" href="https://github.com/python/cpython/commit/231b404cb026649d4b7172e75ac394ef558efe60">commit 231b404c</a>:</p>
+<pre class="literal-block">
+commit 231b404cb026649d4b7172e75ac394ef558efe60
+Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
+Date:   Wed Jan 14 00:19:09 2015 +0100
+
+    Issue #22560: New SSL implementation based on ssl.MemoryBIO
+
+    The new SSL implementation is based on the new ssl.MemoryBIO which is only
+    available on Python 3.5. On Python 3.4 and older, the legacy SSL implementation
+    (using SSL_write, SSL_read, etc.) is used. The proactor event loop only
+    supports the new implementation.
+
+    The new asyncio.sslproto module adds _SSLPipe, SSLProtocol and
+    _SSLProtocolTransport classes. _SSLPipe allows to &quot;wrap&quot; or &quot;unwrap&quot; a socket
+    (switch between cleartext and SSL/TLS).
+
+    Patch written by Antoine Pitrou. sslproto.py is based on gruvi/ssl.py of the
+    gruvi project written by Geert Jansen.
+
+    This change adds SSL support to ProactorEventLoop on Python 3.5 and newer!
+
+    It becomes also possible to implement STARTTTLS: switch a cleartext socket to
+    SSL.
+</pre>
+<p>This is the new cool asynchronous SSL implementation written by <strong>Antoine
+Pitrou</strong> and <strong>Geert Jansen</strong>. It took <strong>3 years</strong> and <strong>new functional tests</strong>
+to discover the race condition.</p>
+</div>
+</div>
+<div class="section" id="wsarecv-cancellation-causing-data-loss">
+<h2>WSARecv() cancellation causing data loss</h2>
+<div class="section" id="yet-another-very-boring-buildbot-test-failure">
+<h3>Yet another very boring buildbot test failure</h3>
+<p>At May 30, 2018, the day after I fixed SSLProtocol race condition, I created
+<a class="reference external" href="https://bugs.python.org/issue33694">bpo-33694</a>.</p>
+<p>test_asyncio.test_start_tls_server_1() got multiple fixes recently (see
+<a class="reference external" href="https://bugs.python.org/issue32458">bpo-32458</a> and <a class="reference external" href="https://bugs.python.org/issue33674">bpo-33674</a>)... but it still fails on Python on x86
+Windows7 3.x at revision bb9474f1fb2fc7c7ed9f826b78262d6a12b5f9e8 which
+contains all these fixes.</p>
+<p>The test fails even when test_asyncio is re-run alone (not when other tests run
+in parallel).</p>
+<p>Example of failure:</p>
+<pre class="literal-block">
+ERROR: test_start_tls_server_1 (test.test_asyncio.test_sslproto.ProactorStartTLSTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File &quot;...\lib\test\test_asyncio\test_sslproto.py&quot;, line 467, in test_start_tls_server_1
+    self.loop.run_until_complete(run_main())
+  File &quot;...\lib\asyncio\base_events.py&quot;, line 566, in run_until_complete
+    raise RuntimeError('Event loop stopped before Future completed.')
+RuntimeError: Event loop stopped before Future completed.
+</pre>
+<p>The test fails also on x86 Windows7 3.7. Moreover, 3.7 got an additional failure:</p>
+<pre class="literal-block">
+ERROR: test_pipe_handle (test.test_asyncio.test_windows_utils.PipeTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File &quot;...\lib\test\test_asyncio\test_windows_utils.py&quot;, line 73, in test_pipe_handle
+    raise RuntimeError('expected ERROR_INVALID_HANDLE')
+RuntimeError: expected ERROR_INVALID_HANDLE
+</pre>
+</div>
+<div class="section" id="unable-to-reproduce-the-bug">
+<h3>Unable to reproduce the bug</h3>
+<p><strong>Yury Selivanov</strong> <a class="reference external" href="https://bugs.python.org/issue33694#msg318193">failed to reproduce the issue</a> in Windows 7 VM (on macOS) using:</p>
+<ol class="arabic simple">
+<li>run <tt class="docutils literal">test_asyncio</tt></li>
+<li>run <tt class="docutils literal">test_asyncio.test_sslproto</tt></li>
+<li>run <tt class="docutils literal">test_asyncio.test_sslproto <span class="pre">-m</span> test_start_tls_server_1</tt></li>
+</ol>
+<p><strong>Andrew Svetlov</strong> <a class="reference external" href="https://bugs.python.org/issue33694#msg318194">added</a>:</p>
+<blockquote>
+I used <tt class="docutils literal">SNDBUF</tt> to enforce send buffer overloading. It is not required by
+sendfile tests but I thought that better to have non-mocked way to test such
+situations. We can remove the socket buffers size manipulation at all
+without any problem.</blockquote>
+<p>But Yury Selivanov <a class="reference external" href="https://bugs.python.org/issue33694#msg318195">replied</a>:</p>
+<blockquote>
+When I tried to do that I think <strong>I was having more failures</strong> with that
+test. But really up to you.</blockquote>
+<p>Next days, I reported more and more similar failures on Windows buildbots and
+AppVeyor (our Windows CI).</p>
+</div>
+<div class="section" id="root-issue-identified-pause-reading">
+<h3>Root issue identified: pause_reading()</h3>
+<p>Since this bug became more and more frequent, I decided to work on it. Yury and
+Andrew failed to reproduce it.</p>
+<p>At June 7, 2018, I managed to <strong>reproduce the bug on Linux</strong> by <a class="reference external" href="https://bugs.python.org/issue33694#msg318869">inserting a
+sleep at the right place</a>...
+I understood one hour later that my patch is wrong: &quot;it introduces a bug in
+the test&quot;.</p>
+<p>On the other hand, I found the root cause: calling <tt class="docutils literal">pause_reading()</tt> and
+<tt class="docutils literal">resume_reading()</tt> on the transport is not safe. Sometimes, we loose data.
+See the <strong>ugly hack</strong> described in the TODO comment below:</p>
+<pre class="literal-block">
+class _ProactorReadPipeTransport(_ProactorBasePipeTransport,
+                                 transports.ReadTransport):
+    &quot;&quot;&quot;Transport for read pipes.&quot;&quot;&quot;
+    (...)
+    def pause_reading(self):
+        if self._closing or self._paused:
+            return
+        self._paused = True
+
+        if self._read_fut is not None and not self._read_fut.done():
+            # TODO: This is an ugly hack to cancel the current read future
+            # *and* avoid potential race conditions, as read cancellation
+            # goes through `future.cancel()` and `loop.call_soon()`.
+            # We then use this special attribute in the reader callback to
+            # exit *immediately* without doing any cleanup/rescheduling.
+            self._read_fut.__asyncio_cancelled_on_pause__ = True
+
+            self._read_fut.cancel()
+            self._read_fut = None
+            self._reschedule_on_resume = True
+
+        if self._loop.get_debug():
+            logger.debug(&quot;%r pauses reading&quot;, self)
+</pre>
+<p>If you remove the &quot;ugly hack&quot;, the test no longer hangs...</p>
+<p>Extract of <tt class="docutils literal">_ProactorReadPipeTransport.set_transport()</tt>:</p>
+<pre class="literal-block">
+if self.is_reading():
+    # reset reading callback / buffers / self._read_fut
+    self.pause_reading()
+    self.resume_reading()
+</pre>
+<p>This method <strong>cancels the pending overlapped</strong> <tt class="docutils literal">WSARecv()</tt>, and then creates
+a new overlapped <tt class="docutils literal">WSARecv()</tt>.</p>
+<p>Even after <tt class="docutils literal">CancelIoEx(old overlapped)</tt>, the IOCP loop still gets an event
+for the completion of the cancelled overlapped <tt class="docutils literal">WSARecv()</tt>. Problem: <strong>since
+the Python future is cancelled, the event is ignored and so 176 bytes of data
+are lost</strong>.</p>
+<p>I'm surprised that an overlapped <tt class="docutils literal">WSARecv()</tt> <strong>cancelled</strong> by
+<tt class="docutils literal">CancelIoEx()</tt> still returns data when IOCP polls for events.</p>
+<p>Something else. The bug occurs when <tt class="docutils literal">CancelIoEx()</tt> (on the current overlapped
+<tt class="docutils literal">WSARecv()</tt>) fails internally with <tt class="docutils literal">ERROR_NOT_FOUND</tt>. According to
+overlapped.c, it means:</p>
+<pre class="literal-block">
+/* CancelIoEx returns ERROR_NOT_FOUND if the I/O completed in-between */
+</pre>
+<p><tt class="docutils literal">HasOverlappedIoCompleted()</tt> returns 0 in that case.</p>
+<p>The problem is that currently, <tt class="docutils literal">Overlapped.cancel()</tt> also returns <tt class="docutils literal">None</tt> in
+that case, and later the asyncio IOCP loop ignores the completion event and so
+<strong>drops incoming received data</strong>.</p>
+</div>
+<div class="section" id="release-blocker-bug">
+<h3>Release blocker bug?</h3>
+<p>Yury, Andrew, Ned: I set the priority to release blocker because I'm scared by
+what I saw. The START TLS has a race condition in its ProactorEventLoop
+implementation. But the bug doesn't see to be specific to START TLS, but rather
+to <tt class="docutils literal">transport.set_transport()</tt>, and even more generally to
+<tt class="docutils literal">transport.pause_reading()</tt> / <tt class="docutils literal">transport.resume_reading()</tt>. The bug is quite
+severe: we loose data and it's really hard to know why (I spent a few hours to
+add many many print and try to reproduce on a very tiny reliable unit test). As
+an asyncio user, I expect that transports are 100% reliable, and I would first
+look into my code (like looking into <tt class="docutils literal">start_tls()</tt> implementation in my case).</p>
+<p>If the bug was very specific to <tt class="docutils literal">start_tls()</tt>, I would suggest to &quot;just&quot;
+&quot;disable&quot; start_tls() on ProactorEventLoop (sorry, Windows!). But since the
+data loss seems to concern basically any application using
+<tt class="docutils literal">ProactorEventLoop</tt>, I don't see any simple workaround.</p>
+<p><strong>My hope is that a fix can be written shortly</strong> to not block the 3.7.0 final
+release for too long :-(</p>
+<p>Yury, Andrew: Can you please just confirm that it's a regression and that a
+release blocker is justified?</p>
+</div>
+<div class="section" id="functional-test-reproducing-the-bug">
+<h3>Functional test reproducing the bug</h3>
+<p>I wrote <a class="reference external" href="https://bugs.python.org/file47632/race.py">race.py script</a>: simple
+echo client and server sending packets in both directions.  Pause/resume
+reading the client transport every 100 ms to trigger the bug.</p>
+<p>Using <tt class="docutils literal">ProactorEventLoop</tt> and 2000 packets of 16 KiB, I easily reproduce the
+bug.</p>
+<p>So again, it's nothing related to <tt class="docutils literal">start_tls()</tt>, <tt class="docutils literal">start_tls()</tt> was just one
+way to spot the bug.</p>
+<p>The bug is in Proactor transport: the cancellation of overlapped <tt class="docutils literal">WSARecv()</tt>
+sometime drops packets. The bug occurs when <tt class="docutils literal">CancelIoEx()</tt> fails with
+<tt class="docutils literal">ERROR_NOT_FOUND</tt> which means that the I/O (<tt class="docutils literal">WSARecv()</tt>) completed.</p>
+<p>One solution would be to not cancel <tt class="docutils literal">WSARecv()</tt> on pause_reading(): wait
+until the current <tt class="docutils literal">WSARecv()</tt> completes, store data somewhere but don't pass
+it to <tt class="docutils literal">protocol.data_received()</tt>, and don't schedule a new <tt class="docutils literal">WSARecv()</tt>.
+Once reading is resumed: call <tt class="docutils literal">protocol.data_received()</tt> and schedule a new
+<tt class="docutils literal">WSARecv()</tt>.</p>
+<p>That would be a workaround. I don't know how to really fix <tt class="docutils literal">WSARecv()</tt>
+cancellation without loosing data. A good start would be to modify
+<tt class="docutils literal">Overlapped.cancel()</tt> to return a boolean to notice if the overlapped I/O
+completed even if we just cancelled it. Currently, the corner case
+(<tt class="docutils literal">CancelIoEx()</tt> fails with <tt class="docutils literal">ERROR_NOT_FOUND</tt>) is silently ignored, and then
+the IOCP loop silently ignores the event of completed I/O...</p>
+</div>
+<div class="section" id="fix-the-bug-no-longer-cancel-wsarecv">
+<h3>Fix the bug: no longer cancel WSARecv()</h3>
+<p>At June 8, 2018, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7">commit 79790bc3</a>:</p>
+<pre class="literal-block">
+commit 79790bc35fe722a49977b52647f9b5fe1deda2b7
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Fri Jun 8 00:25:52 2018 +0200
+
+    bpo-33694: Fix race condition in asyncio proactor (GH-7498)
+
+    The cancellation of an overlapped WSARecv() has a race condition
+    which causes data loss because of the current implementation of
+    proactor in asyncio.
+
+    No longer cancel overlapped WSARecv() in _ProactorReadPipeTransport
+    to work around the race condition.
+
+    Remove the optimized recv_into() implementation to get simple
+    implementation of pause_reading() using the single _pending_data
+    attribute.
+
+    Move _feed_data_to_bufferred_proto() to protocols.py.
+
+    Remove set_protocol() method which became useless.
+</pre>
+<p>I fixed the root issue (in Python 3.7 and future Python 3.8).</p>
+<p>I used my <tt class="docutils literal">race.py</tt> script to validate that the issue is fixed for real.</p>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>I fixed one race condition in the asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt>.</p>
+<p>I found and fixed a data loss bug caused by <tt class="docutils literal">WSARecv()</tt> cancellation.</p>
+<p>Lessons learnt from these two bugs:</p>
+<ul class="simple">
+<li>You should <strong>write an extensive test suite</strong> for your code.</li>
+<li>You should <strong>keep an eye on your continuous integration (CI)</strong>: any tiny test
+failure can hide a very severe bug.</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
+                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-01-30T18:00:00+01:00">
                 Published: mer. 30 janvier 2019
@@ -30,215 +439,17 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info --><p>Between December 2014 and January 2015, once I succeeded to fix the root issue
+</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
 and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
 <ul class="simple">
 <li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
 <li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
 <li>Close the transport on failure: ResourceWarning</li>
-<li>Cleanup code handling pipes</li>
-</ul>
-<p>Previous article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>.</p>
-<div class="section" id="connectpipe-race-condition">
-<h2>ConnectPipe() Race Condition</h2>
-<p>Once I succeeded to fix the root issue of the random asyncio crashes on Windows
-(<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I started to look at the
-ConnectPipe special case: <a class="reference external" href="https://github.com/python/asyncio/issues/204">asyncio issue #204: Investigate
-IocpProactor.accept_pipe() special case (don't register overlapped)</a> (issue created at 25 Aug
-2014).</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"><img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /></a>
-<p>At January 21, 2015, I opened <a class="reference external" href="https://bugs.python.org/issue23293">bpo-23293: race condition related to
-IocpProactor.connect_pipe()</a>.</p>
-<p>While fixing <a class="reference external" href="https://bugs.python.org/issue23095">bpo-23095 (race condition when cancelling a _WaitHandleFuture)</a>, I saw that
-<tt class="docutils literal">IocpProactor.connect_pipe()</tt> causes &quot;GetQueuedCompletionStatus() returned an
-unexpected event&quot; messages to be logged, but also to hang the test suite.</p>
-<p><tt class="docutils literal">IocpProactor._register()</tt> contains the comment:</p>
-<pre class="literal-block">
-# Even if GetOverlappedResult() was called, we have to wait for the
-# notification of the completion in GetQueuedCompletionStatus().
-# Register the overlapped operation to keep a reference to the
-# OVERLAPPED object, otherwise the memory is freed and Windows may
-# read uninitialized memory.
-#
-# For an unknown reason, ConnectNamedPipe() behaves differently:
-# the completion is not notified by GetOverlappedResult() if we
-# already called GetOverlappedResult(). For this specific case, we
-# don't expect notification (register is set to False).
-</pre>
-<p><tt class="docutils literal">IocpProactor.close()</tt> contains this comment:</p>
-<pre class="literal-block">
-# The operation was started with connect_pipe() which
-# queues a task to Windows' thread pool.  This cannot
-# be cancelled, so just forget it.
-</pre>
-<p><tt class="docutils literal">IocpProactor.connect_pipe()</tt> is implemented with <tt class="docutils literal">QueueUserWorkItem()</tt>
-which <strong>starts a thread that cannot be interrupted</strong>. Because of that, this
-function requires special cases in <tt class="docutils literal">_register()</tt> and <tt class="docutils literal">close()</tt> methods of
-<tt class="docutils literal">IocpProactor</tt>.</p>
-<p>I proposed a solution to reimplement <tt class="docutils literal">IocpProactor.connect_pipe()</tt> <strong>without
-a thread</strong>: <a class="reference external" href="https://code.google.com/p/tulip/issues/detail?id=197">asyncio issue #197: Rewrite IocpProactor.connect_pipe() with
-non-blocking calls to avoid non interruptible QueueUserWorkItem()</a>.</p>
-<p>At January 22, 2015, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/7ffa2c5fdda8a9cc254edf67c4458b15db1252fa">commit 7ffa2c5f</a>:</p>
-<pre class="literal-block">
-commit 7ffa2c5fdda8a9cc254edf67c4458b15db1252fa
-Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
-Date:   Thu Jan 22 22:55:08 2015 +0100
-
-    Issue #23293, asyncio: Rewrite IocpProactor.connect_pipe()
-</pre>
-<p>The change adds <tt class="docutils literal">_overlapped.ConnectPipe()</tt> which tries to connect to the
-pipe for asynchronous I/O (overlapped): <strong>call CreateFile() in a loop until
-it doesn't fail with ERROR_PIPE_BUSY</strong>. Use an increasing delay between 1 ms
-and 100 ms.</p>
-</div>
-<div class="section" id="race-condition-in-basesubprocesstransport-try-finish">
-<h2>Race Condition in BaseSubprocessTransport._try_finish()</h2>
-<p>If the process exited before the <tt class="docutils literal">_post_init()</tt> method was called, scheduling
-the call to <tt class="docutils literal">_call_connection_lost()</tt> with <tt class="docutils literal">call_soon()</tt> is wrong:
-<tt class="docutils literal">connection_made()</tt> must be called before <tt class="docutils literal">connection_lost()</tt>.</p>
-<p>Reuse the <tt class="docutils literal">BaseSubprocessTransport._call()</tt> method to schedule the call to
-<tt class="docutils literal">_call_connection_lost()</tt> to ensure that <tt class="docutils literal">connection_made()</tt> and
-<tt class="docutils literal">connection_lost()</tt> are called in the correct order.</p>
-<p>At Dec 18, 2014, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/1b9763d0a9c62c13dc2a06770032e5906b610c96">commit 1b9763d0</a>.
-The explanation is long, but the change is basically a single line change,
-extract:</p>
-<pre class="literal-block">
-- self._loop.call_soon(self._call_connection_lost, None)
-+ self._call(self._call_connection_lost, None)
-</pre>
-<p><strong>Ordering properly callbacks in asyncio is challenging!</strong> The order matters
-for the semantics of asyncio: it is part of the design of the <a class="reference external" href="https://www.python.org/dev/peps/pep-3156/">PEP 3156 --
-Asynchronous IO Support Rebooted: the &quot;asyncio&quot; Module</a>.</p>
-</div>
-<div class="section" id="close-the-transport-on-failure-resourcewarning">
-<h2>Close the transport on failure: ResourceWarning</h2>
-<p>At January 15, 2015, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/4bf22e033e975f61c33752db5a3764dc0f7d0b03">commit 4bf22e03</a>,
-extract:</p>
-<pre class="literal-block">
--  yield from transp._post_init()
-+  try:
-+      yield from transp._post_init()
-+  except:
-+      transp.close()
-+      raise
-</pre>
-<p>Later, I will spend a lot of time (push many more changes) to ensure that
-resources are properly released (especially close transports on failure,
-similar to this change).</p>
-<p>I will add many <strong>ResourceWarnings</strong> warnings in destructors when a transport,
-subprocess or event loop is not closed explicitly.</p>
-<p>For example, notice the <tt class="docutils literal">ResourceWarnings</tt> in the current destructor of
-<tt class="docutils literal">_SelectorTransport</tt>:</p>
-<pre class="literal-block">
-class _SelectorTransport(transports._FlowControlMixin,
-                         transports.Transport):
-
-    def __del__(self, _warn=warnings.warn):
-        if self._sock is not None:
-            _warn(f&quot;unclosed transport {self!r}&quot;, ResourceWarning, source=self)
-            self._sock.close()
-</pre>
-<p>I even enhanced Python 3.6 to be able to provide the <strong>traceback where the
-leaked resource has been allocated</strong> thanks to my <tt class="docutils literal">tracemalloc</tt> module.
-Example with <tt class="docutils literal">filebug.py</tt>:</p>
-<pre class="literal-block">
-def func():
-    f = open(__file__)
-    f = None
-
-func()
-</pre>
-<p>Output with Python 3.6:</p>
-<pre class="literal-block">
-$ python3 -Wd -X tracemalloc=5 filebug.py
-filebug.py:3: ResourceWarning: unclosed file &lt;_io.TextIOWrapper name='filebug.py' mode='r' encoding='UTF-8'&gt;
-  f = None
-Object allocated at (most recent call first):
-  File &quot;filebug.py&quot;, lineno 2
-    f = open(__file__)
-  File &quot;filebug.py&quot;, lineno 5
-    func()
-</pre>
-<p>The line where the warning is emitted is usually useless to understand the bug,
-whereas the traceback is very useful to identify the leaked resource.</p>
-<p>See <a class="reference external" href="https://pythondev.readthedocs.io/debug_tools.html#resourcewarning">my ResourceWarning documentation</a>.</p>
-</div>
-<div class="section" id="cleanup-code-handling-pipes">
-<h2>Cleanup code handling pipes</h2>
-<p>Thanks to the new implementation of <tt class="docutils literal">connect_pipe()</tt>, I was able to push
-changes to simplify the code and remove various hacks in code handling pipes.</p>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/2b77c5467f376257ae22cbfbcb3a0e5e6349e92d">commit 2b77c546</a>:</p>
-<pre class="literal-block">
-commit 2b77c5467f376257ae22cbfbcb3a0e5e6349e92d
-Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
-Date:   Thu Jan 22 23:50:03 2015 +0100
-
-    asyncio, Tulip issue 204: Fix IocpProactor.accept_pipe()
-
-    Overlapped.ConnectNamedPipe() now returns a boolean: True if the pipe is
-    connected (if ConnectNamedPipe() failed with ERROR_PIPE_CONNECTED), False if
-    the connection is in progress.
-
-    This change removes multiple hacks in IocpProactor.
-</pre>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/3d2256f671b7ed5c769dd34b27ae597cbc69047c">commit 3d2256f6</a>:</p>
-<pre class="literal-block">
-commit 3d2256f671b7ed5c769dd34b27ae597cbc69047c
-Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
-Date:   Mon Jan 26 11:02:59 2015 +0100
-
-    Issue #23293, asyncio: Cleanup IocpProactor.close()
-
-    The special case for connect_pipe() is not more needed. connect_pipe() doesn't
-    use overlapped operations anymore.
-</pre>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/a19b7b3fcafe52b98245e14466ffc4d6750ca4f1">commit a19b7b3f</a>:</p>
-<pre class="literal-block">
-commit a19b7b3fcafe52b98245e14466ffc4d6750ca4f1
-Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
-Date:   Mon Jan 26 15:03:20 2015 +0100
-
-    asyncio: Fix ProactorEventLoop.start_serving_pipe()
-
-    If a client connected before the server was closed: drop the client (close the
-    pipe) and exit.
-</pre>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/e0fd157ba0cc92e435e7520b4ff641ca68d72244">commit e0fd157b</a>:</p>
-<pre class="literal-block">
-commit e0fd157ba0cc92e435e7520b4ff641ca68d72244
-Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
-Date:   Mon Jan 26 15:04:03 2015 +0100
-
-    Issue #23293, asyncio: Rewrite IocpProactor.connect_pipe() as a coroutine
-
-    Use a coroutine with asyncio.sleep() instead of call_later() to ensure that the
-    schedule call is cancelled.
-
-    Add also a unit test cancelling connect_pipe().
-</pre>
-<p><a class="reference external" href="https://github.com/python/cpython/commit/41063d2a59a24e257cd9ce62137e36c862e3ab1e">commit 41063d2a</a>:</p>
-<pre class="literal-block">
-commit 41063d2a59a24e257cd9ce62137e36c862e3ab1e
-Author: Victor Stinner &lt;victor.stinner&#64;gmail.com&gt;
-Date:   Mon Jan 26 22:30:49 2015 +0100
-
-    asyncio, Tulip issue 204: Fix IocpProactor.recv()
-
-    If ReadFile() fails with ERROR_BROKEN_PIPE, the operation is not pending: don't
-    register the overlapped.
-
-    I don't know if WSARecv() can fail with ERROR_BROKEN_PIPE. Since
-    Overlapped.WSARecv() already handled ERROR_BROKEN_PIPE, let me guess that it
-    has the same behaviour than ReadFile().
-</pre>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<li>Cleanup code …</li></ul>
+                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>

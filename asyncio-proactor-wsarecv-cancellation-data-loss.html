@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
-        <title>Victor Stinner blog 3 - asyncio</title>
+        <title>asyncio: WSARecv() cancellation causing data loss</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
 </head>
@@ -12,14 +12,19 @@
                 <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
                 <nav><ul>
                     <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
                     <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="bookmark"
+           title="Permalink to asyncio: WSARecv() cancellation causing data loss">asyncio: WSARecv() cancellation causing data loss</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-01-31T15:20:00+01:00">
                 Published: jeu. 31 janvier 2019
@@ -30,7 +35,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info --><p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
+</footer><!-- /.post-info -->      <p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
 function.</p>
 <p>A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
@@ -415,69 +420,11 @@ Date:   Fri Jun 8 00:25:52 2018 +0200
 failure can hide a very severe bug.</li>
 </ul>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-30T18:00:00+01:00">
-                Published: mer. 30 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
-of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
-and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
-<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
-<li>Close the transport on failure: ResourceWarning</li>
-<li>Cleanup code …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor Cancellation From Hell">Asyncio: Proactor Cancellation From Hell</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-28T20:20:00+01:00">
-                Published: lun. 28 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
-(module added to Python 3.4 released in March 2014). I helped to stabilize the
-Windows implementation because... well, nobody else was paying attention to it,
-and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
-<p>One …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>
