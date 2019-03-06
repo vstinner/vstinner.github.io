@@ -23,6 +23,11 @@ scary bug**: ``WSARecv()`` cancellation randomly caused **data loss**! Again,
 it was a very well hidden bug which likely existing since the early days of the
 ``ProactorEventLoop`` implementation.
 
+Previous article: `Asyncio: Proactor ConnectPipe() Race Condition
+<{filename}/proactor-connect-pipe-race-condition.rst>`__.
+Next article: `asyncio: WSASend() memory leak
+<{filename}/proactor-wsasend-memory-leak.rst>`__.
+
 .. image:: {static}/images/lock.jpg
    :alt: Unlocked lock
    :target: https://www.flickr.com/photos/joybot/6026542856/

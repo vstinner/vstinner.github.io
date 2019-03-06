@@ -19,7 +19,11 @@ and bugs in ``ProactorEventLoop``:
 * Cleanup code handling pipes
 
 Previous article: `Proactor Cancellation From Hell
-<{filename}/proactor-cancellation-hell.rst>`__.
+<{filename}/proactor-cancellation-hell.rst>`__. Next article:
+`asyncio: WSARecv() cancellation causing data loss
+<{filename}/proactor-wsarecv-cancellation.rst>`__.
+
+
 
 ConnectPipe() Race Condition
 ============================
