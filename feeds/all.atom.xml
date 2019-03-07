@@ -20,8 +20,8 @@ Selivanov and me agreed to make &lt;tt class="docutils literal"&gt;ProactorEvent
 -DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
 +DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
 &lt;/pre&gt;
-&lt;p&gt;The bug wasn't a regression. It was only discovered 5 years and fixed 6 years
-after the code has been written thanks to new tests.&lt;/p&gt;
+&lt;p&gt;The bug wasn't a regression. It was only discovered 5 years after the code has
+been written thanks to new tests.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;UPDATE:&lt;/strong&gt; I updated the article to add the &amp;quot;Regression? Nope&amp;quot; section and
 elaborate the Conclusion.&lt;/p&gt;
 &lt;p&gt;Previous article:
