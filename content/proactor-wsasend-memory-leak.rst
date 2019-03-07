@@ -28,8 +28,8 @@ Selivanov and me agreed to make ``ProactorEventLoop`` the default in Python
     -DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
     +DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
 
-The bug wasn't a regression. It was only discovered 5 years and fixed 6 years
-after the code has been written thanks to new tests.
+The bug wasn't a regression. It was only discovered 5 years after the code has
+been written thanks to new tests.
 
 **UPDATE:** I updated the article to add the "Regression? Nope" section and
 elaborate the Conclusion.
