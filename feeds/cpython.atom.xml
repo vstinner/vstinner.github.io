@@ -20,6 +20,10 @@ Selivanov and me agreed to make &lt;tt class="docutils literal"&gt;ProactorEvent
 -DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
 +DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
 &lt;/pre&gt;
+&lt;p&gt;The bug wasn't a regression. It was only discovered 5 years and fixed 6 years
+after the code has been written thanks to new tests.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;UPDATE:&lt;/strong&gt; I updated the article to add the &amp;quot;Regression? Nope&amp;quot; section and
+elaborate the Conclusion.&lt;/p&gt;
 &lt;p&gt;Previous article:
 &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html"&gt;asyncio: WSARecv() cancellation causing data loss&lt;/a&gt;.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
@@ -142,7 +146,7 @@ async def drain(self):
 &lt;div class="section" id="regression-caused-by-my-previous-proactor-fix"&gt;
 &lt;h2&gt;Regression caused by my previous proactor fix?&lt;/h2&gt;
 &lt;p&gt;I suspected my own &lt;a class="reference external" href="https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7"&gt;commit 79790bc3&lt;/a&gt;
-pushed 7 months before to fix a race condition in WSARecv() causing data loss
+pushed 7 months ago to fix a race condition in WSARecv() causing data loss
 (that's my previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html"&gt;asyncio: WSARecv() cancellation causing data loss&lt;/a&gt;).&lt;/p&gt;
 &lt;p&gt;Hint: nah, it's unrelated. Moreover, this change has been pushed in May,
 whereas I reported &lt;a class="reference external" href="https://bugs.python.org/issue32710"&gt;bpo-32710 leak&lt;/a&gt; in
@@ -259,8 +263,83 @@ Date:   Fri Jan 11 14:35:14 2019 +0100
       TYPE_NOT_STARTED, but release also resources.
 &lt;/pre&gt;
 &lt;/div&gt;
+&lt;div class="section" id="regression-nope"&gt;
+&lt;h2&gt;Regression? Nope&lt;/h2&gt;
+&lt;p&gt;Was the memory leak a regression? Nope. The bug existed since the creation of
+the &lt;tt class="docutils literal"&gt;overlapped.c&lt;/tt&gt; file in the &amp;quot;Tulip&amp;quot; project in 2013, &lt;a class="reference external" href="https://github.com/python/asyncio/commit/27c403531670f52cad8388aaa2a13a658f753fd5"&gt;commit 27c40353&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 27c403531670f52cad8388aaa2a13a658f753fd5
+Author: Richard Oudkerk &amp;lt;shibturn&amp;#64;gmail.com&amp;gt;
+Date:   Mon Jan 21 20:34:38 2013 +0000
+
+    New experimental iocp branch.
+&lt;/pre&gt;
+&lt;p&gt;Tulip was the old name of the asyncio project, when it was still an external
+project on &lt;tt class="docutils literal"&gt;code.google.com&lt;/tt&gt;. In the meanwhile, &lt;tt class="docutils literal"&gt;code.google.com&lt;/tt&gt; has been
+closed and the project moved to &lt;a class="reference external" href="https://github.com/python/asyncio/"&gt;https://github.com/python/asyncio/&lt;/a&gt; (now
+read-only).&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/python/asyncio/blob/27c403531670f52cad8388aaa2a13a658f753fd5/overlapped.c#L632-L658"&gt;Extract of the original Overlapped_WSASend() implementation&lt;/a&gt;,
+I added a comment to show the location of the bug:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if (!PyArg_Parse(bufobj, &amp;quot;y*&amp;quot;, &amp;amp;self-&amp;gt;write_buffer))
+    return NULL;
+
+#if SIZEOF_SIZE_T &amp;gt; SIZEOF_LONG
+if (self-&amp;gt;write_buffer.len &amp;gt; (Py_ssize_t)PY_ULONG_MAX) {
+    PyBuffer_Release(&amp;amp;self-&amp;gt;write_buffer);
+    PyErr_SetString(PyExc_ValueError, &amp;quot;buffer to large&amp;quot;);
+    return NULL;
+}
+#endif
+...
+self-&amp;gt;error = err = (ret &amp;lt; 0 ? WSAGetLastError() : ERROR_SUCCESS);
+switch (err) {
+    case ERROR_SUCCESS:
+    case ERROR_MORE_DATA:
+    case ERROR_IO_PENDING:
+        /********* !!! BUG HERE, BUFFER NOT RELEASED !!! ***********/
+        Py_RETURN_NONE;
+    ...
+}
+&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;I fixed the memory leak 6 years after the code has been written!&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;So... why was this bug only discovered in 2018? Multiple very asyncio old bugs
+were discovered only recently thanks to more realistic and more advanced
+&lt;strong&gt;functional tests&lt;/strong&gt;. First tests of asyncio were mostly tiny unit tests
+mocking most part of the code. It made sense in the early days of asyncio, when
+the code was not mature.&lt;/p&gt;
+&lt;p&gt;By the way, the &lt;a class="reference external" href="https://github.com/python/cpython/blob/1f58f4fa6a0e3c60cee8df4a35c8dcf3903acde8/Lib/test/test_asyncio/test_sendfile.py#L446-L457"&gt;code of the test&lt;/a&gt;
+which helped to discovered the bug is:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def test_sendfile_close_peer_in_the_middle_of_receiving(self):
+    srv_proto, cli_proto = self.prepare_sendfile(close_after=1024)
+    with self.assertRaises(ConnectionError):
+        self.run_loop(
+            self.loop.sendfile(cli_proto.transport, self.file))
+    self.run_loop(srv_proto.done)
+
+    self.assertTrue(1024 &amp;lt;= srv_proto.nbytes &amp;lt; len(self.DATA),
+                    srv_proto.nbytes)
+    self.assertTrue(1024 &amp;lt;= self.file.tell() &amp;lt; len(self.DATA),
+                    self.file.tell())
+    self.assertTrue(cli_proto.transport.is_closing())
+&lt;/pre&gt;
+&lt;p&gt;Note: The test name has been made even longer in the meanwhile (add &amp;quot;the&amp;quot;) :-)&lt;/p&gt;
+&lt;/div&gt;
 &lt;div class="section" id="conclusion"&gt;
 &lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;For such complex bugs, &lt;strong&gt;a reliable debugging method is to remove as much code as
+possible&lt;/strong&gt; to reduce the number of lines of code that should be read.
+&lt;tt class="docutils literal"&gt;tracemalloc&lt;/tt&gt; remains efficient to identify a memory leak when a test can be
+run in a loop to make the leak more obvious (I was blocked at the beginning
+because the test failed when run a second time in a loop).&lt;/p&gt;
+&lt;p&gt;Lessons learned? You should try to &lt;strong&gt;investigate every single failure of your
+CI&lt;/strong&gt;.  It is important to have a test suite with functional tests. &amp;quot;Mock tests&amp;quot;
+are fine to quickly write reliable tests, but there are not enough: functional
+tests make the difference.&lt;/p&gt;
+&lt;p&gt;Thanks &lt;strong&gt;Richard Oudkerk&lt;/strong&gt; for your great code to use Windows native APIs in
+&lt;strong&gt;asyncio&lt;/strong&gt; and &lt;strong&gt;multiprocessing&lt;/strong&gt;! I like &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Input/output_completion_port"&gt;Windows IOCP&lt;/a&gt;, even if the
+asyncio implementation is quite complex :-)&lt;/p&gt;
 &lt;p&gt;Ok, &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; should now have a few less memory leaks :-)&lt;/p&gt;
 &lt;/div&gt;
 </content><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;

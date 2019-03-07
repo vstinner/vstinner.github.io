@@ -52,6 +52,10 @@ Selivanov and me agreed to make <tt class="docutils literal">ProactorEventLoop</
 -DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
 +DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
 </pre>
+<p>The bug wasn't a regression. It was only discovered 5 years and fixed 6 years
+after the code has been written thanks to new tests.</p>
+<p><strong>UPDATE:</strong> I updated the article to add the &quot;Regression? Nope&quot; section and
+elaborate the Conclusion.</p>
 <p>Previous article:
 <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>.</p>
 <a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
@@ -174,7 +178,7 @@ async def drain(self):
 <div class="section" id="regression-caused-by-my-previous-proactor-fix">
 <h2>Regression caused by my previous proactor fix?</h2>
 <p>I suspected my own <a class="reference external" href="https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7">commit 79790bc3</a>
-pushed 7 months before to fix a race condition in WSARecv() causing data loss
+pushed 7 months ago to fix a race condition in WSARecv() causing data loss
 (that's my previous article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>).</p>
 <p>Hint: nah, it's unrelated. Moreover, this change has been pushed in May,
 whereas I reported <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710 leak</a> in
@@ -291,8 +295,83 @@ Date:   Fri Jan 11 14:35:14 2019 +0100
       TYPE_NOT_STARTED, but release also resources.
 </pre>
 </div>
+<div class="section" id="regression-nope">
+<h2>Regression? Nope</h2>
+<p>Was the memory leak a regression? Nope. The bug existed since the creation of
+the <tt class="docutils literal">overlapped.c</tt> file in the &quot;Tulip&quot; project in 2013, <a class="reference external" href="https://github.com/python/asyncio/commit/27c403531670f52cad8388aaa2a13a658f753fd5">commit 27c40353</a>:</p>
+<pre class="literal-block">
+commit 27c403531670f52cad8388aaa2a13a658f753fd5
+Author: Richard Oudkerk &lt;shibturn&#64;gmail.com&gt;
+Date:   Mon Jan 21 20:34:38 2013 +0000
+
+    New experimental iocp branch.
+</pre>
+<p>Tulip was the old name of the asyncio project, when it was still an external
+project on <tt class="docutils literal">code.google.com</tt>. In the meanwhile, <tt class="docutils literal">code.google.com</tt> has been
+closed and the project moved to <a class="reference external" href="https://github.com/python/asyncio/">https://github.com/python/asyncio/</a> (now
+read-only).</p>
+<p><a class="reference external" href="https://github.com/python/asyncio/blob/27c403531670f52cad8388aaa2a13a658f753fd5/overlapped.c#L632-L658">Extract of the original Overlapped_WSASend() implementation</a>,
+I added a comment to show the location of the bug:</p>
+<pre class="literal-block">
+if (!PyArg_Parse(bufobj, &quot;y*&quot;, &amp;self-&gt;write_buffer))
+    return NULL;
+
+#if SIZEOF_SIZE_T &gt; SIZEOF_LONG
+if (self-&gt;write_buffer.len &gt; (Py_ssize_t)PY_ULONG_MAX) {
+    PyBuffer_Release(&amp;self-&gt;write_buffer);
+    PyErr_SetString(PyExc_ValueError, &quot;buffer to large&quot;);
+    return NULL;
+}
+#endif
+...
+self-&gt;error = err = (ret &lt; 0 ? WSAGetLastError() : ERROR_SUCCESS);
+switch (err) {
+    case ERROR_SUCCESS:
+    case ERROR_MORE_DATA:
+    case ERROR_IO_PENDING:
+        /********* !!! BUG HERE, BUFFER NOT RELEASED !!! ***********/
+        Py_RETURN_NONE;
+    ...
+}
+</pre>
+<p><strong>I fixed the memory leak 6 years after the code has been written!</strong></p>
+<p>So... why was this bug only discovered in 2018? Multiple very asyncio old bugs
+were discovered only recently thanks to more realistic and more advanced
+<strong>functional tests</strong>. First tests of asyncio were mostly tiny unit tests
+mocking most part of the code. It made sense in the early days of asyncio, when
+the code was not mature.</p>
+<p>By the way, the <a class="reference external" href="https://github.com/python/cpython/blob/1f58f4fa6a0e3c60cee8df4a35c8dcf3903acde8/Lib/test/test_asyncio/test_sendfile.py#L446-L457">code of the test</a>
+which helped to discovered the bug is:</p>
+<pre class="literal-block">
+def test_sendfile_close_peer_in_the_middle_of_receiving(self):
+    srv_proto, cli_proto = self.prepare_sendfile(close_after=1024)
+    with self.assertRaises(ConnectionError):
+        self.run_loop(
+            self.loop.sendfile(cli_proto.transport, self.file))
+    self.run_loop(srv_proto.done)
+
+    self.assertTrue(1024 &lt;= srv_proto.nbytes &lt; len(self.DATA),
+                    srv_proto.nbytes)
+    self.assertTrue(1024 &lt;= self.file.tell() &lt; len(self.DATA),
+                    self.file.tell())
+    self.assertTrue(cli_proto.transport.is_closing())
+</pre>
+<p>Note: The test name has been made even longer in the meanwhile (add &quot;the&quot;) :-)</p>
+</div>
 <div class="section" id="conclusion">
 <h2>Conclusion</h2>
+<p>For such complex bugs, <strong>a reliable debugging method is to remove as much code as
+possible</strong> to reduce the number of lines of code that should be read.
+<tt class="docutils literal">tracemalloc</tt> remains efficient to identify a memory leak when a test can be
+run in a loop to make the leak more obvious (I was blocked at the beginning
+because the test failed when run a second time in a loop).</p>
+<p>Lessons learned? You should try to <strong>investigate every single failure of your
+CI</strong>.  It is important to have a test suite with functional tests. &quot;Mock tests&quot;
+are fine to quickly write reliable tests, but there are not enough: functional
+tests make the difference.</p>
+<p>Thanks <strong>Richard Oudkerk</strong> for your great code to use Windows native APIs in
+<strong>asyncio</strong> and <strong>multiprocessing</strong>! I like <a class="reference external" href="https://en.wikipedia.org/wiki/Input/output_completion_port">Windows IOCP</a>, even if the
+asyncio implementation is quite complex :-)</p>
 <p>Ok, <tt class="docutils literal">_overlapped.Overlapped</tt> should now have a few less memory leaks :-)</p>
 </div>
 
