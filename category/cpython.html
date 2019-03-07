@@ -19,7 +19,7 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio: WSASend() memory leak</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio WSASend() memory leak</a></h1>
 <footer class="post-info">
         <abbr class="published" title="2019-03-06T20:00:00+01:00">
                 Published: mer. 06 mars 2019
@@ -220,8 +220,8 @@ the leak, but I eventually found it!</strong> WSASend() doesn't release the memo
 it fails immediately. I expected something way more complex, but it's that
 simple...</p>
 <p>Using the <tt class="docutils literal">test_aiosend.py</tt> script that I created, I was finally able to
-repeat the test in a loop. Thanks to that, it became obvious that the leaked
-memory was the memory passed to <tt class="docutils literal">WSASend()</tt>.</p>
+repeat the test in a loop. Thanks to that, it became obvious using
+<tt class="docutils literal">tracemalloc</tt> that the leaked memory was the memory passed to <tt class="docutils literal">WSASend()</tt>.</p>
 <p>I pushed <a class="reference external" href="https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625">commit a234e148</a>
 to fix <tt class="docutils literal">WSASend()</tt>:</p>
 <pre class="literal-block">

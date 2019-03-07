@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-03-06T20:00:00+01:00</updated><entry><title>asyncio: WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-03-06T20:00:00+01:00</updated><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
@@ -193,8 +193,8 @@ the leak, but I eventually found it!&lt;/strong&gt; WSASend() doesn't release th
 it fails immediately. I expected something way more complex, but it's that
 simple...&lt;/p&gt;
 &lt;p&gt;Using the &lt;tt class="docutils literal"&gt;test_aiosend.py&lt;/tt&gt; script that I created, I was finally able to
-repeat the test in a loop. Thanks to that, it became obvious that the leaked
-memory was the memory passed to &lt;tt class="docutils literal"&gt;WSASend()&lt;/tt&gt;.&lt;/p&gt;
+repeat the test in a loop. Thanks to that, it became obvious using
+&lt;tt class="docutils literal"&gt;tracemalloc&lt;/tt&gt; that the leaked memory was the memory passed to &lt;tt class="docutils literal"&gt;WSASend()&lt;/tt&gt;.&lt;/p&gt;
 &lt;p&gt;I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625"&gt;commit a234e148&lt;/a&gt;
 to fix &lt;tt class="docutils literal"&gt;WSASend()&lt;/tt&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
