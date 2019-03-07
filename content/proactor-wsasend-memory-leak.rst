@@ -28,6 +28,12 @@ Selivanov and me agreed to make ``ProactorEventLoop`` the default in Python
     -DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
     +DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
 
+The bug wasn't a regression. It was only discovered 5 years and fixed 6 years
+after the code has been written thanks to new tests.
+
+**UPDATE:** I updated the article to add the "Regression? Nope" section and
+elaborate the Conclusion.
+
 Previous article:
 `asyncio: WSARecv() cancellation causing data loss
 <{filename}/proactor-wsarecv-cancellation.rst>`__.
@@ -188,7 +194,7 @@ Regression caused by my previous proactor fix?
 
 I suspected my own `commit 79790bc3
 <https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7>`__
-pushed 7 months before to fix a race condition in WSARecv() causing data loss
+pushed 7 months ago to fix a race condition in WSARecv() causing data loss
 (that's my previous article: `asyncio: WSARecv() cancellation causing data loss
 <{filename}/proactor-wsarecv-cancellation.rst>`__).
 
@@ -327,7 +333,94 @@ been reviewed, I merged it, `commit 5485085b
           TYPE_NOT_STARTED, but release also resources.
 
 
+Regression? Nope
+================
+
+Was the memory leak a regression? Nope. The bug existed since the creation of
+the ``overlapped.c`` file in the "Tulip" project in 2013, `commit 27c40353
+<https://github.com/python/asyncio/commit/27c403531670f52cad8388aaa2a13a658f753fd5>`__::
+
+    commit 27c403531670f52cad8388aaa2a13a658f753fd5
+    Author: Richard Oudkerk <shibturn@gmail.com>
+    Date:   Mon Jan 21 20:34:38 2013 +0000
+
+        New experimental iocp branch.
+
+Tulip was the old name of the asyncio project, when it was still an external
+project on ``code.google.com``. In the meanwhile, ``code.google.com`` has been
+closed and the project moved to https://github.com/python/asyncio/ (now
+read-only).
+
+`Extract of the original Overlapped_WSASend() implementation
+<https://github.com/python/asyncio/blob/27c403531670f52cad8388aaa2a13a658f753fd5/overlapped.c#L632-L658>`_,
+I added a comment to show the location of the bug::
+
+    if (!PyArg_Parse(bufobj, "y*", &self->write_buffer))
+        return NULL;
+
+    #if SIZEOF_SIZE_T > SIZEOF_LONG
+    if (self->write_buffer.len > (Py_ssize_t)PY_ULONG_MAX) {
+        PyBuffer_Release(&self->write_buffer);
+        PyErr_SetString(PyExc_ValueError, "buffer to large");
+        return NULL;
+    }
+    #endif
+    ...
+    self->error = err = (ret < 0 ? WSAGetLastError() : ERROR_SUCCESS);
+    switch (err) {
+        case ERROR_SUCCESS:
+        case ERROR_MORE_DATA:
+        case ERROR_IO_PENDING:
+            /********* !!! BUG HERE, BUFFER NOT RELEASED !!! ***********/
+            Py_RETURN_NONE;
+        ...
+    }
+
+**I fixed the memory leak 6 years after the code has been written!**
+
+So... why was this bug only discovered in 2018? Multiple very asyncio old bugs
+were discovered only recently thanks to more realistic and more advanced
+**functional tests**. First tests of asyncio were mostly tiny unit tests
+mocking most part of the code. It made sense in the early days of asyncio, when
+the code was not mature.
+
+By the way, the `code of the test
+<https://github.com/python/cpython/blob/1f58f4fa6a0e3c60cee8df4a35c8dcf3903acde8/Lib/test/test_asyncio/test_sendfile.py#L446-L457>`_
+which helped to discovered the bug is::
+
+    def test_sendfile_close_peer_in_the_middle_of_receiving(self):
+        srv_proto, cli_proto = self.prepare_sendfile(close_after=1024)
+        with self.assertRaises(ConnectionError):
+            self.run_loop(
+                self.loop.sendfile(cli_proto.transport, self.file))
+        self.run_loop(srv_proto.done)
+
+        self.assertTrue(1024 <= srv_proto.nbytes < len(self.DATA),
+                        srv_proto.nbytes)
+        self.assertTrue(1024 <= self.file.tell() < len(self.DATA),
+                        self.file.tell())
+        self.assertTrue(cli_proto.transport.is_closing())
+
+Note: The test name has been made even longer in the meanwhile (add "the") :-)
+
+
 Conclusion
 ==========
+
+For such complex bugs, **a reliable debugging method is to remove as much code as
+possible** to reduce the number of lines of code that should be read.
+``tracemalloc`` remains efficient to identify a memory leak when a test can be
+run in a loop to make the leak more obvious (I was blocked at the beginning
+because the test failed when run a second time in a loop).
+
+Lessons learned? You should try to **investigate every single failure of your
+CI**.  It is important to have a test suite with functional tests. "Mock tests"
+are fine to quickly write reliable tests, but there are not enough: functional
+tests make the difference.
+
+Thanks **Richard Oudkerk** for your great code to use Windows native APIs in
+**asyncio** and **multiprocessing**! I like `Windows IOCP
+<https://en.wikipedia.org/wiki/Input/output_completion_port>`_, even if the
+asyncio implementation is quite complex :-)
 
 Ok, ``_overlapped.Overlapped`` should now have a few less memory leaks :-)
