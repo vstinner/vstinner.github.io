@@ -1,6 +1,6 @@
-++++++++++++++++++++++++++++++
-asyncio: WSASend() memory leak
-++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++
+asyncio WSASend() memory leak
++++++++++++++++++++++++++++++
 
 :date: 2019-03-06 20:00
 :tags: asyncio
@@ -251,8 +251,8 @@ it fails immediately. I expected something way more complex, but it's that
 simple...
 
 Using the ``test_aiosend.py`` script that I created, I was finally able to
-repeat the test in a loop. Thanks to that, it became obvious that the leaked
-memory was the memory passed to ``WSASend()``.
+repeat the test in a loop. Thanks to that, it became obvious using
+``tracemalloc`` that the leaked memory was the memory passed to ``WSASend()``.
 
 I pushed `commit a234e148
 <https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625>`__
