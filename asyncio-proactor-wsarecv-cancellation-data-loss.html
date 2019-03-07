@@ -47,6 +47,8 @@ Windows! Once I found how to reproduce the bug, I understood that it's a <strong
 scary bug</strong>: <tt class="docutils literal">WSARecv()</tt> cancellation randomly caused <strong>data loss</strong>! Again,
 it was a very well hidden bug which likely existing since the early days of the
 <tt class="docutils literal">ProactorEventLoop</tt> implementation.</p>
+<p>Previous article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">Asyncio: Proactor ConnectPipe() Race Condition</a>.
+Next article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio: WSASend() memory leak</a>.</p>
 <a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
 <div class="section" id="new-start-tls-function">
 <h2>New start_tls() function</h2>

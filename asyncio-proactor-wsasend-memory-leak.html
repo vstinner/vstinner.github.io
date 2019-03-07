@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
-        <title>Victor Stinner blog 3 - cpython</title>
+        <title>asyncio: WSASend() memory leak</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
 </head>
@@ -16,10 +16,15 @@
                     <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="bookmark"
+           title="Permalink to asyncio: WSASend() memory leak">asyncio: WSASend() memory leak</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio: WSASend() memory leak</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-03-06T20:00:00+01:00">
                 Published: mer. 06 mars 2019
@@ -30,7 +35,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info --><p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
+</footer><!-- /.post-info -->      <p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
 haunt me for 1 year in 2018...</p>
 <p><strong>Yet another example of a test failure which looks harmless but hides a
@@ -290,149 +295,11 @@ Date:   Fri Jan 11 14:35:14 2019 +0100
 <h2>Conclusion</h2>
 <p>Ok, <tt class="docutils literal">_overlapped.Overlapped</tt> should now have a few less memory leaks :-)</p>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="bookmark"
-                           title="Permalink to asyncio: WSARecv() cancellation causing data loss">asyncio: WSARecv() cancellation causing data loss</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-31T15:20:00+01:00">
-                Published: jeu. 31 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
-function.</p>
-<p>A newly added test failed on Windows. Later, the test started to fail
-randomly on Linux as well. In fact, it was a well hidden race condition in the
-asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which will take 5 months of …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-30T18:00:00+01:00">
-                Published: mer. 30 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
-of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
-and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
-<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
-<li>Close the transport on failure: ResourceWarning</li>
-<li>Cleanup code …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor Cancellation From Hell">Asyncio: Proactor Cancellation From Hell</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-28T20:20:00+01:00">
-                Published: lun. 28 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
-(module added to Python 3.4 released in March 2014). I helped to stabilize the
-Windows implementation because... well, nobody else was paying attention to it,
-and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
-<p>One …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="bookmark"
-                           title="Permalink to Locale Bugfixes in Python 3">Locale Bugfixes in Python 3</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-09T00:30:00+01:00">
-                Published: mer. 09 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
-</footer><!-- /.post-info -->                <p>This article describes a few locales bugs that I fixed in Python 3 between 2012
-(Python 3.3) and 2018 (Python 3.7):</p>
-<ul class="simple">
-<li>Support non-ASCII decimal point and thousands separator</li>
-<li>Crash with non-ASCII decimal point</li>
-<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
-<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
-<li>Tests non-ASCII locales …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/locale-bugfixes-python3.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python3-locales-encodings.html" rel="bookmark"
-                           title="Permalink to Python 3, locales and encodings">Python 3, locales and encodings</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-09-06T16:00:00+02:00">
-                Published: jeu. 06 septembre 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
-</footer><!-- /.post-info -->                <p>Recently, I worked on a change which looked simple: move the code to initialize
-the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
-I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
-I didn't expect that I would spend 2 weeks on these issues …</p>
-                <a class="readmore" href="https://vstinner.github.io/python3-locales-encodings.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>

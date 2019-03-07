@@ -1,5 +1,269 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-01-31T15:20:00+01:00</updated><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-03-06T20:00:00+01:00</updated><entry><title>asyncio: WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
+haunt me for 1 year in 2018...&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
+critical bug.&lt;/strong&gt; The bug is that sending a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
+haunt me for 1 year in 2018...&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
+critical bug.&lt;/strong&gt; The bug is that sending a network packet on Windows using
+asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; can leak the packet. With such bug, it is easy to
+imagine a very quick increase of the memory footprint of a network server...&lt;/p&gt;
+&lt;p&gt;I'm curious why nobody noticed it before me? For me, the only explanation is
+that nobody was running a server using &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;. Before Python
+3.8, &lt;tt class="docutils literal"&gt;SelectorEventLoop&lt;/tt&gt; was the default asyncio event loop on Windows.
+&lt;a class="reference external" href="https://bugs.python.org/issue34687"&gt;bpo-34687&lt;/a&gt;: Andrew Svetlov, Yury
+Selivanov and me agreed to make &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; the default in Python
+3.8! &lt;tt class="docutils literal"&gt;Lib/asyncio/windows_events.py&lt;/tt&gt; change of my &lt;a class="reference external" href="https://github.com/python/cpython/commit/6ea29c5e90dde6c240bd8e0815614b52ac307ea1"&gt;commit 6ea29c5e&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+-DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
++DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
+&lt;/pre&gt;
+&lt;p&gt;Previous article:
+&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html"&gt;asyncio: WSARecv() cancellation causing data loss&lt;/a&gt;.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="yet-another-random-buildbot-failure"&gt;
+&lt;h2&gt;Yet another random buildbot failure&lt;/h2&gt;
+&lt;p&gt;One day at the end of January 2018, I noticed a new failure on the AMD64
+Windows8.1 Refleaks 3.x&amp;quot; buildbot worker. I reported &lt;a class="reference external" href="https://bugs.python.org/issue32710"&gt;bpo-32710&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;AMD64 Windows8.1 Refleaks 3.x:
+&lt;a class="reference external" href="http://buildbot.python.org/all/#/builders/80/builds/118"&gt;http://buildbot.python.org/all/#/builders/80/builds/118&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;test_asyncio leaked [4, 4, 3] memory blocks, sum=11&lt;/p&gt;
+&lt;p&gt;I reproduced the issue. I'm running test.bisect to try to isolate this bug.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Only 15 minutes later thanks to my &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool, I identified the
+leaking test, &lt;strong&gt;test_sendfile_close_peer_in_middle_of_receiving()&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+It seems to be related to sendfile():
+
+C:\vstinner\python\master&amp;gt;python -m test -R 3:3 test_asyncio \
+    -m test.test_asyncio.test_events.ProactorEventLoopTests.test_sendfile_close_peer_in_middle_of_receiving
+...
+test_asyncio leaked [1, 2, 1] memory blocks, sum=4
+&lt;/pre&gt;
+&lt;p&gt;The test is identified, so it should take a few hours, maximum, to fix the bug,
+no? We will see...&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="april"&gt;
+&lt;h2&gt;April&lt;/h2&gt;
+&lt;p&gt;3 months later, I asked:&lt;/p&gt;
+&lt;blockquote&gt;
+The test is still leaking memory blocks. Any progress on investigating the
+issue?&lt;/blockquote&gt;
+&lt;p&gt;Nobody replied.&lt;/p&gt;
+&lt;p&gt;At that time, I was busy to fix a bunch of various other bugs reported by
+buildbots which were easier to fix and I was kind of exhausted by asyncio, I
+didn't want to touch it.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="june"&gt;
+&lt;h2&gt;June&lt;/h2&gt;
+&lt;p&gt;Oh, I found again this bug while working on my &lt;a class="reference external" href="https://github.com/python/cpython/pull/7827"&gt;PR 7827&lt;/a&gt; (detect handle leaks on Windows
+in regrtest).&lt;/p&gt;
+&lt;p&gt;In 2018, I was very busy with fixing dozens of multiprocessing bugs (fix tests
+but also fix some bugs in multiprocessing).&lt;/p&gt;
+&lt;p&gt;For example, I noticed another memory leak on AMD64 Windows8.1 Refleaks
+3.7, &lt;a class="reference external" href="https://bugs.python.org/issue33735#msg318425"&gt;bpo-33735&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a class="reference external" href="http://buildbot.python.org/all/#/builders/132/builds/154"&gt;http://buildbot.python.org/all/#/builders/132/builds/154&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;test_multiprocessing_spawn leaked [1, 2, 1] memory blocks, sum=4&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;This test_multiprocessing_spawn leak and the test_asyncio leak on Windows
+Refleaks haunted me in 2018...&lt;/p&gt;
+&lt;p&gt;In fact, it wasn't a real leak. After a few runs, &lt;a class="reference external" href="https://bugs.python.org/issue33735#msg320948"&gt;the test stopped to leak&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test test_multiprocessing_spawn \
+    -m test.test_multiprocessing_spawn.WithProcessesTestPool.test_imap_unordered \
+    -R 1:30
+...
+test_multiprocessing_spawn leaked [4, 5, 1, 5, 1, 2, 0, 0, 0, ..., 0, 0, 0] memory blocks, sum=18
+test_multiprocessing_spawn failed in 42 sec 470 ms
+&lt;/pre&gt;
+&lt;p&gt;I fixed the test with &lt;a class="reference external" href="https://github.com/python/cpython/commit/23401fb960bb94e6ea62d2999527968d53d3fc65"&gt;commit
+23401fb9&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I fixed other multiprocessing bugs like &lt;a class="reference external" href="https://bugs.python.org/issue33929"&gt;bpo-33929&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;These multiprocessing bugs kept me busy.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="july-december"&gt;
+&lt;h2&gt;July-December&lt;/h2&gt;
+&lt;p&gt;Nothing. Nobody looked at the issue.&lt;/p&gt;
+&lt;p&gt;Again, I was busy fixing various test failures reported by buildbots.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="update-in-january-2019"&gt;
+&lt;h2&gt;Update in January 2019&lt;/h2&gt;
+&lt;p&gt;In January 2019, after months of hard work on fixing every single buildbot
+failure, I realized &lt;strong&gt;suddenly&lt;/strong&gt; that the &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; leak, &lt;a class="reference external" href="https://bugs.python.org/issue32710"&gt;bpo-32710&lt;/a&gt;, was one of the last unfixed known test
+failure! So I decided to have a new look at it.&lt;/p&gt;
+&lt;p&gt;Update on &lt;tt class="docutils literal"&gt;test_asyncio.test_sendfile.ProactorEventLoopTests&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;test_sendfile_close_peer_in_the_middle_of_receiving()&lt;/tt&gt; leaks 1 reference per
+run: this leak was the obvious bug &lt;a class="reference external" href="https://bugs.python.org/issue35682"&gt;bpo-35682&lt;/a&gt;, I already fixed it with &lt;a class="reference external" href="https://github.com/python/cpython/commit/80fda712c83f5dd9560d42bf2aa65a72b18b7759"&gt;commit
+80fda712&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;test_sendfile_fallback_close_peer_in_the_middle_of_receiving()&lt;/tt&gt; leaks 1
+reference per run: &lt;strong&gt;I don't understand why&lt;/strong&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note: I had to copy/paste these test names a lot of times. Pleeease, for my
+comfort, use shorter test names! :-) (I had to copy/paste them, I don't think
+that a regular human is able to type these very long names!)&lt;/p&gt;
+&lt;p&gt;I spent a lot of time to investigate
+&lt;tt class="docutils literal"&gt;test_sendfile_fallback_close_peer_in_the_middle_of_receiving()&lt;/tt&gt; leak and I don't
+understand the issue.&lt;/p&gt;
+&lt;p&gt;The main loop is &lt;tt class="docutils literal"&gt;BaseEventLoop._sendfile_fallback()&lt;/tt&gt;. For
+the specific case of this test, the loop can be simplified to:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+proto = _SendfileFallbackProtocol(transp)
+try:
+    while True:
+        data = b'x' * (1024 * 64)
+        await proto.drain()
+        transp.write(data)
+finally:
+    await proto.restore()
+&lt;/pre&gt;
+&lt;p&gt;The server closes the connection after it gets 1024 bytes. The client socket
+gets a &lt;tt class="docutils literal"&gt;ConnectionAbortedError&lt;/tt&gt; exception in
+&lt;tt class="docutils literal"&gt;_ProactorBaseWritePipeTransport._loop_writing()&lt;/tt&gt; which calls &lt;tt class="docutils literal"&gt;_fatal_error()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+except OSError as exc:
+    self._fatal_error(exc, 'Fatal write error on pipe transport')
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_fatal_error()&lt;/tt&gt; calls &lt;tt class="docutils literal"&gt;_force_close()&lt;/tt&gt; which sets &lt;tt class="docutils literal"&gt;_closing&lt;/tt&gt; to
+&lt;tt class="docutils literal"&gt;True&lt;/tt&gt;, and calls &lt;tt class="docutils literal"&gt;protocol.connection_lost()&lt;/tt&gt;. In the meanwhile,
+&lt;tt class="docutils literal"&gt;drain()&lt;/tt&gt; raises &lt;tt class="docutils literal"&gt;ConnectionError&lt;/tt&gt; because &lt;tt class="docutils literal"&gt;is_closing()&lt;/tt&gt; is true:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+async def drain(self):
+    if self._transport.is_closing():
+        raise ConnectionError(&amp;quot;Connection closed by peer&amp;quot;)
+    ...
+&lt;/pre&gt;
+&lt;p&gt;Said differently: &lt;strong&gt;everything works as expected&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regression-caused-by-my-previous-proactor-fix"&gt;
+&lt;h2&gt;Regression caused by my previous proactor fix?&lt;/h2&gt;
+&lt;p&gt;I suspected my own &lt;a class="reference external" href="https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7"&gt;commit 79790bc3&lt;/a&gt;
+pushed 7 months before to fix a race condition in WSARecv() causing data loss
+(that's my previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html"&gt;asyncio: WSARecv() cancellation causing data loss&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Hint: nah, it's unrelated. Moreover, this change has been pushed in May,
+whereas I reported &lt;a class="reference external" href="https://bugs.python.org/issue32710"&gt;bpo-32710 leak&lt;/a&gt; in
+January.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="short-script-reproducing-the-leak"&gt;
+&lt;h2&gt;Short script reproducing the leak&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Identifying a leak of a single reference is really hard&lt;/strong&gt; since the test uses
+hundreds of Python objects! My blocker issue was to repeat the test enough
+times to trigger the leak N times rather than getting a leak of exactly a
+single Python reference. The problem was that the test failed when ran more
+than once.&lt;/p&gt;
+&lt;p&gt;All my previous attempts to identify the bug failed:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Use &lt;tt class="docutils literal"&gt;gc.get_referrers()&lt;/tt&gt; to track references between Python objects.&lt;/li&gt;
+&lt;li&gt;Use &lt;tt class="docutils literal"&gt;tracemalloc&lt;/tt&gt; to track memory usage: the leak is too small, it's lost
+in the results &amp;quot;noise&amp;quot;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I decided to do what I should have done first: &lt;strong&gt;remove as much code as
+possible&lt;/strong&gt; to reduce the code that I have to audit. I removed most Python
+imports, I inlined manually function calls, I removed a lot of code which was
+unused in the test, etc.&lt;/p&gt;
+&lt;p&gt;After a few hours, I managed to reduce the giant pile of code used by the test
+into a very short script of only 159 lines of Python code: &lt;a class="reference external" href="https://bugs.python.org/file48030/test_aiosend.py"&gt;test_aiosend.py&lt;/a&gt;. The script doesn't call
+the asyncio &lt;tt class="docutils literal"&gt;sendfile()&lt;/tt&gt; implementation, but uses its own copy of the code,
+simplified to do exactly what the test needs:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+async def sendfile(transp):
+    proto = _SendfileFallbackProtocol(transp)
+    try:
+        data = b'x' * (1024 * 24)
+        while True:
+            await proto.drain()
+            transp.write(data)
+    finally:
+        await proto.restore()
+&lt;/pre&gt;
+&lt;p&gt;with a local copy of the code of &lt;tt class="docutils literal"&gt;_SendfileFallbackProtocol&lt;/tt&gt; class.&lt;/p&gt;
+&lt;p&gt;Having all code involved in the bug in a single file is way more efficient to
+follow the control flow and understands what happens.&lt;/p&gt;
+&lt;p&gt;The original code is waaaaay more complex, scattered across multiple Python
+files in &lt;tt class="docutils literal"&gt;Lib/asyncio&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Lib/test/test_asyncio/&lt;/tt&gt; directories.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="root-bug-identified-wsasend"&gt;
+&lt;h2&gt;Root bug identified: WSASend()&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;It took me 1 year, a few sleepless nights, multiple attempts to understand
+the leak, but I eventually found it!&lt;/strong&gt; WSASend() doesn't release the memory if
+it fails immediately. I expected something way more complex, but it's that
+simple...&lt;/p&gt;
+&lt;p&gt;Using the &lt;tt class="docutils literal"&gt;test_aiosend.py&lt;/tt&gt; script that I created, I was finally able to
+repeat the test in a loop. Thanks to that, it became obvious that the leaked
+memory was the memory passed to &lt;tt class="docutils literal"&gt;WSASend()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625"&gt;commit a234e148&lt;/a&gt;
+to fix &lt;tt class="docutils literal"&gt;WSASend()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit a234e148394c2c7419372ab65b773d53a57f3625
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Tue Jan 8 14:23:09 2019 +0100
+
+    bpo-32710: Fix leak in Overlapped_WSASend() (GH-11469)
+
+    Fix a memory leak in asyncio in the ProactorEventLoop when ReadFile()
+    or WSASend() overlapped operation fail immediately: release the
+    internal buffer.
+&lt;/pre&gt;
+&lt;p&gt;I was very disappointed by the simplicity of the fix, &lt;strong&gt;it only adds a single
+line&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+diff --git a/Modules/overlapped.c b/Modules/overlapped.c
+index 69875a7f37da..bbaa4fb3008f 100644
+--- a/Modules/overlapped.c
++++ b/Modules/overlapped.c
+&amp;#64;&amp;#64; -1011,6 +1012,7 &amp;#64;&amp;#64; Overlapped_WSASend(OverlappedObject *self, PyObject *args)
+         case ERROR_IO_PENDING:
+             Py_RETURN_NONE;
+         default:
++            PyBuffer_Release(&amp;amp;self-&amp;gt;user_buffer);
+             self-&amp;gt;type = TYPE_NOT_STARTED;
+             return SetFromWindowsErr(err);
+     }
+&lt;/pre&gt;
+&lt;p&gt;So what? One year to add a single line? That's unfair!&lt;/p&gt;
+&lt;p&gt;My commit contains a very similar fix for &lt;tt class="docutils literal"&gt;do_ReadFile()&lt;/tt&gt; used by
+&lt;tt class="docutils literal"&gt;Overlapped_ReadFile()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Overlapped_ReadFileInto()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fixing-more-memory-leaks"&gt;
+&lt;h2&gt;Fixing more memory leaks&lt;/h2&gt;
+&lt;p&gt;By the way, the &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; type has no traverse function: it may
+help the garbage collector to add one. Asyncio is famous for building reference
+cycles by design in &lt;tt class="docutils literal"&gt;Future.set_exception()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I wrote &lt;a class="reference external" href="https://github.com/python/cpython/pull/11489"&gt;PR 11489&lt;/a&gt; to implement
+&lt;tt class="docutils literal"&gt;tp_traverse&lt;/tt&gt; for the &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; type. &lt;a class="reference external" href="https://github.com/python/cpython/pull/11489#pullrequestreview-191093765"&gt;Serhiy Storchaka
+added&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+I suspect that there are leaks when self-&amp;gt;type is set to TYPE_NOT_STARTED.&lt;/blockquote&gt;
+&lt;p&gt;And he was right! I modified my PR to fix all memory leaks. After my PR has
+been reviewed, I merged it, &lt;a class="reference external" href="https://github.com/python/cpython/commit/5485085b324a45307c1ff4ec7d85b5998d7d5e0d"&gt;commit 5485085b&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 5485085b324a45307c1ff4ec7d85b5998d7d5e0d
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Fri Jan 11 14:35:14 2019 +0100
+
+    bpo-32710: Fix _overlapped.Overlapped memory leaks (GH-11489)
+
+    Fix memory leaks in asyncio ProactorEventLoop on overlapped operation
+    failures.
+
+    Changes:
+
+    * Implement the tp_traverse slot in the _overlapped.Overlapped type
+      to help to break reference cycles and identify referrers in the
+      garbage collector.
+    * Always clear overlapped on failure: not only set type to
+      TYPE_NOT_STARTED, but release also resources.
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Ok, &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; should now have a few less memory leaks :-)&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
 function.&lt;/p&gt;
 &lt;p&gt;A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
@@ -15,6 +279,8 @@ Windows! Once I found how to reproduce the bug, I understood that it's a &lt;str
 scary bug&lt;/strong&gt;: &lt;tt class="docutils literal"&gt;WSARecv()&lt;/tt&gt; cancellation randomly caused &lt;strong&gt;data loss&lt;/strong&gt;! Again,
 it was a very well hidden bug which likely existing since the early days of the
 &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; implementation.&lt;/p&gt;
+&lt;p&gt;Previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html"&gt;Asyncio: Proactor ConnectPipe() Race Condition&lt;/a&gt;.
+Next article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html"&gt;asyncio: WSASend() memory leak&lt;/a&gt;.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="new-start-tls-function"&gt;
 &lt;h2&gt;New start_tls() function&lt;/h2&gt;
@@ -404,7 +670,8 @@ and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;
 &lt;li&gt;Close the transport on failure: ResourceWarning&lt;/li&gt;
 &lt;li&gt;Cleanup code handling pipes&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;. Next article:
+&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html"&gt;asyncio: WSARecv() cancellation causing data loss&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="connectpipe-race-condition"&gt;
 &lt;h2&gt;ConnectPipe() Race Condition&lt;/h2&gt;
 &lt;p&gt;Once I succeeded to fix the root issue of the random asyncio crashes on Windows
