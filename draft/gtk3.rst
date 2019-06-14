@@ -1,3 +1,7 @@
+gtk+ crash
+    Test fix https://bodhi.fedoraproject.org/updates/FEDORA-2019-d67ec97b0b
+    MERGED: https://src.fedoraproject.org/rpms/gtk3/pull-request/5
+
    https://bodhi.fedoraproject.org/updates/FEDORA-2019-d67ec97b0b
 
 
