@@ -12,7 +12,7 @@ released last week!&lt;/p&gt;
 it to the caller. Examples: object finalizer error (&lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt;), weak
 reference callback failure, error during a GC collection. At the C level, the
 &lt;tt class="docutils literal"&gt;PyErr_WriteUnraisable()&lt;/tt&gt; function is called to handle such exception.&lt;/p&gt;
-&lt;p&gt;Designing the new hook was tricky, as its implementation.&lt;/p&gt;
+&lt;p&gt;Design the new hook was tricky, as its implementation.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Exception awaiting to catch you&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="kill-python-at-the-first-unraisable-exception"&gt;
