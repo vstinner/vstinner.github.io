@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
-        <title>Victor Stinner blog 3 - Victor Stinner</title>
+        <title>Python 3.8 sys.unraisablehook</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
 </head>
@@ -13,13 +13,18 @@
                 <nav><ul>
                     <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
                     <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="bookmark"
+           title="Permalink to Python 3.8 sys.unraisablehook">Python 3.8 sys.unraisablehook</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/sys-unraisablehook-python38.html">Python 3.8 sys.unraisablehook</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-06-15T01:00:00+02:00">
                 Published: sam. 15 juin 2019
@@ -30,7 +35,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info --><p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
+</footer><!-- /.post-info -->      <p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
 allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
 It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
 released last week!</p>
@@ -444,256 +449,11 @@ old issue <a class="reference external" href="https://bugs.python.org/issue12305
 add <a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook">threading.excepthook()</a>,
 but that's a different story!</p>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="bookmark"
-                           title="Permalink to asyncio WSASend() memory leak">asyncio WSASend() memory leak</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-03-06T20:00:00+01:00">
-                Published: mer. 06 mars 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
-still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
-haunt me for 1 year in 2018...</p>
-<p><strong>Yet another example of a test failure which looks harmless but hides a
-critical bug.</strong> The bug is that sending a …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="bookmark"
-                           title="Permalink to asyncio: WSARecv() cancellation causing data loss">asyncio: WSARecv() cancellation causing data loss</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-31T15:20:00+01:00">
-                Published: jeu. 31 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
-function.</p>
-<p>A newly added test failed on Windows. Later, the test started to fail
-randomly on Linux as well. In fact, it was a well hidden race condition in the
-asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which will take 5 months of …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-30T18:00:00+01:00">
-                Published: mer. 30 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
-of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
-and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
-<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
-<li>Close the transport on failure: ResourceWarning</li>
-<li>Cleanup code …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor Cancellation From Hell">Asyncio: Proactor Cancellation From Hell</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-28T20:20:00+01:00">
-                Published: lun. 28 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
-(module added to Python 3.4 released in March 2014). I helped to stabilize the
-Windows implementation because... well, nobody else was paying attention to it,
-and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
-<p>One …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="bookmark"
-                           title="Permalink to Locale Bugfixes in Python 3">Locale Bugfixes in Python 3</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-09T00:30:00+01:00">
-                Published: mer. 09 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
-</footer><!-- /.post-info -->                <p>This article describes a few locales bugs that I fixed in Python 3 between 2012
-(Python 3.3) and 2018 (Python 3.7):</p>
-<ul class="simple">
-<li>Support non-ASCII decimal point and thousands separator</li>
-<li>Crash with non-ASCII decimal point</li>
-<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
-<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
-<li>Tests non-ASCII locales …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/locale-bugfixes-python3.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python3-locales-encodings.html" rel="bookmark"
-                           title="Permalink to Python 3, locales and encodings">Python 3, locales and encodings</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-09-06T16:00:00+02:00">
-                Published: jeu. 06 septembre 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
-</footer><!-- /.post-info -->                <p>Recently, I worked on a change which looked simple: move the code to initialize
-the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
-I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
-I didn't expect that I would spend 2 weeks on these issues …</p>
-                <a class="readmore" href="https://vstinner.github.io/python3-locales-encodings.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="bookmark"
-                           title="Permalink to Python 3.7 UTF-8 Mode">Python 3.7 UTF-8 Mode</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-27T20:00:00+02:00">
-                Published: mar. 27 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Since Python 3.0 was released in 2008, each time an user reported an encoding
-issue, someone showed up and asked why Python does not &quot;simply&quot; always use UTF-8.
-Well, it's not that easy. <strong>UTF-8 is the best encoding in most cases, but it is
-still not the best encoding …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-new-utf8-mode.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/posix-locale.html" rel="bookmark"
-                           title="Permalink to Python 3.7 and the POSIX locale">Python 3.7 and the POSIX locale</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-23T13:00:00+01:00">
-                Published: ven. 23 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>During the childhood of Python 3, encodings issues were common, even on well
-configured systems. Python used UTF-8 rather than the locale encoding, and so
-commonly produced <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>. For
-these reasons, when users complained about the Python behaviour with the POSIX
-locale, bug reports were closed with a message like …</p>
-                <a class="readmore" href="https://vstinner.github.io/posix-locale.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python36-utf8-windows.html" rel="bookmark"
-                           title="Permalink to Python 3.6 now uses UTF-8 on Windows">Python 3.6 now uses UTF-8 on Windows</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-22T17:00:00+01:00">
-                Published: jeu. 22 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>September 2016, a few days before the CPython core dev sprint, <strong>Steve Dower</strong>
-proposed two major backward incompatible changes for Python 3.6 on Windows:
-<a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
-filesystem encoding to UTF-8</a>.
-At the first read, I was sure that …</p>
-                <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-<p class="paginator">
-    Page 1 / 6
-        <a href="https://vstinner.github.io/author/victor-stinner2.html">&raquo;</a>
-</p>
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>

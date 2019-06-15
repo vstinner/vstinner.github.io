@@ -1,5 +1,424 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-03-06T20:00:00+01:00</updated><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-06-15T01:00:00+02:00</updated><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
+It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
+released last week!&lt;/p&gt;
+&lt;p&gt;An &amp;quot;unraisable exception&amp;quot; is an error which happens when Python cannot report
+it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
+It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
+released last week!&lt;/p&gt;
+&lt;p&gt;An &amp;quot;unraisable exception&amp;quot; is an error which happens when Python cannot report
+it to the caller. Examples: object finalizer error (&lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt;), weak
+reference callback failure, error during a GC collection. At the C level, the
+&lt;tt class="docutils literal"&gt;PyErr_WriteUnraisable()&lt;/tt&gt; function is called to handle such exception.&lt;/p&gt;
+&lt;p&gt;Designing the new hook was tricky, as its implementation.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;em&gt;Exception awaiting to catch you&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="kill-python-at-the-first-unraisable-exception"&gt;
+&lt;h2&gt;Kill Python at the first unraisable exception&lt;/h2&gt;
+&lt;p&gt;One month ago, &lt;strong&gt;Thomas Grainger&lt;/strong&gt; opened &lt;a class="reference external" href="https://bugs.python.org/issue36829"&gt;bpo-36829&lt;/a&gt;: &amp;quot;CLI option to make
+PyErr_WriteUnraisable abort the current process&amp;quot;. He wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+Currently it's quite easy for these &lt;strong&gt;errors&lt;/strong&gt; to go &lt;strong&gt;unnoticed&lt;/strong&gt;. (...)
+The point for me is that CI will fail if it happens, then &lt;strong&gt;I can use gdb&lt;/strong&gt;
+to find out the cause&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Zackery Spytz&lt;/strong&gt; wrote the &lt;a class="reference external" href="https://github.com/python/cpython/pull/13175"&gt;PR 13175&lt;/a&gt; to add &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; abortunraisable&lt;/tt&gt;
+command line option. When this option is used, &lt;tt class="docutils literal"&gt;PyErr_WriteUnraisable()&lt;/tt&gt;
+calls &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Py_FatalError(&amp;quot;Unraisable&lt;/span&gt; exception&amp;quot;)&lt;/tt&gt; which calls &lt;tt class="docutils literal"&gt;abort()&lt;/tt&gt;: it
+raises &lt;tt class="docutils literal"&gt;SIGABRT&lt;/tt&gt; signal which kills the process by default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="handle-unraisable-exception-in-python-sys-unraisablehook"&gt;
+&lt;h2&gt;Handle unraisable exception in Python: sys.unraisablehook&lt;/h2&gt;
+&lt;p&gt;I concur with Thomas that it's easy to miss such exception, but I dislike
+killing the process. It's not practical to have to use a low-level debugger
+like gdb to handle such bug.&lt;/p&gt;
+&lt;p&gt;I proposed a different design: add a new &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; hook allowing
+to use arbitrary Python code to handle an &amp;quot;unraisable exception&amp;quot;.&lt;/p&gt;
+&lt;p&gt;I wrote a &lt;a class="reference external" href="https://bugs.python.org/issue36829#msg341868"&gt;hook example&lt;/a&gt; which
+displays the Python stack where the exception occurred using the &lt;tt class="docutils literal"&gt;traceback&lt;/tt&gt;
+module.&lt;/p&gt;
+&lt;p&gt;I chose to pass an single object as argument to &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt;. The
+object has 4 attributes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;exc_type: Exception type.&lt;/li&gt;
+&lt;li&gt;exc_value: Exception value, can be None.&lt;/li&gt;
+&lt;li&gt;exc_traceback: Exception traceback, can be None.&lt;/li&gt;
+&lt;li&gt;object: Object causing the exception, can be None.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I wanted to design an &lt;strong&gt;extensible API&lt;/strong&gt;: keep the backward compatibility even
+if tomorrow we want to add a new attribute to the object to pass more
+information.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="adding-source-parameter-to-the-warnings-module"&gt;
+&lt;h2&gt;Adding source parameter to the warnings module&lt;/h2&gt;
+&lt;p&gt;To explain the rationale of my proposed &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; design (single
+objeect with attributes), let me tell you my bad experience with the
+&lt;tt class="docutils literal"&gt;warnings&lt;/tt&gt; module.&lt;/p&gt;
+&lt;div class="section" id="use-tracemalloc-for-resourcewarning"&gt;
+&lt;h3&gt;Use tracemalloc for ResourceWarning&lt;/h3&gt;
+&lt;p&gt;In March 2016, I was tired how debugging &lt;tt class="docutils literal"&gt;ResourceWarning&lt;/tt&gt; warnings: it's
+hard to guess where the bug comes from. The warning is logged where the
+resource is released, but I was interested by where the resource was allocated.&lt;/p&gt;
+&lt;p&gt;My &lt;a class="reference external" href="https://docs.python.org/dev/library/tracemalloc.html"&gt;tracemalloc&lt;/a&gt; module
+provides a convenient &lt;a class="reference external" href="https://docs.python.org/dev/library/tracemalloc.html#tracemalloc.get_object_traceback"&gt;get_object_traceback()&lt;/a&gt;
+function which provides the traceback where any Python has been allocated.&lt;/p&gt;
+&lt;p&gt;I opened &lt;a class="reference external" href="https://bugs.python.org/issue26604"&gt;bpo-26604&lt;/a&gt;: &amp;quot;ResourceWarning:
+Use tracemalloc to display the traceback where an object was allocated when a
+ResourceWarning is emitted&amp;quot;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="warnings-hooks-cannot-be-extended"&gt;
+&lt;h3&gt;warnings hooks cannot be extended&lt;/h3&gt;
+&lt;p&gt;The problem is that the &lt;tt class="docutils literal"&gt;showwarning()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;formatwarning()&lt;/tt&gt; functions of
+&lt;tt class="docutils literal"&gt;warnings&lt;/tt&gt; can be overriden. They use a fixed number of positional
+parameters:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def showwarning(message, category, filename, lineno, file=None, line=None): ...
+def formatwarning(message, category, filename, lineno, line=None): ...
+&lt;/pre&gt;
+&lt;p&gt;If they are called with an additional parameter, they fail with a
+&lt;tt class="docutils literal"&gt;TypeError&lt;/tt&gt;. I wanted to add a new &lt;tt class="docutils literal"&gt;source&lt;/tt&gt; parameter to these functions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reuse-existing-warningmessage-class"&gt;
+&lt;h3&gt;Reuse existing WarningMessage class&lt;/h3&gt;
+&lt;p&gt;To extend the warnings module, I chose to rely on the existing
+&lt;tt class="docutils literal"&gt;WarningMessage&lt;/tt&gt; class which can be used to &amp;quot;pack&amp;quot; all parameters as a single
+object. This class was used by &lt;tt class="docutils literal"&gt;catch_warnings&lt;/tt&gt; context manager.&lt;/p&gt;
+&lt;p&gt;I had to add new private &lt;tt class="docutils literal"&gt;_showwarnmsg()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;_formatwarnmsg()&lt;/tt&gt; functions.
+They are called with a &lt;tt class="docutils literal"&gt;WarningMessage&lt;/tt&gt; instance. The implementation has to
+detect when &lt;tt class="docutils literal"&gt;showwarning()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;formatwarning()&lt;/tt&gt; is overriden: the
+overriden function must be called with the legacy API in this case. The
+backward compatibility requirement makes the implementation complex.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regression"&gt;
+&lt;h3&gt;Regression&lt;/h3&gt;
+&lt;p&gt;After Python 3.6 was released with my new feature, &lt;a class="reference external" href="https://bugs.python.org/issue35178"&gt;bpo-35178&lt;/a&gt; was reported. The &lt;tt class="docutils literal"&gt;warnings&lt;/tt&gt; module
+called a custom &lt;tt class="docutils literal"&gt;formatwarning()&lt;/tt&gt; with the &lt;tt class="docutils literal"&gt;line&lt;/tt&gt; argument passed as a
+keyword argument, whereas other arguments are passed as positional arguments.
+The &lt;a class="reference external" href="https://github.com/python/cpython/commit/be7c460fb50efe3b88a00281025d76acc62ad2fd"&gt;fix was trivial&lt;/a&gt;,
+but it shows that backward compatibility is hard.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="example"&gt;
+&lt;h3&gt;Example&lt;/h3&gt;
+&lt;p&gt;By the way, example of the feature using a &lt;tt class="docutils literal"&gt;filebug.py&lt;/tt&gt; script:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def func():
+    f = open(__file__)
+    f = None
+
+func()
+&lt;/pre&gt;
+&lt;p&gt;The feature adds the &amp;quot;Object allocated at&amp;quot; traceback, whereas existing &lt;tt class="docutils literal"&gt;f =
+None&lt;/tt&gt; output is worthless.&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -Wd -X tracemalloc=5 filebug.py
+filebug.py:3: ResourceWarning: unclosed file &amp;lt;_io.TextIOWrapper name='filebug.py' mode='r' encoding='UTF-8'&amp;gt;
+  f = None
+Object allocated at (most recent call first):
+  File &amp;quot;filebug.py&amp;quot;, lineno 2
+    f = open(__file__)
+  File &amp;quot;filebug.py&amp;quot;, lineno 5
+    func()
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="limitations-of-my-unraisablehook-idea"&gt;
+&lt;h2&gt;Limitations of my unraisablehook idea&lt;/h2&gt;
+&lt;p&gt;To come back to &lt;a class="reference external" href="https://bugs.python.org/issue36829"&gt;bpo-36829&lt;/a&gt;, I identified
+a limitation in my &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; idea: unraisable exceptions which
+occurs very late during Python finalization cannot be handled by a custom hook.&lt;/p&gt;
+&lt;p&gt;Thomas said that he is fine with having to use &lt;tt class="docutils literal"&gt;gdb&lt;/tt&gt; to debug an issue
+during Python finalization.&lt;/p&gt;
+&lt;p&gt;In my experience, using &lt;tt class="docutils literal"&gt;gdb&lt;/tt&gt; on system Python is unpleasant, since it's
+usually deeply optimized (PGO + LTO optimizations). gdb fails to read variables
+which are only displayed as &lt;tt class="docutils literal"&gt;&amp;lt;optimized out&amp;gt;&lt;/tt&gt;. By the way, that's why I fixed
+the &lt;a class="reference external" href="https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build"&gt;debug build of Python to be ABI compatible with a release build&lt;/a&gt;,
+but that's a different story.&lt;/p&gt;
+&lt;p&gt;Thomas's idea of killing the process allows to detect unraisable exceptions
+whenever they occur.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-discussed-on-python-dev"&gt;
+&lt;h2&gt;API discussed on python-dev&lt;/h2&gt;
+&lt;p&gt;I started a discussion on python-dev to get more feedback: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157436.html"&gt;bpo-36829: Add
+sys.unraisablehook()&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="new-exception-while-handling-an-exception"&gt;
+&lt;h3&gt;New exception while handling an exception&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Nathaniel Smith&lt;/strong&gt; asked what happens if a custom hook raises a new exception?&lt;/p&gt;
+&lt;p&gt;This problem is easy to fix: &lt;tt class="docutils literal"&gt;PyErr_WriteUnraisable()&lt;/tt&gt; calls the default
+hook to handle the new exception (I already implemented this solution).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="positional-arguments"&gt;
+&lt;h3&gt;Positional arguments&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157439.html"&gt;preferred&lt;/a&gt; passing 5
+positional arguments (exc_type, exc_value, exc_tb, obj and msg):&lt;/p&gt;
+&lt;blockquote&gt;
+Currently we have no plans for adding more details, and I do not think that
+we will need to do this in future.&lt;/blockquote&gt;
+&lt;p&gt;Later, he added:&lt;/p&gt;
+&lt;blockquote&gt;
+If you have plans for adding new details in future, I propose to add a 6th
+parameter &amp;quot;context&amp;quot; or &amp;quot;extra&amp;quot; (always None currently). It is as extensible
+as packing all arguments into a single structure, but you do not need to
+introduce the structure type and create its instance until you need to pass
+additional info.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reuse-sys-excepthook"&gt;
+&lt;h3&gt;Reuse sys.excepthook&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Steve Dower&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157453.html"&gt;proposed to reuse sys.excepthook&lt;/a&gt;, rather
+than adding a new hook, and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157465.html"&gt;create a new exception to pass extra info&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Nathaniel&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157460.html"&gt;explained&lt;/a&gt; that
+&lt;tt class="docutils literal"&gt;sys.excepthook&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; have different behavior and so
+require to be different.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="object-resurrection"&gt;
+&lt;h3&gt;Object resurrection&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Steve Dower&lt;/strong&gt; was &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157452.html"&gt;concerned by object resurrection&lt;/a&gt; and
+proposed to only pass &lt;tt class="docutils literal"&gt;repr(obj)&lt;/tt&gt; to the hook.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157463.html"&gt;I explained&lt;/a&gt; that an
+object can only be resurrected after its finalization, which is different than
+deallocation. Accessing a finalized object should not crash Python. The
+deallocation makes an object unsable, except that deallocation only happens
+once the last references to an object is gone, and so the object is no longer
+accessible.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157467.html"&gt;Nathaniel added&lt;/a&gt; that
+&lt;tt class="docutils literal"&gt;repr()&lt;/tt&gt; would limit features of the hook:&lt;/p&gt;
+&lt;blockquote&gt;
+A clever hook might want the actual object, so it can pretty-print it, or
+open an interactive debugger and let it you examine it, or something.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="naming"&gt;
+&lt;h3&gt;Naming&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Gregory P. Smith&lt;/strong&gt; proposed the term &amp;quot;uncatchable&amp;quot; rather than &amp;quot;unraisable&amp;quot;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="keyword-only-arguments"&gt;
+&lt;h3&gt;Keyword-only arguments&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Barry Warsaw&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157457.html"&gt;suggested&lt;/a&gt; to
+consider keyword-only arguments to help future proof the call signature.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="avoid-redundant-exc-type-and-exc-traceback-parameters"&gt;
+&lt;h3&gt;Avoid redundant exc_type and exc_traceback parameters&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Petr Viktorin&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157459.html"&gt;asked&lt;/a&gt; why
+&lt;tt class="docutils literal"&gt;(exc_type, exc_value, exc_traceback)&lt;/tt&gt; triple is needed, wheras &lt;em&gt;exc_type&lt;/em&gt;
+could be get from &lt;tt class="docutils literal"&gt;type(exc_type)&lt;/tt&gt; and &lt;em&gt;exc_traceback&lt;/em&gt; from
+&lt;tt class="docutils literal"&gt;exc_value.__traceback__&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157462.html"&gt;I made some tests&lt;/a&gt;.
+&lt;em&gt;exc_value&lt;/em&gt; can be &lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt; sometimes. In some cases, &lt;em&gt;exc_traceback&lt;/em&gt; can be
+set, whereas &lt;tt class="docutils literal"&gt;exc_value.__traceback__&lt;/tt&gt; is not set (&lt;tt class="docutils literal"&gt;None&lt;/tt&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="productive-discussion"&gt;
+&lt;h2&gt;Productive discussion!&lt;/h2&gt;
+&lt;p&gt;As usual, the python-dev discussion was very productive. Each corner case has
+been discussed and the API has been challenged.&lt;/p&gt;
+&lt;p&gt;Thanks to Petr's remark, I enhanced the existing hook to instanciate an
+exception if &lt;em&gt;exc_value&lt;/em&gt; is &lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt;, create a traceback if &lt;em&gt;exc_traceback&lt;/em&gt; is
+&lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt;, and set &lt;tt class="docutils literal"&gt;exc_value.__traceback__&lt;/tt&gt; to the traceback. If one of these
+actions fail, the failure is silently ignored.&lt;/p&gt;
+&lt;p&gt;I also paid more attention to object resurrection.&lt;/p&gt;
+&lt;p&gt;After one week of discussion, I was not convinced by other alternative
+propositions, whereas multiple core devs wrote that they like my API.&lt;/p&gt;
+&lt;p&gt;I decided to push my &lt;a class="reference external" href="https://github.com/python/cpython/commit/ef9d9b63129a2f243591db70e9a2dd53fab95d86"&gt;commit ef9d9b63&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit ef9d9b63129a2f243591db70e9a2dd53fab95d86
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Wed May 22 11:28:22 2019 +0200
+
+    bpo-36829: Add sys.unraisablehook() (GH-13187)
+
+    Add new sys.unraisablehook() function which can be overridden to
+    control how &amp;quot;unraisable exceptions&amp;quot; are handled. It is called when an
+    exception has occurred but there is no way for Python to handle it.
+    For example, when a destructor raises an exception or during garbage
+    collection (gc.collect()).
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="new-err-msg-attribute"&gt;
+&lt;h2&gt;New err_msg attribute&lt;/h2&gt;
+&lt;p&gt;Unraisable exception were logged with no context, only an hardcoded
+&amp;quot;Exception ignored in:&amp;quot; error message.&lt;/p&gt;
+&lt;p&gt;Early in &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; discussion, &lt;strong&gt;Serhiy&lt;/strong&gt; proposed to add a new
+&lt;em&gt;err_msg&lt;/em&gt; parameter to pass an optional error message.&lt;/p&gt;
+&lt;p&gt;I implemented this idea in &lt;a class="reference external" href="https://bugs.python.org/issue36829"&gt;bpo-36829&lt;/a&gt;
+with &lt;a class="reference external" href="https://github.com/python/cpython/commit/71c52e3048dd07567f0c690eab4e5d57be66f534"&gt;commit 71c52e30&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 71c52e3048dd07567f0c690eab4e5d57be66f534
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Mon May 27 08:57:14 2019 +0200
+
+    bpo-36829: Add _PyErr_WriteUnraisableMsg() (GH-13488)
+&lt;/pre&gt;
+&lt;p&gt;I was able to add a new parameter as a new &lt;em&gt;err_msg&lt;/em&gt; attribute without breaking the
+backward compatibility!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="test-support-catch-unraisable-exception"&gt;
+&lt;h2&gt;test.support.catch_unraisable_exception()&lt;/h2&gt;
+&lt;p&gt;I wrote a new context manager catching unraisable exceptions:
+&lt;tt class="docutils literal"&gt;test.support.catch_unraisable_exception()&lt;/tt&gt;. The exception is stored and so
+can be used for tests in the context manager, but cleared at context manager
+exit.&lt;/p&gt;
+&lt;p&gt;I modified tests to use this new context manager:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;test_coroutines&lt;/li&gt;
+&lt;li&gt;test_cprofile&lt;/li&gt;
+&lt;li&gt;test_exceptions&lt;/li&gt;
+&lt;li&gt;test_generators&lt;/li&gt;
+&lt;li&gt;test_io&lt;/li&gt;
+&lt;li&gt;test_raise&lt;/li&gt;
+&lt;li&gt;test_ssl&lt;/li&gt;
+&lt;li&gt;test_thread&lt;/li&gt;
+&lt;li&gt;test_yield_from&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+class BrokenDel:
+    def __del__(self):
+        raise ValueError(&amp;quot;del is broken&amp;quot;)
+
+obj = BrokenDel()
+with support.catch_unraisable_exception() as cm:
+    del obj
+    self.assertEqual(cm.unraisable.object, BrokenDel.__del__)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="test-io-memory-leak-regression"&gt;
+&lt;h2&gt;test_io memory leak regression&lt;/h2&gt;
+&lt;p&gt;I modified test_io to ignore expected unraisable exceptions:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit c15a682603a47f5aef5025f6a2e3babb699273d6
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Thu Jun 13 00:23:49 2019 +0200
+
+    bpo-37223: test_io: silence destructor errors (GH-14031)
+&lt;/pre&gt;
+&lt;p&gt;This change introduced a memory leak, &lt;a class="reference external" href="https://bugs.python.org/issue37261"&gt;bpo-37261&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+test_io leaked [23208, 23204, 23208] references, sum=69620
+test_io leaked [7657, 7655, 7657] memory blocks, sum=22969
+&lt;/pre&gt;
+&lt;p&gt;The problem was this &lt;tt class="docutils literal"&gt;catch_unraisable_exception&lt;/tt&gt; method:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def __exit__(self, *exc_info):
+    del self.unraisable
+    sys.unraisablehook = self._old_hook
+&lt;/pre&gt;
+&lt;p&gt;Sometimes, &lt;tt class="docutils literal"&gt;del self.unraisable&lt;/tt&gt; triggered a new unraisable exception.  At
+this point, &lt;tt class="docutils literal"&gt;catch_unraisable_exception&lt;/tt&gt; hook was still registered:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def _hook(self, unraisable):
+    self.unraisable = unraisable
+&lt;/pre&gt;
+&lt;p&gt;At the end, &lt;tt class="docutils literal"&gt;del self.unraisable&lt;/tt&gt; instruction &lt;em&gt;indirectly&lt;/em&gt; sets again the
+&lt;tt class="docutils literal"&gt;self.unraisable&lt;/tt&gt; attribute.&lt;/p&gt;
+&lt;div class="section" id="first-fix"&gt;
+&lt;h3&gt;First fix&lt;/h3&gt;
+&lt;p&gt;First, I suspected that the  &lt;tt class="docutils literal"&gt;io.BufferedRWPair&lt;/tt&gt; object which triggered the
+first unraisable exception was &lt;strong&gt;resurrected&lt;/strong&gt;, and that &lt;tt class="docutils literal"&gt;del
+self.unraisable&lt;/tt&gt; called again its finalizer or deallocator, which triggered
+the &lt;em&gt;same&lt;/em&gt; unraisable exception again.&lt;/p&gt;
+&lt;p&gt;My first attempt to fix the issue was to clear the &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; by
+setting it to &lt;tt class="docutils literal"&gt;None&lt;/tt&gt;, and only later delete the attribute:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def __exit__(self, *exc_info):
+    self.unraisablehook = None
+    sys.unraisablehook = self._old_hook
+    del self.unraisable
+&lt;/pre&gt;
+&lt;p&gt;If &lt;tt class="docutils literal"&gt;self.unraisablehook = None&lt;/tt&gt; triggers a new unraisable exception, it is
+silently ignored.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="second-correct-fix"&gt;
+&lt;h3&gt;Second correct fix&lt;/h3&gt;
+&lt;p&gt;But when I chatted with &lt;strong&gt;Pablo Galindo&lt;/strong&gt;, he told me that an object cannot be
+finalized twice thanks to &lt;strong&gt;Antoine Pitrou&lt;/strong&gt;'s &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0442/"&gt;PEP 442: Safe object finalization&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I looked again into gdb. Oh. In fact, it's more subtle. &lt;tt class="docutils literal"&gt;del self.unraisable&lt;/tt&gt;
+clears the last reference to &lt;tt class="docutils literal"&gt;BufferedRWPair&lt;/tt&gt; which calls its
+&lt;strong&gt;deallocator&lt;/strong&gt;. The dealloactor indirectly calls the &lt;tt class="docutils literal"&gt;BufferedWriter&lt;/tt&gt;
+finalizer; the &lt;tt class="docutils literal"&gt;BufferedWriter&lt;/tt&gt; was stored in the &lt;tt class="docutils literal"&gt;BufferedRWPair&lt;/tt&gt;. This
+finalizer triggers a new unraisable exception.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;BufferedRWPair&lt;/tt&gt; does not trigger two unraisable exception. It's a different
+object (&lt;tt class="docutils literal"&gt;BufferedWriter&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;My final fix is to restore the old hook before deleting the &lt;tt class="docutils literal"&gt;unraisable&lt;/tt&gt;
+attribute:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+def __exit__(self, *exc_info):
+    sys.unraisablehook = self._old_hook
+    del self.unraisable
+&lt;/pre&gt;
+&lt;p&gt;And fix test_io using two nested context managers:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# Ignore BufferedWriter (of the BufferedRWPair) unraisable exception
+with support.catch_unraisable_exception():
+    # Ignore BufferedRWPair unraisable exception
+    with support.catch_unraisable_exception():
+        pair = None
+        support.gc_collect()
+    support.gc_collect()
+&lt;/pre&gt;
+&lt;p&gt;I also documented corner cases in &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; documentation:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt; can be overridden to control how unraisable
+exceptions are handled.&lt;/p&gt;
+&lt;p&gt;Storing &lt;em&gt;exc_value&lt;/em&gt; using a custom hook can create a &lt;strong&gt;reference cycle&lt;/strong&gt;. It
+should be cleared explicitly to break the reference cycle when the exception
+is no longer needed.&lt;/p&gt;
+&lt;p&gt;Storing &lt;em&gt;object&lt;/em&gt; using a custom hook &lt;strong&gt;can resurrect&lt;/strong&gt; it if it is set to an
+object which is being finalized. Avoid storing &lt;em&gt;object&lt;/em&gt; after the custom
+hook completes to avoid resurrecting objects.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="regrtest-now-detects-unraisable-exceptions"&gt;
+&lt;h2&gt;regrtest now detects unraisable exceptions&lt;/h2&gt;
+&lt;p&gt;Once I fixed tests to silence all expected unraisable exceptions, I created
+&lt;a class="reference external" href="https://bugs.python.org/issue37069"&gt;bpo-37069&lt;/a&gt; to modify regrtest to install
+a custom hook. I merged my &lt;a class="reference external" href="https://github.com/python/cpython/commit/95f61c8b1619e736bd5e29a0da0183234634b6e8"&gt;commit 95f61c8b&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+commit 95f61c8b1619e736bd5e29a0da0183234634b6e8
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;redhat.com&amp;gt;
+Date:   Thu Jun 13 01:09:04 2019 +0200
+
+    bpo-37069: regrtest uses sys.unraisablehook (GH-13759)
+
+    regrtest now uses sys.unraisablehook() to mark a test as &amp;quot;environment
+    altered&amp;quot; (ENV_CHANGED) if it emits an &amp;quot;unraisable exception&amp;quot;.
+    Moreover, regrtest logs a warning in this case.
+
+    Use &amp;quot;python3 -m test --fail-env-changed&amp;quot; to catch unraisable
+    exceptions in tests.
+&lt;/pre&gt;
+&lt;p&gt;A test is marked as &amp;quot;environment altered&amp;quot; (ENV_CHANGED) if the test triggers an
+unraisable exception. Using &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--fail-env-changed&lt;/span&gt;&lt;/tt&gt; option (option used by
+default on all Python CIs), a test is marked as failed in this case.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="hook-features"&gt;
+&lt;h2&gt;Hook features&lt;/h2&gt;
+&lt;p&gt;sys.unraisablehook allows to set a custom hook to handle unraisable exceptions.
+It opens many interesting features:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Log the exception into system logs, over the network, or open a popup.&lt;/li&gt;
+&lt;li&gt;Inspect the Python stack: &lt;tt class="docutils literal"&gt;traceback.print_stack()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Inspect &lt;em&gt;object&lt;/em&gt; content (object which caused the exception)&lt;/li&gt;
+&lt;li&gt;Get the traceback where &lt;em&gt;object&lt;/em&gt; has been allocated:
+&lt;tt class="docutils literal"&gt;tracemalloc.get_object_traceback()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;By the way, reimplementing Thomas's initial idea became trivial:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+import signal, sys
+
+def abort_hook(unraisable):
+    signal.raise_signal(signal.SIGABRT)
+
+sys.unraisablehook = abort_hook
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="threading-excepthook"&gt;
+&lt;h2&gt;threading.excepthook&lt;/h2&gt;
+&lt;p&gt;Since I was happy of &lt;tt class="docutils literal"&gt;sys.unraisablehook&lt;/tt&gt;, I decided to work on the 14-years
+old issue &lt;a class="reference external" href="https://bugs.python.org/issue1230540"&gt;bpo-1230540&lt;/a&gt;: I proposed to
+add &lt;a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook"&gt;threading.excepthook()&lt;/a&gt;,
+but that's a different story!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="python"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a

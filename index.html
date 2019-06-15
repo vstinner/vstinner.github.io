@@ -19,7 +19,445 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio WSASend() memory leak</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/sys-unraisablehook-python38.html">Python 3.8 sys.unraisablehook</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-06-15T01:00:00+02:00">
+                Published: sam. 15 juin 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> </p>
+</footer><!-- /.post-info --><p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
+allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
+It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
+released last week!</p>
+<p>An &quot;unraisable exception&quot; is an error which happens when Python cannot report
+it to the caller. Examples: object finalizer error (<tt class="docutils literal">__del__()</tt>), weak
+reference callback failure, error during a GC collection. At the C level, the
+<tt class="docutils literal">PyErr_WriteUnraisable()</tt> function is called to handle such exception.</p>
+<p>Designing the new hook was tricky, as its implementation.</p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"><img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /></a>
+<p><em>Exception awaiting to catch you</em></p>
+<div class="section" id="kill-python-at-the-first-unraisable-exception">
+<h2>Kill Python at the first unraisable exception</h2>
+<p>One month ago, <strong>Thomas Grainger</strong> opened <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>: &quot;CLI option to make
+PyErr_WriteUnraisable abort the current process&quot;. He wrote:</p>
+<blockquote>
+Currently it's quite easy for these <strong>errors</strong> to go <strong>unnoticed</strong>. (...)
+The point for me is that CI will fail if it happens, then <strong>I can use gdb</strong>
+to find out the cause</blockquote>
+<p><strong>Zackery Spytz</strong> wrote the <a class="reference external" href="https://github.com/python/cpython/pull/13175">PR 13175</a> to add <tt class="docutils literal"><span class="pre">-X</span> abortunraisable</tt>
+command line option. When this option is used, <tt class="docutils literal">PyErr_WriteUnraisable()</tt>
+calls <tt class="docutils literal"><span class="pre">Py_FatalError(&quot;Unraisable</span> exception&quot;)</tt> which calls <tt class="docutils literal">abort()</tt>: it
+raises <tt class="docutils literal">SIGABRT</tt> signal which kills the process by default.</p>
+</div>
+<div class="section" id="handle-unraisable-exception-in-python-sys-unraisablehook">
+<h2>Handle unraisable exception in Python: sys.unraisablehook</h2>
+<p>I concur with Thomas that it's easy to miss such exception, but I dislike
+killing the process. It's not practical to have to use a low-level debugger
+like gdb to handle such bug.</p>
+<p>I proposed a different design: add a new <tt class="docutils literal">sys.unraisablehook</tt> hook allowing
+to use arbitrary Python code to handle an &quot;unraisable exception&quot;.</p>
+<p>I wrote a <a class="reference external" href="https://bugs.python.org/issue36829#msg341868">hook example</a> which
+displays the Python stack where the exception occurred using the <tt class="docutils literal">traceback</tt>
+module.</p>
+<p>I chose to pass an single object as argument to <tt class="docutils literal">sys.unraisablehook</tt>. The
+object has 4 attributes:</p>
+<ul class="simple">
+<li>exc_type: Exception type.</li>
+<li>exc_value: Exception value, can be None.</li>
+<li>exc_traceback: Exception traceback, can be None.</li>
+<li>object: Object causing the exception, can be None.</li>
+</ul>
+<p>I wanted to design an <strong>extensible API</strong>: keep the backward compatibility even
+if tomorrow we want to add a new attribute to the object to pass more
+information.</p>
+</div>
+<div class="section" id="adding-source-parameter-to-the-warnings-module">
+<h2>Adding source parameter to the warnings module</h2>
+<p>To explain the rationale of my proposed <tt class="docutils literal">sys.unraisablehook</tt> design (single
+objeect with attributes), let me tell you my bad experience with the
+<tt class="docutils literal">warnings</tt> module.</p>
+<div class="section" id="use-tracemalloc-for-resourcewarning">
+<h3>Use tracemalloc for ResourceWarning</h3>
+<p>In March 2016, I was tired how debugging <tt class="docutils literal">ResourceWarning</tt> warnings: it's
+hard to guess where the bug comes from. The warning is logged where the
+resource is released, but I was interested by where the resource was allocated.</p>
+<p>My <a class="reference external" href="https://docs.python.org/dev/library/tracemalloc.html">tracemalloc</a> module
+provides a convenient <a class="reference external" href="https://docs.python.org/dev/library/tracemalloc.html#tracemalloc.get_object_traceback">get_object_traceback()</a>
+function which provides the traceback where any Python has been allocated.</p>
+<p>I opened <a class="reference external" href="https://bugs.python.org/issue26604">bpo-26604</a>: &quot;ResourceWarning:
+Use tracemalloc to display the traceback where an object was allocated when a
+ResourceWarning is emitted&quot;.</p>
+</div>
+<div class="section" id="warnings-hooks-cannot-be-extended">
+<h3>warnings hooks cannot be extended</h3>
+<p>The problem is that the <tt class="docutils literal">showwarning()</tt> and <tt class="docutils literal">formatwarning()</tt> functions of
+<tt class="docutils literal">warnings</tt> can be overriden. They use a fixed number of positional
+parameters:</p>
+<pre class="literal-block">
+def showwarning(message, category, filename, lineno, file=None, line=None): ...
+def formatwarning(message, category, filename, lineno, line=None): ...
+</pre>
+<p>If they are called with an additional parameter, they fail with a
+<tt class="docutils literal">TypeError</tt>. I wanted to add a new <tt class="docutils literal">source</tt> parameter to these functions.</p>
+</div>
+<div class="section" id="reuse-existing-warningmessage-class">
+<h3>Reuse existing WarningMessage class</h3>
+<p>To extend the warnings module, I chose to rely on the existing
+<tt class="docutils literal">WarningMessage</tt> class which can be used to &quot;pack&quot; all parameters as a single
+object. This class was used by <tt class="docutils literal">catch_warnings</tt> context manager.</p>
+<p>I had to add new private <tt class="docutils literal">_showwarnmsg()</tt> and <tt class="docutils literal">_formatwarnmsg()</tt> functions.
+They are called with a <tt class="docutils literal">WarningMessage</tt> instance. The implementation has to
+detect when <tt class="docutils literal">showwarning()</tt> and <tt class="docutils literal">formatwarning()</tt> is overriden: the
+overriden function must be called with the legacy API in this case. The
+backward compatibility requirement makes the implementation complex.</p>
+</div>
+<div class="section" id="regression">
+<h3>Regression</h3>
+<p>After Python 3.6 was released with my new feature, <a class="reference external" href="https://bugs.python.org/issue35178">bpo-35178</a> was reported. The <tt class="docutils literal">warnings</tt> module
+called a custom <tt class="docutils literal">formatwarning()</tt> with the <tt class="docutils literal">line</tt> argument passed as a
+keyword argument, whereas other arguments are passed as positional arguments.
+The <a class="reference external" href="https://github.com/python/cpython/commit/be7c460fb50efe3b88a00281025d76acc62ad2fd">fix was trivial</a>,
+but it shows that backward compatibility is hard.</p>
+</div>
+<div class="section" id="example">
+<h3>Example</h3>
+<p>By the way, example of the feature using a <tt class="docutils literal">filebug.py</tt> script:</p>
+<pre class="literal-block">
+def func():
+    f = open(__file__)
+    f = None
+
+func()
+</pre>
+<p>The feature adds the &quot;Object allocated at&quot; traceback, whereas existing <tt class="docutils literal">f =
+None</tt> output is worthless.</p>
+<pre class="literal-block">
+$ python3 -Wd -X tracemalloc=5 filebug.py
+filebug.py:3: ResourceWarning: unclosed file &lt;_io.TextIOWrapper name='filebug.py' mode='r' encoding='UTF-8'&gt;
+  f = None
+Object allocated at (most recent call first):
+  File &quot;filebug.py&quot;, lineno 2
+    f = open(__file__)
+  File &quot;filebug.py&quot;, lineno 5
+    func()
+</pre>
+</div>
+</div>
+<div class="section" id="limitations-of-my-unraisablehook-idea">
+<h2>Limitations of my unraisablehook idea</h2>
+<p>To come back to <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>, I identified
+a limitation in my <tt class="docutils literal">sys.unraisablehook</tt> idea: unraisable exceptions which
+occurs very late during Python finalization cannot be handled by a custom hook.</p>
+<p>Thomas said that he is fine with having to use <tt class="docutils literal">gdb</tt> to debug an issue
+during Python finalization.</p>
+<p>In my experience, using <tt class="docutils literal">gdb</tt> on system Python is unpleasant, since it's
+usually deeply optimized (PGO + LTO optimizations). gdb fails to read variables
+which are only displayed as <tt class="docutils literal">&lt;optimized out&gt;</tt>. By the way, that's why I fixed
+the <a class="reference external" href="https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build">debug build of Python to be ABI compatible with a release build</a>,
+but that's a different story.</p>
+<p>Thomas's idea of killing the process allows to detect unraisable exceptions
+whenever they occur.</p>
+</div>
+<div class="section" id="api-discussed-on-python-dev">
+<h2>API discussed on python-dev</h2>
+<p>I started a discussion on python-dev to get more feedback: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157436.html">bpo-36829: Add
+sys.unraisablehook()</a>.</p>
+<div class="section" id="new-exception-while-handling-an-exception">
+<h3>New exception while handling an exception</h3>
+<p><strong>Nathaniel Smith</strong> asked what happens if a custom hook raises a new exception?</p>
+<p>This problem is easy to fix: <tt class="docutils literal">PyErr_WriteUnraisable()</tt> calls the default
+hook to handle the new exception (I already implemented this solution).</p>
+</div>
+<div class="section" id="positional-arguments">
+<h3>Positional arguments</h3>
+<p><strong>Serhiy Storchaka</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157439.html">preferred</a> passing 5
+positional arguments (exc_type, exc_value, exc_tb, obj and msg):</p>
+<blockquote>
+Currently we have no plans for adding more details, and I do not think that
+we will need to do this in future.</blockquote>
+<p>Later, he added:</p>
+<blockquote>
+If you have plans for adding new details in future, I propose to add a 6th
+parameter &quot;context&quot; or &quot;extra&quot; (always None currently). It is as extensible
+as packing all arguments into a single structure, but you do not need to
+introduce the structure type and create its instance until you need to pass
+additional info.</blockquote>
+</div>
+<div class="section" id="reuse-sys-excepthook">
+<h3>Reuse sys.excepthook</h3>
+<p><strong>Steve Dower</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157453.html">proposed to reuse sys.excepthook</a>, rather
+than adding a new hook, and <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157465.html">create a new exception to pass extra info</a>.</p>
+<p><strong>Nathaniel</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157460.html">explained</a> that
+<tt class="docutils literal">sys.excepthook</tt> and <tt class="docutils literal">sys.unraisablehook</tt> have different behavior and so
+require to be different.</p>
+</div>
+<div class="section" id="object-resurrection">
+<h3>Object resurrection</h3>
+<p><strong>Steve Dower</strong> was <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157452.html">concerned by object resurrection</a> and
+proposed to only pass <tt class="docutils literal">repr(obj)</tt> to the hook.</p>
+<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157463.html">I explained</a> that an
+object can only be resurrected after its finalization, which is different than
+deallocation. Accessing a finalized object should not crash Python. The
+deallocation makes an object unsable, except that deallocation only happens
+once the last references to an object is gone, and so the object is no longer
+accessible.</p>
+<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157467.html">Nathaniel added</a> that
+<tt class="docutils literal">repr()</tt> would limit features of the hook:</p>
+<blockquote>
+A clever hook might want the actual object, so it can pretty-print it, or
+open an interactive debugger and let it you examine it, or something.</blockquote>
+</div>
+<div class="section" id="naming">
+<h3>Naming</h3>
+<p><strong>Gregory P. Smith</strong> proposed the term &quot;uncatchable&quot; rather than &quot;unraisable&quot;.</p>
+</div>
+<div class="section" id="keyword-only-arguments">
+<h3>Keyword-only arguments</h3>
+<p><strong>Barry Warsaw</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157457.html">suggested</a> to
+consider keyword-only arguments to help future proof the call signature.</p>
+</div>
+<div class="section" id="avoid-redundant-exc-type-and-exc-traceback-parameters">
+<h3>Avoid redundant exc_type and exc_traceback parameters</h3>
+<p><strong>Petr Viktorin</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157459.html">asked</a> why
+<tt class="docutils literal">(exc_type, exc_value, exc_traceback)</tt> triple is needed, wheras <em>exc_type</em>
+could be get from <tt class="docutils literal">type(exc_type)</tt> and <em>exc_traceback</em> from
+<tt class="docutils literal">exc_value.__traceback__</tt>.</p>
+<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157462.html">I made some tests</a>.
+<em>exc_value</em> can be <tt class="docutils literal">NULL</tt> sometimes. In some cases, <em>exc_traceback</em> can be
+set, whereas <tt class="docutils literal">exc_value.__traceback__</tt> is not set (<tt class="docutils literal">None</tt>).</p>
+</div>
+</div>
+<div class="section" id="productive-discussion">
+<h2>Productive discussion!</h2>
+<p>As usual, the python-dev discussion was very productive. Each corner case has
+been discussed and the API has been challenged.</p>
+<p>Thanks to Petr's remark, I enhanced the existing hook to instanciate an
+exception if <em>exc_value</em> is <tt class="docutils literal">NULL</tt>, create a traceback if <em>exc_traceback</em> is
+<tt class="docutils literal">NULL</tt>, and set <tt class="docutils literal">exc_value.__traceback__</tt> to the traceback. If one of these
+actions fail, the failure is silently ignored.</p>
+<p>I also paid more attention to object resurrection.</p>
+<p>After one week of discussion, I was not convinced by other alternative
+propositions, whereas multiple core devs wrote that they like my API.</p>
+<p>I decided to push my <a class="reference external" href="https://github.com/python/cpython/commit/ef9d9b63129a2f243591db70e9a2dd53fab95d86">commit ef9d9b63</a>:</p>
+<pre class="literal-block">
+commit ef9d9b63129a2f243591db70e9a2dd53fab95d86
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Wed May 22 11:28:22 2019 +0200
+
+    bpo-36829: Add sys.unraisablehook() (GH-13187)
+
+    Add new sys.unraisablehook() function which can be overridden to
+    control how &quot;unraisable exceptions&quot; are handled. It is called when an
+    exception has occurred but there is no way for Python to handle it.
+    For example, when a destructor raises an exception or during garbage
+    collection (gc.collect()).
+</pre>
+</div>
+<div class="section" id="new-err-msg-attribute">
+<h2>New err_msg attribute</h2>
+<p>Unraisable exception were logged with no context, only an hardcoded
+&quot;Exception ignored in:&quot; error message.</p>
+<p>Early in <tt class="docutils literal">sys.unraisablehook</tt> discussion, <strong>Serhiy</strong> proposed to add a new
+<em>err_msg</em> parameter to pass an optional error message.</p>
+<p>I implemented this idea in <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>
+with <a class="reference external" href="https://github.com/python/cpython/commit/71c52e3048dd07567f0c690eab4e5d57be66f534">commit 71c52e30</a>:</p>
+<pre class="literal-block">
+commit 71c52e3048dd07567f0c690eab4e5d57be66f534
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Mon May 27 08:57:14 2019 +0200
+
+    bpo-36829: Add _PyErr_WriteUnraisableMsg() (GH-13488)
+</pre>
+<p>I was able to add a new parameter as a new <em>err_msg</em> attribute without breaking the
+backward compatibility!</p>
+</div>
+<div class="section" id="test-support-catch-unraisable-exception">
+<h2>test.support.catch_unraisable_exception()</h2>
+<p>I wrote a new context manager catching unraisable exceptions:
+<tt class="docutils literal">test.support.catch_unraisable_exception()</tt>. The exception is stored and so
+can be used for tests in the context manager, but cleared at context manager
+exit.</p>
+<p>I modified tests to use this new context manager:</p>
+<ul class="simple">
+<li>test_coroutines</li>
+<li>test_cprofile</li>
+<li>test_exceptions</li>
+<li>test_generators</li>
+<li>test_io</li>
+<li>test_raise</li>
+<li>test_ssl</li>
+<li>test_thread</li>
+<li>test_yield_from</li>
+</ul>
+<p>Example:</p>
+<pre class="literal-block">
+class BrokenDel:
+    def __del__(self):
+        raise ValueError(&quot;del is broken&quot;)
+
+obj = BrokenDel()
+with support.catch_unraisable_exception() as cm:
+    del obj
+    self.assertEqual(cm.unraisable.object, BrokenDel.__del__)
+</pre>
+</div>
+<div class="section" id="test-io-memory-leak-regression">
+<h2>test_io memory leak regression</h2>
+<p>I modified test_io to ignore expected unraisable exceptions:</p>
+<pre class="literal-block">
+commit c15a682603a47f5aef5025f6a2e3babb699273d6
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Thu Jun 13 00:23:49 2019 +0200
+
+    bpo-37223: test_io: silence destructor errors (GH-14031)
+</pre>
+<p>This change introduced a memory leak, <a class="reference external" href="https://bugs.python.org/issue37261">bpo-37261</a>:</p>
+<pre class="literal-block">
+test_io leaked [23208, 23204, 23208] references, sum=69620
+test_io leaked [7657, 7655, 7657] memory blocks, sum=22969
+</pre>
+<p>The problem was this <tt class="docutils literal">catch_unraisable_exception</tt> method:</p>
+<pre class="literal-block">
+def __exit__(self, *exc_info):
+    del self.unraisable
+    sys.unraisablehook = self._old_hook
+</pre>
+<p>Sometimes, <tt class="docutils literal">del self.unraisable</tt> triggered a new unraisable exception.  At
+this point, <tt class="docutils literal">catch_unraisable_exception</tt> hook was still registered:</p>
+<pre class="literal-block">
+def _hook(self, unraisable):
+    self.unraisable = unraisable
+</pre>
+<p>At the end, <tt class="docutils literal">del self.unraisable</tt> instruction <em>indirectly</em> sets again the
+<tt class="docutils literal">self.unraisable</tt> attribute.</p>
+<div class="section" id="first-fix">
+<h3>First fix</h3>
+<p>First, I suspected that the  <tt class="docutils literal">io.BufferedRWPair</tt> object which triggered the
+first unraisable exception was <strong>resurrected</strong>, and that <tt class="docutils literal">del
+self.unraisable</tt> called again its finalizer or deallocator, which triggered
+the <em>same</em> unraisable exception again.</p>
+<p>My first attempt to fix the issue was to clear the <tt class="docutils literal">sys.unraisablehook</tt> by
+setting it to <tt class="docutils literal">None</tt>, and only later delete the attribute:</p>
+<pre class="literal-block">
+def __exit__(self, *exc_info):
+    self.unraisablehook = None
+    sys.unraisablehook = self._old_hook
+    del self.unraisable
+</pre>
+<p>If <tt class="docutils literal">self.unraisablehook = None</tt> triggers a new unraisable exception, it is
+silently ignored.</p>
+</div>
+<div class="section" id="second-correct-fix">
+<h3>Second correct fix</h3>
+<p>But when I chatted with <strong>Pablo Galindo</strong>, he told me that an object cannot be
+finalized twice thanks to <strong>Antoine Pitrou</strong>'s <a class="reference external" href="https://www.python.org/dev/peps/pep-0442/">PEP 442: Safe object finalization</a>.</p>
+<p>I looked again into gdb. Oh. In fact, it's more subtle. <tt class="docutils literal">del self.unraisable</tt>
+clears the last reference to <tt class="docutils literal">BufferedRWPair</tt> which calls its
+<strong>deallocator</strong>. The dealloactor indirectly calls the <tt class="docutils literal">BufferedWriter</tt>
+finalizer; the <tt class="docutils literal">BufferedWriter</tt> was stored in the <tt class="docutils literal">BufferedRWPair</tt>. This
+finalizer triggers a new unraisable exception.</p>
+<p><tt class="docutils literal">BufferedRWPair</tt> does not trigger two unraisable exception. It's a different
+object (<tt class="docutils literal">BufferedWriter</tt>).</p>
+<p>My final fix is to restore the old hook before deleting the <tt class="docutils literal">unraisable</tt>
+attribute:</p>
+<pre class="literal-block">
+def __exit__(self, *exc_info):
+    sys.unraisablehook = self._old_hook
+    del self.unraisable
+</pre>
+<p>And fix test_io using two nested context managers:</p>
+<pre class="literal-block">
+# Ignore BufferedWriter (of the BufferedRWPair) unraisable exception
+with support.catch_unraisable_exception():
+    # Ignore BufferedRWPair unraisable exception
+    with support.catch_unraisable_exception():
+        pair = None
+        support.gc_collect()
+    support.gc_collect()
+</pre>
+<p>I also documented corner cases in <tt class="docutils literal">sys.unraisablehook</tt> documentation:</p>
+<blockquote>
+<p><tt class="docutils literal">sys.unraisablehook</tt> can be overridden to control how unraisable
+exceptions are handled.</p>
+<p>Storing <em>exc_value</em> using a custom hook can create a <strong>reference cycle</strong>. It
+should be cleared explicitly to break the reference cycle when the exception
+is no longer needed.</p>
+<p>Storing <em>object</em> using a custom hook <strong>can resurrect</strong> it if it is set to an
+object which is being finalized. Avoid storing <em>object</em> after the custom
+hook completes to avoid resurrecting objects.</p>
+</blockquote>
+</div>
+</div>
+<div class="section" id="regrtest-now-detects-unraisable-exceptions">
+<h2>regrtest now detects unraisable exceptions</h2>
+<p>Once I fixed tests to silence all expected unraisable exceptions, I created
+<a class="reference external" href="https://bugs.python.org/issue37069">bpo-37069</a> to modify regrtest to install
+a custom hook. I merged my <a class="reference external" href="https://github.com/python/cpython/commit/95f61c8b1619e736bd5e29a0da0183234634b6e8">commit 95f61c8b</a>:</p>
+<pre class="literal-block">
+commit 95f61c8b1619e736bd5e29a0da0183234634b6e8
+Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
+Date:   Thu Jun 13 01:09:04 2019 +0200
+
+    bpo-37069: regrtest uses sys.unraisablehook (GH-13759)
+
+    regrtest now uses sys.unraisablehook() to mark a test as &quot;environment
+    altered&quot; (ENV_CHANGED) if it emits an &quot;unraisable exception&quot;.
+    Moreover, regrtest logs a warning in this case.
+
+    Use &quot;python3 -m test --fail-env-changed&quot; to catch unraisable
+    exceptions in tests.
+</pre>
+<p>A test is marked as &quot;environment altered&quot; (ENV_CHANGED) if the test triggers an
+unraisable exception. Using <tt class="docutils literal"><span class="pre">--fail-env-changed</span></tt> option (option used by
+default on all Python CIs), a test is marked as failed in this case.</p>
+</div>
+<div class="section" id="hook-features">
+<h2>Hook features</h2>
+<p>sys.unraisablehook allows to set a custom hook to handle unraisable exceptions.
+It opens many interesting features:</p>
+<ul class="simple">
+<li>Log the exception into system logs, over the network, or open a popup.</li>
+<li>Inspect the Python stack: <tt class="docutils literal">traceback.print_stack()</tt></li>
+<li>Inspect <em>object</em> content (object which caused the exception)</li>
+<li>Get the traceback where <em>object</em> has been allocated:
+<tt class="docutils literal">tracemalloc.get_object_traceback()</tt></li>
+</ul>
+<p>By the way, reimplementing Thomas's initial idea became trivial:</p>
+<pre class="literal-block">
+import signal, sys
+
+def abort_hook(unraisable):
+    signal.raise_signal(signal.SIGABRT)
+
+sys.unraisablehook = abort_hook
+</pre>
+</div>
+<div class="section" id="threading-excepthook">
+<h2>threading.excepthook</h2>
+<p>Since I was happy of <tt class="docutils literal">sys.unraisablehook</tt>, I decided to work on the 14-years
+old issue <a class="reference external" href="https://bugs.python.org/issue1230540">bpo-1230540</a>: I proposed to
+add <a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook">threading.excepthook()</a>,
+but that's a different story!</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="bookmark"
+                           title="Permalink to asyncio WSASend() memory leak">asyncio WSASend() memory leak</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-03-06T20:00:00+01:00">
                 Published: mer. 06 mars 2019
@@ -30,351 +468,14 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info --><p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
+</footer><!-- /.post-info -->                <p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
 haunt me for 1 year in 2018...</p>
 <p><strong>Yet another example of a test failure which looks harmless but hides a
-critical bug.</strong> The bug is that sending a network packet on Windows using
-asyncio <tt class="docutils literal">ProactorEventLoop</tt> can leak the packet. With such bug, it is easy to
-imagine a very quick increase of the memory footprint of a network server...</p>
-<p>I'm curious why nobody noticed it before me? For me, the only explanation is
-that nobody was running a server using <tt class="docutils literal">ProactorEventLoop</tt>. Before Python
-3.8, <tt class="docutils literal">SelectorEventLoop</tt> was the default asyncio event loop on Windows.
-<a class="reference external" href="https://bugs.python.org/issue34687">bpo-34687</a>: Andrew Svetlov, Yury
-Selivanov and me agreed to make <tt class="docutils literal">ProactorEventLoop</tt> the default in Python
-3.8! <tt class="docutils literal">Lib/asyncio/windows_events.py</tt> change of my <a class="reference external" href="https://github.com/python/cpython/commit/6ea29c5e90dde6c240bd8e0815614b52ac307ea1">commit 6ea29c5e</a>:</p>
-<pre class="literal-block">
--DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
-+DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
-</pre>
-<p>The bug wasn't a regression. It was only discovered 5 years after the code has
-been written thanks to new tests.</p>
-<p><strong>UPDATE:</strong> I updated the article to add the &quot;Regression? Nope&quot; section and
-elaborate the Conclusion.</p>
-<p>Previous article:
-<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
-<div class="section" id="yet-another-random-buildbot-failure">
-<h2>Yet another random buildbot failure</h2>
-<p>One day at the end of January 2018, I noticed a new failure on the AMD64
-Windows8.1 Refleaks 3.x&quot; buildbot worker. I reported <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710</a>:</p>
-<blockquote>
-<p>AMD64 Windows8.1 Refleaks 3.x:
-<a class="reference external" href="http://buildbot.python.org/all/#/builders/80/builds/118">http://buildbot.python.org/all/#/builders/80/builds/118</a></p>
-<p>test_asyncio leaked [4, 4, 3] memory blocks, sum=11</p>
-<p>I reproduced the issue. I'm running test.bisect to try to isolate this bug.</p>
-</blockquote>
-<p>Only 15 minutes later thanks to my <tt class="docutils literal">test.bisect</tt> tool, I identified the
-leaking test, <strong>test_sendfile_close_peer_in_middle_of_receiving()</strong>:</p>
-<pre class="literal-block">
-It seems to be related to sendfile():
-
-C:\vstinner\python\master&gt;python -m test -R 3:3 test_asyncio \
-    -m test.test_asyncio.test_events.ProactorEventLoopTests.test_sendfile_close_peer_in_middle_of_receiving
-...
-test_asyncio leaked [1, 2, 1] memory blocks, sum=4
-</pre>
-<p>The test is identified, so it should take a few hours, maximum, to fix the bug,
-no? We will see...</p>
-</div>
-<div class="section" id="april">
-<h2>April</h2>
-<p>3 months later, I asked:</p>
-<blockquote>
-The test is still leaking memory blocks. Any progress on investigating the
-issue?</blockquote>
-<p>Nobody replied.</p>
-<p>At that time, I was busy to fix a bunch of various other bugs reported by
-buildbots which were easier to fix and I was kind of exhausted by asyncio, I
-didn't want to touch it.</p>
-</div>
-<div class="section" id="june">
-<h2>June</h2>
-<p>Oh, I found again this bug while working on my <a class="reference external" href="https://github.com/python/cpython/pull/7827">PR 7827</a> (detect handle leaks on Windows
-in regrtest).</p>
-<p>In 2018, I was very busy with fixing dozens of multiprocessing bugs (fix tests
-but also fix some bugs in multiprocessing).</p>
-<p>For example, I noticed another memory leak on AMD64 Windows8.1 Refleaks
-3.7, <a class="reference external" href="https://bugs.python.org/issue33735#msg318425">bpo-33735</a>:</p>
-<blockquote>
-<p><a class="reference external" href="http://buildbot.python.org/all/#/builders/132/builds/154">http://buildbot.python.org/all/#/builders/132/builds/154</a></p>
-<p>test_multiprocessing_spawn leaked [1, 2, 1] memory blocks, sum=4</p>
-</blockquote>
-<p>This test_multiprocessing_spawn leak and the test_asyncio leak on Windows
-Refleaks haunted me in 2018...</p>
-<p>In fact, it wasn't a real leak. After a few runs, <a class="reference external" href="https://bugs.python.org/issue33735#msg320948">the test stopped to leak</a>:</p>
-<pre class="literal-block">
-$ ./python -m test test_multiprocessing_spawn \
-    -m test.test_multiprocessing_spawn.WithProcessesTestPool.test_imap_unordered \
-    -R 1:30
-...
-test_multiprocessing_spawn leaked [4, 5, 1, 5, 1, 2, 0, 0, 0, ..., 0, 0, 0] memory blocks, sum=18
-test_multiprocessing_spawn failed in 42 sec 470 ms
-</pre>
-<p>I fixed the test with <a class="reference external" href="https://github.com/python/cpython/commit/23401fb960bb94e6ea62d2999527968d53d3fc65">commit
-23401fb9</a>.</p>
-<p>I fixed other multiprocessing bugs like <a class="reference external" href="https://bugs.python.org/issue33929">bpo-33929</a>.</p>
-<p>These multiprocessing bugs kept me busy.</p>
-</div>
-<div class="section" id="july-december">
-<h2>July-December</h2>
-<p>Nothing. Nobody looked at the issue.</p>
-<p>Again, I was busy fixing various test failures reported by buildbots.</p>
-</div>
-<div class="section" id="update-in-january-2019">
-<h2>Update in January 2019</h2>
-<p>In January 2019, after months of hard work on fixing every single buildbot
-failure, I realized <strong>suddenly</strong> that the <tt class="docutils literal">test_asyncio</tt> leak, <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710</a>, was one of the last unfixed known test
-failure! So I decided to have a new look at it.</p>
-<p>Update on <tt class="docutils literal">test_asyncio.test_sendfile.ProactorEventLoopTests</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">test_sendfile_close_peer_in_the_middle_of_receiving()</tt> leaks 1 reference per
-run: this leak was the obvious bug <a class="reference external" href="https://bugs.python.org/issue35682">bpo-35682</a>, I already fixed it with <a class="reference external" href="https://github.com/python/cpython/commit/80fda712c83f5dd9560d42bf2aa65a72b18b7759">commit
-80fda712</a>.</li>
-<li><tt class="docutils literal">test_sendfile_fallback_close_peer_in_the_middle_of_receiving()</tt> leaks 1
-reference per run: <strong>I don't understand why</strong>.</li>
-</ul>
-<p>Note: I had to copy/paste these test names a lot of times. Pleeease, for my
-comfort, use shorter test names! :-) (I had to copy/paste them, I don't think
-that a regular human is able to type these very long names!)</p>
-<p>I spent a lot of time to investigate
-<tt class="docutils literal">test_sendfile_fallback_close_peer_in_the_middle_of_receiving()</tt> leak and I don't
-understand the issue.</p>
-<p>The main loop is <tt class="docutils literal">BaseEventLoop._sendfile_fallback()</tt>. For
-the specific case of this test, the loop can be simplified to:</p>
-<pre class="literal-block">
-proto = _SendfileFallbackProtocol(transp)
-try:
-    while True:
-        data = b'x' * (1024 * 64)
-        await proto.drain()
-        transp.write(data)
-finally:
-    await proto.restore()
-</pre>
-<p>The server closes the connection after it gets 1024 bytes. The client socket
-gets a <tt class="docutils literal">ConnectionAbortedError</tt> exception in
-<tt class="docutils literal">_ProactorBaseWritePipeTransport._loop_writing()</tt> which calls <tt class="docutils literal">_fatal_error()</tt>:</p>
-<pre class="literal-block">
-except OSError as exc:
-    self._fatal_error(exc, 'Fatal write error on pipe transport')
-</pre>
-<p><tt class="docutils literal">_fatal_error()</tt> calls <tt class="docutils literal">_force_close()</tt> which sets <tt class="docutils literal">_closing</tt> to
-<tt class="docutils literal">True</tt>, and calls <tt class="docutils literal">protocol.connection_lost()</tt>. In the meanwhile,
-<tt class="docutils literal">drain()</tt> raises <tt class="docutils literal">ConnectionError</tt> because <tt class="docutils literal">is_closing()</tt> is true:</p>
-<pre class="literal-block">
-async def drain(self):
-    if self._transport.is_closing():
-        raise ConnectionError(&quot;Connection closed by peer&quot;)
-    ...
-</pre>
-<p>Said differently: <strong>everything works as expected</strong>.</p>
-</div>
-<div class="section" id="regression-caused-by-my-previous-proactor-fix">
-<h2>Regression caused by my previous proactor fix?</h2>
-<p>I suspected my own <a class="reference external" href="https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7">commit 79790bc3</a>
-pushed 7 months ago to fix a race condition in WSARecv() causing data loss
-(that's my previous article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>).</p>
-<p>Hint: nah, it's unrelated. Moreover, this change has been pushed in May,
-whereas I reported <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710 leak</a> in
-January.</p>
-</div>
-<div class="section" id="short-script-reproducing-the-leak">
-<h2>Short script reproducing the leak</h2>
-<p><strong>Identifying a leak of a single reference is really hard</strong> since the test uses
-hundreds of Python objects! My blocker issue was to repeat the test enough
-times to trigger the leak N times rather than getting a leak of exactly a
-single Python reference. The problem was that the test failed when ran more
-than once.</p>
-<p>All my previous attempts to identify the bug failed:</p>
-<ul class="simple">
-<li>Use <tt class="docutils literal">gc.get_referrers()</tt> to track references between Python objects.</li>
-<li>Use <tt class="docutils literal">tracemalloc</tt> to track memory usage: the leak is too small, it's lost
-in the results &quot;noise&quot;.</li>
-</ul>
-<p>I decided to do what I should have done first: <strong>remove as much code as
-possible</strong> to reduce the code that I have to audit. I removed most Python
-imports, I inlined manually function calls, I removed a lot of code which was
-unused in the test, etc.</p>
-<p>After a few hours, I managed to reduce the giant pile of code used by the test
-into a very short script of only 159 lines of Python code: <a class="reference external" href="https://bugs.python.org/file48030/test_aiosend.py">test_aiosend.py</a>. The script doesn't call
-the asyncio <tt class="docutils literal">sendfile()</tt> implementation, but uses its own copy of the code,
-simplified to do exactly what the test needs:</p>
-<pre class="literal-block">
-async def sendfile(transp):
-    proto = _SendfileFallbackProtocol(transp)
-    try:
-        data = b'x' * (1024 * 24)
-        while True:
-            await proto.drain()
-            transp.write(data)
-    finally:
-        await proto.restore()
-</pre>
-<p>with a local copy of the code of <tt class="docutils literal">_SendfileFallbackProtocol</tt> class.</p>
-<p>Having all code involved in the bug in a single file is way more efficient to
-follow the control flow and understands what happens.</p>
-<p>The original code is waaaaay more complex, scattered across multiple Python
-files in <tt class="docutils literal">Lib/asyncio</tt> and <tt class="docutils literal">Lib/test/test_asyncio/</tt> directories.</p>
-</div>
-<div class="section" id="root-bug-identified-wsasend">
-<h2>Root bug identified: WSASend()</h2>
-<p><strong>It took me 1 year, a few sleepless nights, multiple attempts to understand
-the leak, but I eventually found it!</strong> WSASend() doesn't release the memory if
-it fails immediately. I expected something way more complex, but it's that
-simple...</p>
-<p>Using the <tt class="docutils literal">test_aiosend.py</tt> script that I created, I was finally able to
-repeat the test in a loop. Thanks to that, it became obvious using
-<tt class="docutils literal">tracemalloc</tt> that the leaked memory was the memory passed to <tt class="docutils literal">WSASend()</tt>.</p>
-<p>I pushed <a class="reference external" href="https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625">commit a234e148</a>
-to fix <tt class="docutils literal">WSASend()</tt>:</p>
-<pre class="literal-block">
-commit a234e148394c2c7419372ab65b773d53a57f3625
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Tue Jan 8 14:23:09 2019 +0100
-
-    bpo-32710: Fix leak in Overlapped_WSASend() (GH-11469)
-
-    Fix a memory leak in asyncio in the ProactorEventLoop when ReadFile()
-    or WSASend() overlapped operation fail immediately: release the
-    internal buffer.
-</pre>
-<p>I was very disappointed by the simplicity of the fix, <strong>it only adds a single
-line</strong>:</p>
-<pre class="literal-block">
-diff --git a/Modules/overlapped.c b/Modules/overlapped.c
-index 69875a7f37da..bbaa4fb3008f 100644
---- a/Modules/overlapped.c
-+++ b/Modules/overlapped.c
-&#64;&#64; -1011,6 +1012,7 &#64;&#64; Overlapped_WSASend(OverlappedObject *self, PyObject *args)
-         case ERROR_IO_PENDING:
-             Py_RETURN_NONE;
-         default:
-+            PyBuffer_Release(&amp;self-&gt;user_buffer);
-             self-&gt;type = TYPE_NOT_STARTED;
-             return SetFromWindowsErr(err);
-     }
-</pre>
-<p>So what? One year to add a single line? That's unfair!</p>
-<p>My commit contains a very similar fix for <tt class="docutils literal">do_ReadFile()</tt> used by
-<tt class="docutils literal">Overlapped_ReadFile()</tt> and <tt class="docutils literal">Overlapped_ReadFileInto()</tt>.</p>
-</div>
-<div class="section" id="fixing-more-memory-leaks">
-<h2>Fixing more memory leaks</h2>
-<p>By the way, the <tt class="docutils literal">_overlapped.Overlapped</tt> type has no traverse function: it may
-help the garbage collector to add one. Asyncio is famous for building reference
-cycles by design in <tt class="docutils literal">Future.set_exception()</tt>.</p>
-<p>I wrote <a class="reference external" href="https://github.com/python/cpython/pull/11489">PR 11489</a> to implement
-<tt class="docutils literal">tp_traverse</tt> for the <tt class="docutils literal">_overlapped.Overlapped</tt> type. <a class="reference external" href="https://github.com/python/cpython/pull/11489#pullrequestreview-191093765">Serhiy Storchaka
-added</a>:</p>
-<blockquote>
-I suspect that there are leaks when self-&gt;type is set to TYPE_NOT_STARTED.</blockquote>
-<p>And he was right! I modified my PR to fix all memory leaks. After my PR has
-been reviewed, I merged it, <a class="reference external" href="https://github.com/python/cpython/commit/5485085b324a45307c1ff4ec7d85b5998d7d5e0d">commit 5485085b</a>:</p>
-<pre class="literal-block">
-commit 5485085b324a45307c1ff4ec7d85b5998d7d5e0d
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Fri Jan 11 14:35:14 2019 +0100
-
-    bpo-32710: Fix _overlapped.Overlapped memory leaks (GH-11489)
-
-    Fix memory leaks in asyncio ProactorEventLoop on overlapped operation
-    failures.
-
-    Changes:
-
-    * Implement the tp_traverse slot in the _overlapped.Overlapped type
-      to help to break reference cycles and identify referrers in the
-      garbage collector.
-    * Always clear overlapped on failure: not only set type to
-      TYPE_NOT_STARTED, but release also resources.
-</pre>
-</div>
-<div class="section" id="regression-nope">
-<h2>Regression? Nope</h2>
-<p>Was the memory leak a regression? Nope. The bug existed since the creation of
-the <tt class="docutils literal">overlapped.c</tt> file in the &quot;Tulip&quot; project in 2013, <a class="reference external" href="https://github.com/python/asyncio/commit/27c403531670f52cad8388aaa2a13a658f753fd5">commit 27c40353</a>:</p>
-<pre class="literal-block">
-commit 27c403531670f52cad8388aaa2a13a658f753fd5
-Author: Richard Oudkerk &lt;shibturn&#64;gmail.com&gt;
-Date:   Mon Jan 21 20:34:38 2013 +0000
-
-    New experimental iocp branch.
-</pre>
-<p>Tulip was the old name of the asyncio project, when it was still an external
-project on <tt class="docutils literal">code.google.com</tt>. In the meanwhile, <tt class="docutils literal">code.google.com</tt> has been
-closed and the project moved to <a class="reference external" href="https://github.com/python/asyncio/">https://github.com/python/asyncio/</a> (now
-read-only).</p>
-<p><a class="reference external" href="https://github.com/python/asyncio/blob/27c403531670f52cad8388aaa2a13a658f753fd5/overlapped.c#L632-L658">Extract of the original Overlapped_WSASend() implementation</a>,
-I added a comment to show the location of the bug:</p>
-<pre class="literal-block">
-if (!PyArg_Parse(bufobj, &quot;y*&quot;, &amp;self-&gt;write_buffer))
-    return NULL;
-
-#if SIZEOF_SIZE_T &gt; SIZEOF_LONG
-if (self-&gt;write_buffer.len &gt; (Py_ssize_t)PY_ULONG_MAX) {
-    PyBuffer_Release(&amp;self-&gt;write_buffer);
-    PyErr_SetString(PyExc_ValueError, &quot;buffer to large&quot;);
-    return NULL;
-}
-#endif
-...
-self-&gt;error = err = (ret &lt; 0 ? WSAGetLastError() : ERROR_SUCCESS);
-switch (err) {
-    case ERROR_SUCCESS:
-    case ERROR_MORE_DATA:
-    case ERROR_IO_PENDING:
-        /********* !!! BUG HERE, BUFFER NOT RELEASED !!! ***********/
-        Py_RETURN_NONE;
-    ...
-}
-</pre>
-<p><strong>I fixed the memory leak 6 years after the code has been written!</strong></p>
-<p>So... why was this bug only discovered in 2018? Multiple very asyncio old bugs
-were discovered only recently thanks to more realistic and more advanced
-<strong>functional tests</strong>. First tests of asyncio were mostly tiny unit tests
-mocking most part of the code. It made sense in the early days of asyncio, when
-the code was not mature.</p>
-<p>By the way, the <a class="reference external" href="https://github.com/python/cpython/blob/1f58f4fa6a0e3c60cee8df4a35c8dcf3903acde8/Lib/test/test_asyncio/test_sendfile.py#L446-L457">code of the test</a>
-which helped to discovered the bug is:</p>
-<pre class="literal-block">
-def test_sendfile_close_peer_in_the_middle_of_receiving(self):
-    srv_proto, cli_proto = self.prepare_sendfile(close_after=1024)
-    with self.assertRaises(ConnectionError):
-        self.run_loop(
-            self.loop.sendfile(cli_proto.transport, self.file))
-    self.run_loop(srv_proto.done)
-
-    self.assertTrue(1024 &lt;= srv_proto.nbytes &lt; len(self.DATA),
-                    srv_proto.nbytes)
-    self.assertTrue(1024 &lt;= self.file.tell() &lt; len(self.DATA),
-                    self.file.tell())
-    self.assertTrue(cli_proto.transport.is_closing())
-</pre>
-<p>Note: The test name has been made even longer in the meanwhile (add &quot;the&quot;) :-)</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>For such complex bugs, <strong>a reliable debugging method is to remove as much code as
-possible</strong> to reduce the number of lines of code that should be read.
-<tt class="docutils literal">tracemalloc</tt> remains efficient to identify a memory leak when a test can be
-run in a loop to make the leak more obvious (I was blocked at the beginning
-because the test failed when run a second time in a loop).</p>
-<p>Lessons learned? You should try to <strong>investigate every single failure of your
-CI</strong>.  It is important to have a test suite with functional tests. &quot;Mock tests&quot;
-are fine to quickly write reliable tests, but there are not enough: functional
-tests make the difference.</p>
-<p>Thanks <strong>Richard Oudkerk</strong> for your great code to use Windows native APIs in
-<strong>asyncio</strong> and <strong>multiprocessing</strong>! I like <a class="reference external" href="https://en.wikipedia.org/wiki/Input/output_completion_port">Windows IOCP</a>, even if the
-asyncio implementation is quite complex :-)</p>
-<p>Ok, <tt class="docutils literal">_overlapped.Overlapped</tt> should now have a few less memory leaks :-)</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+critical bug.</strong> The bug is that sending a …</p>
+                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -585,32 +686,6 @@ proposed two major backward incompatible changes for Python 3.6 on Windows:
 filesystem encoding to UTF-8</a>.
 At the first read, I was sure that …</p>
                 <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="bookmark"
-                           title="Permalink to Python 3.2 Painful History of the Filesystem Encoding">Python 3.2 Painful History of the Filesystem Encoding</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-15T23:00:00+01:00">
-                Published: jeu. 15 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
-filesystem encoding changed multiple times. <strong>It took 6 years to choose the best
-Python filesystem encoding on each platform.</strong></p>
-<p><strong>I have been officially promoted as a core developer</strong> in January 2010 by
-<strong>Martin von …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
