@@ -5,19 +5,20 @@ Python 3.8 sys.unraisablehook
 :date: 2019-06-15 01:00
 :tags: python
 :category: python
-:slug: python38-sys-unraisablehook
+:slug: sys-unraisablehook-python38
 :authors: Victor Stinner
 
 I added a new `sys.unraisablehook
 <https://docs.python.org/dev/library/sys.html#sys.unraisablehook>`_ function to
 allow to set a custom hook to control how "unraisable exceptions" are handled.
-It already testable in `Python 3.8 beta1 is available
-<https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html>`_!
+It is already testable in `Python 3.8 beta1
+<https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html>`_,
+released last week!
 
 An "unraisable exception" is an error which happens when Python cannot report
-it to the caller. For example, error in an object finalizer (``__del__()``), in
-a weak reference callback or during a garbage collector collection. At the C
-level, ``PyErr_WriteUnraisable()`` function is used to handle such exception.
+it to the caller. Examples: object finalizer error (``__del__()``), weak
+reference callback failure, error during a GC collection. At the C level, the
+``PyErr_WriteUnraisable()`` function is called to handle such exception.
 
 Designing the new hook was tricky, as its implementation.
 
@@ -25,19 +26,21 @@ Designing the new hook was tricky, as its implementation.
    :alt: Hidden kitten
    :target: https://www.flickr.com/photos/dawnmanser/8046201692/
 
+*Exception awaiting to catch you*
+
 
 Kill Python at the first unraisable exception
 =============================================
 
-Last May, Thomas Grainger opened `bpo-36829
+One month ago, **Thomas Grainger** opened `bpo-36829
 <https://bugs.python.org/issue36829>`_: "CLI option to make
 PyErr_WriteUnraisable abort the current process". He wrote:
 
-    Currently it's quite easy for these errors to go unnoticed. (...) The point
-    for me is that CI will fail if it happens, then I can use gdb to find out
-    the cause
+    Currently it's quite easy for these **errors** to go **unnoticed**. (...)
+    The point for me is that CI will fail if it happens, then **I can use gdb**
+    to find out the cause
 
-Zackery Spytz wrote the `PR 13175
+**Zackery Spytz** wrote the `PR 13175
 <https://github.com/python/cpython/pull/13175>`_ to add ``-X abortunraisable``
 command line option. When this option is used, ``PyErr_WriteUnraisable()``
 calls ``Py_FatalError("Unraisable exception")`` which calls ``abort()``: it
@@ -50,67 +53,88 @@ I concur with Thomas that it's easy to miss such exception, but I dislike
 killing the process. It's not practical to have to use a low-level debugger
 like gdb to handle such bug.
 
-I proposed a different design: add a new hook to arbitrary Python code to
-handle an "unraisable exception": add ``sys.unraisablehook()``.
+I proposed a different design: add a new ``sys.unraisablehook`` hook allowing
+to use arbitrary Python code to handle an "unraisable exception".
 
 I wrote a `hook example <https://bugs.python.org/issue36829#msg341868>`_ which
 displays the Python stack where the exception occurred using the ``traceback``
 module.
 
-I chose to pass an single object as argument to sys.unraisablehook. The object
-has 4 attributes:
+I chose to pass an single object as argument to ``sys.unraisablehook``. The
+object has 4 attributes:
 
 * exc_type: Exception type.
 * exc_value: Exception value, can be None.
 * exc_traceback: Exception traceback, can be None.
 * object: Object causing the exception, can be None.
 
-I wanted an extensible API: keep the backward compatibility even if tomorrow we
-add a new attribute to the object to pass more information.
-
-To explain the rationale of this desing, let me tell you my bad experience with
-the ``warnings`` module.
+I wanted to design an **extensible API**: keep the backward compatibility even
+if tomorrow we want to add a new attribute to the object to pass more
+information.
 
 
 Adding source parameter to the warnings module
 ==============================================
 
-In March 2016, I was tried how debugging ``ResourceWarning`` projects: it's
+To explain the rationale of my proposed ``sys.unraisablehook`` design (single
+objeect with attributes), let me tell you my bad experience with the
+``warnings`` module.
+
+Use tracemalloc for ResourceWarning
+-----------------------------------
+
+In March 2016, I was tired how debugging ``ResourceWarning`` warnings: it's
 hard to guess where the bug comes from. The warning is logged where the
 resource is released, but I was interested by where the resource was allocated.
 
-My ``tracemalloc`` module provides a convenient ``get_object_traceback()``
-function which provides the traceback where any Python has been allocated. The
-main constraint is that it requires ``tracemalloc`` to trace all memory
-allocations.
+My `tracemalloc <https://docs.python.org/dev/library/tracemalloc.html>`_ module
+provides a convenient `get_object_traceback()
+<https://docs.python.org/dev/library/tracemalloc.html#tracemalloc.get_object_traceback>`_
+function which provides the traceback where any Python has been allocated.
 
 I opened `bpo-26604 <https://bugs.python.org/issue26604>`_: "ResourceWarning:
 Use tracemalloc to display the traceback where an object was allocated when a
 ResourceWarning is emitted".
 
+warnings hooks cannot be extended
+---------------------------------
+
 The problem is that the ``showwarning()`` and ``formatwarning()`` functions of
 ``warnings`` can be overriden. They use a fixed number of positional
-parameters. If they are called with an additional parameter, they fail with a
+parameters::
+
+    def showwarning(message, category, filename, lineno, file=None, line=None): ...
+    def formatwarning(message, category, filename, lineno, line=None): ...
+
+If they are called with an additional parameter, they fail with a
 ``TypeError``. I wanted to add a new ``source`` parameter to these functions.
+
+Reuse existing WarningMessage class
+-----------------------------------
 
 To extend the warnings module, I chose to rely on the existing
 ``WarningMessage`` class which can be used to "pack" all parameters as a single
 object. This class was used by ``catch_warnings`` context manager.
 
-I had to add new private ``_showwarnmsg()`` and ``_formatwarnmsg()`` function:
-they are called with a ``WarningMessage`` instance. The implementation has to
-detect when ``showwarning()`` and/or ``formatwarning()`` is overriden: the
+I had to add new private ``_showwarnmsg()`` and ``_formatwarnmsg()`` functions.
+They are called with a ``WarningMessage`` instance. The implementation has to
+detect when ``showwarning()`` and ``formatwarning()`` is overriden: the
 overriden function must be called with the legacy API in this case. The
 backward compatibility requirement makes the implementation complex.
 
+Regression
+----------
+
 After Python 3.6 was released with my new feature, `bpo-35178
-<https://bugs.python.org/issue35178>`_ was reported: the ``warnings`` module
+<https://bugs.python.org/issue35178>`_ was reported. The ``warnings`` module
 called a custom ``formatwarning()`` with the ``line`` argument passed as a
 keyword argument, whereas other arguments are passed as positional arguments.
 The `fix was trivial
 <https://github.com/python/cpython/commit/be7c460fb50efe3b88a00281025d76acc62ad2fd>`_,
 but it shows that backward compatibility is hard.
 
+Example
+-------
 
 By the way, example of the feature using a ``filebug.py`` script::
 
@@ -143,10 +167,10 @@ occurs very late during Python finalization cannot be handled by a custom hook.
 Thomas said that he is fine with having to use ``gdb`` to debug an issue
 during Python finalization.
 
-In my experience, using ``gdb`` on Python installed on the system is unpleasant
-since it's usually deeply optimized, and so gdb fails to read variables which
-are only displayed as ``<optimized out>``. By the way, that's why I fixed the
-`debug build of Python to be ABI compatible with a release build
+In my experience, using ``gdb`` on system Python is unpleasant, since it's
+usually deeply optimized (PGO + LTO optimizations). gdb fails to read variables
+which are only displayed as ``<optimized out>``. By the way, that's why I fixed
+the `debug build of Python to be ABI compatible with a release build
 <https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build>`_,
 but that's a different story.
 
@@ -157,23 +181,22 @@ whenever they occur.
 API discussed on python-dev
 ===========================
 
-I wanted to get more feedback on a new function added to the important ``sys``
-module, so I started a discussion on the python-dev mailing list: `bpo-36829:
-Add sys.unraisablehook()
+I started a discussion on python-dev to get more feedback: `bpo-36829: Add
+sys.unraisablehook()
 <https://mail.python.org/pipermail/python-dev/2019-May/157436.html>`_.
 
 New exception while handling an exception
 -----------------------------------------
 
-Nathaniel asked what happens if a custom hooks raises a new exception while
-handling an unraisable exception. This problem is easy to fix:
-``PyErr_WriteUnraisable()`` catchs the default hook to handle the new
-exception.
+**Nathaniel Smith** asked what happens if a custom hook raises a new exception?
+
+This problem is easy to fix: ``PyErr_WriteUnraisable()`` calls the default
+hook to handle the new exception (I already implemented this solution).
 
 Positional arguments
 --------------------
 
-Serhiy Storchaka `preferred
+**Serhiy Storchaka** `preferred
 <https://mail.python.org/pipermail/python-dev/2019-May/157439.html>`_ passing 5
 positional arguments (exc_type, exc_value, exc_tb, obj and msg):
 
@@ -188,12 +211,26 @@ Later, he added:
     introduce the structure type and create its instance until you need to pass
     additional info.
 
+Reuse sys.excepthook
+--------------------
+
+**Steve Dower** `proposed to reuse sys.excepthook
+<https://mail.python.org/pipermail/python-dev/2019-May/157453.html>`_, rather
+than adding a new hook, and `create a new exception to pass extra info
+<https://mail.python.org/pipermail/python-dev/2019-May/157465.html>`_.
+
+
+**Nathaniel** `explained
+<https://mail.python.org/pipermail/python-dev/2019-May/157460.html>`_ that
+``sys.excepthook`` and ``sys.unraisablehook`` have different behavior and so
+require to be different.
+
 Object resurrection
 -------------------
 
-Steve Dower was `concerned by object resurrection
+**Steve Dower** was `concerned by object resurrection
 <https://mail.python.org/pipermail/python-dev/2019-May/157452.html>`_ and
-proposed to only pass repr(obj) to the hook.
+proposed to only pass ``repr(obj)`` to the hook.
 
 `I explained
 <https://mail.python.org/pipermail/python-dev/2019-May/157463.html>`_ that an
@@ -210,54 +247,50 @@ accessible.
     A clever hook might want the actual object, so it can pretty-print it, or
     open an interactive debugger and let it you examine it, or something.
 
-Reuse sys.excepthook
---------------------
-
-Steve Dower also `proposed to reuse sys.excepthook
-<https://mail.python.org/pipermail/python-dev/2019-May/157453.html>`_, rather
-than adding a new hook, and `create a new exception to pass extra info
-<https://mail.python.org/pipermail/python-dev/2019-May/157465.html>`_.
-Nathaniel `explained
-<https://mail.python.org/pipermail/python-dev/2019-May/157460.html>`_ that
-``sys.excepthook`` and ``sys.unraisablehook`` have different behavior and so
-require to be different.
-
 Naming
 ------
 
-Gregory P. Smith proposed the term "uncatchable" rather than "unraisable".
+**Gregory P. Smith** proposed the term "uncatchable" rather than "unraisable".
 
 Keyword-only arguments
 ----------------------
 
-`Barry Warsaw suggested
+**Barry Warsaw** `suggested
 <https://mail.python.org/pipermail/python-dev/2019-May/157457.html>`_ to
 consider keyword-only arguments to help future proof the call signature.
 
 Avoid redundant exc_type and exc_traceback parameters
 -----------------------------------------------------
 
-`Petr Viktorin asked
+**Petr Viktorin** `asked
 <https://mail.python.org/pipermail/python-dev/2019-May/157459.html>`_ why
 ``(exc_type, exc_value, exc_traceback)`` triple is needed, wheras *exc_type*
 could be get from ``type(exc_type)`` and *exc_traceback* from
-``exc.__traceback__``.
+``exc_value.__traceback__``.
 
 `I made some tests
 <https://mail.python.org/pipermail/python-dev/2019-May/157462.html>`_.
 *exc_value* can be ``NULL`` sometimes. In some cases, *exc_traceback* can be
 set, whereas ``exc_value.__traceback__`` is not set (``None``).
 
-Note: Later, I enhanced the existing hook to attempt to always get a traceback
-and set ``exc_value.__traceback__`` to the traceback.
 
+Productive discussion!
+======================
 
-Merge my change: add sys.unraisablehook
-=======================================
+As usual, the python-dev discussion was very productive. Each corner case has
+been discussed and the API has been challenged.
 
-After one week of discussion, I was not convinced by any other alternative
-proposition, so I decided to go with my solution since multiple core devs wrote
-they liked it. I pushed my `commit ef9d9b63
+Thanks to Petr's remark, I enhanced the existing hook to instanciate an
+exception if *exc_value* is ``NULL``, create a traceback if *exc_traceback* is
+``NULL``, and set ``exc_value.__traceback__`` to the traceback. If one of these
+actions fail, the failure is silently ignored.
+
+I also paid more attention to object resurrection.
+
+After one week of discussion, I was not convinced by other alternative
+propositions, whereas multiple core devs wrote that they like my API.
+
+I decided to push my `commit ef9d9b63
 <https://github.com/python/cpython/commit/ef9d9b63129a2f243591db70e9a2dd53fab95d86>`__::
 
     commit ef9d9b63129a2f243591db70e9a2dd53fab95d86
@@ -272,9 +305,28 @@ they liked it. I pushed my `commit ef9d9b63
         For example, when a destructor raises an exception or during garbage
         collection (gc.collect()).
 
-The python-dev discussion was very productive and very useful. I paid more
-attention at object resurrection. Another example, I enhanced the hook to
-create a traceback if it was not set.
+
+New err_msg attribute
+=====================
+
+Unraisable exception were logged with no context, only an hardcoded
+"Exception ignored in:" error message.
+
+Early in ``sys.unraisablehook`` discussion, **Serhiy** proposed to add a new
+*err_msg* parameter to pass an optional error message.
+
+I implemented this idea in `bpo-36829 <https://bugs.python.org/issue36829>`__
+with `commit 71c52e30
+<https://github.com/python/cpython/commit/71c52e3048dd07567f0c690eab4e5d57be66f534>`__::
+
+    commit 71c52e3048dd07567f0c690eab4e5d57be66f534
+    Author: Victor Stinner <vstinner@redhat.com>
+    Date:   Mon May 27 08:57:14 2019 +0200
+
+        bpo-36829: Add _PyErr_WriteUnraisableMsg() (GH-13488)
+
+I was able to add a new parameter as a new *err_msg* attribute without breaking the
+backward compatibility!
 
 
 test.support.catch_unraisable_exception()
@@ -309,8 +361,8 @@ Example::
             self.assertEqual(cm.unraisable.object, BrokenDel.__del__)
 
 
-test_io issues
-==============
+test_io memory leak regression
+==============================
 
 I modified test_io to ignore expected unraisable exceptions::
 
@@ -319,9 +371,6 @@ I modified test_io to ignore expected unraisable exceptions::
     Date:   Thu Jun 13 00:23:49 2019 +0200
 
         bpo-37223: test_io: silence destructor errors (GH-14031)
-
-Memory leak
------------
 
 This change introduced a memory leak, `bpo-37261
 <https://bugs.python.org/issue37261>`_::
@@ -335,9 +384,8 @@ The problem was this ``catch_unraisable_exception`` method::
         del self.unraisable
         sys.unraisablehook = self._old_hook
 
-Sometimes, ``del self.unraisable`` triggered a new unraisable exception.
-At this point, ``catch_unraisable_exception`` hook was still registered,
-and this hook does::
+Sometimes, ``del self.unraisable`` triggered a new unraisable exception.  At
+this point, ``catch_unraisable_exception`` hook was still registered::
 
     def _hook(self, unraisable):
         self.unraisable = unraisable
@@ -349,40 +397,45 @@ First fix
 ---------
 
 First, I suspected that the  ``io.BufferedRWPair`` object which triggered the
-first unraisable exception was resurrected, and that ``del self.unraisable``
-called again its finalizer or deallocator, which triggered the *same*
-unraisable exception again.
+first unraisable exception was **resurrected**, and that ``del
+self.unraisable`` called again its finalizer or deallocator, which triggered
+the *same* unraisable exception again.
 
-My first attempt to fix the issue was to first clear the ``sys.unraisablehook``
-by setting it to ``None``, and only later delete the attribute::
+My first attempt to fix the issue was to clear the ``sys.unraisablehook`` by
+setting it to ``None``, and only later delete the attribute::
 
     def __exit__(self, *exc_info):
         self.unraisablehook = None
         sys.unraisablehook = self._old_hook
         del self.unraisable
 
-This method ignores any unraisable hook which is triggered during ``__exit__``.
+If ``self.unraisablehook = None`` triggers a new unraisable exception, it is
+silently ignored.
 
 Second correct fix
 ------------------
 
-But when I chatted with Pablo Galindo, he told me that an object cannot be
-finalized twice thanks to Antoine Pitrou's `PEP 442: Safe object finalization
+But when I chatted with **Pablo Galindo**, he told me that an object cannot be
+finalized twice thanks to **Antoine Pitrou**'s `PEP 442: Safe object finalization
 <https://www.python.org/dev/peps/pep-0442/>`_.
 
-I looked again into gdb. Oh. In fact, it's more subtle. When ``__exit__()`` is
-called, ``BufferedRWPair`` **deallocator** is called which calls the finalizer
-of the ``BufferedWriter`` object which was stored in the ``BufferedRWPair``.
+I looked again into gdb. Oh. In fact, it's more subtle. ``del self.unraisable``
+clears the last reference to ``BufferedRWPair`` which calls its
+**deallocator**. The dealloactor indirectly calls the ``BufferedWriter``
+finalizer; the ``BufferedWriter`` was stored in the ``BufferedRWPair``. This
+finalizer triggers a new unraisable exception.
 
 ``BufferedRWPair`` does not trigger two unraisable exception. It's a different
-object. My final fix is to restore the old hook before deleting the
-``unraisable`` attribute::
+object (``BufferedWriter``).
+
+My final fix is to restore the old hook before deleting the ``unraisable``
+attribute::
 
     def __exit__(self, *exc_info):
         sys.unraisablehook = self._old_hook
         del self.unraisable
 
-And I fixed test_io using two nested context managers::
+And fix test_io using two nested context managers::
 
     # Ignore BufferedWriter (of the BufferedRWPair) unraisable exception
     with support.catch_unraisable_exception():
@@ -409,15 +462,9 @@ I also documented corner cases in ``sys.unraisablehook`` documentation:
 regrtest now detects unraisable exceptions
 ==========================================
 
-Once I fixed all tests to silence all expected unraisable exceptions, I created
+Once I fixed tests to silence all expected unraisable exceptions, I created
 `bpo-37069 <https://bugs.python.org/issue37069>`_ to modify regrtest to install
-a custom hook: a test is marked as "environment altered" (ENV_CHANGED) if the
-test triggers an unraisable exception.
-
-Using ``python3 -m test --fail-env-changed``, which is the case on all Python
-CIs, a test is marked as failed in this case.
-
-See `commit 95f61c8b
+a custom hook. I merged my `commit 95f61c8b
 <https://github.com/python/cpython/commit/95f61c8b1619e736bd5e29a0da0183234634b6e8>`__::
 
     commit 95f61c8b1619e736bd5e29a0da0183234634b6e8
@@ -433,6 +480,10 @@ See `commit 95f61c8b
         Use "python3 -m test --fail-env-changed" to catch unraisable
         exceptions in tests.
 
+A test is marked as "environment altered" (ENV_CHANGED) if the test triggers an
+unraisable exception. Using ``--fail-env-changed`` option (option used by
+default on all Python CIs), a test is marked as failed in this case.
+
 
 Hook features
 =============
@@ -446,7 +497,7 @@ It opens many interesting features:
 * Get the traceback where *object* has been allocated:
   ``tracemalloc.get_object_traceback()``
 
-By the way, reimplement Thomas Grainger's initial idea became trivial::
+By the way, reimplementing Thomas's initial idea became trivial::
 
     import signal, sys
 
