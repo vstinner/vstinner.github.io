@@ -36,4 +36,4 @@ Requirements:
 
 Command::
 
-    sudo python3 -m pip install -U pelican ghp-import
+    python3 -m pip install --user -U pelican ghp-import
