@@ -20,7 +20,7 @@ it to the caller. Examples: object finalizer error (``__del__()``), weak
 reference callback failure, error during a GC collection. At the C level, the
 ``PyErr_WriteUnraisable()`` function is called to handle such exception.
 
-Designing the new hook was tricky, as its implementation.
+Design the new hook was tricky, as its implementation.
 
 .. image:: {static}/images/hidden_kitten.jpg
    :alt: Hidden kitten
