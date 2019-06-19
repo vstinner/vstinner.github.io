@@ -19,7 +19,198 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/sys-unraisablehook-python38.html">Python 3.8 sys.unraisablehook</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/split-include-directory-python38.html">Split Include/ directory in Python 3.8</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-06-19T12:00:00+02:00">
+                Published: mer. 19 juin 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
+</footer><!-- /.post-info --><p>In September 2017, during the CPython sprint at Facebook, I proposed my
+idea to create <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a>.
+I'm still working on the Python C API at: <a class="reference external" href="http://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a>.</p>
+<p>My analysis is that the C API leaks too many implementation details which
+prevent to optimize Python and make the implementation of PyPy (cpyext) more
+painful.</p>
+<p>In Python 3.8, I created <tt class="docutils literal">Include/cpthon/</tt> sub-directories to stop adding
+new APIs by mistake to the stable API.</p>
+<p>I moved more private functions into the internal C API: <tt class="docutils literal">Include/internal/</tt>
+directory.</p>
+<p>I also converted some macros like <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> to static
+inline functions to have well defined parameter and return type, and to avoid
+macro pitfals.</p>
+<p>Finally, I removed 3 functions from the C API.</p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
+<div class="section" id="include-internal">
+<h2>Include/internal/</h2>
+<p>In Python 3.7, <strong>Eric Snow</strong> created <tt class="docutils literal">Include/internal/</tt> sub-directory for
+the CPython &quot;internal C API&quot;: API which should not be used outside CPython code
+base. In Python 3.6, these APIs were surrounded by:</p>
+<pre class="literal-block">
+#ifdef Py_BUILD_CORE
+...
+#endif
+</pre>
+<p>In Python 3.8, I continued this work by moving more private functions into
+this directory: see <a class="reference external" href="https://bugs.python.org/issue35081">bpo-35081</a>.</p>
+<p>I started a thread on python-dev: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2018-October/155587.html">[Python-Dev] Rename Include/internal/ to
+Include/pycore/</a>. But
+it was decided to keep <tt class="docutils literal">Include/internal/</tt> name. It was decided that internal
+header files must not be included implicitly by the generic <tt class="docutils literal">#include
+&lt;Python.h&gt;</tt>, but included explicitly. For example, when I moved
+<tt class="docutils literal">_PyObject_GC_TRACK()</tt> and <tt class="docutils literal">_PyObject_GC_UNTRACK()</tt> to the internal C API,
+I had to add <tt class="docutils literal">#include &quot;pycore_object.h&quot;</tt> to 32 C files!</p>
+<p><a class="reference external" href="https://bugs.python.org/issue35296">I also modified make install</a> to install
+this internal C API, so it can be used for specific needs like debuggers or
+profilers which have to access CPython internals (access structure fields) but
+cannot call functions. For example, <strong>Eric Snow</strong> moved the <tt class="docutils literal">PyInterpreterState</tt>
+structure to the internal C API.</p>
+<p>Installing the internal C API ease the migration of APIs to internal: if an API
+is still needed after it's moved, it's now possible to opt-in to use it.</p>
+<p>Using the internal C API requires to define <tt class="docutils literal">Py_BUILD_CORE_MODULE</tt> macro and
+use a different include, like <tt class="docutils literal">#include &quot;internal/pycore_pystate.h&quot;</tt>. It's
+more complicated on purpose: ensure that it's not used by mistake.</p>
+<p>Python 3.8 now provides 21 internal header files:</p>
+<pre class="literal-block">
+pycore_accu.h       pycore_getopt.h      pycore_pyhash.h
+pycore_atomic.h     pycore_gil.h         pycore_pylifecycle.h
+pycore_ceval.h      pycore_hamt.h        pycore_pymem.h
+pycore_code.h       pycore_initconfig.h  pycore_pystate.h
+pycore_condvar.h    pycore_object.h      pycore_traceback.h
+pycore_context.h    pycore_pathconfig.h  pycore_tupleobject.h
+pycore_fileutils.h  pycore_pyerrors.h    pycore_warnings.h
+</pre>
+</div>
+<div class="section" id="include-cpython">
+<h2>Include/cpython/</h2>
+<p>The <a class="reference external" href="https://www.python.org/dev/peps/pep-0384/">PEP 384 &quot;Defining a Stable ABI&quot;</a> introduced <tt class="docutils literal">Py_LIMITED_API</tt>
+macro to exclude functions from the Python C API. The problem is when a new API
+is added, it has to explicitly be excluded using <tt class="docutils literal">#ifndef Py_LIMITED_API</tt>.
+If the author forgets it, the function is added to be stable API by mistake.</p>
+<p>I proposed to move the API which should be excluded from the stable ABI to a
+new subdirectory. I created a <a class="reference external" href="https://discuss.python.org/t/poll-what-is-your-favorite-name-for-the-new-include-subdirectory/477">poll on the sub-directory name</a>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">Include/cpython/</tt></li>
+<li><tt class="docutils literal">Include/board/</tt></li>
+<li><tt class="docutils literal">Include/impl/</tt></li>
+<li><tt class="docutils literal">Include/pycapi/</tt> (the name that I proposed initially)</li>
+<li><tt class="docutils literal">Include/unstable/</tt></li>
+<li>other (add comment)</li>
+</ul>
+<p>The <tt class="docutils literal">Include/cpython/</tt> name won with 100% of the 3 votes (and a few more
+supports in the python-dev discussion and in the bug tracker) :-)</p>
+<p>I created <a class="reference external" href="https://bugs.python.org/issue35134">bpo-35134: Add a new Include/cpython/ subdirectory for the &quot;CPython
+API&quot; with implementation details</a>.</p>
+<p>My initial description of the directory content:</p>
+<blockquote>
+The new subdirectory will contain <tt class="docutils literal">#ifndef Py_LIMITED_API</tt> code, not the
+“Stable ABI” of <a class="reference external" href="https://www.python.org/dev/peps/pep-0384/">PEP 384</a>, but
+more “implementation details” of CPython.</blockquote>
+<p>The change is backward compatible: <tt class="docutils literal">#include &lt;Python.h&gt;</tt> will still provide
+exactly the same API. For example, <tt class="docutils literal">object.h</tt> automatically includes
+<tt class="docutils literal">cpython/object.h</tt>. But <tt class="docutils literal">Include/cpython/</tt> headers must not be included
+directly (it would fail with a compilation error).</p>
+<p>For example, <tt class="docutils literal">Include/object.h</tt> now ends with:</p>
+<pre class="literal-block">
+#ifndef Py_LIMITED_API
+#  define Py_CPYTHON_OBJECT_H
+#  include  &quot;cpython/object.h&quot;
+#  undef Py_CPYTHON_OBJECT_H
+#endif
+</pre>
+<p><tt class="docutils literal">Include/cpython/object.h</tt> structure (content replaced with <tt class="docutils literal">...</tt>):</p>
+<pre class="literal-block">
+#ifndef Py_CPYTHON_OBJECT_H
+#  error &quot;this header file must not be included directly&quot;
+#endif
+
+#ifdef __cplusplus
+extern &quot;C&quot; {
+#endif
+
+...
+
+#ifdef __cplusplus
+}
+#endif
+</pre>
+<p>In Python 3.8, the work is not complete. I tried to double- or even
+triple-check my changes to ensure that I don't remove an API by mistake. This
+work is still on-going in Python 3.9.</p>
+</div>
+<div class="section" id="summary-of-include-directories">
+<h2>Summary of Include/ directories</h2>
+<p>The header files have been reorganized to better separate the different kinds
+of APIs:</p>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">Include/*.h</span></tt> should be the portable public stable C API.</li>
+<li><tt class="docutils literal"><span class="pre">Include/cpython/*.h</span></tt> should be the unstable C API specific to CPython;
+public API, with some private API prefixed by <tt class="docutils literal">_Py</tt> or <tt class="docutils literal">_PY</tt>.</li>
+<li><tt class="docutils literal"><span class="pre">Include/internal/*.h</span></tt> is the private internal C API very specific to
+CPython. This API comes with no backward compatibility warranty and should
+not be used outside CPython. It is only exposed for very specific needs
+like debuggers and profiles which has to access to CPython internals
+without calling functions. This API is now installed by <tt class="docutils literal">make install</tt>.</li>
+</ul>
+</div>
+<div class="section" id="convert-macros-to-static-inline-functions">
+<h2>Convert macros to static inline functions</h2>
+<p>In <a class="reference external" href="https://bugs.python.org/issue35059">bpo-35059</a>, I converted some macros
+to static inline functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">Py_INCREF()</tt>, <tt class="docutils literal">Py_DECREF()</tt></li>
+<li><tt class="docutils literal">Py_XINCREF()</tt>, <tt class="docutils literal">Py_XDECREF()</tt></li>
+<li><tt class="docutils literal">PyObject_INIT()</tt>, <tt class="docutils literal">PyObject_INIT_VAR()</tt></li>
+<li>Private functions: <tt class="docutils literal">_PyObject_GC_TRACK()</tt>, <tt class="docutils literal">_PyObject_GC_UNTRACK()</tt>,
+<tt class="docutils literal">_Py_Dealloc()</tt></li>
+</ul>
+<p>Compared to macros, static inline functions have multiple advantages:</p>
+<ul class="simple">
+<li>Parameter types and return type are well defined;</li>
+<li>They don't have issues specific to macros: see <a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html">GCC Macro Pitfals</a>;</li>
+<li>Variables have a well defined local scope.</li>
+</ul>
+<p>Python 3.7 uses ugly macros with comma and semicolon. Example:</p>
+<pre class="literal-block">
+#define _Py_REF_DEBUG_COMMA ,
+#define _Py_CHECK_REFCNT(OP) /* a semicolon */;
+
+#define _Py_NewReference(op) (                          \
+    _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
+    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
+    Py_REFCNT(op) = 1)
+</pre>
+<p><a class="reference external" href="https://www.python.org/dev/peps/pep-0007/#c-dialect">Python 3.6 requires C99 standard of the C dialect</a>. It was time to start
+to use it :-)</p>
+</div>
+<div class="section" id="removed-functions">
+<h2>Removed functions</h2>
+<p><a class="reference external" href="https://bugs.python.org/issue32980">bpo-32980</a>: I removed
+<tt class="docutils literal">PyByteArray_Init()</tt> and <tt class="docutils literal">PyByteArray_Fini()</tt> functions. They did nothing
+since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
+ABI), and were not documented.</p>
+<p><a class="reference external" href="https://bugs.python.org/issue36728">bpo-36728</a>: I also removed
+<tt class="docutils literal">PyEval_ReInitThreads()</tt> function. It should not be called explicitly: use
+<tt class="docutils literal">PyOS_AfterFork_Child()</tt> instead.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="bookmark"
+                           title="Permalink to Python 3.8 sys.unraisablehook">Python 3.8 sys.unraisablehook</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-06-15T01:00:00+02:00">
                 Published: sam. 15 juin 2019
@@ -30,426 +221,15 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info --><p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
+</footer><!-- /.post-info -->                <p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
 allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
 It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
 released last week!</p>
 <p>An &quot;unraisable exception&quot; is an error which happens when Python cannot report
-it to the caller. Examples: object finalizer error (<tt class="docutils literal">__del__()</tt>), weak
-reference callback failure, error during a GC collection. At the C level, the
-<tt class="docutils literal">PyErr_WriteUnraisable()</tt> function is called to handle such exception.</p>
-<p>Design the new hook was tricky, as its implementation.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"><img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /></a>
-<p><em>Exception awaiting to catch you</em></p>
-<div class="section" id="kill-python-at-the-first-unraisable-exception">
-<h2>Kill Python at the first unraisable exception</h2>
-<p>One month ago, <strong>Thomas Grainger</strong> opened <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>: &quot;CLI option to make
-PyErr_WriteUnraisable abort the current process&quot;. He wrote:</p>
-<blockquote>
-Currently it's quite easy for these <strong>errors</strong> to go <strong>unnoticed</strong>. (...)
-The point for me is that CI will fail if it happens, then <strong>I can use gdb</strong>
-to find out the cause</blockquote>
-<p><strong>Zackery Spytz</strong> wrote the <a class="reference external" href="https://github.com/python/cpython/pull/13175">PR 13175</a> to add <tt class="docutils literal"><span class="pre">-X</span> abortunraisable</tt>
-command line option. When this option is used, <tt class="docutils literal">PyErr_WriteUnraisable()</tt>
-calls <tt class="docutils literal"><span class="pre">Py_FatalError(&quot;Unraisable</span> exception&quot;)</tt> which calls <tt class="docutils literal">abort()</tt>: it
-raises <tt class="docutils literal">SIGABRT</tt> signal which kills the process by default.</p>
-</div>
-<div class="section" id="handle-unraisable-exception-in-python-sys-unraisablehook">
-<h2>Handle unraisable exception in Python: sys.unraisablehook</h2>
-<p>I concur with Thomas that it's easy to miss such exception, but I dislike
-killing the process. It's not practical to have to use a low-level debugger
-like gdb to handle such bug.</p>
-<p>I proposed a different design: add a new <tt class="docutils literal">sys.unraisablehook</tt> hook allowing
-to use arbitrary Python code to handle an &quot;unraisable exception&quot;.</p>
-<p>I wrote a <a class="reference external" href="https://bugs.python.org/issue36829#msg341868">hook example</a> which
-displays the Python stack where the exception occurred using the <tt class="docutils literal">traceback</tt>
-module.</p>
-<p>I chose to pass an single object as argument to <tt class="docutils literal">sys.unraisablehook</tt>. The
-object has 4 attributes:</p>
-<ul class="simple">
-<li>exc_type: Exception type.</li>
-<li>exc_value: Exception value, can be None.</li>
-<li>exc_traceback: Exception traceback, can be None.</li>
-<li>object: Object causing the exception, can be None.</li>
-</ul>
-<p>I wanted to design an <strong>extensible API</strong>: keep the backward compatibility even
-if tomorrow we want to add a new attribute to the object to pass more
-information.</p>
-</div>
-<div class="section" id="adding-source-parameter-to-the-warnings-module">
-<h2>Adding source parameter to the warnings module</h2>
-<p>To explain the rationale of my proposed <tt class="docutils literal">sys.unraisablehook</tt> design (single
-objeect with attributes), let me tell you my bad experience with the
-<tt class="docutils literal">warnings</tt> module.</p>
-<div class="section" id="use-tracemalloc-for-resourcewarning">
-<h3>Use tracemalloc for ResourceWarning</h3>
-<p>In March 2016, I was tired how debugging <tt class="docutils literal">ResourceWarning</tt> warnings: it's
-hard to guess where the bug comes from. The warning is logged where the
-resource is released, but I was interested by where the resource was allocated.</p>
-<p>My <a class="reference external" href="https://docs.python.org/dev/library/tracemalloc.html">tracemalloc</a> module
-provides a convenient <a class="reference external" href="https://docs.python.org/dev/library/tracemalloc.html#tracemalloc.get_object_traceback">get_object_traceback()</a>
-function which provides the traceback where any Python has been allocated.</p>
-<p>I opened <a class="reference external" href="https://bugs.python.org/issue26604">bpo-26604</a>: &quot;ResourceWarning:
-Use tracemalloc to display the traceback where an object was allocated when a
-ResourceWarning is emitted&quot;.</p>
-</div>
-<div class="section" id="warnings-hooks-cannot-be-extended">
-<h3>warnings hooks cannot be extended</h3>
-<p>The problem is that the <tt class="docutils literal">showwarning()</tt> and <tt class="docutils literal">formatwarning()</tt> functions of
-<tt class="docutils literal">warnings</tt> can be overriden. They use a fixed number of positional
-parameters:</p>
-<pre class="literal-block">
-def showwarning(message, category, filename, lineno, file=None, line=None): ...
-def formatwarning(message, category, filename, lineno, line=None): ...
-</pre>
-<p>If they are called with an additional parameter, they fail with a
-<tt class="docutils literal">TypeError</tt>. I wanted to add a new <tt class="docutils literal">source</tt> parameter to these functions.</p>
-</div>
-<div class="section" id="reuse-existing-warningmessage-class">
-<h3>Reuse existing WarningMessage class</h3>
-<p>To extend the warnings module, I chose to rely on the existing
-<tt class="docutils literal">WarningMessage</tt> class which can be used to &quot;pack&quot; all parameters as a single
-object. This class was used by <tt class="docutils literal">catch_warnings</tt> context manager.</p>
-<p>I had to add new private <tt class="docutils literal">_showwarnmsg()</tt> and <tt class="docutils literal">_formatwarnmsg()</tt> functions.
-They are called with a <tt class="docutils literal">WarningMessage</tt> instance. The implementation has to
-detect when <tt class="docutils literal">showwarning()</tt> and <tt class="docutils literal">formatwarning()</tt> is overriden: the
-overriden function must be called with the legacy API in this case. The
-backward compatibility requirement makes the implementation complex.</p>
-</div>
-<div class="section" id="regression">
-<h3>Regression</h3>
-<p>After Python 3.6 was released with my new feature, <a class="reference external" href="https://bugs.python.org/issue35178">bpo-35178</a> was reported. The <tt class="docutils literal">warnings</tt> module
-called a custom <tt class="docutils literal">formatwarning()</tt> with the <tt class="docutils literal">line</tt> argument passed as a
-keyword argument, whereas other arguments are passed as positional arguments.
-The <a class="reference external" href="https://github.com/python/cpython/commit/be7c460fb50efe3b88a00281025d76acc62ad2fd">fix was trivial</a>,
-but it shows that backward compatibility is hard.</p>
-</div>
-<div class="section" id="example">
-<h3>Example</h3>
-<p>By the way, example of the feature using a <tt class="docutils literal">filebug.py</tt> script:</p>
-<pre class="literal-block">
-def func():
-    f = open(__file__)
-    f = None
-
-func()
-</pre>
-<p>The feature adds the &quot;Object allocated at&quot; traceback, whereas existing <tt class="docutils literal">f =
-None</tt> output is worthless.</p>
-<pre class="literal-block">
-$ python3 -Wd -X tracemalloc=5 filebug.py
-filebug.py:3: ResourceWarning: unclosed file &lt;_io.TextIOWrapper name='filebug.py' mode='r' encoding='UTF-8'&gt;
-  f = None
-Object allocated at (most recent call first):
-  File &quot;filebug.py&quot;, lineno 2
-    f = open(__file__)
-  File &quot;filebug.py&quot;, lineno 5
-    func()
-</pre>
-</div>
-</div>
-<div class="section" id="limitations-of-my-unraisablehook-idea">
-<h2>Limitations of my unraisablehook idea</h2>
-<p>To come back to <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>, I identified
-a limitation in my <tt class="docutils literal">sys.unraisablehook</tt> idea: unraisable exceptions which
-occurs very late during Python finalization cannot be handled by a custom hook.</p>
-<p>Thomas said that he is fine with having to use <tt class="docutils literal">gdb</tt> to debug an issue
-during Python finalization.</p>
-<p>In my experience, using <tt class="docutils literal">gdb</tt> on system Python is unpleasant, since it's
-usually deeply optimized (PGO + LTO optimizations). gdb fails to read variables
-which are only displayed as <tt class="docutils literal">&lt;optimized out&gt;</tt>. By the way, that's why I fixed
-the <a class="reference external" href="https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build">debug build of Python to be ABI compatible with a release build</a>,
-but that's a different story.</p>
-<p>Thomas's idea of killing the process allows to detect unraisable exceptions
-whenever they occur.</p>
-</div>
-<div class="section" id="api-discussed-on-python-dev">
-<h2>API discussed on python-dev</h2>
-<p>I started a discussion on python-dev to get more feedback: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157436.html">bpo-36829: Add
-sys.unraisablehook()</a>.</p>
-<div class="section" id="new-exception-while-handling-an-exception">
-<h3>New exception while handling an exception</h3>
-<p><strong>Nathaniel Smith</strong> asked what happens if a custom hook raises a new exception?</p>
-<p>This problem is easy to fix: <tt class="docutils literal">PyErr_WriteUnraisable()</tt> calls the default
-hook to handle the new exception (I already implemented this solution).</p>
-</div>
-<div class="section" id="positional-arguments">
-<h3>Positional arguments</h3>
-<p><strong>Serhiy Storchaka</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157439.html">preferred</a> passing 5
-positional arguments (exc_type, exc_value, exc_tb, obj and msg):</p>
-<blockquote>
-Currently we have no plans for adding more details, and I do not think that
-we will need to do this in future.</blockquote>
-<p>Later, he added:</p>
-<blockquote>
-If you have plans for adding new details in future, I propose to add a 6th
-parameter &quot;context&quot; or &quot;extra&quot; (always None currently). It is as extensible
-as packing all arguments into a single structure, but you do not need to
-introduce the structure type and create its instance until you need to pass
-additional info.</blockquote>
-</div>
-<div class="section" id="reuse-sys-excepthook">
-<h3>Reuse sys.excepthook</h3>
-<p><strong>Steve Dower</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157453.html">proposed to reuse sys.excepthook</a>, rather
-than adding a new hook, and <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157465.html">create a new exception to pass extra info</a>.</p>
-<p><strong>Nathaniel</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157460.html">explained</a> that
-<tt class="docutils literal">sys.excepthook</tt> and <tt class="docutils literal">sys.unraisablehook</tt> have different behavior and so
-require to be different.</p>
-</div>
-<div class="section" id="object-resurrection">
-<h3>Object resurrection</h3>
-<p><strong>Steve Dower</strong> was <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157452.html">concerned by object resurrection</a> and
-proposed to only pass <tt class="docutils literal">repr(obj)</tt> to the hook.</p>
-<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157463.html">I explained</a> that an
-object can only be resurrected after its finalization, which is different than
-deallocation. Accessing a finalized object should not crash Python. The
-deallocation makes an object unsable, except that deallocation only happens
-once the last references to an object is gone, and so the object is no longer
-accessible.</p>
-<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157467.html">Nathaniel added</a> that
-<tt class="docutils literal">repr()</tt> would limit features of the hook:</p>
-<blockquote>
-A clever hook might want the actual object, so it can pretty-print it, or
-open an interactive debugger and let it you examine it, or something.</blockquote>
-</div>
-<div class="section" id="naming">
-<h3>Naming</h3>
-<p><strong>Gregory P. Smith</strong> proposed the term &quot;uncatchable&quot; rather than &quot;unraisable&quot;.</p>
-</div>
-<div class="section" id="keyword-only-arguments">
-<h3>Keyword-only arguments</h3>
-<p><strong>Barry Warsaw</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157457.html">suggested</a> to
-consider keyword-only arguments to help future proof the call signature.</p>
-</div>
-<div class="section" id="avoid-redundant-exc-type-and-exc-traceback-parameters">
-<h3>Avoid redundant exc_type and exc_traceback parameters</h3>
-<p><strong>Petr Viktorin</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157459.html">asked</a> why
-<tt class="docutils literal">(exc_type, exc_value, exc_traceback)</tt> triple is needed, wheras <em>exc_type</em>
-could be get from <tt class="docutils literal">type(exc_type)</tt> and <em>exc_traceback</em> from
-<tt class="docutils literal">exc_value.__traceback__</tt>.</p>
-<p><a class="reference external" href="https://mail.python.org/pipermail/python-dev/2019-May/157462.html">I made some tests</a>.
-<em>exc_value</em> can be <tt class="docutils literal">NULL</tt> sometimes. In some cases, <em>exc_traceback</em> can be
-set, whereas <tt class="docutils literal">exc_value.__traceback__</tt> is not set (<tt class="docutils literal">None</tt>).</p>
-</div>
-</div>
-<div class="section" id="productive-discussion">
-<h2>Productive discussion!</h2>
-<p>As usual, the python-dev discussion was very productive. Each corner case has
-been discussed and the API has been challenged.</p>
-<p>Thanks to Petr's remark, I enhanced the existing hook to instanciate an
-exception if <em>exc_value</em> is <tt class="docutils literal">NULL</tt>, create a traceback if <em>exc_traceback</em> is
-<tt class="docutils literal">NULL</tt>, and set <tt class="docutils literal">exc_value.__traceback__</tt> to the traceback. If one of these
-actions fail, the failure is silently ignored.</p>
-<p>I also paid more attention to object resurrection.</p>
-<p>After one week of discussion, I was not convinced by other alternative
-propositions, whereas multiple core devs wrote that they like my API.</p>
-<p>I decided to push my <a class="reference external" href="https://github.com/python/cpython/commit/ef9d9b63129a2f243591db70e9a2dd53fab95d86">commit ef9d9b63</a>:</p>
-<pre class="literal-block">
-commit ef9d9b63129a2f243591db70e9a2dd53fab95d86
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Wed May 22 11:28:22 2019 +0200
-
-    bpo-36829: Add sys.unraisablehook() (GH-13187)
-
-    Add new sys.unraisablehook() function which can be overridden to
-    control how &quot;unraisable exceptions&quot; are handled. It is called when an
-    exception has occurred but there is no way for Python to handle it.
-    For example, when a destructor raises an exception or during garbage
-    collection (gc.collect()).
-</pre>
-</div>
-<div class="section" id="new-err-msg-attribute">
-<h2>New err_msg attribute</h2>
-<p>Unraisable exception were logged with no context, only an hardcoded
-&quot;Exception ignored in:&quot; error message.</p>
-<p>Early in <tt class="docutils literal">sys.unraisablehook</tt> discussion, <strong>Serhiy</strong> proposed to add a new
-<em>err_msg</em> parameter to pass an optional error message.</p>
-<p>I implemented this idea in <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>
-with <a class="reference external" href="https://github.com/python/cpython/commit/71c52e3048dd07567f0c690eab4e5d57be66f534">commit 71c52e30</a>:</p>
-<pre class="literal-block">
-commit 71c52e3048dd07567f0c690eab4e5d57be66f534
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Mon May 27 08:57:14 2019 +0200
-
-    bpo-36829: Add _PyErr_WriteUnraisableMsg() (GH-13488)
-</pre>
-<p>I was able to add a new parameter as a new <em>err_msg</em> attribute without breaking the
-backward compatibility!</p>
-</div>
-<div class="section" id="test-support-catch-unraisable-exception">
-<h2>test.support.catch_unraisable_exception()</h2>
-<p>I wrote a new context manager catching unraisable exceptions:
-<tt class="docutils literal">test.support.catch_unraisable_exception()</tt>. The exception is stored and so
-can be used for tests in the context manager, but cleared at context manager
-exit.</p>
-<p>I modified tests to use this new context manager:</p>
-<ul class="simple">
-<li>test_coroutines</li>
-<li>test_cprofile</li>
-<li>test_exceptions</li>
-<li>test_generators</li>
-<li>test_io</li>
-<li>test_raise</li>
-<li>test_ssl</li>
-<li>test_thread</li>
-<li>test_yield_from</li>
-</ul>
-<p>Example:</p>
-<pre class="literal-block">
-class BrokenDel:
-    def __del__(self):
-        raise ValueError(&quot;del is broken&quot;)
-
-obj = BrokenDel()
-with support.catch_unraisable_exception() as cm:
-    del obj
-    self.assertEqual(cm.unraisable.object, BrokenDel.__del__)
-</pre>
-</div>
-<div class="section" id="test-io-memory-leak-regression">
-<h2>test_io memory leak regression</h2>
-<p>I modified test_io to ignore expected unraisable exceptions:</p>
-<pre class="literal-block">
-commit c15a682603a47f5aef5025f6a2e3babb699273d6
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Thu Jun 13 00:23:49 2019 +0200
-
-    bpo-37223: test_io: silence destructor errors (GH-14031)
-</pre>
-<p>This change introduced a memory leak, <a class="reference external" href="https://bugs.python.org/issue37261">bpo-37261</a>:</p>
-<pre class="literal-block">
-test_io leaked [23208, 23204, 23208] references, sum=69620
-test_io leaked [7657, 7655, 7657] memory blocks, sum=22969
-</pre>
-<p>The problem was this <tt class="docutils literal">catch_unraisable_exception</tt> method:</p>
-<pre class="literal-block">
-def __exit__(self, *exc_info):
-    del self.unraisable
-    sys.unraisablehook = self._old_hook
-</pre>
-<p>Sometimes, <tt class="docutils literal">del self.unraisable</tt> triggered a new unraisable exception.  At
-this point, <tt class="docutils literal">catch_unraisable_exception</tt> hook was still registered:</p>
-<pre class="literal-block">
-def _hook(self, unraisable):
-    self.unraisable = unraisable
-</pre>
-<p>At the end, <tt class="docutils literal">del self.unraisable</tt> instruction <em>indirectly</em> sets again the
-<tt class="docutils literal">self.unraisable</tt> attribute.</p>
-<div class="section" id="first-fix">
-<h3>First fix</h3>
-<p>First, I suspected that the  <tt class="docutils literal">io.BufferedRWPair</tt> object which triggered the
-first unraisable exception was <strong>resurrected</strong>, and that <tt class="docutils literal">del
-self.unraisable</tt> called again its finalizer or deallocator, which triggered
-the <em>same</em> unraisable exception again.</p>
-<p>My first attempt to fix the issue was to clear the <tt class="docutils literal">sys.unraisablehook</tt> by
-setting it to <tt class="docutils literal">None</tt>, and only later delete the attribute:</p>
-<pre class="literal-block">
-def __exit__(self, *exc_info):
-    self.unraisablehook = None
-    sys.unraisablehook = self._old_hook
-    del self.unraisable
-</pre>
-<p>If <tt class="docutils literal">self.unraisablehook = None</tt> triggers a new unraisable exception, it is
-silently ignored.</p>
-</div>
-<div class="section" id="second-correct-fix">
-<h3>Second correct fix</h3>
-<p>But when I chatted with <strong>Pablo Galindo</strong>, he told me that an object cannot be
-finalized twice thanks to <strong>Antoine Pitrou</strong>'s <a class="reference external" href="https://www.python.org/dev/peps/pep-0442/">PEP 442: Safe object finalization</a>.</p>
-<p>I looked again into gdb. Oh. In fact, it's more subtle. <tt class="docutils literal">del self.unraisable</tt>
-clears the last reference to <tt class="docutils literal">BufferedRWPair</tt> which calls its
-<strong>deallocator</strong>. The dealloactor indirectly calls the <tt class="docutils literal">BufferedWriter</tt>
-finalizer; the <tt class="docutils literal">BufferedWriter</tt> was stored in the <tt class="docutils literal">BufferedRWPair</tt>. This
-finalizer triggers a new unraisable exception.</p>
-<p><tt class="docutils literal">BufferedRWPair</tt> does not trigger two unraisable exception. It's a different
-object (<tt class="docutils literal">BufferedWriter</tt>).</p>
-<p>My final fix is to restore the old hook before deleting the <tt class="docutils literal">unraisable</tt>
-attribute:</p>
-<pre class="literal-block">
-def __exit__(self, *exc_info):
-    sys.unraisablehook = self._old_hook
-    del self.unraisable
-</pre>
-<p>And fix test_io using two nested context managers:</p>
-<pre class="literal-block">
-# Ignore BufferedWriter (of the BufferedRWPair) unraisable exception
-with support.catch_unraisable_exception():
-    # Ignore BufferedRWPair unraisable exception
-    with support.catch_unraisable_exception():
-        pair = None
-        support.gc_collect()
-    support.gc_collect()
-</pre>
-<p>I also documented corner cases in <tt class="docutils literal">sys.unraisablehook</tt> documentation:</p>
-<blockquote>
-<p><tt class="docutils literal">sys.unraisablehook</tt> can be overridden to control how unraisable
-exceptions are handled.</p>
-<p>Storing <em>exc_value</em> using a custom hook can create a <strong>reference cycle</strong>. It
-should be cleared explicitly to break the reference cycle when the exception
-is no longer needed.</p>
-<p>Storing <em>object</em> using a custom hook <strong>can resurrect</strong> it if it is set to an
-object which is being finalized. Avoid storing <em>object</em> after the custom
-hook completes to avoid resurrecting objects.</p>
-</blockquote>
-</div>
-</div>
-<div class="section" id="regrtest-now-detects-unraisable-exceptions">
-<h2>regrtest now detects unraisable exceptions</h2>
-<p>Once I fixed tests to silence all expected unraisable exceptions, I created
-<a class="reference external" href="https://bugs.python.org/issue37069">bpo-37069</a> to modify regrtest to install
-a custom hook. I merged my <a class="reference external" href="https://github.com/python/cpython/commit/95f61c8b1619e736bd5e29a0da0183234634b6e8">commit 95f61c8b</a>:</p>
-<pre class="literal-block">
-commit 95f61c8b1619e736bd5e29a0da0183234634b6e8
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Thu Jun 13 01:09:04 2019 +0200
-
-    bpo-37069: regrtest uses sys.unraisablehook (GH-13759)
-
-    regrtest now uses sys.unraisablehook() to mark a test as &quot;environment
-    altered&quot; (ENV_CHANGED) if it emits an &quot;unraisable exception&quot;.
-    Moreover, regrtest logs a warning in this case.
-
-    Use &quot;python3 -m test --fail-env-changed&quot; to catch unraisable
-    exceptions in tests.
-</pre>
-<p>A test is marked as &quot;environment altered&quot; (ENV_CHANGED) if the test triggers an
-unraisable exception. Using <tt class="docutils literal"><span class="pre">--fail-env-changed</span></tt> option (option used by
-default on all Python CIs), a test is marked as failed in this case.</p>
-</div>
-<div class="section" id="hook-features">
-<h2>Hook features</h2>
-<p>sys.unraisablehook allows to set a custom hook to handle unraisable exceptions.
-It opens many interesting features:</p>
-<ul class="simple">
-<li>Log the exception into system logs, over the network, or open a popup.</li>
-<li>Inspect the Python stack: <tt class="docutils literal">traceback.print_stack()</tt></li>
-<li>Inspect <em>object</em> content (object which caused the exception)</li>
-<li>Get the traceback where <em>object</em> has been allocated:
-<tt class="docutils literal">tracemalloc.get_object_traceback()</tt></li>
-</ul>
-<p>By the way, reimplementing Thomas's initial idea became trivial:</p>
-<pre class="literal-block">
-import signal, sys
-
-def abort_hook(unraisable):
-    signal.raise_signal(signal.SIGABRT)
-
-sys.unraisablehook = abort_hook
-</pre>
-</div>
-<div class="section" id="threading-excepthook">
-<h2>threading.excepthook</h2>
-<p>Since I was happy of <tt class="docutils literal">sys.unraisablehook</tt>, I decided to work on the 14-years
-old issue <a class="reference external" href="https://bugs.python.org/issue1230540">bpo-1230540</a>: I proposed to
-add <a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook">threading.excepthook()</a>,
-but that's a different story!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+it to the caller. Examples …</p>
+                <a class="readmore" href="https://vstinner.github.io/sys-unraisablehook-python38.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -660,32 +440,6 @@ commonly produced <a class="reference external" href="https://en.wikipedia.org/w
 these reasons, when users complained about the Python behaviour with the POSIX
 locale, bug reports were closed with a message like …</p>
                 <a class="readmore" href="https://vstinner.github.io/posix-locale.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python36-utf8-windows.html" rel="bookmark"
-                           title="Permalink to Python 3.6 now uses UTF-8 on Windows">Python 3.6 now uses UTF-8 on Windows</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-22T17:00:00+01:00">
-                Published: jeu. 22 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>September 2016, a few days before the CPython core dev sprint, <strong>Steve Dower</strong>
-proposed two major backward incompatible changes for Python 3.6 on Windows:
-<a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
-filesystem encoding to UTF-8</a>.
-At the first read, I was sure that …</p>
-                <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

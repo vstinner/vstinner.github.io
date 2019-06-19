@@ -1,5 +1,176 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-06-15T01:00:00+02:00</updated><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-06-19T12:00:00+02:00</updated><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
+I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;My analysis is that the C API leaks too many implementation details which
+prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
+I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;My analysis is that the C API leaks too many implementation details which
+prevent to optimize Python and make the implementation of PyPy (cpyext) more
+painful.&lt;/p&gt;
+&lt;p&gt;In Python 3.8, I created &lt;tt class="docutils literal"&gt;Include/cpthon/&lt;/tt&gt; sub-directories to stop adding
+new APIs by mistake to the stable API.&lt;/p&gt;
+&lt;p&gt;I moved more private functions into the internal C API: &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt;
+directory.&lt;/p&gt;
+&lt;p&gt;I also converted some macros like &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; to static
+inline functions to have well defined parameter and return type, and to avoid
+macro pitfals.&lt;/p&gt;
+&lt;p&gt;Finally, I removed 3 functions from the C API.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="include-internal"&gt;
+&lt;h2&gt;Include/internal/&lt;/h2&gt;
+&lt;p&gt;In Python 3.7, &lt;strong&gt;Eric Snow&lt;/strong&gt; created &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; sub-directory for
+the CPython &amp;quot;internal C API&amp;quot;: API which should not be used outside CPython code
+base. In Python 3.6, these APIs were surrounded by:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#ifdef Py_BUILD_CORE
+...
+#endif
+&lt;/pre&gt;
+&lt;p&gt;In Python 3.8, I continued this work by moving more private functions into
+this directory: see &lt;a class="reference external" href="https://bugs.python.org/issue35081"&gt;bpo-35081&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I started a thread on python-dev: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2018-October/155587.html"&gt;[Python-Dev] Rename Include/internal/ to
+Include/pycore/&lt;/a&gt;. But
+it was decided to keep &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; name. It was decided that internal
+header files must not be included implicitly by the generic &lt;tt class="docutils literal"&gt;#include
+&amp;lt;Python.h&amp;gt;&lt;/tt&gt;, but included explicitly. For example, when I moved
+&lt;tt class="docutils literal"&gt;_PyObject_GC_TRACK()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;_PyObject_GC_UNTRACK()&lt;/tt&gt; to the internal C API,
+I had to add &lt;tt class="docutils literal"&gt;#include &amp;quot;pycore_object.h&amp;quot;&lt;/tt&gt; to 32 C files!&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue35296"&gt;I also modified make install&lt;/a&gt; to install
+this internal C API, so it can be used for specific needs like debuggers or
+profilers which have to access CPython internals (access structure fields) but
+cannot call functions. For example, &lt;strong&gt;Eric Snow&lt;/strong&gt; moved the &lt;tt class="docutils literal"&gt;PyInterpreterState&lt;/tt&gt;
+structure to the internal C API.&lt;/p&gt;
+&lt;p&gt;Installing the internal C API ease the migration of APIs to internal: if an API
+is still needed after it's moved, it's now possible to opt-in to use it.&lt;/p&gt;
+&lt;p&gt;Using the internal C API requires to define &lt;tt class="docutils literal"&gt;Py_BUILD_CORE_MODULE&lt;/tt&gt; macro and
+use a different include, like &lt;tt class="docutils literal"&gt;#include &amp;quot;internal/pycore_pystate.h&amp;quot;&lt;/tt&gt;. It's
+more complicated on purpose: ensure that it's not used by mistake.&lt;/p&gt;
+&lt;p&gt;Python 3.8 now provides 21 internal header files:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+pycore_accu.h       pycore_getopt.h      pycore_pyhash.h
+pycore_atomic.h     pycore_gil.h         pycore_pylifecycle.h
+pycore_ceval.h      pycore_hamt.h        pycore_pymem.h
+pycore_code.h       pycore_initconfig.h  pycore_pystate.h
+pycore_condvar.h    pycore_object.h      pycore_traceback.h
+pycore_context.h    pycore_pathconfig.h  pycore_tupleobject.h
+pycore_fileutils.h  pycore_pyerrors.h    pycore_warnings.h
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="include-cpython"&gt;
+&lt;h2&gt;Include/cpython/&lt;/h2&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0384/"&gt;PEP 384 &amp;quot;Defining a Stable ABI&amp;quot;&lt;/a&gt; introduced &lt;tt class="docutils literal"&gt;Py_LIMITED_API&lt;/tt&gt;
+macro to exclude functions from the Python C API. The problem is when a new API
+is added, it has to explicitly be excluded using &lt;tt class="docutils literal"&gt;#ifndef Py_LIMITED_API&lt;/tt&gt;.
+If the author forgets it, the function is added to be stable API by mistake.&lt;/p&gt;
+&lt;p&gt;I proposed to move the API which should be excluded from the stable ABI to a
+new subdirectory. I created a &lt;a class="reference external" href="https://discuss.python.org/t/poll-what-is-your-favorite-name-for-the-new-include-subdirectory/477"&gt;poll on the sub-directory name&lt;/a&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/board/&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/impl/&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/pycapi/&lt;/tt&gt; (the name that I proposed initially)&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/unstable/&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;other (add comment)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt; name won with 100% of the 3 votes (and a few more
+supports in the python-dev discussion and in the bug tracker) :-)&lt;/p&gt;
+&lt;p&gt;I created &lt;a class="reference external" href="https://bugs.python.org/issue35134"&gt;bpo-35134: Add a new Include/cpython/ subdirectory for the &amp;quot;CPython
+API&amp;quot; with implementation details&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;My initial description of the directory content:&lt;/p&gt;
+&lt;blockquote&gt;
+The new subdirectory will contain &lt;tt class="docutils literal"&gt;#ifndef Py_LIMITED_API&lt;/tt&gt; code, not the
+“Stable ABI” of &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0384/"&gt;PEP 384&lt;/a&gt;, but
+more “implementation details” of CPython.&lt;/blockquote&gt;
+&lt;p&gt;The change is backward compatible: &lt;tt class="docutils literal"&gt;#include &amp;lt;Python.h&amp;gt;&lt;/tt&gt; will still provide
+exactly the same API. For example, &lt;tt class="docutils literal"&gt;object.h&lt;/tt&gt; automatically includes
+&lt;tt class="docutils literal"&gt;cpython/object.h&lt;/tt&gt;. But &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt; headers must not be included
+directly (it would fail with a compilation error).&lt;/p&gt;
+&lt;p&gt;For example, &lt;tt class="docutils literal"&gt;Include/object.h&lt;/tt&gt; now ends with:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#ifndef Py_LIMITED_API
+#  define Py_CPYTHON_OBJECT_H
+#  include  &amp;quot;cpython/object.h&amp;quot;
+#  undef Py_CPYTHON_OBJECT_H
+#endif
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Include/cpython/object.h&lt;/tt&gt; structure (content replaced with &lt;tt class="docutils literal"&gt;...&lt;/tt&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#ifndef Py_CPYTHON_OBJECT_H
+#  error &amp;quot;this header file must not be included directly&amp;quot;
+#endif
+
+#ifdef __cplusplus
+extern &amp;quot;C&amp;quot; {
+#endif
+
+...
+
+#ifdef __cplusplus
+}
+#endif
+&lt;/pre&gt;
+&lt;p&gt;In Python 3.8, the work is not complete. I tried to double- or even
+triple-check my changes to ensure that I don't remove an API by mistake. This
+work is still on-going in Python 3.9.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="summary-of-include-directories"&gt;
+&lt;h2&gt;Summary of Include/ directories&lt;/h2&gt;
+&lt;p&gt;The header files have been reorganized to better separate the different kinds
+of APIs:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Include/*.h&lt;/span&gt;&lt;/tt&gt; should be the portable public stable C API.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Include/cpython/*.h&lt;/span&gt;&lt;/tt&gt; should be the unstable C API specific to CPython;
+public API, with some private API prefixed by &lt;tt class="docutils literal"&gt;_Py&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;_PY&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Include/internal/*.h&lt;/span&gt;&lt;/tt&gt; is the private internal C API very specific to
+CPython. This API comes with no backward compatibility warranty and should
+not be used outside CPython. It is only exposed for very specific needs
+like debuggers and profiles which has to access to CPython internals
+without calling functions. This API is now installed by &lt;tt class="docutils literal"&gt;make install&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-macros-to-static-inline-functions"&gt;
+&lt;h2&gt;Convert macros to static inline functions&lt;/h2&gt;
+&lt;p&gt;In &lt;a class="reference external" href="https://bugs.python.org/issue35059"&gt;bpo-35059&lt;/a&gt;, I converted some macros
+to static inline functions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_XINCREF()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;Py_XDECREF()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyObject_INIT()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;PyObject_INIT_VAR()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Private functions: &lt;tt class="docutils literal"&gt;_PyObject_GC_TRACK()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;_PyObject_GC_UNTRACK()&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;_Py_Dealloc()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Compared to macros, static inline functions have multiple advantages:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Parameter types and return type are well defined;&lt;/li&gt;
+&lt;li&gt;They don't have issues specific to macros: see &lt;a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html"&gt;GCC Macro Pitfals&lt;/a&gt;;&lt;/li&gt;
+&lt;li&gt;Variables have a well defined local scope.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Python 3.7 uses ugly macros with comma and semicolon. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#define _Py_REF_DEBUG_COMMA ,
+#define _Py_CHECK_REFCNT(OP) /* a semicolon */;
+
+#define _Py_NewReference(op) (                          \
+    _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
+    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
+    Py_REFCNT(op) = 1)
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0007/#c-dialect"&gt;Python 3.6 requires C99 standard of the C dialect&lt;/a&gt;. It was time to start
+to use it :-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="removed-functions"&gt;
+&lt;h2&gt;Removed functions&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue32980"&gt;bpo-32980&lt;/a&gt;: I removed
+&lt;tt class="docutils literal"&gt;PyByteArray_Init()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyByteArray_Fini()&lt;/tt&gt; functions. They did nothing
+since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
+ABI), and were not documented.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue36728"&gt;bpo-36728&lt;/a&gt;: I also removed
+&lt;tt class="docutils literal"&gt;PyEval_ReInitThreads()&lt;/tt&gt; function. It should not be called explicitly: use
+&lt;tt class="docutils literal"&gt;PyOS_AfterFork_Child()&lt;/tt&gt; instead.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
