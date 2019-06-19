@@ -18,12 +18,16 @@ prevent to optimize Python and make the implementation of PyPy (cpyext) more
 painful.
 
 In Python 3.8, I created ``Include/cpthon/`` sub-directories to stop adding
-new APIs by mistake to the stable API, and I moved more private functions
-into the internal C API: ``Include/internal/`` directory.
+new APIs by mistake to the stable API.
+
+I moved more private functions into the internal C API: ``Include/internal/``
+directory.
 
 I also converted some macros like ``Py_INCREF()`` and ``Py_DECREF()`` to static
 inline functions to have well defined parameter and return type, and to avoid
 macro pitfals.
+
+Finally, I removed 3 functions from the C API.
 
 .. image:: {static}/images/private_way.jpg
    :alt: Private way. Trespassers and those disposing rubbish will be prosecuted.
@@ -33,8 +37,8 @@ macro pitfals.
 Include/internal/
 =================
 
-In Python 3.7, Eric Snow created ``Include/internal/`` sub-directory for the
-CPython "internal C API": API which should not be used outside CPython code
+In Python 3.7, **Eric Snow** created ``Include/internal/`` sub-directory for
+the CPython "internal C API": API which should not be used outside CPython code
 base. In Python 3.6, these APIs were surrounded by::
 
     #ifdef Py_BUILD_CORE
@@ -44,16 +48,20 @@ base. In Python 3.6, these APIs were surrounded by::
 In Python 3.8, I continued this work by moving more private functions into
 this directory: see `bpo-35081 <https://bugs.python.org/issue35081>`_.
 
-It was decided that internal header files must not be included implicitly by
-the generic ``#include <Python.h>``, but included explicitly. For example, when
-I ``_PyObject_GC_TRACK()`` and ``_PyObject_GC_UNTRACK()`` to the internal C
-API, I had to add ``#include "pycore_object.h"`` to 32 C files!
+I started a thread on python-dev: `[Python-Dev] Rename Include/internal/ to
+Include/pycore/
+<https://mail.python.org/pipermail/python-dev/2018-October/155587.html>`_. But
+it was decided to keep ``Include/internal/`` name. It was decided that internal
+header files must not be included implicitly by the generic ``#include
+<Python.h>``, but included explicitly. For example, when I moved
+``_PyObject_GC_TRACK()`` and ``_PyObject_GC_UNTRACK()`` to the internal C API,
+I had to add ``#include "pycore_object.h"`` to 32 C files!
 
-I also modified ``make install`` to also install this internal C API, so it can
-be used for specific needs like debuggers or profilers which have to access
-CPython internals (access structure fields) but cannot call functions. For
-example, the ``PyInterpreterState`` structure has been moved to the internal C
-API.
+`I also modified make install <https://bugs.python.org/issue35296>`_ to install
+this internal C API, so it can be used for specific needs like debuggers or
+profilers which have to access CPython internals (access structure fields) but
+cannot call functions. For example, **Eric Snow** moved the ``PyInterpreterState``
+structure to the internal C API.
 
 Installing the internal C API ease the migration of APIs to internal: if an API
 is still needed after it's moved, it's now possible to opt-in to use it.
@@ -72,8 +80,6 @@ Python 3.8 now provides 21 internal header files::
     pycore_context.h    pycore_pathconfig.h  pycore_tupleobject.h
     pycore_fileutils.h  pycore_pyerrors.h    pycore_warnings.h
 
-In Python 2.
-
 
 Include/cpython/
 ================
@@ -91,11 +97,12 @@ new subdirectory. I created a `poll on the sub-directory name
 * ``Include/cpython/``
 * ``Include/board/``
 * ``Include/impl/``
-* ``Include/pycapi/``
+* ``Include/pycapi/`` (the name that I proposed initially)
 * ``Include/unstable/``
 * other (add comment)
 
-The ``Include/cpython/`` name won with 100% of the 3 votes :-)
+The ``Include/cpython/`` name won with 100% of the 3 votes (and a few more
+supports in the python-dev discussion and in the bug tracker) :-)
 
 I created `bpo-35134: Add a new Include/cpython/ subdirectory for the "CPython
 API" with implementation details <https://bugs.python.org/issue35134>`_.
@@ -183,3 +190,21 @@ Python 3.7 uses ugly macros with comma and semicolon. Example::
        _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
        _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
        Py_REFCNT(op) = 1)
+
+`Python 3.6 requires C99 standard of the C dialect
+<https://www.python.org/dev/peps/pep-0007/#c-dialect>`_. It was time to start
+to use it :-)
+
+
+Removed functions
+=================
+
+
+`bpo-32980 <https://bugs.python.org/issue32980>`_: I removed
+``PyByteArray_Init()`` and ``PyByteArray_Fini()`` functions. They did nothing
+since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
+ABI), and were not documented.
+
+`bpo-36728 <https://bugs.python.org/issue36728>`_: I also removed
+``PyEval_ReInitThreads()`` function. It should not be called explicitly: use
+``PyOS_AfterFork_Child()`` instead.
