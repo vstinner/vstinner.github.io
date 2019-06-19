@@ -200,7 +200,7 @@ Removed functions
 =================
 
 
-`bpo-32980 <https://bugs.python.org/issue32980>`_: I removed
+`bpo-35713 <https://bugs.python.org/issue35713>`_: I removed
 ``PyByteArray_Init()`` and ``PyByteArray_Fini()`` functions. They did nothing
 since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
 ABI), and were not documented.
