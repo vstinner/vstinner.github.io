@@ -9,7 +9,7 @@ I'm still working on the Python C API at: &lt;a class="reference external" href=
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
 prevent to optimize Python and make the implementation of PyPy (cpyext) more
 painful.&lt;/p&gt;
-&lt;p&gt;In Python 3.8, I created &lt;tt class="docutils literal"&gt;Include/cpthon/&lt;/tt&gt; sub-directories to stop adding
+&lt;p&gt;In Python 3.8, I created &lt;tt class="docutils literal"&gt;Include/cpthon/&lt;/tt&gt; sub-directory to stop adding
 new APIs by mistake to the stable API.&lt;/p&gt;
 &lt;p&gt;I moved more private functions into the internal C API: &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt;
 directory.&lt;/p&gt;

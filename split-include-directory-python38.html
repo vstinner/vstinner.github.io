@@ -41,7 +41,7 @@ I'm still working on the Python C API at: <a class="reference external" href="ht
 <p>My analysis is that the C API leaks too many implementation details which
 prevent to optimize Python and make the implementation of PyPy (cpyext) more
 painful.</p>
-<p>In Python 3.8, I created <tt class="docutils literal">Include/cpthon/</tt> sub-directories to stop adding
+<p>In Python 3.8, I created <tt class="docutils literal">Include/cpthon/</tt> sub-directory to stop adding
 new APIs by mistake to the stable API.</p>
 <p>I moved more private functions into the internal C API: <tt class="docutils literal">Include/internal/</tt>
 directory.</p>
