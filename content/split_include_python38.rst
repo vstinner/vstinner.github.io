@@ -17,8 +17,8 @@ My analysis is that the C API leaks too many implementation details which
 prevent to optimize Python and make the implementation of PyPy (cpyext) more
 painful.
 
-In Python 3.8, I created ``Include/cpthon/`` sub-directory to stop adding
-new APIs by mistake to the stable API.
+In Python 3.8, I created ``Include/cpython/`` sub-directory to stop adding new
+APIs to the stable API by mistake.
 
 I moved more private functions into the internal C API: ``Include/internal/``
 directory.
