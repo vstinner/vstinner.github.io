@@ -162,7 +162,7 @@ to use it :-)&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="removed-functions"&gt;
 &lt;h2&gt;Removed functions&lt;/h2&gt;
-&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue32980"&gt;bpo-32980&lt;/a&gt;: I removed
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue35713"&gt;bpo-35713&lt;/a&gt;: I removed
 &lt;tt class="docutils literal"&gt;PyByteArray_Init()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyByteArray_Fini()&lt;/tt&gt; functions. They did nothing
 since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
 ABI), and were not documented.&lt;/p&gt;
