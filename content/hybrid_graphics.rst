@@ -9,7 +9,7 @@ Debug Hybrid Graphics issues on Linux
 :authors: Victor Stinner
 
 `Hybrid Graphics <https://wiki.archlinux.org/index.php/Hybrid_graphics>`_ is a
-complex hardware and software solution to archieve longer laptop battery life:
+complex hardware and software solution to achieve longer laptop battery life:
 an **integrated** graphics device is used by default, and a **discrete**
 graphics device with higher graphics performances is enabled on demand.
 
@@ -111,9 +111,9 @@ BIOS
 
 Hybrid graphics can be configured in the BIOS:
 
-* **Discrete Graphics mode** will archieve higher graphics performances.
+* **Discrete Graphics mode** will achieve higher graphics performances.
 * **Hybrid Graphics mode** (default) runs as Integrated Graphics mode to
-  archieve longer battery life, and Discrete Graphics is enabled on demand.
+  achieve longer battery life, and Discrete Graphics is enabled on demand.
 
 On my Lenovo P50, using the **Discrete Graphics mode** removes "00:02.0 VGA
 compatible controller: Intel Corporation HD Graphics 530" from ``lspci``
