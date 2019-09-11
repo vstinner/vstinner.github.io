@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - linux</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/linux.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-09-11T15:50:00+02:00</updated><entry><title>Debug Hybrid Graphics issues on Linux</title><link href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="alternate"></link><published>2019-09-11T15:50:00+02:00</published><updated>2019-09-11T15:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-09-11:/debug-hybrid-graphics-issues-linux.html</id><summary type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
+complex hardware and software solution to archieve longer laptop battery life:
+an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
+graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
+&lt;p&gt;If it is designed and implemented carefully, users should not notice that a
+laptop …&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
+complex hardware and software solution to archieve longer laptop battery life:
+an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
+graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
+&lt;p&gt;If it is designed and implemented carefully, users should not notice that a
+laptop has two graphical devices.&lt;/p&gt;
+&lt;p&gt;Sadly, the Linux implementation is not perfect yet. I had to debug different
+graphics issues on GNOME last months, so I decided to write down an article
+about this technology.&lt;/p&gt;
+&lt;p&gt;This article is about the &lt;strong&gt;GNOME&lt;/strong&gt; desktop environment with &lt;strong&gt;Wayland&lt;/strong&gt;
+running on &lt;strong&gt;Fedora&lt;/strong&gt; 30, with Linux kernel &lt;strong&gt;vgaswitcheroo&lt;/strong&gt; in muxless mode
+(more about that above).&lt;/p&gt;
+&lt;div class="section" id="id1"&gt;
+&lt;h2&gt;Hybrid Graphics&lt;/h2&gt;
+&lt;p&gt;Hybrid Graphics are known under different names:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Linux kernel &lt;a class="reference external" href="https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html"&gt;vgaswitcheroo&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/PRIME"&gt;PRIME&lt;/a&gt; in Linux open source
+GPU drivers (nouveau, ati, amdgpu and intel), the &amp;quot;muxless&amp;quot; flavor of hybrid graphics&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/bumblebee"&gt;Bumblebee&lt;/a&gt;:
+&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/NVIDIA_Optimus"&gt;NVIDIA Optimus&lt;/a&gt;
+for Linux&lt;/li&gt;
+&lt;li&gt;&amp;quot;AMD Dynamic Switchable Graphics&amp;quot; for Radeon&lt;/li&gt;
+&lt;li&gt;&amp;quot;Dual GPUs&amp;quot;&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Nowadays, most manufacturers utilizes the &lt;strong&gt;muxless&lt;/strong&gt; model:&lt;/p&gt;
+&lt;blockquote&gt;
+Dual GPUs but &lt;strong&gt;only one of them is connected to outputs&lt;/strong&gt;. The other one
+is merely used to &lt;strong&gt;offload rendering&lt;/strong&gt;, its results are copied over PCIe
+into the framebuffer. On Linux this is supported with DRI PRIME.&lt;/blockquote&gt;
+&lt;p&gt;In 2010, the first generation hybrid model used the &lt;strong&gt;muxed&lt;/strong&gt; model:&lt;/p&gt;
+&lt;blockquote&gt;
+Dual GPUs with a hardware multiplexer chip to switch outputs between GPUs.
+This model makes the user choose (at boot time or at login time) between
+the two power/graphics profiles and is almost fixed throughout the user
+session.&lt;/blockquote&gt;
+&lt;p&gt;Note: The development to support hybrid graphics in Linux started in 2010.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="does-my-linux-have-hybrid-graphics"&gt;
+&lt;h2&gt;Does my Linux have Hybrid Graphics?&lt;/h2&gt;
+&lt;p&gt;On Linux, Hybrid Graphics is used if the &lt;tt class="docutils literal"&gt;/sys/kernel/debug/vgaswitcheroo/&lt;/tt&gt;
+directory exists.&lt;/p&gt;
+&lt;p&gt;No Hybrid Graphics, single graphics device:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
+cat: /sys/kernel/debug/vgaswitcheroo/switch: No such file or directory
+&lt;/pre&gt;
+&lt;p&gt;Hybrid Graphics with two graphics devices:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
+0:IGD:+:Pwr:0000:00:02.0
+1:DIS: :DynOff:0000:01:00.0
+&lt;/pre&gt;
+&lt;p&gt;Command to list graphics devices:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ lspci|grep VGA
+00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
+01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="hardware"&gt;
+&lt;h2&gt;Hardware&lt;/h2&gt;
+&lt;p&gt;My employer gave me a Lenovo P50 laptop to work in December 2017. It is my only
+computer at home, so I needed a powerful laptop (even if it's heavy for
+traveling to conferences). The CPU, RAM and battery are great, but the hybrid
+graphics caused me some headaches.&lt;/p&gt;
+&lt;p&gt;My Lenovo P50 has two GPUs:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ lspci|grep VGA
+00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
+01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
+&lt;/pre&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The &lt;strong&gt;Integrated Graphics Device&lt;/strong&gt; is a &lt;strong&gt;Intel&lt;/strong&gt; IGP (Intel HD Graphics 530)&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;Discrete Graphics Device&lt;/strong&gt; is a &lt;strong&gt;NVIDIA&lt;/strong&gt; GPU (NVIDIA Quadro M1000M)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I didn't know that that the laptop had two graphics device when I chose the
+laptop model. I discovered hybrid graphics when I started to debug graphics
+issues.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bios"&gt;
+&lt;h2&gt;BIOS&lt;/h2&gt;
+&lt;p&gt;Hybrid graphics can be configured in the BIOS:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;strong&gt;Discrete Graphics mode&lt;/strong&gt; will archieve higher graphics performances.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Hybrid Graphics mode&lt;/strong&gt; (default) runs as Integrated Graphics mode to
+archieve longer battery life, and Discrete Graphics is enabled on demand.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;On my Lenovo P50, using the &lt;strong&gt;Discrete Graphics mode&lt;/strong&gt; removes &amp;quot;00:02.0 VGA
+compatible controller: Intel Corporation HD Graphics 530&amp;quot; from &lt;tt class="docutils literal"&gt;lspci&lt;/tt&gt;
+command output: the &lt;strong&gt;Intel IGP is fully disabled&lt;/strong&gt;. The Linux kernel only
+sees the NVIDIA GPU.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="linux-kernel"&gt;
+&lt;h2&gt;Linux kernel&lt;/h2&gt;
+&lt;p&gt;On Linux, hybrid graphics is handled by &lt;strong&gt;vgaswitcheroo&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
+0:IGD:+:Pwr:0000:00:02.0
+1:DIS: :DynPwr:0000:01:00.0
+&lt;/pre&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;IGD&lt;/tt&gt; stands for &lt;strong&gt;Integrated&lt;/strong&gt; Graphics Device&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;DIS&lt;/tt&gt; stands for &lt;strong&gt;DIScrete&lt;/strong&gt; Graphics Device&lt;/li&gt;
+&lt;li&gt;&amp;quot;+&amp;quot; marks the &lt;strong&gt;active&lt;/strong&gt; card&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Pwr&lt;/tt&gt;: the graphics device is &lt;strong&gt;always active&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;DynPwr&lt;/tt&gt;: the graphics device is actived &lt;strong&gt;on demand&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The last field (ex: &lt;tt class="docutils literal"&gt;0000:00:02.0&lt;/tt&gt;) is based on the PCI identifier:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ lspci|grep VGA
+00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
+01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
+&lt;/pre&gt;
+&lt;p&gt;On my laptop, hybrid graphics is detected by an &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface"&gt;ACPI&lt;/a&gt;
+&amp;quot;Device-Specific Method&amp;quot; (DSM):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ journalctl -b -k|grep 'VGA switcheroo'
+Sep 11 02:29:54 apu kernel: VGA switcheroo: detected Optimus DSM method \_SB_.PCI0.PEG0.PEGP handle
+&lt;/pre&gt;
+&lt;p&gt;See: &lt;a class="reference external" href="https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html"&gt;VGA Switcheroo (Linux kernel documentation)&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="opengl"&gt;
+&lt;h2&gt;OpenGL&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mesa_(computer_graphics)"&gt;Mesa&lt;/a&gt; provides
+&lt;tt class="docutils literal"&gt;glxinfo&lt;/tt&gt; utility to get information about the OpenGL driver currently used:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ glxinfo|grep -E 'Device|direct rendering'
+direct rendering: Yes
+    Device: Mesa DRI Intel(R) HD Graphics 530 (Skylake GT2)  (0x191b)
+&lt;/pre&gt;
+&lt;p&gt;On this example, the discrete Intel IGP is used.&lt;/p&gt;
+&lt;p&gt;In Firefox, go to &lt;strong&gt;about:support&lt;/strong&gt; page and search for the &lt;tt class="docutils literal"&gt;Graphics&lt;/tt&gt;
+section to get information about compositing, WebGL, GPU, etc.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="dri-prime-environment-variable"&gt;
+&lt;h2&gt;DRI_PRIME environment variable&lt;/h2&gt;
+&lt;p&gt;Set DRI_PRIME=1 environment variable to run an application with the
+&lt;strong&gt;discrete&lt;/strong&gt; GPU.&lt;/p&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ DRI_PRIME=1 glxinfo|grep -E 'Device|rendering'
+direct rendering: Yes
+    Device: NV117 (0x13b1)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="switcheroo-control"&gt;
+&lt;h2&gt;switcheroo-control&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/hadess/switcheroo-control"&gt;switcheroo-control&lt;/a&gt; is a
+deamon controlling &lt;tt class="docutils literal"&gt;/sys/kernel/debug/vgaswitcheroo/switch&lt;/tt&gt; (Linux kernel).
+It can be accessed by DBus.&lt;/p&gt;
+&lt;p&gt;When the daemon starts, it looks for &lt;tt class="docutils literal"&gt;xdg.force_integrated=VALUE&lt;/tt&gt; parameter
+in the Linux command line. If &lt;em&gt;VALUE&lt;/em&gt; is &lt;tt class="docutils literal"&gt;1&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;true&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;on&lt;/tt&gt;, or if
+&lt;tt class="docutils literal"&gt;xdg.force_integrated=VALUE&lt;/tt&gt; is not found in the command line, the daemon
+writes &lt;tt class="docutils literal"&gt;DIGD&lt;/tt&gt; into &lt;tt class="docutils literal"&gt;/sys/kernel/debug/vgaswitcheroo/switch&lt;/tt&gt; (delayed
+&lt;strong&gt;switch to the integrated graphics device&lt;/strong&gt;: my Intel IGP)&lt;/p&gt;
+&lt;p&gt;If &lt;tt class="docutils literal"&gt;xdg.force_integrated=0&lt;/tt&gt; is found in the command line, the daemon leaves
+&lt;tt class="docutils literal"&gt;/sys/kernel/debug/vgaswitcheroo/switch&lt;/tt&gt; unchanged.&lt;/p&gt;
+&lt;p&gt;systemd:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Check if the service is running: &lt;tt class="docutils literal"&gt;sudo systemctl status &lt;span class="pre"&gt;switcheroo-control.service&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Disable the service: &lt;tt class="docutils literal"&gt;sudo systemctl disable &lt;span class="pre"&gt;switcheroo-control.service&lt;/span&gt;&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;sudo systemctl stop &lt;span class="pre"&gt;switcheroo-control.service&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;On Fedora, switcheroo-control is installed by default.&lt;/p&gt;
+&lt;p&gt;It is unclear to me if this daemon is still useful for my setup. It seems like
+the the Linux kernel switcheroo uses the integrated Intel IGP by default
+anyway.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="disable-the-discrete-gpu-by-blacklisting-its-driver"&gt;
+&lt;h2&gt;Disable the discrete GPU by blacklisting its driver&lt;/h2&gt;
+&lt;p&gt;To debug graphical bugs, I wanted to ensure that the discrete NVIDIA GPU is
+never used.&lt;/p&gt;
+&lt;p&gt;I found the solution of fully disabling the nouveau driver in the Linux kernel:
+add &lt;tt class="docutils literal"&gt;modprobe.blacklist=nouveau&lt;/tt&gt; to the Linux kernel command line. On Fedora,
+you can use:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo grubby --update-kernel=ALL --args=&amp;quot;modprobe.blacklist=nouveau&amp;quot;
+&lt;/pre&gt;
+&lt;p&gt;To reenable nouveau, remove the parameter. On Fedora:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+sudo grubby --update-kernel=ALL --remove-args=&amp;quot;modprobe.blacklist=nouveau&amp;quot;
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="demo"&gt;
+&lt;h2&gt;Demo!&lt;/h2&gt;
+&lt;p&gt;For this test, my laptop is not connected to anything (no power cable, no
+external monitor, no dock).&lt;/p&gt;
+&lt;p&gt;When my laptop is idle (no 3D application is running), the NVIDIA GPU is
+&lt;strong&gt;suspended&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
+0
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+suspended
+&lt;/pre&gt;
+&lt;p&gt;I explicitly run a 3D application on it:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+DRI_PRIME=1 glxgears
+&lt;/pre&gt;
+&lt;p&gt;The NVIDIA GPU becomes &lt;strong&gt;active&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
+2
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+active
+&lt;/pre&gt;
+&lt;p&gt;I stop the 3D application. A few seconds later, the NVIDIA GPU is &lt;strong&gt;suspended&lt;/strong&gt;
+again:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
+0
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+suspended
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="graphics-devices-and-monitors"&gt;
+&lt;h2&gt;Graphics devices and monitors&lt;/h2&gt;
+&lt;p&gt;When I disabled the nouveau driver using &lt;tt class="docutils literal"&gt;modprobe.blacklist=nouveau&lt;/tt&gt; kernel
+command line parameter, I was no longer able to use external monitors. I
+understood that:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The &lt;strong&gt;Intel&lt;/strong&gt; IGP is connected to the &lt;strong&gt;internal&lt;/strong&gt; laptop screen&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;NVIDIA&lt;/strong&gt; GPU is connected to the &lt;strong&gt;external&lt;/strong&gt; monitors (DisplayPort
+and HDMI ports)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;When my laptop has &lt;strong&gt;no external monitor&lt;/strong&gt; connected, the &lt;strong&gt;discrete&lt;/strong&gt; NVIDIA
+GPU is &lt;strong&gt;actived on demand&lt;/strong&gt; (suspended when idle)&lt;/p&gt;
+&lt;p&gt;When I connect my laptop to &lt;strong&gt;two external monitors&lt;/strong&gt; (using my dock), the
+&lt;strong&gt;discrete&lt;/strong&gt; NVIDIA GPU is &lt;strong&gt;always active&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+active
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="links"&gt;
+&lt;h2&gt;Links&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;https://wiki.archlinux.org/index.php/Hybrid_graphics&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html"&gt;https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/PRIME"&gt;https://wiki.archlinux.org/index.php/PRIME&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://help.ubuntu.com/community/HybridGraphics"&gt;https://help.ubuntu.com/community/HybridGraphics&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Nvidia_Optimus"&gt;https://en.wikipedia.org/wiki/Nvidia_Optimus&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://en.wikipedia.org/wiki/AMD_Hybrid_Graphics"&gt;https://en.wikipedia.org/wiki/AMD_Hybrid_Graphics&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://nouveau.freedesktop.org/wiki/Optimus"&gt;https://nouveau.freedesktop.org/wiki/Optimus&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</content><category term="linux"></category></entry></feed>
