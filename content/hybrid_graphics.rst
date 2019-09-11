@@ -13,6 +13,10 @@ complex hardware and software solution to archieve longer laptop battery life:
 an **integrated** graphics device is used by default, and a **discrete**
 graphics device with higher graphics performances is enabled on demand.
 
+.. image:: {static}/images/hybrid_graphics.jpg
+   :alt: Hybrid Graphics
+   :target: https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/
+
 If it is designed and implemented carefully, users should not notice that a
 laptop has two graphical devices.
 
