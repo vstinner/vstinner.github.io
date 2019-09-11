@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - linux</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/linux.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-09-11T15:50:00+02:00</updated><entry><title>Debug Hybrid Graphics issues on Linux</title><link href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="alternate"></link><published>2019-09-11T15:50:00+02:00</published><updated>2019-09-11T15:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-09-11:/debug-hybrid-graphics-issues-linux.html</id><summary type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
-complex hardware and software solution to archieve longer laptop battery life:
+complex hardware and software solution to achieve longer laptop battery life:
 an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
 graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"&gt;&lt;img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;If it is designed and implemented carefully, users should not notice that a
 laptop …&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
-complex hardware and software solution to archieve longer laptop battery life:
+complex hardware and software solution to achieve longer laptop battery life:
 an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
 graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"&gt;&lt;img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /&gt;&lt;/a&gt;
@@ -91,9 +91,9 @@ issues.&lt;/p&gt;
 &lt;h2&gt;BIOS&lt;/h2&gt;
 &lt;p&gt;Hybrid graphics can be configured in the BIOS:&lt;/p&gt;
 &lt;ul class="simple"&gt;
-&lt;li&gt;&lt;strong&gt;Discrete Graphics mode&lt;/strong&gt; will archieve higher graphics performances.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Discrete Graphics mode&lt;/strong&gt; will achieve higher graphics performances.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Hybrid Graphics mode&lt;/strong&gt; (default) runs as Integrated Graphics mode to
-archieve longer battery life, and Discrete Graphics is enabled on demand.&lt;/li&gt;
+achieve longer battery life, and Discrete Graphics is enabled on demand.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;On my Lenovo P50, using the &lt;strong&gt;Discrete Graphics mode&lt;/strong&gt; removes &amp;quot;00:02.0 VGA
 compatible controller: Intel Corporation HD Graphics 530&amp;quot; from &lt;tt class="docutils literal"&gt;lspci&lt;/tt&gt;
