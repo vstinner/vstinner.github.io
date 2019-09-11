@@ -8,12 +8,16 @@ Bugs with Hybrid Graphics on Linux
 :slug: bugs-hybrid-graphics-linux
 :authors: Victor Stinner
 
-Hybrid graphics is a complex hardware and software solution to increase the
-laptop battery autonomy: a fast GPU is turned on an off automatically on
-demand, whereas a slow GPU is used by default. If it is designed and
-implemented carefully, the user should not notice that the laptop has two
-graphical devices. Sadly, the Linux implementation is not perfect yet. Recent
-bugs motivated me to write down an article about it.
+`Hybrid Graphics <https://wiki.archlinux.org/index.php/Hybrid_graphics>`_ is a
+complex hardware and software solution to increase the laptop battery autonomy:
+a fast GPU is turned on an off automatically on demand, whereas a slow GPU is
+used by default.
+
+If it is designed and implemented carefully, users should not notice that a
+laptop has two graphical devices.
+
+Sadly, the Linux implementation is not perfect yet. Recent bugs motivated me to
+write down an article about it.
 
 Hybrid graphics
 ===============
@@ -98,6 +102,20 @@ external monitors. I understood that:
 * The NVIDIA GPU is connected to the external monitors
 
 
+BIOS
+====
+
+Hybrid graphics can be configured and/or disabled in the BIOS:
+
+* Discrete Graphics mode will archieve higher graphics performances.
+* Hybrid Graphics mode runs as Integrated Graphics mode to archieve longer
+  battery life, and Discrete Graphics is enabled on demand.
+
+On my Lenovo P50, **Discrete Graphics** removes "00:02.0 VGA compatible
+controller: Intel Corporation HD Graphics 530" from ``lspci`` command output:
+the Intel IGP is fully disabled.
+
+
 Default GPU?
 ============
 
@@ -105,19 +123,19 @@ The GPU that is enabled by the BIOS during boot may be dependent on whether the
 laptop is plugged into AC power or not.
 
 
-BIOS
-====
-
-XXX it's possible to tune Hybrid graphics in the BIOS XXX
-
 Linux kernel
 ============
 
 On Linux, dual GPU setup is handled by **vgaswitcheroo**::
 
+    $ journalctl -b 0 -k|grep 'VGA switcheroo'
+    Sep 11 02:29:54 apu kernel: VGA switcheroo: detected Optimus DSM method \_SB_.PCI0.PEG0.PEGP handle
+
     $ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
     0:IGD:+:Pwr:0000:00:02.0
     1:DIS: :DynPwr:0000:01:00.0
+
+DSM stands for (ACPI) "Device-Specific Method".
 
 * ``IGD`` stands for **Integrated** Graphics Device
 * ``DIS`` stands for **DIScrete** Graphics Device
@@ -137,7 +155,7 @@ Xorg
 
 Get OpenGL info::
 
-    $ glxinfo|grep -E 'Device|rendering'
+    $ glxinfo|grep -E 'Device|direct rendering'
     direct rendering: Yes
         Device: Mesa DRI Intel(R) HD Graphics 530 (Skylake GT2)  (0x191b)
 
@@ -222,7 +240,7 @@ XXX is it deprecated in 2019?
 Disable discrete GPU by blacklisting its driver (nouveau)
 =========================================================
 
-To debug graphical bugs, I wanted to ensure that the Nvidia GPU is never
+To debug graphical bugs, I wanted to ensure that the NVIDIA GPU is never
 used. I found the solution of fully disabling the nouveau driver in the Linux
 kernel: add ``modprobe.blacklist=nouveau`` to the Linux kernel command line
 using::
@@ -234,9 +252,40 @@ To reenble nouveau, remove the parameter::
     sudo grubby --update-kernel=ALL --remove-args="modprobe.blacklist=nouveau"
 
 
+Demo!
+=====
+
+When my laptop is idle, no 3D application running, the NVIDIA GPU is suspended::
+
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
+    0
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+    suspended
+
+I run a 3D application on it::
+
+    DRI_PRIME=1 glxgears
+
+The NVIDIA GPU is awaken::
+
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
+    2
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+    active
+
+Stop the 3D application. A few seconds later, the NVIDIA GPU is suspended
+again::
+
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
+    0
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+    suspended
+
+
 Links
 =====
 
 * https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html
+* https://wiki.archlinux.org/index.php/Hybrid_graphics
 * https://wiki.archlinux.org/index.php/PRIME
 * https://help.ubuntu.com/community/HybridGraphics
