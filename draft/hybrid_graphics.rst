@@ -9,9 +9,9 @@ Bugs with Hybrid Graphics on Linux
 :authors: Victor Stinner
 
 `Hybrid Graphics <https://wiki.archlinux.org/index.php/Hybrid_graphics>`_ is a
-complex hardware and software solution to archieve longer battery life: a slow
-GPU is used by default, and a second faster GPU is turned on an off
-automatically on demand.
+complex hardware and software solution to archieve longer laptop battery life:
+an **integrated** graphics device is used by default, and a **discrete**
+graphics device with higher graphics performances is enabled on demand.
 
 If it is designed and implemented carefully, users should not notice that a
 laptop has two graphical devices.
@@ -22,31 +22,36 @@ write down an article about it.
 Hybrid graphics
 ===============
 
-Hybrid graphics have different names:
+Hybrid graphics are known under different names:
 
 * "Dual GPUs"
-* `vgaswitcheroo
-  <https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html>`_ in the
-  Linux kernel
+* Linux kernel `vgaswitcheroo
+  <https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html>`_
 * `PRIME <https://wiki.archlinux.org/index.php/PRIME>`_ in Linux open source
-  GPU drivers; the "muxless" flavor of hybrid graphics
+  GPU drivers, the "muxless" flavor of hybrid graphics
 * `Bumblebee <https://wiki.archlinux.org/index.php/bumblebee>`_:
   `NVIDIA Optimus <https://wiki.archlinux.org/index.php/NVIDIA_Optimus>`_
   for Linux
 * "AMD Dynamic Switchable Graphics" for Radeon
 * etc.
 
-Laptop hybrid graphics come in two flavors:
+Nowadays, most manufacturers utilizes the **muxless** model:
 
-* "muxed": Dual GPUs with a multiplexer chip to switch outputs between GPUs.
-* "muxless": Dual GPUs but only one of them is connected to outputs. The other
-  one is merely used to offload rendering, its results are copied over PCIe
-  into the framebuffer. On Linux this is supported with **DRI PRIME**.
+    Dual GPUs but only one of them is connected to outputs. The other one is
+    merely used to offload rendering, its results are copied over PCIe into the
+    framebuffer. On Linux this is supported with DRI PRIME.
 
-The development to support hybrid graphics in Linux started in 2010.
+Previously, the first generation hybrid model used the **muxed** model:
 
-This article is about the Linux kernel vgaswitcheroo with the muxless PRIME
-solution.
+    Dual GPUs with a hardware multiplexer chip to switch outputs between GPUs.
+    This model makes the user choose (at boot time or at login time) between
+    the two power/graphics profiles and is almost fixed throughout the user
+    session.
+
+**This article is about the Linux kernel vgaswitcheroo with the muxless
+model.**
+
+Note: The development to support hybrid graphics in Linux started in 2010.
 
 Do I have two GPUs?
 ===================
@@ -70,8 +75,7 @@ Hardware
 
 My employer gave me a Lenovo P50 laptop to work. It is my only computer at
 home, so I needed a powerful laptop, even if it's heavy. The CPU, RAM and
-battery are great, but the "dual GPU" design is causing some headaches on
-Linux.
+battery are great, but the hybrid graphics caused me some headaches.
 
 My Lenovo P50 has two GPUs::
 
@@ -79,26 +83,24 @@ My Lenovo P50 has two GPUs::
     00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
     01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
 
-* Intel HD Graphics 530: **integrated GPU** ("IGP"). Low power consumption.
-* NVIDIA Corporation GM107GLM [Quadro M1000M]: **discrete** GPU, powerful
-  but uses more power than the IGP.
+* The **Integrated Graphics Device** is a **Intel** IGP (Intel HD Graphics 530)
+* The **Discrete Graphics Device** is a **NVIDIA** GPU (NVIDIA Quadro M1000M)
 
 I didn't know that that the laptop had 2 GPUs when I chose the laptop model. I
 only had the choices between 3 models, I didn't look at specs in depth. I
 started to really care about "dual GPUs" when I started to get issues.
 
-It is not easy to guess which graphic device is connected to which output.
 When I disabled the nouveau driver (see below), I was no longer able to use
 external monitors. I understood that:
 
-* The Intel IGP is connected to the internal laptop screen
-* The NVIDIA GPU is connected to the external monitors
+* The **Intel** IGP is connected to the **internal** laptop screen
+* The **NVIDIA** GPU is connected to the **external** monitors
 
 
 BIOS
 ====
 
-Hybrid graphics can be configured and/or disabled in the BIOS:
+Hybrid graphics can be configured in the BIOS:
 
 * **Discrete Graphics mode** will archieve higher graphics performances.
 * **Hybrid Graphics mode** (default) runs as Integrated Graphics mode to
@@ -106,7 +108,7 @@ Hybrid graphics can be configured and/or disabled in the BIOS:
 
 On my Lenovo P50, using the **Discrete Graphics mode** removes "00:02.0 VGA
 compatible controller: Intel Corporation HD Graphics 530" from ``lspci``
-command output: the Intel IGP is fully disabled.
+command output: the **Intel IGP is fully disabled**.
 
 
 Linux kernel
@@ -139,8 +141,8 @@ See `Linux kernel documentation: VGA Switcheroo
 <https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html>`_.
 
 
-Xorg
-====
+OpenGL
+======
 
 Get OpenGL info::
 
@@ -149,6 +151,8 @@ Get OpenGL info::
         Device: Mesa DRI Intel(R) HD Graphics 530 (Skylake GT2)  (0x191b)
 
 On this example, the Intel IGP is used.
+
+In Firefox, go to ``about:support`` and search for the ``Graphics`` section.
 
 
 DRI_PRIME environment variable
@@ -165,6 +169,9 @@ Example::
 
 Wayland
 =======
+
+This section is unrelated to Hybrid Graphics, but useful to debug graphics
+issues.
 
 Do I use Wayland?
 -----------------
