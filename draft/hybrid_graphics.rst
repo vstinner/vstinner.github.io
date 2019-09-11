@@ -99,13 +99,6 @@ I didn't know that that the laptop had two graphics device when I chose the
 laptop model. I discovered hybrid graphics when I started to debug graphics
 issues.
 
-When I disabled the nouveau driver (see below), I was no longer able to use
-external monitors. I understood that:
-
-* The **Intel** IGP is connected to the **internal** laptop screen
-* The **NVIDIA** GPU is connected to the **external** monitors (DisplayPort
-  and HDMI ports)
-
 
 BIOS
 ====
@@ -304,6 +297,24 @@ again::
     0
     $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
     suspended
+
+
+Graphics devices and monitors
+=============================
+
+When I disabled the nouveau driver using ``modprobe.blacklist=nouveau`` kernel
+command line parameter, I was no longer able to use external monitors. I
+understood that:
+
+* The **Intel** IGP is connected to the **internal** laptop screen
+* The **NVIDIA** GPU is connected to the **external** monitors (DisplayPort
+  and HDMI ports)
+
+When my laptop has **no external monitor** connected, the **discrete** NVIDIA
+GPU is **suspended**.
+
+But when I put my laptop on its dock **with two external monitors connected**,
+the **discrete** NVIDIA GPU becomes **active**.
 
 
 Links
