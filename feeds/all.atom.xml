@@ -3,11 +3,13 @@
 complex hardware and software solution to archieve longer laptop battery life:
 an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
 graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"&gt;&lt;img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;If it is designed and implemented carefully, users should not notice that a
 laptop …&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
 complex hardware and software solution to archieve longer laptop battery life:
 an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
 graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"&gt;&lt;img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;If it is designed and implemented carefully, users should not notice that a
 laptop has two graphical devices.&lt;/p&gt;
 &lt;p&gt;Sadly, the Linux implementation is not perfect yet. I had to debug different
