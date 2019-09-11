@@ -8,17 +8,14 @@ Graphics bugs in Firefox and GNOME
 :slug: graphics-bugs-firefox-gnome
 :authors: Victor Stinner
 
-My Bugs
-=======
-
 gnome-shell freezes
--------------------
+===================
 
 May 2018, six months after I got my Lenovo P50 laptop, gnome-shell was
 "sometimes" freezing between 1 and 5 seconds. It was annoying because key
 stokes created repeated keys writing "helloooooooooooooooooooooo" instead of
 "hello" for example. My colleagues led my to #fedora-desktop of the GIMP IRC
-server where I met my colleague Jonas Ådahl (jadahl) who almost immediately
+server where I met my colleague **Jonas Ådahl** (jadahl) who almost immediately
 identified my issue!
 
 ::
@@ -69,7 +66,7 @@ Jonas provided me a RPM package for Fedora including his work-in-progress fix:
 this change fixed my bug. His change was merged upstream in mutter.
 
 Firefox crash when selecting text
----------------------------------
+=================================
 
 March 2019, Firefox with Wayland crashed on ``wl_abort()`` when selecting more
 than 4000 characters in a ``<textarea>``. I found the bug in Gmail when
@@ -107,8 +104,11 @@ fixed the crash: `FEDORA-2019-d67ec97b0b
 <ttps://bodhi.fedoraproject.org/updates/FEDORA-2019-d67ec97b0b>`_. Soon, the
 package was pushed to the public Fedora package repository.
 
-Firefox
--------
+Firefox: [Wayland] Window partially or not updated when switching between two tabs
+==================================================================================
+
+Analyze the bug
+---------------
 
 In September 2019, after a large system upgrade (install 6 packages, upgrade
 234 packages, remove 5 packages), Firefox started to not update the window
@@ -137,6 +137,9 @@ Ok, it was enough data to produce an interesting bug report. I reported
 `[Wayland] Window partially or not updated when switching between two tabs
 <https://bugzilla.mozilla.org/show_bug.cgi?id=1580152>`_ to Firefox.
 
+Identify the regression using Fedora packages
+---------------------------------------------
+
 Then I looked at ``/var/log/dnf.log`` and I tried to identify which package
 update could explain the regression.
 
@@ -157,8 +160,8 @@ On IRC, I met my colleague **Martin Stránský** who package Firefox for Fedora
 told me that he is aware of my bug and may have a fix for my bug. Great!
 
 
-Xwayland crash
---------------
+Xwayland crash in xwl_glamor_gbm_create_pixmap()
+================================================
 
 While I was debugging the previous Firefox glitch, I started my IRC client
 hexchat: Xwayland crashed which closed my whole Gnome session!
