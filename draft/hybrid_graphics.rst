@@ -1,11 +1,11 @@
-++++++++++++++++++++++++++++++++++
-Bugs with Hybrid Graphics on Linux
-++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++
+Debug Hybrid Graphics issues on Linux
++++++++++++++++++++++++++++++++++++++
 
 :date: 2019-09-11 01:00
 :tags: linux
 :category: linux
-:slug: bugs-hybrid-graphics-linux
+:slug: debug-hybrid-graphics-issues-linux
 :authors: Victor Stinner
 
 `Hybrid Graphics <https://wiki.archlinux.org/index.php/Hybrid_graphics>`_ is a
@@ -16,32 +16,33 @@ graphics device with higher graphics performances is enabled on demand.
 If it is designed and implemented carefully, users should not notice that a
 laptop has two graphical devices.
 
-Sadly, the Linux implementation is not perfect yet. Recent bugs motivated me to
-write down an article about it.
+Sadly, the Linux implementation is not perfect yet. I had to debug different
+graphics issues on GNOME last months, so I decided to write down an article
+about this technology.
 
-Hybrid graphics
+Hybrid Graphics
 ===============
 
-Hybrid graphics are known under different names:
+Hybrid Graphics are known under different names:
 
-* "Dual GPUs"
 * Linux kernel `vgaswitcheroo
   <https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html>`_
 * `PRIME <https://wiki.archlinux.org/index.php/PRIME>`_ in Linux open source
-  GPU drivers, the "muxless" flavor of hybrid graphics
+  GPU drivers (nouveau, ati, amdgpu and intel), the "muxless" flavor of hybrid graphics
 * `Bumblebee <https://wiki.archlinux.org/index.php/bumblebee>`_:
   `NVIDIA Optimus <https://wiki.archlinux.org/index.php/NVIDIA_Optimus>`_
   for Linux
 * "AMD Dynamic Switchable Graphics" for Radeon
+* "Dual GPUs"
 * etc.
 
 Nowadays, most manufacturers utilizes the **muxless** model:
 
-    Dual GPUs but only one of them is connected to outputs. The other one is
-    merely used to offload rendering, its results are copied over PCIe into the
-    framebuffer. On Linux this is supported with DRI PRIME.
+    Dual GPUs but **only one of them is connected to outputs**. The other one
+    is merely used to **offload rendering**, its results are copied over PCIe
+    into the framebuffer. On Linux this is supported with DRI PRIME.
 
-Previously, the first generation hybrid model used the **muxed** model:
+In 2010, the first generation hybrid model used the **muxed** model:
 
     Dual GPUs with a hardware multiplexer chip to switch outputs between GPUs.
     This model makes the user choose (at boot time or at login time) between
@@ -53,48 +54,57 @@ model.**
 
 Note: The development to support hybrid graphics in Linux started in 2010.
 
-Do I have two GPUs?
-===================
+Does my Linux have Hybrid Graphics?
+===================================
 
-On Linux, check if ``/sys/kernel/debug/vgaswitcheroo/`` directory exists.
+On Linux, Hybrid Graphics is used if the ``/sys/kernel/debug/vgaswitcheroo/``
+directory exists.
 
-Single GPU::
+No Hybrid Graphics, single graphics device::
 
     $ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
     cat: /sys/kernel/debug/vgaswitcheroo/switch: No such file or directory
 
-Example with 2 GPUs::
+Hybrid Graphics with two graphics devices::
 
     $ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
     0:IGD:+:Pwr:0000:00:02.0
     1:DIS: :DynOff:0000:01:00.0
+
+Command to list graphics devices::
+
+    $ lspci|grep VGA
+    00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
+    01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
 
 
 Hardware
 ========
 
 My employer gave me a Lenovo P50 laptop to work. It is my only computer at
-home, so I needed a powerful laptop, even if it's heavy. The CPU, RAM and
-battery are great, but the hybrid graphics caused me some headaches.
+home, so I needed a powerful laptop (even if it's heavy for traveling to
+conferences). The CPU, RAM and battery are great, but the hybrid graphics
+caused me some headaches.
 
 My Lenovo P50 has two GPUs::
 
-    $ lspci|grep -i VGA
+    $ lspci|grep VGA
     00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
     01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
 
 * The **Integrated Graphics Device** is a **Intel** IGP (Intel HD Graphics 530)
 * The **Discrete Graphics Device** is a **NVIDIA** GPU (NVIDIA Quadro M1000M)
 
-I didn't know that that the laptop had 2 GPUs when I chose the laptop model. I
-only had the choices between 3 models, I didn't look at specs in depth. I
-started to really care about "dual GPUs" when I started to get issues.
+I didn't know that that the laptop had two graphics device when I chose the
+laptop model. I discovered hybrid graphics when I started to debug graphics
+issues.
 
 When I disabled the nouveau driver (see below), I was no longer able to use
 external monitors. I understood that:
 
 * The **Intel** IGP is connected to the **internal** laptop screen
-* The **NVIDIA** GPU is connected to the **external** monitors
+* The **NVIDIA** GPU is connected to the **external** monitors (DisplayPort
+  and HDMI ports)
 
 
 BIOS
@@ -108,13 +118,14 @@ Hybrid graphics can be configured in the BIOS:
 
 On my Lenovo P50, using the **Discrete Graphics mode** removes "00:02.0 VGA
 compatible controller: Intel Corporation HD Graphics 530" from ``lspci``
-command output: the **Intel IGP is fully disabled**.
+command output: the **Intel IGP is fully disabled**. The Linux kernel only
+sees the NVIDIA GPU.
 
 
 Linux kernel
 ============
 
-On Linux, dual GPU setup is handled by **vgaswitcheroo**::
+On Linux, hybrid graphics is handled by **vgaswitcheroo**::
 
     $ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
     0:IGD:+:Pwr:0000:00:02.0
@@ -122,20 +133,21 @@ On Linux, dual GPU setup is handled by **vgaswitcheroo**::
 
 * ``IGD`` stands for **Integrated** Graphics Device
 * ``DIS`` stands for **DIScrete** Graphics Device
-* ``+`` marks the **active** card
+* "+" marks the **active** card
+* ``Pwr``: the graphics device is always active
+* ``DynPwr``: the graphics device is actived on demand
 
-The last field is related to the PCI identifier::
+The last field is based on the PCI identifier::
 
-    $ lspci|grep -i VGA
+    $ lspci|grep VGA
     00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
     01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
 
-Also::
+On my laptop, hybrid graphics is detected by an ACPI "Device-Specific Method"
+(DSM)::
 
     $ journalctl -b -k|grep 'VGA switcheroo'
     Sep 11 02:29:54 apu kernel: VGA switcheroo: detected Optimus DSM method \_SB_.PCI0.PEG0.PEGP handle
-
-where DSM stands for ACPI "Device-Specific Method".
 
 See `Linux kernel documentation: VGA Switcheroo
 <https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html>`_.
@@ -144,22 +156,24 @@ See `Linux kernel documentation: VGA Switcheroo
 OpenGL
 ======
 
-Get OpenGL info::
+`Mesa <https://en.wikipedia.org/wiki/Mesa_(computer_graphics)>`_ provides
+``glxinfo`` utility to get information about the OpenGL driver currently used::
 
     $ glxinfo|grep -E 'Device|direct rendering'
     direct rendering: Yes
         Device: Mesa DRI Intel(R) HD Graphics 530 (Skylake GT2)  (0x191b)
 
-On this example, the Intel IGP is used.
+On this example, the discrete Intel IGP is used.
 
-In Firefox, go to ``about:support`` and search for the ``Graphics`` section.
+In Firefox, go to **about:support** page and search for the ``Graphics``
+section to get information about compositing, WebGL, GPU, etc.
 
 
 DRI_PRIME environment variable
 ==============================
 
-Setting DRI_PRIME=1 environment variable to run an application forces the usage
-of the **discrete** GPU.
+Set DRI_PRIME=1 environment variable to run an application with the
+**discrete** GPU.
 
 Example::
 
@@ -299,3 +313,6 @@ Links
 * https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html
 * https://wiki.archlinux.org/index.php/PRIME
 * https://help.ubuntu.com/community/HybridGraphics
+* https://en.wikipedia.org/wiki/Nvidia_Optimus
+* https://en.wikipedia.org/wiki/AMD_Hybrid_Graphics
+* https://nouveau.freedesktop.org/wiki/Optimus
