@@ -2,7 +2,7 @@
 Debug Hybrid Graphics issues on Linux
 +++++++++++++++++++++++++++++++++++++
 
-:date: 2019-09-11 01:00
+:date: 2019-09-11 15:50
 :tags: linux
 :category: linux
 :slug: debug-hybrid-graphics-issues-linux
@@ -19,6 +19,11 @@ laptop has two graphical devices.
 Sadly, the Linux implementation is not perfect yet. I had to debug different
 graphics issues on GNOME last months, so I decided to write down an article
 about this technology.
+
+This article is about the **GNOME** desktop environment with **Wayland**
+running on **Fedora** 30, with Linux kernel **vgaswitcheroo** in muxless mode
+(more about that above).
+
 
 Hybrid Graphics
 ===============
@@ -49,9 +54,6 @@ In 2010, the first generation hybrid model used the **muxed** model:
     the two power/graphics profiles and is almost fixed throughout the user
     session.
 
-**This article is about the Linux kernel vgaswitcheroo with the muxless
-model.**
-
 Note: The development to support hybrid graphics in Linux started in 2010.
 
 Does my Linux have Hybrid Graphics?
@@ -81,10 +83,10 @@ Command to list graphics devices::
 Hardware
 ========
 
-My employer gave me a Lenovo P50 laptop to work. It is my only computer at
-home, so I needed a powerful laptop (even if it's heavy for traveling to
-conferences). The CPU, RAM and battery are great, but the hybrid graphics
-caused me some headaches.
+My employer gave me a Lenovo P50 laptop to work in December 2017. It is my only
+computer at home, so I needed a powerful laptop (even if it's heavy for
+traveling to conferences). The CPU, RAM and battery are great, but the hybrid
+graphics caused me some headaches.
 
 My Lenovo P50 has two GPUs::
 
@@ -127,22 +129,23 @@ On Linux, hybrid graphics is handled by **vgaswitcheroo**::
 * ``IGD`` stands for **Integrated** Graphics Device
 * ``DIS`` stands for **DIScrete** Graphics Device
 * "+" marks the **active** card
-* ``Pwr``: the graphics device is always active
-* ``DynPwr``: the graphics device is actived on demand
+* ``Pwr``: the graphics device is **always active**
+* ``DynPwr``: the graphics device is actived **on demand**
 
-The last field is based on the PCI identifier::
+The last field (ex: ``0000:00:02.0``) is based on the PCI identifier::
 
     $ lspci|grep VGA
     00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
     01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
 
-On my laptop, hybrid graphics is detected by an ACPI "Device-Specific Method"
-(DSM)::
+On my laptop, hybrid graphics is detected by an `ACPI
+<https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface>`_
+"Device-Specific Method" (DSM)::
 
     $ journalctl -b -k|grep 'VGA switcheroo'
     Sep 11 02:29:54 apu kernel: VGA switcheroo: detected Optimus DSM method \_SB_.PCI0.PEG0.PEGP handle
 
-See `Linux kernel documentation: VGA Switcheroo
+See: `VGA Switcheroo (Linux kernel documentation)
 <https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html>`_.
 
 
@@ -174,56 +177,6 @@ Example::
     direct rendering: Yes
         Device: NV117 (0x13b1)
 
-Wayland
-=======
-
-This section is unrelated to Hybrid Graphics, but useful to debug graphics
-issues.
-
-Do I use Wayland?
------------------
-
-Is "type wayland" found in the loginctl session status? ::
-
-    $ loginctl session-status|grep Service:
-    Service: gdm-password; type wayland; class user
-
-Is ``WAYLAND_DISPLAY`` environment variable set? ::
-
-    $ env|grep -E '^(XDG_SESSION_TYPE|WAYLAND_DISPLAY|DISPLAY)'
-    XDG_SESSION_TYPE=wayland
-    WAYLAND_DISPLAY=wayland-0
-    DISPLAY=:0
-
-(``DISPLAY`` environment variable is set by ``Xwayland`` server for applications still using X11 API.)
-
-Is Xwayland running? ::
-
-    $ ps ax|grep Xwayland
-     1956 tty2     Sl+    6:38 /usr/bin/Xwayland :0 ...
-
-
-Is this application using Wayland or Xorg?
-------------------------------------------
-
-The ``xprop`` program can be in Wayland to check if an application is using
-Xorg or Wayland: the mouse cursor becomes a cross only and only if the
-application is used Xorg (X11 API).
-
-Opt-in for Wayland
-------------------
-
-Opt-in for Wayland support:
-
-* Gtk applications: set ``GDK_BACKEND=wayland`` environment variable
-* Firefox, Thunderbird: set ``MOZ_ENABLE_WAYLAND=1`` environment variable
-
-For example, I put the following line into ``/etc/environment`` to run Firefox
-with Wayland::
-
-    MOZ_ENABLE_WAYLAND=1
-
-
 switcheroo-control
 ==================
 
@@ -231,17 +184,11 @@ switcheroo-control
 deamon controlling ``/sys/kernel/debug/vgaswitcheroo/switch`` (Linux kernel).
 It can be accessed by DBus.
 
-With this package installed on systems with dual-GPU, you can right-click on
-apps (while it's not running) in GNOME Shell's Activities Overview and choose
-"Launch using Dedicated Graphics Card" option.
-
-Fedora 25 and later installs switcheroo-control by default.
-
 When the daemon starts, it looks for ``xdg.force_integrated=VALUE`` parameter
 in the Linux command line. If *VALUE* is ``1``, ``true`` or ``on``, or if
 ``xdg.force_integrated=VALUE`` is not found in the command line, the daemon
-writes ``DIGD`` into ``/sys/kernel/debug/vgaswitcheroo/switch`` (prefer the
-IGP).
+writes ``DIGD`` into ``/sys/kernel/debug/vgaswitcheroo/switch`` (delayed
+**switch to the integrated graphics device**: my Intel IGP)
 
 If ``xdg.force_integrated=0`` is found in the command line, the daemon leaves
 ``/sys/kernel/debug/vgaswitcheroo/switch`` unchanged.
@@ -252,24 +199,35 @@ systemd:
 * Disable the service: ``sudo systemctl disable switcheroo-control.service``
   and ``sudo systemctl stop switcheroo-control.service``
 
+On Fedora, switcheroo-control is installed by default.
 
-Disable the discrete GPU by blacklisting its driver (nouveau)
-=============================================================
+It is unclear to me if this daemon is still useful for my setup. It seems like
+the the Linux kernel switcheroo uses the integrated Intel IGP by default
+anyway.
 
-To debug graphical bugs, I wanted to ensure that the NVIDIA GPU is never
-used. I found the solution of fully disabling the nouveau driver in the Linux
-kernel: add ``modprobe.blacklist=nouveau`` to the Linux kernel command line
-using::
+
+Disable the discrete GPU by blacklisting its driver
+===================================================
+
+To debug graphical bugs, I wanted to ensure that the discrete NVIDIA GPU is
+never used.
+
+I found the solution of fully disabling the nouveau driver in the Linux kernel:
+add ``modprobe.blacklist=nouveau`` to the Linux kernel command line. On Fedora,
+you can use::
 
     sudo grubby --update-kernel=ALL --args="modprobe.blacklist=nouveau"
 
-To reenable nouveau, remove the parameter::
+To reenable nouveau, remove the parameter. On Fedora::
 
     sudo grubby --update-kernel=ALL --remove-args="modprobe.blacklist=nouveau"
 
 
 Demo!
 =====
+
+For this test, my laptop is not connected to anything (no power cable, no
+external monitor, no dock).
 
 When my laptop is idle (no 3D application is running), the NVIDIA GPU is
 **suspended**::
@@ -311,10 +269,13 @@ understood that:
   and HDMI ports)
 
 When my laptop has **no external monitor** connected, the **discrete** NVIDIA
-GPU is **suspended**.
+GPU is **actived on demand** (suspended when idle)
 
-But when I put my laptop on its dock **with two external monitors connected**,
-the **discrete** NVIDIA GPU becomes **active**.
+When I connect my laptop to **two external monitors** (using my dock), the
+**discrete** NVIDIA GPU is **always active**::
+
+    $ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
+    active
 
 
 Links
