@@ -131,6 +131,8 @@ Functions:
 * ``_PyObject_GC_UNTRACK()``
 * ``Py_DECREF()`` through ``_Py_NegativeRefcount()``
 
+XXX tracemalloc
+
 Py_FatalError()
 ===============
 
@@ -224,3 +226,5 @@ Python 3.6: xxx
 Python 3.7: xxx
 Python 3.8: Debug build is ABI compatible with release build, no need to recompile
 Python 3.9: visit_decref(), Py GC Track
+
+XXX PyMem debug hook enhancements: tracemalloc
