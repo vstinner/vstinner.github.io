@@ -61,18 +61,9 @@ Python 3.8 beta1: Victor
     https://twitter.com/spyced/status/1133171600969412611
 * Stressful beta1: fix regressions
   https://mail.python.org/pipermail/python-dev/2019-June/157828.html
-* Thomas Wouters accepted my PEP 587!
-  https://mail.python.org/pipermail/python-dev/2019-May/157721.html
-  5th PEP version
-* This is me everyday at work: (link: https://www.youtube.com/watch?v=AbSehcT19u0) youtube.com/watch?v=AbSehc…
+* This is me everyday at work: https://www.youtube.com/watch?v=AbSehcT19u0
   - Lois: Hal, can you replace the lightbulb in the kitchen?
   - Hal: CAN'T YOU SEE THAT'S WHAT I'M DOING?
-
-Misc
-====
-
-* Hynek: Bus Factor
-  https://twitter.com/hynek/status/1131236353977536513
 
 Python 3.8 beta1: Others
 ========================
@@ -96,34 +87,16 @@ Example::
   https://github.com/python/cpython/commit/b121f63155d8e3c7c42ab6122e36eaf7f5e9f7f5
 * AsyncMock: https://github.com/python/cpython/pull/9296
 
-Python: Victor
-==============
-
-* Pycon FR organized at Bordeaux
-
-Python: Others
-==============
-
-* PyPI: 2FA
-* Joe Jevnik: jlist, specialized for int64_t
-  https://twitter.com/__qualname__/status/1132666507043975168
-* Steve Dower: Python installer in Windows 10 May 2019 Update
-  https://devblogs.microsoft.com/python/python-in-the-windows-10-may-2019-update/
-* Pure Python subinterpreters:
-  https://twitter.com/dontusethiscode/status/1130240042457288705
-* Scipy 1.3 and scikit-learn dropped Python 2 support
-* Python: Most popular on StackOverflow
-  https://twitter.com/VictorStinner/status/1127497860440834048
-* Python 3.4 Farewell
-    https://pythoninsider.blogspot.com/2019/05/farewell-python-34.html
-* Python 3.8 alpha 4 released: May 7
-* Red Hat Enterprise Linux 8: May 7
-
 subinterpreters, runtime
 ========================
 
 https://twitter.com/VictorStinner/status/1126966411425927168
-    My "small" contribution to prepare Python code for one GIL per interpreter (PEP 554, subinterpreters): (link: https://github.com/python/cpython/commit/09532feeece39d5ba68a0d47115ce1967bfbd58e) github.com/python/cpython… That's early work to identify how shared states are used and what should be fixed. cc @ericsnowcrntly
+    My "small" contribution to prepare Python code for one GIL per interpreter
+    (PEP 554, subinterpreters):
+    https://github.com/python/cpython/commit/09532feeece39d5ba68a0d47115ce1967bfbd58e
+    That's early work to identify how shared states are used and what should be
+    fixed. cc @ericsnowcrntly
+
     https://github.com/python/cpython/commit/09532feeece39d5ba68a0d47115ce1967bfbd58e
 
 https://pythoncapi.readthedocs.io/runtime.html
@@ -131,22 +104,3 @@ https://pythoncapi.readthedocs.io/runtime.html
 
 
 
-Misc
-====
-
-Anthony Shaw: https://hackernoon.com/has-the-python-gil-been-slain-9440d28fa93d
-
-Oh, Windows:
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-
-    <windows.h> is the recommended way to get the Windows API, but it includes "everything". WIN32_LEAN_AND_MEAN skips a few things. A Python header defines WIN32_LEAN_AND_MEAN which breaks posixmodule.c compilation.
-
-    https://twitter.com/VictorStinner/status/1127884878027079680
-
-Performance
-===========
-
-* pyperf 1.6.1 release: new name!
-  New documentation URL! https://pyperf.readthedocs.io/
-* pyperformance 0.9.0 release: new name!
