@@ -9,8 +9,9 @@ Graphics bugs in Firefox and GNOME
 :authors: Victor Stinner
 
 After explaining how to `Debug Hybrid Graphics issues on Linux
-<{filename}/hybrid_graphics.rst>`_, here is the story of some graphics bugs
-that I had in GNOME and Firefox on my Fedora 30 and Wayland.
+<{filename}/hybrid_graphics.rst>`_, here is the story of four graphics bugs
+that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
+2019: bugs in gnome-shell, Gtk, Firefox and mutter.
 
 .. image:: {static}/images/glitch.jpg
    :alt: Glitch
@@ -20,12 +21,14 @@ that I had in GNOME and Firefox on my Fedora 30 and Wayland.
 gnome-shell freezes
 ===================
 
-May 2018, six months after I got my Lenovo P50 laptop, gnome-shell was
+In May 2018, six months after I got my Lenovo P50 laptop, gnome-shell was
 "sometimes" freezing between 1 and 5 seconds. It was annoying because key
 stokes created repeated keys writing "helloooooooooooooooooooooo" instead of
-"hello" for example. My colleagues led my to ``#fedora-desktop`` of the GIMP IRC
-server where I met my colleague **Jonas Ådahl** (jadahl) who almost immediately
-identified my issue! Extract of the IRC chat:
+"hello" for example.
+
+My colleagues led my to ``#fedora-desktop`` of the GIMP IRC server where I met
+my colleague **Jonas Ådahl** (jadahl) who almost immediately identified my
+issue! Extract of the IRC chat:
 
 ::
 
@@ -73,18 +76,21 @@ HDMI port::
         the issue is gone
     15:31 < vstinner> jadahl: impressive
 
+When an external monitor is used (like a TV plugged on the HDMI port), my
+NVIDIA GPU is always active which works around the bug I had in gnome-shell.
+
 Jonas provided me a RPM package for Fedora including his work-in-progress fix:
 `Upload HW cursor sprite on-demand
 <https://gitlab.gnome.org/GNOME/mutter/merge_requests/106>`_. I confirmed that
-this change fixed my bug. His change was merged upstream in mutter.
+this change fixed my bug. His mutter change has been merged upstream.
 
 Firefox crash when selecting text
 =================================
 
-March 2019, Firefox with Wayland crashed on ``wl_abort()`` when selecting more
-than 4000 characters in a ``<textarea>``. I found the bug in Gmail when
-selecting the whole email text to remove it. Pressing **CTRL + A** or Right-click +
-Select All **crashed the whole Firefox process!**
+In March 2019, Firefox with Wayland crashed on ``wl_abort()`` when selecting
+more than 4000 characters in a ``<textarea>``. I found the bug in Gmail when
+selecting the whole email text to remove it. Pressing **CTRL + A** or
+Right-click + Select All **crashed the whole Firefox process!**
 
 I reported the bug to Firefox: `Firefox with Wayland crash on wl_abort() when
 selecting more than 4000 characters in a <textarea>
@@ -119,6 +125,7 @@ package was pushed to the public Fedora package repository.
 
 **That's the cool part about open source: if you have the skills to hack the
 code, you can fix an annoying which is affecting you!**
+
 
 Firefox: [Wayland] Window partially or not updated when switching between two tabs
 ==================================================================================
@@ -192,9 +199,10 @@ glitches on wayland
 Xwayland crash in xwl_glamor_gbm_create_pixmap()
 ================================================
 
-While I was debugging the previous Firefox glitch, I started my IRC client
-hexchat. Suddently, **Xwayland crashed which closed my whole Gnome session**!
-I was testing various GPU configurations to analyze the Firefox bug.
+In September 2019, while I was debugging the previous Firefox bug, I started my
+IRC client hexchat.  Suddently, **Xwayland crashed which closed my whole Gnome
+session**!  I was testing various GPU configurations to analyze the Firefox
+bug.
 
 ABRT managed to rebuild an useless traceback and identified an existing bug
 report. It added my coment to `[abrt] xorg-x11-server-Xwayland:
@@ -212,3 +220,35 @@ interesting comment <https://bugzilla.redhat.com/show_bug.cgi?id=1729200#c9>`_:
 
 So in fact, my bug was already fixed by **Olivier Fourdan** in Xwayland
 upstream, but the fix didn't land into Fedora yet.
+
+
+Thanks!
+=======
+
+I would like to thank the following developers who fixed my Fedora 30. What a
+coincidence, all four are my collagues! It seems like Red Hat is investing in
+the Linux desktop :-)
+
+`Carlos Garnacho <https://blogs.gnome.org/carlosg/>`_ (Red Hat).
+
+.. image:: {static}/images/carlos_garnacho.jpg
+   :alt: Carlos Garnacho
+   :target: https://blogs.gnome.org/carlosg/
+
+`Jonas Ådahl <https://gitlab.gnome.org/jadahl>`_ (Red Hat).
+
+.. image:: {static}/images/jonas_adahl.jpg
+   :alt: Jonas Ådahl
+   :target: https://gitlab.gnome.org/jadahl
+
+`Martin Stránský <http://people.redhat.com/stransky/>`_ (Red Hat).
+
+.. image:: {static}/images/mstransky.jpg
+   :alt: Martin Stránský
+   :target: http://people.redhat.com/stransky/
+
+`Olivier Fourdan <https://en.wikipedia.org/wiki/Olivier_Fourdan>`_ (Red Hat).
+
+.. image:: {static}/images/olivier_fourdan.jpg
+   :alt: Olivier Fourdan
+   :target: https://en.wikipedia.org/wiki/Olivier_Fourdan
