@@ -20,7 +20,202 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">Debug Hybrid Graphics issues on Linux</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/graphics-bugs-firefox-gnome.html">Graphics bugs in Firefox and GNOME</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2019-10-10T17:00:00+02:00">
+                Published: jeu. 10 octobre 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/linux.html">linux</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/linux.html">linux</a> </p>
+</footer><!-- /.post-info --><p>After explaining how to <a class="reference external" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">Debug Hybrid Graphics issues on Linux</a>, here is the story of four graphics bugs
+that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
+2019: bugs in gnome-shell, Gtk, Firefox and mutter.</p>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/34298393&#64;N06/14488759356/"><img alt="Glitch" src="https://vstinner.github.io/images/glitch.jpg" /></a>
+<div class="section" id="gnome-shell-freezes">
+<h2>gnome-shell freezes</h2>
+<p>In May 2018, six months after I got my Lenovo P50 laptop, gnome-shell was
+&quot;sometimes&quot; freezing between 1 and 5 seconds. It was annoying because key
+stokes created repeated keys writing &quot;helloooooooooooooooooooooo&quot; instead of
+&quot;hello&quot; for example.</p>
+<p>My colleagues led my to <tt class="docutils literal"><span class="pre">#fedora-desktop</span></tt> of the GIMP IRC server where I met
+my colleague <strong>Jonas Ådahl</strong> (jadahl) who almost immediately identified my
+issue! Extract of the IRC chat:</p>
+<pre class="literal-block">
+15:03 &lt;vstinner&gt; hello. i upgraded from F27 to F28, and it seems like I
+    switched from Xorg to Wayland. sometimes, the desktop hangs a few
+    milliseconds (less than 2 secondes)
+15:03 &lt;vstinner&gt; bentiss told me that  &quot;libinput error: client bug: timer
+    event7 keyboard: offset negative (-39ms)&quot; can occur when shell is too
+    slow
+15:04 &lt;vstinner&gt; journalctl shows me frenquently the bug
+    https://gitlab.gnome.org/GNOME/gnome-shell/issues/1 &quot;Object
+    Shell.GenericContainer (0x559e6bfddc60), has been already finalized.
+    Impossible to get any property from it.&quot;
+15:04 &lt;vstinner&gt; i also get &quot;Window manager warning: last_user_time
+    (3093467) is greater than comparison timestamp (3093466).  This most
+    likely represents a buggy client sending inaccurate timestamps in
+    messages such as _NET_ACTIVE_WINDOW.  Trying to work around...&quot; errors
+    in logs (from shell)
+15:05 &lt;vstinner&gt; bentiss: ah, i also get &quot;libinput error: client bug: timer
+    event7 trackpoint: offset negative (-352ms)&quot; errors
+15:06 &lt;vstinner&gt; it's a recent laptop, Lenovo P50: 32 GB of RAM, 4 physical
+    CPUs (8 threads) Intel(R) Core(TM) i7-6820HQ CPU &#64; 2.70GHz
+15:06 &lt;vstinner&gt; so. what can i do to debug such performance issue? may it
+    come from shell? what does it mean if shell is slow? can it be a GPU
+    issue?  a javascript issue?
+...
+15:13 &lt;jadahl&gt; vstinner: whats your hardware? Do you have a hybrid gpu
+    system?
+15:13 &lt;jadahl&gt; ah, yes P50
+15:14 &lt;jadahl&gt; vstinner: there is a branch on mutter upstream that fixes
+    that issue. want to compile it to test?
+</pre>
+<p>Ten minutes after I asked my question, Jonas asked the right question: <strong>Do you
+have a hybrid gpu system?</strong></p>
+<p>I was able to workaround the issue by connecting my laptop to my TV using the
+HDMI port:</p>
+<pre class="literal-block">
+15:22 &lt; jadahl&gt; for example, IIRC if you have a monitor connected to the
+    HDMI, the issue will go away since the secondary GPU is always awake
+    anyway
+...
+15:31 &lt; vstinner&gt; jadahl: i plugged a HDMI cable to my TV and it seems like
+    the issue is gone
+15:31 &lt; vstinner&gt; jadahl: impressive
+</pre>
+<p>When an external monitor is used (like a TV plugged on the HDMI port), my
+NVIDIA GPU is always active which works around the bug I had in gnome-shell.</p>
+<p>Jonas provided me a RPM package for Fedora including his work-in-progress fix:
+<a class="reference external" href="https://gitlab.gnome.org/GNOME/mutter/merge_requests/106">Upload HW cursor sprite on-demand</a>. I confirmed that
+this change fixed my bug. His mutter change has been merged upstream.</p>
+</div>
+<div class="section" id="firefox-crash-when-selecting-text">
+<h2>Firefox crash when selecting text</h2>
+<p>In March 2019, Firefox with Wayland crashed on <tt class="docutils literal">wl_abort()</tt> when selecting
+more than 4000 characters in a <tt class="docutils literal">&lt;textarea&gt;</tt>. I found the bug in Gmail when
+selecting the whole email text to remove it. Pressing <strong>CTRL + A</strong> or
+Right-click + Select All <strong>crashed the whole Firefox process!</strong></p>
+<p>I reported the bug to Firefox: <a class="reference external" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1539773">Firefox with Wayland crash on wl_abort() when
+selecting more than 4000 characters in a &lt;textarea&gt;</a>.</p>
+<p>Running gdb in Firefox caused me some troubles since it's a very large binary with
+many libraries. I also read <a class="reference external" href="https://cgit.freedesktop.org/wayland/wayland-protocols/tree/unstable/text-input/text-input-unstable-v3.xml#n138">Wayland protocol specifications</a>.
+I managed to analyze the bug and so I reported the bug to Gtk as well, <a class="reference external" href="https://gitlab.gnome.org/GNOME/gtk/issues/1783">On
+Wayland, notify_surrounding_text() crash on wl_abort() if text is longer than
+4000 bytes</a>:</p>
+<blockquote>
+According to gdb, <tt class="docutils literal">wl_proxy_marshal_array_constructor_versioned()</tt> calls
+<tt class="docutils literal">wl_abort()</tt> because the buffer is too short. It seems like
+<tt class="docutils literal">wl_buffer_put()</tt> fails with <tt class="docutils literal">E2BIG</tt>.</blockquote>
+<p>Quickly, I identified that <strong>my Gtk bug has already been fixed 3 months before
+by Carlos Garnacho</strong> (<a class="reference external" href="https://gitlab.gnome.org/GNOME/gtk/merge_requests/438">imwayland: Respect maximum length of 4000 Bytes on
+strings being sent</a>)
+and <strong>the fix is part of gtk-3.24.3</strong> (&quot;wayland: Respect length limits in text
+protocol&quot; says &quot;Overview of Changes in GTK+ 3.24.3&quot;).</p>
+<p>I requested to upgrade Gtk in Fedora. But it was not possible since the newer
+version changed the theme. I was asked to cherry-pick the fix and that's what I
+did: <a class="reference external" href="https://src.fedoraproject.org/rpms/gtk3/pull-request/5">imwayland: Respect maximum length of 4000 Bytes on strings</a>.</p>
+<p>My PR was merged and a new package was built. I tested it and confirmed that it
+fixed the crash: <a class="reference external" href="ttps://bodhi.fedoraproject.org/updates/FEDORA-2019-d67ec97b0b">FEDORA-2019-d67ec97b0b</a>. Soon, the
+package was pushed to the public Fedora package repository.</p>
+<p><strong>That's the cool part about open source: if you have the skills to hack the
+code, you can fix an annoying which is affecting you!</strong></p>
+</div>
+<div class="section" id="firefox-wayland-window-partially-or-not-updated-when-switching-between-two-tabs">
+<h2>Firefox: [Wayland] Window partially or not updated when switching between two tabs</h2>
+<div class="section" id="analyze-the-bug">
+<h3>Analyze the bug</h3>
+<p>In September 2019, after a large system upgrade (install 6 packages, upgrade
+234 packages, remove 5 packages), Firefox started to not update the window
+content sometimes when I switched from one tab to another. Example:</p>
+<img alt="Firefox bug of window partially updated" src="https://vstinner.github.io/images/firefox_bug_1.jpg" />
+<p>It took me a few hours to analyze the bug to be able to produce an useful bug
+report.</p>
+<p>I followed Fedora's guide <a class="reference external" href="https://fedoraproject.org/wiki/How_to_debug_Firefox_problems">How to debug Firefox problems</a> advices.</p>
+<p>First, I tried to <strong>understand which GPU driver is used</strong>. I finished by
+blacklisting the nouveau driver in the Linux kernel, to ensure that Firefox was
+using my Intel IGP. I still reproduced the bug.</p>
+<p>I <strong>disabled all Firefox extensions</strong>: bug reproduced.</p>
+<p>Then I created a new Firefox profile and started Firefox in <strong>safe mode</strong>: bug
+reproduced.</p>
+<p>I tested the latest Firefox binary from mozilla.org (Firefox 69.0): bug
+reproduced.</p>
+<p>Finally, <strong>I tested Firefox Nightly</strong> from mozilla.org (Firefox 71.0a1): bug
+reproduced.</p>
+<p>Ok, it was enough data to produce an interesting bug report. I reported
+<a class="reference external" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1580152">[Wayland] Window partially or not updated when switching between two tabs</a> to Firefox.</p>
+</div>
+<div class="section" id="identify-the-regression-using-fedora-packages">
+<h3>Identify the regression using Fedora packages</h3>
+<p>Then I looked at <tt class="docutils literal">/var/log/dnf.log</tt> and I tried to identify which package
+update could explain the regression.</p>
+<p>I downgraded <strong>gtk3</strong>-3.24.11-1.fc30.x86_64 to gtk3.x86_64 3.24.10-1.fc30: bug
+reproduced.</p>
+<p>I rebooted on oldest available <strong>Linux kernel</strong>, version 5.2.8-200.fc30.x86_64:
+bug reproduced. I checked journalctl logs to check which Linux version I was
+running whhen the bug was first seen: Linux 5.2.9-200.fc30.x86_64.</p>
+<p>I don't know why, but <strong>downgrading Firefox was only my 3rd test</strong>.</p>
+<p>I downgraded firefox-69.0-2.fc30.x86_64 to firefox-68.0.2-1.fc30.x86_64: the
+bug is gone! Ok, so <strong>the regression comes from the Firefox package</strong>, and it
+was introduced between package versions 68.0.2-1.fc30 and 69.0-2.fc30.</p>
+<p>On IRC, I met my colleague <strong>Martin Stránský</strong> who package Firefox for Fedora.
+He told me that he is aware of my bug and may have a fix for my bug. Great!</p>
+<p>Only 9 days later, <strong>Martin Stránský</strong> fix has been merged in Firefox upstream,
+released in Firefox Nightly, and a new package has been shipped in Fedora 30!
+Thanks Martin for your efficiency!</p>
+<p>The final Firefox change is quite large and intrusive: <a class="reference external" href="https://hg.mozilla.org/releases/mozilla-beta/rev/3281a617f22b">[Wayland] Fix rendering
+glitches on wayland</a></p>
+</div>
+</div>
+<div class="section" id="xwayland-crash-in-xwl-glamor-gbm-create-pixmap">
+<h2>Xwayland crash in xwl_glamor_gbm_create_pixmap()</h2>
+<p>In September 2019, while I was debugging the previous Firefox bug, I started my
+IRC client hexchat.  Suddently, <strong>Xwayland crashed which closed my whole Gnome
+session</strong>!  I was testing various GPU configurations to analyze the Firefox
+bug.</p>
+<p>ABRT managed to rebuild an useless traceback and identified an existing bug
+report. It added my coment to <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1729200#c20">[abrt] xorg-x11-server-Xwayland:
+OsLookupColor(): Segmentation fault at address 0x28</a> report.</p>
+<p>At July 26, 2019 (1 month before I got the bug), <strong>Olivier Fourdan</strong> added <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1729200#c9">an
+interesting comment</a>:</p>
+<blockquote>
+<tt class="docutils literal">glamor_get_modifiers+0x767</tt> is <tt class="docutils literal">xwl_glamor_gbm_create_pixmap()</tt> so this
+is the same as <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1729925">bug 1729925</a> fixed upstream with
+<a class="reference external" href="https://gitlab.freedesktop.org/xorg/xserver/merge_requests/242">xwayland: Do not free a NULL GBM bo</a>.</blockquote>
+<p>So in fact, my bug was already fixed by <strong>Olivier Fourdan</strong> in Xwayland
+upstream, but the fix didn't land into Fedora yet.</p>
+</div>
+<div class="section" id="thanks">
+<h2>Thanks!</h2>
+<p>I would like to thank the following developers who fixed my Fedora 30. What a
+coincidence, all four are my collagues! It seems like Red Hat is investing in
+the Linux desktop :-)</p>
+<p><a class="reference external" href="https://blogs.gnome.org/carlosg/">Carlos Garnacho</a> (Red Hat).</p>
+<a class="reference external image-reference" href="https://blogs.gnome.org/carlosg/"><img alt="Carlos Garnacho" src="https://vstinner.github.io/images/carlos_garnacho.jpg" /></a>
+<p><a class="reference external" href="https://gitlab.gnome.org/jadahl">Jonas Ådahl</a> (Red Hat).</p>
+<a class="reference external image-reference" href="https://gitlab.gnome.org/jadahl"><img alt="Jonas Ådahl" src="https://vstinner.github.io/images/jonas_adahl.jpg" /></a>
+<p><a class="reference external" href="http://people.redhat.com/stransky/">Martin Stránský</a> (Red Hat).</p>
+<a class="reference external image-reference" href="http://people.redhat.com/stransky/"><img alt="Martin Stránský" src="https://vstinner.github.io/images/mstransky.jpg" /></a>
+<p><a class="reference external" href="https://en.wikipedia.org/wiki/Olivier_Fourdan">Olivier Fourdan</a> (Red Hat).</p>
+<a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Olivier_Fourdan"><img alt="Olivier Fourdan" src="https://vstinner.github.io/images/olivier_fourdan.jpg" /></a>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="bookmark"
+                           title="Permalink to Debug Hybrid Graphics issues on Linux">Debug Hybrid Graphics issues on Linux</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-09-11T15:50:00+02:00">
                 Published: mer. 11 septembre 2019
@@ -31,261 +226,16 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/linux.html">linux</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/linux.html">linux</a> </p>
-</footer><!-- /.post-info --><p><a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics">Hybrid Graphics</a> is a
+</footer><!-- /.post-info -->                <p><a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics">Hybrid Graphics</a> is a
 complex hardware and software solution to achieve longer laptop battery life:
 an <strong>integrated</strong> graphics device is used by default, and a <strong>discrete</strong>
 graphics device with higher graphics performances is enabled on demand.</p>
 <a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"><img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /></a>
 <p>If it is designed and implemented carefully, users should not notice that a
-laptop has two graphical devices.</p>
-<p>Sadly, the Linux implementation is not perfect yet. I had to debug different
-graphics issues on GNOME last months, so I decided to write down an article
-about this technology.</p>
-<p>This article is about the <strong>GNOME</strong> desktop environment with <strong>Wayland</strong>
-running on <strong>Fedora</strong> 30, with Linux kernel <strong>vgaswitcheroo</strong> in muxless mode
-(more about that above).</p>
-<div class="section" id="id1">
-<h2>Hybrid Graphics</h2>
-<p>Hybrid Graphics are known under different names:</p>
-<ul class="simple">
-<li>Linux kernel <a class="reference external" href="https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html">vgaswitcheroo</a></li>
-<li><a class="reference external" href="https://wiki.archlinux.org/index.php/PRIME">PRIME</a> in Linux open source
-GPU drivers (nouveau, ati, amdgpu and intel), the &quot;muxless&quot; flavor of hybrid graphics</li>
-<li><a class="reference external" href="https://wiki.archlinux.org/index.php/bumblebee">Bumblebee</a>:
-<a class="reference external" href="https://wiki.archlinux.org/index.php/NVIDIA_Optimus">NVIDIA Optimus</a>
-for Linux</li>
-<li>&quot;AMD Dynamic Switchable Graphics&quot; for Radeon</li>
-<li>&quot;Dual GPUs&quot;</li>
-<li>etc.</li>
-</ul>
-<p>Nowadays, most manufacturers utilizes the <strong>muxless</strong> model:</p>
-<blockquote>
-Dual GPUs but <strong>only one of them is connected to outputs</strong>. The other one
-is merely used to <strong>offload rendering</strong>, its results are copied over PCIe
-into the framebuffer. On Linux this is supported with DRI PRIME.</blockquote>
-<p>In 2010, the first generation hybrid model used the <strong>muxed</strong> model:</p>
-<blockquote>
-Dual GPUs with a hardware multiplexer chip to switch outputs between GPUs.
-This model makes the user choose (at boot time or at login time) between
-the two power/graphics profiles and is almost fixed throughout the user
-session.</blockquote>
-<p>Note: The development to support hybrid graphics in Linux started in 2010.</p>
-</div>
-<div class="section" id="does-my-linux-have-hybrid-graphics">
-<h2>Does my Linux have Hybrid Graphics?</h2>
-<p>On Linux, Hybrid Graphics is used if the <tt class="docutils literal">/sys/kernel/debug/vgaswitcheroo/</tt>
-directory exists.</p>
-<p>No Hybrid Graphics, single graphics device:</p>
-<pre class="literal-block">
-$ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
-cat: /sys/kernel/debug/vgaswitcheroo/switch: No such file or directory
-</pre>
-<p>Hybrid Graphics with two graphics devices:</p>
-<pre class="literal-block">
-$ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
-0:IGD:+:Pwr:0000:00:02.0
-1:DIS: :DynOff:0000:01:00.0
-</pre>
-<p>Command to list graphics devices:</p>
-<pre class="literal-block">
-$ lspci|grep VGA
-00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
-01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
-</pre>
-</div>
-<div class="section" id="hardware">
-<h2>Hardware</h2>
-<p>My employer gave me a Lenovo P50 laptop to work in December 2017. It is my only
-computer at home, so I needed a powerful laptop (even if it's heavy for
-traveling to conferences). The CPU, RAM and battery are great, but the hybrid
-graphics caused me some headaches.</p>
-<p>My Lenovo P50 has two GPUs:</p>
-<pre class="literal-block">
-$ lspci|grep VGA
-00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
-01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
-</pre>
-<ul class="simple">
-<li>The <strong>Integrated Graphics Device</strong> is a <strong>Intel</strong> IGP (Intel HD Graphics 530)</li>
-<li>The <strong>Discrete Graphics Device</strong> is a <strong>NVIDIA</strong> GPU (NVIDIA Quadro M1000M)</li>
-</ul>
-<p>I didn't know that that the laptop had two graphics device when I chose the
-laptop model. I discovered hybrid graphics when I started to debug graphics
-issues.</p>
-</div>
-<div class="section" id="bios">
-<h2>BIOS</h2>
-<p>Hybrid graphics can be configured in the BIOS:</p>
-<ul class="simple">
-<li><strong>Discrete Graphics mode</strong> will achieve higher graphics performances.</li>
-<li><strong>Hybrid Graphics mode</strong> (default) runs as Integrated Graphics mode to
-achieve longer battery life, and Discrete Graphics is enabled on demand.</li>
-</ul>
-<p>On my Lenovo P50, using the <strong>Discrete Graphics mode</strong> removes &quot;00:02.0 VGA
-compatible controller: Intel Corporation HD Graphics 530&quot; from <tt class="docutils literal">lspci</tt>
-command output: the <strong>Intel IGP is fully disabled</strong>. The Linux kernel only
-sees the NVIDIA GPU.</p>
-</div>
-<div class="section" id="linux-kernel">
-<h2>Linux kernel</h2>
-<p>On Linux, hybrid graphics is handled by <strong>vgaswitcheroo</strong>:</p>
-<pre class="literal-block">
-$ sudo cat /sys/kernel/debug/vgaswitcheroo/switch
-0:IGD:+:Pwr:0000:00:02.0
-1:DIS: :DynPwr:0000:01:00.0
-</pre>
-<ul class="simple">
-<li><tt class="docutils literal">IGD</tt> stands for <strong>Integrated</strong> Graphics Device</li>
-<li><tt class="docutils literal">DIS</tt> stands for <strong>DIScrete</strong> Graphics Device</li>
-<li>&quot;+&quot; marks the <strong>active</strong> card</li>
-<li><tt class="docutils literal">Pwr</tt>: the graphics device is <strong>always active</strong></li>
-<li><tt class="docutils literal">DynPwr</tt>: the graphics device is actived <strong>on demand</strong></li>
-</ul>
-<p>The last field (ex: <tt class="docutils literal">0000:00:02.0</tt>) is based on the PCI identifier:</p>
-<pre class="literal-block">
-$ lspci|grep VGA
-00:02.0 VGA compatible controller: Intel Corporation HD Graphics 530 (rev 06)
-01:00.0 VGA compatible controller: NVIDIA Corporation GM107GLM [Quadro M1000M] (rev a2)
-</pre>
-<p>On my laptop, hybrid graphics is detected by an <a class="reference external" href="https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface">ACPI</a>
-&quot;Device-Specific Method&quot; (DSM):</p>
-<pre class="literal-block">
-$ journalctl -b -k|grep 'VGA switcheroo'
-Sep 11 02:29:54 apu kernel: VGA switcheroo: detected Optimus DSM method \_SB_.PCI0.PEG0.PEGP handle
-</pre>
-<p>See: <a class="reference external" href="https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html">VGA Switcheroo (Linux kernel documentation)</a>.</p>
-</div>
-<div class="section" id="opengl">
-<h2>OpenGL</h2>
-<p><a class="reference external" href="https://en.wikipedia.org/wiki/Mesa_(computer_graphics)">Mesa</a> provides
-<tt class="docutils literal">glxinfo</tt> utility to get information about the OpenGL driver currently used:</p>
-<pre class="literal-block">
-$ glxinfo|grep -E 'Device|direct rendering'
-direct rendering: Yes
-    Device: Mesa DRI Intel(R) HD Graphics 530 (Skylake GT2)  (0x191b)
-</pre>
-<p>On this example, the discrete Intel IGP is used.</p>
-<p>In Firefox, go to <strong>about:support</strong> page and search for the <tt class="docutils literal">Graphics</tt>
-section to get information about compositing, WebGL, GPU, etc.</p>
-</div>
-<div class="section" id="dri-prime-environment-variable">
-<h2>DRI_PRIME environment variable</h2>
-<p>Set DRI_PRIME=1 environment variable to run an application with the
-<strong>discrete</strong> GPU.</p>
-<p>Example:</p>
-<pre class="literal-block">
-$ DRI_PRIME=1 glxinfo|grep -E 'Device|rendering'
-direct rendering: Yes
-    Device: NV117 (0x13b1)
-</pre>
-</div>
-<div class="section" id="switcheroo-control">
-<h2>switcheroo-control</h2>
-<p><a class="reference external" href="https://github.com/hadess/switcheroo-control">switcheroo-control</a> is a
-deamon controlling <tt class="docutils literal">/sys/kernel/debug/vgaswitcheroo/switch</tt> (Linux kernel).
-It can be accessed by DBus.</p>
-<p>When the daemon starts, it looks for <tt class="docutils literal">xdg.force_integrated=VALUE</tt> parameter
-in the Linux command line. If <em>VALUE</em> is <tt class="docutils literal">1</tt>, <tt class="docutils literal">true</tt> or <tt class="docutils literal">on</tt>, or if
-<tt class="docutils literal">xdg.force_integrated=VALUE</tt> is not found in the command line, the daemon
-writes <tt class="docutils literal">DIGD</tt> into <tt class="docutils literal">/sys/kernel/debug/vgaswitcheroo/switch</tt> (delayed
-<strong>switch to the integrated graphics device</strong>: my Intel IGP)</p>
-<p>If <tt class="docutils literal">xdg.force_integrated=0</tt> is found in the command line, the daemon leaves
-<tt class="docutils literal">/sys/kernel/debug/vgaswitcheroo/switch</tt> unchanged.</p>
-<p>systemd:</p>
-<ul class="simple">
-<li>Check if the service is running: <tt class="docutils literal">sudo systemctl status <span class="pre">switcheroo-control.service</span></tt></li>
-<li>Disable the service: <tt class="docutils literal">sudo systemctl disable <span class="pre">switcheroo-control.service</span></tt>
-and <tt class="docutils literal">sudo systemctl stop <span class="pre">switcheroo-control.service</span></tt></li>
-</ul>
-<p>On Fedora, switcheroo-control is installed by default.</p>
-<p>It is unclear to me if this daemon is still useful for my setup. It seems like
-the the Linux kernel switcheroo uses the integrated Intel IGP by default
-anyway.</p>
-</div>
-<div class="section" id="disable-the-discrete-gpu-by-blacklisting-its-driver">
-<h2>Disable the discrete GPU by blacklisting its driver</h2>
-<p>To debug graphical bugs, I wanted to ensure that the discrete NVIDIA GPU is
-never used.</p>
-<p>I found the solution of fully disabling the nouveau driver in the Linux kernel:
-add <tt class="docutils literal">modprobe.blacklist=nouveau</tt> to the Linux kernel command line. On Fedora,
-you can use:</p>
-<pre class="literal-block">
-sudo grubby --update-kernel=ALL --args=&quot;modprobe.blacklist=nouveau&quot;
-</pre>
-<p>To reenable nouveau, remove the parameter. On Fedora:</p>
-<pre class="literal-block">
-sudo grubby --update-kernel=ALL --remove-args=&quot;modprobe.blacklist=nouveau&quot;
-</pre>
-</div>
-<div class="section" id="demo">
-<h2>Demo!</h2>
-<p>For this test, my laptop is not connected to anything (no power cable, no
-external monitor, no dock).</p>
-<p>When my laptop is idle (no 3D application is running), the NVIDIA GPU is
-<strong>suspended</strong>:</p>
-<pre class="literal-block">
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
-0
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
-suspended
-</pre>
-<p>I explicitly run a 3D application on it:</p>
-<pre class="literal-block">
-DRI_PRIME=1 glxgears
-</pre>
-<p>The NVIDIA GPU becomes <strong>active</strong>:</p>
-<pre class="literal-block">
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
-2
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
-active
-</pre>
-<p>I stop the 3D application. A few seconds later, the NVIDIA GPU is <strong>suspended</strong>
-again:</p>
-<pre class="literal-block">
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/enable
-0
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
-suspended
-</pre>
-</div>
-<div class="section" id="graphics-devices-and-monitors">
-<h2>Graphics devices and monitors</h2>
-<p>When I disabled the nouveau driver using <tt class="docutils literal">modprobe.blacklist=nouveau</tt> kernel
-command line parameter, I was no longer able to use external monitors. I
-understood that:</p>
-<ul class="simple">
-<li>The <strong>Intel</strong> IGP is connected to the <strong>internal</strong> laptop screen</li>
-<li>The <strong>NVIDIA</strong> GPU is connected to the <strong>external</strong> monitors (DisplayPort
-and HDMI ports)</li>
-</ul>
-<p>When my laptop has <strong>no external monitor</strong> connected, the <strong>discrete</strong> NVIDIA
-GPU is <strong>actived on demand</strong> (suspended when idle)</p>
-<p>When I connect my laptop to <strong>two external monitors</strong> (using my dock), the
-<strong>discrete</strong> NVIDIA GPU is <strong>always active</strong>:</p>
-<pre class="literal-block">
-$ cat /sys/bus/pci/drivers/nouveau/0000\:01\:00.0/power/runtime_status
-active
-</pre>
-</div>
-<div class="section" id="links">
-<h2>Links</h2>
-<ul class="simple">
-<li><a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics">https://wiki.archlinux.org/index.php/Hybrid_graphics</a></li>
-<li><a class="reference external" href="https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html">https://www.kernel.org/doc/html/latest/gpu/vga-switcheroo.html</a></li>
-<li><a class="reference external" href="https://wiki.archlinux.org/index.php/PRIME">https://wiki.archlinux.org/index.php/PRIME</a></li>
-<li><a class="reference external" href="https://help.ubuntu.com/community/HybridGraphics">https://help.ubuntu.com/community/HybridGraphics</a></li>
-<li><a class="reference external" href="https://en.wikipedia.org/wiki/Nvidia_Optimus">https://en.wikipedia.org/wiki/Nvidia_Optimus</a></li>
-<li><a class="reference external" href="https://en.wikipedia.org/wiki/AMD_Hybrid_Graphics">https://en.wikipedia.org/wiki/AMD_Hybrid_Graphics</a></li>
-<li><a class="reference external" href="https://nouveau.freedesktop.org/wiki/Optimus">https://nouveau.freedesktop.org/wiki/Optimus</a></li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+laptop …</p>
+                <a class="readmore" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -498,31 +448,6 @@ the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docu
 I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
 I didn't expect that I would spend 2 weeks on these issues …</p>
                 <a class="readmore" href="https://vstinner.github.io/python3-locales-encodings.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="bookmark"
-                           title="Permalink to Python 3.7 UTF-8 Mode">Python 3.7 UTF-8 Mode</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-27T20:00:00+02:00">
-                Published: mar. 27 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Since Python 3.0 was released in 2008, each time an user reported an encoding
-issue, someone showed up and asked why Python does not &quot;simply&quot; always use UTF-8.
-Well, it's not that easy. <strong>UTF-8 is the best encoding in most cases, but it is
-still not the best encoding …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-new-utf8-mode.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

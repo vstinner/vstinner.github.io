@@ -1,5 +1,182 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - linux</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/linux.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-09-11T15:50:00+02:00</updated><entry><title>Debug Hybrid Graphics issues on Linux</title><link href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="alternate"></link><published>2019-09-11T15:50:00+02:00</published><updated>2019-09-11T15:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-09-11:/debug-hybrid-graphics-issues-linux.html</id><summary type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - linux</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/linux.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-10-10T17:00:00+02:00</updated><entry><title>Graphics bugs in Firefox and GNOME</title><link href="https://vstinner.github.io/graphics-bugs-firefox-gnome.html" rel="alternate"></link><published>2019-10-10T17:00:00+02:00</published><updated>2019-10-10T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-10-10:/graphics-bugs-firefox-gnome.html</id><summary type="html">&lt;p&gt;After explaining how to &lt;a class="reference external" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html"&gt;Debug Hybrid Graphics issues on Linux&lt;/a&gt;, here is the story of four graphics bugs
+that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
+2019: bugs in gnome-shell, Gtk, Firefox and mutter.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/34298393&amp;#64;N06/14488759356/"&gt;&lt;img alt="Glitch" src="https://vstinner.github.io/images/glitch.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="gnome-shell-freezes"&gt;
+&lt;h2&gt;gnome-shell freezes&lt;/h2&gt;
+&lt;p&gt;In May 2018, six months after …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;After explaining how to &lt;a class="reference external" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html"&gt;Debug Hybrid Graphics issues on Linux&lt;/a&gt;, here is the story of four graphics bugs
+that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
+2019: bugs in gnome-shell, Gtk, Firefox and mutter.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/34298393&amp;#64;N06/14488759356/"&gt;&lt;img alt="Glitch" src="https://vstinner.github.io/images/glitch.jpg" /&gt;&lt;/a&gt;
+&lt;div class="section" id="gnome-shell-freezes"&gt;
+&lt;h2&gt;gnome-shell freezes&lt;/h2&gt;
+&lt;p&gt;In May 2018, six months after I got my Lenovo P50 laptop, gnome-shell was
+&amp;quot;sometimes&amp;quot; freezing between 1 and 5 seconds. It was annoying because key
+stokes created repeated keys writing &amp;quot;helloooooooooooooooooooooo&amp;quot; instead of
+&amp;quot;hello&amp;quot; for example.&lt;/p&gt;
+&lt;p&gt;My colleagues led my to &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;#fedora-desktop&lt;/span&gt;&lt;/tt&gt; of the GIMP IRC server where I met
+my colleague &lt;strong&gt;Jonas Ådahl&lt;/strong&gt; (jadahl) who almost immediately identified my
+issue! Extract of the IRC chat:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+15:03 &amp;lt;vstinner&amp;gt; hello. i upgraded from F27 to F28, and it seems like I
+    switched from Xorg to Wayland. sometimes, the desktop hangs a few
+    milliseconds (less than 2 secondes)
+15:03 &amp;lt;vstinner&amp;gt; bentiss told me that  &amp;quot;libinput error: client bug: timer
+    event7 keyboard: offset negative (-39ms)&amp;quot; can occur when shell is too
+    slow
+15:04 &amp;lt;vstinner&amp;gt; journalctl shows me frenquently the bug
+    https://gitlab.gnome.org/GNOME/gnome-shell/issues/1 &amp;quot;Object
+    Shell.GenericContainer (0x559e6bfddc60), has been already finalized.
+    Impossible to get any property from it.&amp;quot;
+15:04 &amp;lt;vstinner&amp;gt; i also get &amp;quot;Window manager warning: last_user_time
+    (3093467) is greater than comparison timestamp (3093466).  This most
+    likely represents a buggy client sending inaccurate timestamps in
+    messages such as _NET_ACTIVE_WINDOW.  Trying to work around...&amp;quot; errors
+    in logs (from shell)
+15:05 &amp;lt;vstinner&amp;gt; bentiss: ah, i also get &amp;quot;libinput error: client bug: timer
+    event7 trackpoint: offset negative (-352ms)&amp;quot; errors
+15:06 &amp;lt;vstinner&amp;gt; it's a recent laptop, Lenovo P50: 32 GB of RAM, 4 physical
+    CPUs (8 threads) Intel(R) Core(TM) i7-6820HQ CPU &amp;#64; 2.70GHz
+15:06 &amp;lt;vstinner&amp;gt; so. what can i do to debug such performance issue? may it
+    come from shell? what does it mean if shell is slow? can it be a GPU
+    issue?  a javascript issue?
+...
+15:13 &amp;lt;jadahl&amp;gt; vstinner: whats your hardware? Do you have a hybrid gpu
+    system?
+15:13 &amp;lt;jadahl&amp;gt; ah, yes P50
+15:14 &amp;lt;jadahl&amp;gt; vstinner: there is a branch on mutter upstream that fixes
+    that issue. want to compile it to test?
+&lt;/pre&gt;
+&lt;p&gt;Ten minutes after I asked my question, Jonas asked the right question: &lt;strong&gt;Do you
+have a hybrid gpu system?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;I was able to workaround the issue by connecting my laptop to my TV using the
+HDMI port:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+15:22 &amp;lt; jadahl&amp;gt; for example, IIRC if you have a monitor connected to the
+    HDMI, the issue will go away since the secondary GPU is always awake
+    anyway
+...
+15:31 &amp;lt; vstinner&amp;gt; jadahl: i plugged a HDMI cable to my TV and it seems like
+    the issue is gone
+15:31 &amp;lt; vstinner&amp;gt; jadahl: impressive
+&lt;/pre&gt;
+&lt;p&gt;When an external monitor is used (like a TV plugged on the HDMI port), my
+NVIDIA GPU is always active which works around the bug I had in gnome-shell.&lt;/p&gt;
+&lt;p&gt;Jonas provided me a RPM package for Fedora including his work-in-progress fix:
+&lt;a class="reference external" href="https://gitlab.gnome.org/GNOME/mutter/merge_requests/106"&gt;Upload HW cursor sprite on-demand&lt;/a&gt;. I confirmed that
+this change fixed my bug. His mutter change has been merged upstream.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="firefox-crash-when-selecting-text"&gt;
+&lt;h2&gt;Firefox crash when selecting text&lt;/h2&gt;
+&lt;p&gt;In March 2019, Firefox with Wayland crashed on &lt;tt class="docutils literal"&gt;wl_abort()&lt;/tt&gt; when selecting
+more than 4000 characters in a &lt;tt class="docutils literal"&gt;&amp;lt;textarea&amp;gt;&lt;/tt&gt;. I found the bug in Gmail when
+selecting the whole email text to remove it. Pressing &lt;strong&gt;CTRL + A&lt;/strong&gt; or
+Right-click + Select All &lt;strong&gt;crashed the whole Firefox process!&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;I reported the bug to Firefox: &lt;a class="reference external" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1539773"&gt;Firefox with Wayland crash on wl_abort() when
+selecting more than 4000 characters in a &amp;lt;textarea&amp;gt;&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Running gdb in Firefox caused me some troubles since it's a very large binary with
+many libraries. I also read &lt;a class="reference external" href="https://cgit.freedesktop.org/wayland/wayland-protocols/tree/unstable/text-input/text-input-unstable-v3.xml#n138"&gt;Wayland protocol specifications&lt;/a&gt;.
+I managed to analyze the bug and so I reported the bug to Gtk as well, &lt;a class="reference external" href="https://gitlab.gnome.org/GNOME/gtk/issues/1783"&gt;On
+Wayland, notify_surrounding_text() crash on wl_abort() if text is longer than
+4000 bytes&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+According to gdb, &lt;tt class="docutils literal"&gt;wl_proxy_marshal_array_constructor_versioned()&lt;/tt&gt; calls
+&lt;tt class="docutils literal"&gt;wl_abort()&lt;/tt&gt; because the buffer is too short. It seems like
+&lt;tt class="docutils literal"&gt;wl_buffer_put()&lt;/tt&gt; fails with &lt;tt class="docutils literal"&gt;E2BIG&lt;/tt&gt;.&lt;/blockquote&gt;
+&lt;p&gt;Quickly, I identified that &lt;strong&gt;my Gtk bug has already been fixed 3 months before
+by Carlos Garnacho&lt;/strong&gt; (&lt;a class="reference external" href="https://gitlab.gnome.org/GNOME/gtk/merge_requests/438"&gt;imwayland: Respect maximum length of 4000 Bytes on
+strings being sent&lt;/a&gt;)
+and &lt;strong&gt;the fix is part of gtk-3.24.3&lt;/strong&gt; (&amp;quot;wayland: Respect length limits in text
+protocol&amp;quot; says &amp;quot;Overview of Changes in GTK+ 3.24.3&amp;quot;).&lt;/p&gt;
+&lt;p&gt;I requested to upgrade Gtk in Fedora. But it was not possible since the newer
+version changed the theme. I was asked to cherry-pick the fix and that's what I
+did: &lt;a class="reference external" href="https://src.fedoraproject.org/rpms/gtk3/pull-request/5"&gt;imwayland: Respect maximum length of 4000 Bytes on strings&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;My PR was merged and a new package was built. I tested it and confirmed that it
+fixed the crash: &lt;a class="reference external" href="ttps://bodhi.fedoraproject.org/updates/FEDORA-2019-d67ec97b0b"&gt;FEDORA-2019-d67ec97b0b&lt;/a&gt;. Soon, the
+package was pushed to the public Fedora package repository.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;That's the cool part about open source: if you have the skills to hack the
+code, you can fix an annoying which is affecting you!&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="firefox-wayland-window-partially-or-not-updated-when-switching-between-two-tabs"&gt;
+&lt;h2&gt;Firefox: [Wayland] Window partially or not updated when switching between two tabs&lt;/h2&gt;
+&lt;div class="section" id="analyze-the-bug"&gt;
+&lt;h3&gt;Analyze the bug&lt;/h3&gt;
+&lt;p&gt;In September 2019, after a large system upgrade (install 6 packages, upgrade
+234 packages, remove 5 packages), Firefox started to not update the window
+content sometimes when I switched from one tab to another. Example:&lt;/p&gt;
+&lt;img alt="Firefox bug of window partially updated" src="https://vstinner.github.io/images/firefox_bug_1.jpg" /&gt;
+&lt;p&gt;It took me a few hours to analyze the bug to be able to produce an useful bug
+report.&lt;/p&gt;
+&lt;p&gt;I followed Fedora's guide &lt;a class="reference external" href="https://fedoraproject.org/wiki/How_to_debug_Firefox_problems"&gt;How to debug Firefox problems&lt;/a&gt; advices.&lt;/p&gt;
+&lt;p&gt;First, I tried to &lt;strong&gt;understand which GPU driver is used&lt;/strong&gt;. I finished by
+blacklisting the nouveau driver in the Linux kernel, to ensure that Firefox was
+using my Intel IGP. I still reproduced the bug.&lt;/p&gt;
+&lt;p&gt;I &lt;strong&gt;disabled all Firefox extensions&lt;/strong&gt;: bug reproduced.&lt;/p&gt;
+&lt;p&gt;Then I created a new Firefox profile and started Firefox in &lt;strong&gt;safe mode&lt;/strong&gt;: bug
+reproduced.&lt;/p&gt;
+&lt;p&gt;I tested the latest Firefox binary from mozilla.org (Firefox 69.0): bug
+reproduced.&lt;/p&gt;
+&lt;p&gt;Finally, &lt;strong&gt;I tested Firefox Nightly&lt;/strong&gt; from mozilla.org (Firefox 71.0a1): bug
+reproduced.&lt;/p&gt;
+&lt;p&gt;Ok, it was enough data to produce an interesting bug report. I reported
+&lt;a class="reference external" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1580152"&gt;[Wayland] Window partially or not updated when switching between two tabs&lt;/a&gt; to Firefox.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="identify-the-regression-using-fedora-packages"&gt;
+&lt;h3&gt;Identify the regression using Fedora packages&lt;/h3&gt;
+&lt;p&gt;Then I looked at &lt;tt class="docutils literal"&gt;/var/log/dnf.log&lt;/tt&gt; and I tried to identify which package
+update could explain the regression.&lt;/p&gt;
+&lt;p&gt;I downgraded &lt;strong&gt;gtk3&lt;/strong&gt;-3.24.11-1.fc30.x86_64 to gtk3.x86_64 3.24.10-1.fc30: bug
+reproduced.&lt;/p&gt;
+&lt;p&gt;I rebooted on oldest available &lt;strong&gt;Linux kernel&lt;/strong&gt;, version 5.2.8-200.fc30.x86_64:
+bug reproduced. I checked journalctl logs to check which Linux version I was
+running whhen the bug was first seen: Linux 5.2.9-200.fc30.x86_64.&lt;/p&gt;
+&lt;p&gt;I don't know why, but &lt;strong&gt;downgrading Firefox was only my 3rd test&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;I downgraded firefox-69.0-2.fc30.x86_64 to firefox-68.0.2-1.fc30.x86_64: the
+bug is gone! Ok, so &lt;strong&gt;the regression comes from the Firefox package&lt;/strong&gt;, and it
+was introduced between package versions 68.0.2-1.fc30 and 69.0-2.fc30.&lt;/p&gt;
+&lt;p&gt;On IRC, I met my colleague &lt;strong&gt;Martin Stránský&lt;/strong&gt; who package Firefox for Fedora.
+He told me that he is aware of my bug and may have a fix for my bug. Great!&lt;/p&gt;
+&lt;p&gt;Only 9 days later, &lt;strong&gt;Martin Stránský&lt;/strong&gt; fix has been merged in Firefox upstream,
+released in Firefox Nightly, and a new package has been shipped in Fedora 30!
+Thanks Martin for your efficiency!&lt;/p&gt;
+&lt;p&gt;The final Firefox change is quite large and intrusive: &lt;a class="reference external" href="https://hg.mozilla.org/releases/mozilla-beta/rev/3281a617f22b"&gt;[Wayland] Fix rendering
+glitches on wayland&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="xwayland-crash-in-xwl-glamor-gbm-create-pixmap"&gt;
+&lt;h2&gt;Xwayland crash in xwl_glamor_gbm_create_pixmap()&lt;/h2&gt;
+&lt;p&gt;In September 2019, while I was debugging the previous Firefox bug, I started my
+IRC client hexchat.  Suddently, &lt;strong&gt;Xwayland crashed which closed my whole Gnome
+session&lt;/strong&gt;!  I was testing various GPU configurations to analyze the Firefox
+bug.&lt;/p&gt;
+&lt;p&gt;ABRT managed to rebuild an useless traceback and identified an existing bug
+report. It added my coment to &lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1729200#c20"&gt;[abrt] xorg-x11-server-Xwayland:
+OsLookupColor(): Segmentation fault at address 0x28&lt;/a&gt; report.&lt;/p&gt;
+&lt;p&gt;At July 26, 2019 (1 month before I got the bug), &lt;strong&gt;Olivier Fourdan&lt;/strong&gt; added &lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1729200#c9"&gt;an
+interesting comment&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;tt class="docutils literal"&gt;glamor_get_modifiers+0x767&lt;/tt&gt; is &lt;tt class="docutils literal"&gt;xwl_glamor_gbm_create_pixmap()&lt;/tt&gt; so this
+is the same as &lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1729925"&gt;bug 1729925&lt;/a&gt; fixed upstream with
+&lt;a class="reference external" href="https://gitlab.freedesktop.org/xorg/xserver/merge_requests/242"&gt;xwayland: Do not free a NULL GBM bo&lt;/a&gt;.&lt;/blockquote&gt;
+&lt;p&gt;So in fact, my bug was already fixed by &lt;strong&gt;Olivier Fourdan&lt;/strong&gt; in Xwayland
+upstream, but the fix didn't land into Fedora yet.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="thanks"&gt;
+&lt;h2&gt;Thanks!&lt;/h2&gt;
+&lt;p&gt;I would like to thank the following developers who fixed my Fedora 30. What a
+coincidence, all four are my collagues! It seems like Red Hat is investing in
+the Linux desktop :-)&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://blogs.gnome.org/carlosg/"&gt;Carlos Garnacho&lt;/a&gt; (Red Hat).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://blogs.gnome.org/carlosg/"&gt;&lt;img alt="Carlos Garnacho" src="https://vstinner.github.io/images/carlos_garnacho.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://gitlab.gnome.org/jadahl"&gt;Jonas Ådahl&lt;/a&gt; (Red Hat).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://gitlab.gnome.org/jadahl"&gt;&lt;img alt="Jonas Ådahl" src="https://vstinner.github.io/images/jonas_adahl.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="http://people.redhat.com/stransky/"&gt;Martin Stránský&lt;/a&gt; (Red Hat).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="http://people.redhat.com/stransky/"&gt;&lt;img alt="Martin Stránský" src="https://vstinner.github.io/images/mstransky.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Olivier_Fourdan"&gt;Olivier Fourdan&lt;/a&gt; (Red Hat).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Olivier_Fourdan"&gt;&lt;img alt="Olivier Fourdan" src="https://vstinner.github.io/images/olivier_fourdan.jpg" /&gt;&lt;/a&gt;
+&lt;/div&gt;
+</content><category term="linux"></category></entry><entry><title>Debug Hybrid Graphics issues on Linux</title><link href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="alternate"></link><published>2019-09-11T15:50:00+02:00</published><updated>2019-09-11T15:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-09-11:/debug-hybrid-graphics-issues-linux.html</id><summary type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
 complex hardware and software solution to achieve longer laptop battery life:
 an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
 graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
