@@ -233,13 +233,13 @@ the Linux desktop :-)
 
 .. image:: {static}/images/carlos_garnacho.jpg
    :alt: Carlos Garnacho
-   :target: https://blogs.gnome.org/carlosg/
+   :target: https://www.flickr.com/photos/183829480@N06/48623543091/in/pool-14662216@N23/
 
 `Jonas Ådahl <https://gitlab.gnome.org/jadahl>`_ (Red Hat).
 
 .. image:: {static}/images/jonas_adahl.jpg
    :alt: Jonas Ådahl
-   :target: https://gitlab.gnome.org/jadahl
+   :target: https://www.flickr.com/photos/183829480@N06/48623189663/in/pool-14662216@N23/
 
 `Martin Stránský <http://people.redhat.com/stransky/>`_ (Red Hat).
 
