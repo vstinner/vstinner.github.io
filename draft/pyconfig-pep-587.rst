@@ -7,6 +7,13 @@ saw enough bug reports, I decided to implement it as the PEP 540 in
 Python 3.7: ``python3.7 -X utf8`` ignores your locale and forces the
 usage of the UTF-8 encoding in Python.
 
+Nick Coghlan's work
+===================
+
+referred at:
+https://github.com/python/cpython/commit/d7ac06126db86f76ba92cbca4cb702852a321f78
+https://bugs.python.org/issue31845
+
 Python Configuration
 ====================
 
@@ -25,6 +32,136 @@ It's a huge bag of unrelated problems:
 * How is the current C API used to embed Python?
 * PyInstaller, PyOxyder, py2app, etc. use case
 * etc.
+
+In term of code, the Py_Main() function in Python 3.6 contained a lot
+of code which was not accessible using Py_Initialize(). But Py_Main()
+doesn't fit the "embed Python into an application" use case,
+Py_Initialize() is preferred for this use case.
+
+The PEP 538 and PEP 540 also introduced new questions about encodings
+which didn't exist in Python 3.6. Sadly, Python 3.7 is a half-baken
+release for these PEPs: Py_DecodeLocale() introduces mojibake if called
+before Py_Initialize() in some cases.
+
+Py_Main() was a long list of special cases. The configuration rules were
+not consistent. For example, PYTHONCOERCECLOCALE was read before the
+command line arguments were parsed, and so -E wasn't respected.
+
+    https://github.com/python/cpython/commit/358e5e17a51ba00742bfaee4557a94c3c4179c22
+
+    The -R option now turns on hash randomization when the
+    PYTHONHASHSEED environment variable is set to 0 Previously, the
+    option was ignored.
+
+    sys.flags.hash_randomization is now properly set to 0 when hash
+    randomization is turned off by PYTHONHASHSEED=0.
+
+    * sys.argv is now set earlier, before "import site"
+
+    * The implementation of the PEP 538 now respects -E and -I options.
+
+    * The "path configuration" (sys.path, sys.prefix, sys.exec_prefix,
+    etc.) is now computed before _Py_InitializeMainInterpreter(), by
+    _PyMainInterpreterConfig_Read()
+
+    https://bugs.python.org/issue32030#msg308835
+
+    * Warning options are now computed in a list from -W options and
+    PYTHONWARNINGS env var, before setting sys.warnoptions. Similar
+    change has been done for sys._xoptions: xoptions are first stored in
+    a wchar_t** list.
+
+    * A new _PyCoreConfig_Read() has been added to read most
+    configuration options using C types. _PyMainInterpreterConfig_Read()
+    is now mostly responsible to convert C types to Python types.
+
+    * It becomes simpler to decide the priority between env vars, -X
+    options, command line options, Py_xxx global variables, etc. The
+    code to read these options and to code to "merge" these options is
+    now decoupled.
+
+I moved some code to reorganize in which order the Python state is
+built. One of the first change was to initialize sys.argv earlier.
+
+* Reorder a lot of code to fix the initialization ordering. For
+  example, initializing standard streams now comes before parsing
+  PYTHONWARNINGS.
+
+The filesystem encoding and the stdio streams encoding is now chosen
+way earlier.
+
+The subinterpreters also comes in the game. PEP 587 implementations
+prepares the code for subinterpreters having different configuratioins.
+For example, the code no longer use global configuration variables
+like Py_IgnoreEnvironmentFlag but the configuration which is now
+per interpreter: ``Py_Verbose`` becomes ``interp->config.verbose``.
+
+In Python 3.6, a lot of Python was left unchanged at Python exit.
+Python 3.7 now clears much more state: see ``pymain_free()`` called by
+``Py_RunMain()``.
+
+    Py_FinalizeEx() now calls _PyPathConfig_Fini() to release memory
+
+    Add _PyImport_Fini2() to release the memory allocated by
+    PyImport_ExtendInittab() at exit.
+
+XXX yet another problem: implement -X dev without fork() nor exec()
+
+    The problem is that currently the code parsing command line options
+    and the code setting the memory allocator (handle PYTHONMALLOC
+    environment variable) are mixed, it's not possible to touch this
+    code.
+
+Nov 13 11:08:06 EST 2017: -X dev idea:
+
+    https://mail.python.org/pipermail/python-dev//2017-November/150514.html
+
+Nick Coghlan:
+
+    While it doesn't necessarily need to be in this patch, something
+    else I recently realised (by breaking it *cough* [1]) is that the
+    interaction between our command line options and our environment
+    variables isn't really clearly defined anywhere.
+
+    (...) I noticed the other day that the interaction between
+    PYTHONWARNINGS, the `-W` option, sys.warnoptions, and
+    _warnings.filters is a bit confusing (...)
+
+    https://bugs.python.org/issue32030#msg306250
+
+Atomicity, no side effect.
+
+  * calculate_path() is now atomic: only replace PyPathConfig
+    (path_config) at once on success.
+
+Example at 2018-01-25::
+
+    /* On Windows, _PyPathConfig_Init() modifies Py_IsolatedFlag and
+       Py_NoSiteFlag variables if a "._pth" file is found. */
+    int init_isolated = Py_IsolatedFlag;
+    int init_no_site = Py_NoSiteFlag;
+    Py_IsolatedFlag = cmdline->isolated;
+    Py_NoSiteFlag = cmdline->no_site_import;
+
+    err = _PyCoreConfig_Read(config);
+
+    cmdline->isolated = Py_IsolatedFlag;
+    cmdline->no_site_import = Py_NoSiteFlag;
+    Py_IsolatedFlag = init_isolated;
+    Py_NoSiteFlag = init_no_site;
+
+Avoid global variables::
+
+    - static wchar_t prefix[MAXPATHLEN+1];
+    + static PyPathConfig path_config = {.module_search_path = NULL};
+
+    - gotlandmark(const wchar_t *landmark)
+    + gotlandmark(wchar_t *prefix, const wchar_t *landmark)
+
+Documentation: document the exiting API!
+
+    https://docs.python.org/dev/c-api/init.html
+
 
 Main milestones
 ===============
@@ -95,6 +232,83 @@ easily. For example, there is no API to override the default values of
 ``sys.executable``.
 
 
+Implementation of the PEP 540: UTF-8 Mode
+=========================================
+
+Issue created in January 2017: https://bugs.python.org/issue29240
+
+"TODO: re-encode sys.argv from the local encoding to UTF-8 in Py_Main()
+when the UTF-8 mode is enabled"
+
+PR created in March 2017: https://github.com/python/cpython/pull/855
+
+2017-12-13::
+
+    bpo-29240: PEP 540: Add a new UTF-8 Mode (#855)
+    https://github.com/python/cpython/commit/91106cd9ff2f321c0f60fbaa09fd46c80aa5c266
+
+At the first PEP 540 commit, _PyCoreConfig had 14 fields.
+
+
+2017-12-16::
+
+    New changeset 9454060e84a669dde63824d9e2fcaf295e34f687 by Victor Stinner in branch 'master':
+    bpo-29240, bpo-32030: Py_Main() re-reads config if encoding changes (#4899)
+    https://github.com/python/cpython/commit/9454060e84a669dde63824d9e2fcaf295e34f687
+
+
+    while (1) {
+        /* Watchdog to prevent an infinite loop */
+        loops++;
+        if (loops == 3) {
+            pymain->err = _Py_INIT_ERR("Encoding changed twice while "
+                                       "reading the configuration");
+            goto done;
+        }
+        ...
+        res = pymain_read_conf_impl(pymain);
+        ...
+
+        if (!encoding_changed) {
+            break;
+        }
+        ...
+    }
+
+2017-12-21, problems arise::
+
+    New changeset 424315fa865b43f67e36a40647107379adf031da by Victor Stinner in branch 'master':
+    bpo-29240: Skip test_readline.test_nonascii() (#4968)
+    https://github.com/python/cpython/commit/424315fa865b43f67e36a40647107379adf031da
+
+
+2018-01-10::
+
+    New changeset 2cba6b85797ba60d67389126f184aad5c9e02ff3 by Victor Stinner in branch 'master':
+    bpo-29240: readline now ignores the UTF-8 Mode (#5145)
+    https://github.com/python/cpython/commit/2cba6b85797ba60d67389126f184aad5c9e02ff3
+
+    Add new fuctions ignoring the UTF-8 mode:
+
+    * _Py_DecodeCurrentLocale()
+    * _Py_EncodeCurrentLocale()
+    * _PyUnicode_DecodeCurrentLocaleAndSize()
+    * _PyUnicode_EncodeCurrentLocale()
+
+time.strftime() must use the current LC_CTYPE encoding, not UTF-8 if the
+UTF-8 mode is enabled.
+
+2018-01-15::
+
+    https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c
+
+    bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
+
+    Modify locale.localeconv(), time.tzname, os.strerror() and other
+    functions to ignore the UTF-8 Mode: always use the current locale
+    encoding.
+
+
 Rework Py_Main()
 ================
 
@@ -105,6 +319,267 @@ step.
 
 The main risk was to introduce a regression. By the way, there was
 basically zero test on the "Python configuration".
+
+2017-11-15 .. 2018-01-24 (+ 2018-06-15 + 2018-10-30)
+
+It will take me **3 months of work and 45 commits** to completely cleanup
+``Py_Main()`` and put almost all Python configuration options into the private
+C ``_PyCoreConfig`` structure.
+
+Introduction.
+
+    Python has a lot of code for its initialization. It's very hard to
+    touch this code without risking to break something. It's hard to
+    move code since many parts of the code are interdepent. The code
+    rely on global "Py_xxx" configuration variables like Py_IsolateFlag
+    (set by -I command line option).
+
+    Moreover, currently Python uses the "Python runtime" early. For
+    example, the code to parse the -W command line option uses
+    PyUnicode_FromWideChar() and PyList_Append(). We need a stricter
+    separation for the code before the "Python runtime" is initialized,
+    at least partially initialized.
+
+    Nick Coghlan and Eric Snow are already working on all these issues
+    as part of the implementation of PEP 432. They redesigned
+    Py_Initialize() and Py_Finalize().
+
+    I would like to finish the work on the step before: the Py_Main() function.
+
+    Attached PR is a work-in-progress to rework deeply the Py_Main()
+    function. I have different goals:
+
+    * Enhance error handling:
+
+      * Avoid whenever possible calls to Py_FatalError() -- currently,
+        Py_FatalError() is still called, but at a single place
+      * My patch adds missing checks on PyDict_SetItem() or
+        PyList_Append() calls, catch errors when adding warnings options
+        and XOptions
+
+    * Reorder code to initialize: initialize Python in the "correct"
+      order
+    * Better "finalization": pymain_free() is now responsible to free
+      memory of all data used by Py_Main(). The ownership of strings is
+      now better defined. For example, Py_SetProgramName() memory was
+      not released before.
+    * pymain_init() is now the code which must not use the Python
+      runtime
+    * pymain_core() uses the Python runtime. Its code to initialize the
+      Python runtime should be easier to follow
+
+    Since pymain_free() now wants to release the memory, we need to
+    force a memory allocator for PyMem_RawMalloc(), since pymain_core()
+    changes the memory allocator. The main() already does something
+    similar, but with simpler code since main() is a private function,
+    whereas Py_Main() seems to be part of the public C API!
+
+2017-11-15:
+
+    I wrote a new "_PyInitError" type to report more information when
+    something goes wrong
+
+    Python doesn't fail with abort() anymore
+
+    Notice the new "_Py_HashRandomization_Init" function name which
+    gives context to the error message
+
+2017-11-15::
+
+    New changeset f7e5b56c37eb859e225e886c79c5d742c567ee95 by Victor Stinner in branch 'master':
+    bpo-32030: Split Py_Main() into subfunctions (#4399)
+    https://github.com/python/cpython/commit/f7e5b56c37eb859e225e886c79c5d742c567ee95
+
+Parse more env vars in Py_Main():
+
+  * faulthandler
+  * tracemalloc
+  * importtime
+
+Move more and more scattered code to main.c.
+
+PyPathConfig now uses dynamically allocated memory.
+
+At 2017-12-05, _Py_CommandLineDetails had 21 fields::
+
+    typedef struct {
+        wchar_t *filename;           /* Trailing arg without -c or -m */
+        wchar_t *command;            /* -c argument */
+        wchar_t *module;             /* -m argument */
+        _Py_OptList warning_options; /* -W options */
+        PyObject *extra_options;     /* -X options */
+        int print_help;              /* -h, -? options */
+        int print_version;           /* -V option */
+        int bytes_warning;           /* Py_BytesWarningFlag */
+        int debug;                   /* Py_DebugFlag */
+        int inspect;                 /* Py_InspectFlag */
+        int interactive;             /* Py_InteractiveFlag */
+        int isolated;                /* Py_IsolatedFlag */
+        int optimization_level;      /* Py_OptimizeFlag */
+        int dont_write_bytecode;     /* Py_DontWriteBytecodeFlag */
+        int no_user_site_directory;  /* Py_NoUserSiteDirectory */
+        int no_site_import;          /* Py_NoSiteFlag */
+        int use_unbuffered_io;       /* Py_UnbufferedStdioFlag */
+        int verbosity;               /* Py_VerboseFlag */
+        int quiet_flag;              /* Py_QuietFlag */
+        int skip_first_line;         /* -x option */
+        _Py_OptList xoptions;        /* -X options */
+    } _Py_CommandLineDetails;
+
+2017-12-06::
+
+    https://github.com/python/cpython/commit/6bf992a1ac6f3f4d0f83ead9c6403a76afdbe6eb
+
+    bpo-32030: Add pymain_get_global_config() (#4735)
+
+    Py_Main() now starts by reading Py_xxx configuration variables to
+    only work on its own private structure, and then later writes back
+    the configuration into these variables.
+
+2017-12-13:
+
+Serhiy Storchaka:
+
+    Wow, 28 PRs for a single issue! This is a record.
+
+Victor:
+
+    You can expect much more :-) One of the goal of the PEP 432 is to
+    put compute sys.path and put it in _PyMainInterpreterConfig. I'm
+    trying to implement that, but we are still far from being able to do
+    it. At least, we are getting closer at each commit.
+
+    While it might be possible to squash 28 changes into a single
+    change, I wouldn't be able to review it (I review my own changes on
+    GitHub :-)), and it would very annoying if it causes any regression
+    :-(
+
+
+
+
+
+Add -X dev
+==========
+
+https://bugs.python.org/issue32043
+
+2017-11-16::
+
+    New changeset ccb0442a338066bf40fe417455e5a374e5238afb by Victor Stinner in branch 'master':
+    bpo-32043: New "developer mode": "-X dev" option (#4413)
+    https://github.com/python/cpython/commit/ccb0442a338066bf40fe417455e5a374e5238afb
+
+
+More Py_Main() rework
+=====================
+
+2017-11-23::
+
+    https://github.com/python/cpython/commit/0327bde9da203bb256b58218d012ca76ad0db4e4
+
+    bpo-32030: Rewrite calculate_path() (#4521)
+
+    * calculate_path() rewritten in Modules/getpath.c and PC/getpathp.c
+    * Move global variables into a new PyPathConfig structure.
+
+2017-11-24::
+
+    New changeset 46972b7bc385ec2bdc7f567bbd22c9e56ffdf003 by Victor Stinner in branch 'master':
+    bpo-32030: Add _PyMainInterpreterConfig_ReadEnv() (#4542)
+    https://github.com/python/cpython/commit/46972b7bc385ec2bdc7f567bbd22c9e56ffdf003
+
+    Py_GetPath() and Py_Main() now call
+    _PyMainInterpreterConfig_ReadEnv() to share the same code to get
+    environment variables.
+
+Py_GetPath() is annoying: it should be possible to call it before
+Py_Initialize(), and it should respect other configuration variables
+like Py_IgnoreEnvironmentFlag and PYTHONHOME environment variables.
+
+This change started the move towards reusing the same code path
+for Py_Main() configuration and Py_GetPath() configuration.
+
+At this stage, the path configuration was living in 2 main structures::
+
+    typedef struct {
+        int install_signal_handlers;
+        /* PYTHONPATH environment variable */
+        wchar_t *module_search_path_env;
+        /* PYTHONHOME environment variable, see also Py_SetPythonHome(). */
+        wchar_t *home;
+    } _PyMainInterpreterConfig;
+
+    typedef struct {
+        wchar_t prefix[MAXPATHLEN+1];
+        wchar_t exec_prefix[MAXPATHLEN+1];
+        wchar_t progpath[MAXPATHLEN+1];
+        wchar_t *module_search_path;
+    } PyPathConfig;
+
+    /* getpath.c */
+    static PyPathConfig path_config = {.module_search_path = NULL};
+
+https://github.com/python/cpython/commit/ebac19dad6263141d5db0a2c923efe049dba99d2
+
+* config_get_program_name() and calculate_program_full_path() now
+  also decode paths using Py_DecodeLocale() to use the
+  surrogateescape error handler, rather than decoding using
+  mbstowcs() which is strict.
+
+2017-12-01::
+
+    New changeset 0ea395ae964c9cd0f499e2ef0d0030c971201220 by Victor Stinner in branch 'master':
+    bpo-32030: Add Python/pathconfig.c (#4668)
+    https://github.com/python/cpython/commit/0ea395ae964c9cd0f499e2ef0d0030c971201220
+
+    Factorize code from PC/getpathp.c and Modules/getpath.c to remove
+    duplicated code.
+
+Path Config
+===========
+
+2017-12-13::
+
+    New changeset 11a247df88f15b51feff8a3c46005676bb29b96e by Victor Stinner in branch 'master':
+    bpo-32030: Add _PyPathConfig_ComputeArgv0() (#4845)
+    https://github.com/python/cpython/commit/11a247df88f15b51feff8a3c46005676bb29b96e
+
+    * Split _PySys_SetArgvWithError() into subfunctions for Py_Main():
+
+      * Create the Python list object
+      * Set sys.argv to the list
+      * Compute argv0
+      * Prepend argv0 to sys.path
+
+    * Add _PyPathConfig_ComputeArgv0()
+
+The code was in PySys_SetArgvEx() in Python 3.6.
+
+
+Memory allocators
+=================
+
+
+2017-11-29::
+
+    New changeset 5d39e0429029324cae90bba2f19fb689b007c7d6 by Victor Stinner in branch 'master':
+    bpo-32030: Rework memory allocators (#4625)
+    https://github.com/python/cpython/commit/5d39e0429029324cae90bba2f19fb689b007c7d6
+
+XXX _PyPreConfig using only int
+
+XXX default raw memory allocator: save, force, restore
+
+
+Scattered?
+==========
+
+* warning options: Lib/warnings.py, Python/_warnings.c
+* faulthandler
+* tracemalloc
+* showrefcount, showalloccount: listobject.c, object.c, tupleobject.c,
+  import.c, pylifecycle.c
+* PYTHONHOME: getpath.c, getpathc.p
 
 
 _PyInitError API
