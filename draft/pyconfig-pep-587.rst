@@ -7,12 +7,268 @@ saw enough bug reports, I decided to implement it as the PEP 540 in
 Python 3.7: ``python3.7 -X utf8`` ignores your locale and forces the
 usage of the UTF-8 encoding in Python.
 
+Timeline
+========
+
+* Nick's PEP 432: 2012
+* Nick + Eric
+* 2017
+
+  * -X utf8: January 2017 - December 2017
+  * -X dev: November 2017
+
+* 2018
+
+  * Move more and more configuration fields to PyConfig
+  * filesystem_encoding init earlier
+  * stdio_encoding init earlier
+  * C locale coercion, LC_CTYPE="POSIX" and UTF-8 issues
+
+* 2019
+
+  * PEP 587 PyConfig approved and implemented
+
+Statistics: 2018-01 to 2019-10
+==============================
+
+  * At 2017-12-13, _PyCoreConfig had 14 fields
+  * At 2017-12-05, _Py_CommandLineDetails had 21 fields
+  * In Python 3.7, _PyCoreConfig has 34 fields
+  * At XXX, _PyPreConfig had 8 fields
+  * 2018-01-01, commit e8ed96550c6aa9a1e39c36e67e892994e25e2c41:
+
+    * _Py_CommandLineDetails: 22 fields
+    * _PyMain: 13 fields
+    * _PyCoreConfig: 27 fields
+    * _PyMainInterpreterConfig: 10 fields
+
+At 2018-01-01, commit e8ed96550c6aa9a1e39c36e67e892994e25e2c41:
+
+* _Py_CommandLineDetails: 22 fields
+* _PyMain: 13 fields
+* _PyCoreConfig: 27 fields
+* _PyMainInterpreterConfig: 10 fields
+
+Lines::
+
+    $ wc -l Modules/main.c Modules/getpath.c PC/getpathp.c Python/pathconfig.c Python/pylifecycle.c|sort -n
+       409 Python/pathconfig.c
+       973 Modules/getpath.c
+      1068 PC/getpathp.c
+      2258 Python/pylifecycle.c
+      2690 Modules/main.c
+      7398 total
+
+    $ wc -l Programs/_testembed.c Lib/test/test_embed.py |sort -n
+      216 Lib/test/test_embed.py
+      244 Programs/_testembed.c
+      460 total
+
+    $ grep 'def test_' Lib/test/test_embed.py|wc -l
+    6
+
+
+At 2019-10-14, commit d83fc2702951f56a7339aa95d62414ed6e0fb40d:
+
+* PyPreConfig: 12 fields
+* PyConfig: 55 fields
+* Removed: _PyMain, _Py_CommandLineDetails, _PyMainInterpreterConfig
+
+Lines::
+
+    $ wc -l Modules/main.c Modules/getpath.c PC/getpathp.c Python/pathconfig.c Python/pylifecycle.c Python/preconfig.c Python/initconfig.c |sort -n
+       691 Modules/main.c
+       842 Python/pathconfig.c
+       967 Python/preconfig.c
+      1189 PC/getpathp.c
+      1596 Modules/getpath.c
+      2440 Python/pylifecycle.c
+      2678 Python/initconfig.c
+     10403 total
+
+    $ wc -l Programs/_testembed.c Lib/test/test_embed.py |sort -n
+     1339 Lib/test/test_embed.py
+     1674 Programs/_testembed.c
+     3013 total
+
+    $ grep 'def test_' Lib/test/test_embed.py|wc -l
+    51
+
+
 Nick Coghlan's work
 ===================
+
+PEP 432
+-------
+
+Dec 2012
+[Python-ideas] PEP 432: Simplifying the CPython startup sequence
+https://grokbase.com/t/python/python-ideas/12cvekqk1f/pep-432-simplifying-the-cpython-startup-sequence
+
+    After helping Brett with the migration to importlib in 3.3, and
+    looking at some of the ideas kicking around for additional CPython
+    features that would affect the startup sequence, I've come to the
+    conclusion that what we have now simply isn't sustainable long term.
+    It's already the case that if you use certain options (specifically -W
+    or -X), the interpreter will start accessing the C API before it has
+    called Py_Initialize(). It's not cool when other people do that (we'd
+    never accept code that behaved that way as a valid reproducer for a
+    bug report), and it's *definitely* not cool that we're doing it (even
+    though we seem to be getting away with it for the moment, and have
+    been for a long time).
+
+Christian:
+
+
+    Hello Nick, we could use the opportunity and move more settings to
+    Py_CoreConfig. At the moment several settings are stored in static
+    variables:
+
+    Python/pythonrun.c:
+
+    static wchar_t *progname
+    static wchar_t *default_home
+    static wchar_t env_home[PATH_MAX+1]
+
+[Python-ideas] Updated PEP 342: Simplifying the CPython update sequence
+https://mail.python.org/pipermail/python-ideas/2013-January/018511.html
+
+    The biggest change in the new version is moving from a Python
+    dictionary to a C struct as the storage for the full low level
+    interpreter configuration as Antoine suggested.
+
+Daniel Shahaf:
+
+    Quick question, do you plan to expose the C argv values as part of this
+    work?
+
+Terry Reedy:
+
+    IE, you prefer positive flags, with some on by default, over having
+    all flags indicate a non-default condition. I would too, but I don't
+    hack on the C code base. 'dont_write_bytecode' is especially ugly.
+
+2014
+----
+
+Split pylifecycle.c out from pythonrun.c
+https://bugs.python.org/issue22869
+Nick Coghlan
+2014-11-14 .. 2014-11-22
+
+    commit d600951748d7a19cdb3e58a376c51ed804b630e6
+    Author: Nick Coghlan <ncoghlan@gmail.com>
+    Date:   Thu Nov 20 21:39:37 2014 +1000
+
+        Issue #22869: Split pythonrun into two modules
+
+        - interpreter startup and shutdown code moved to a new
+          pylifecycle.c module
+        - Py_OptimizeFlag moved into the new module with the other
+          global flags
+
+2017
+----
+
+PEP 432: Redesign the interpreter startup sequence
+https://bugs.python.org/issue22257
+Nick Coghlan
+2014-08-23 but first commit at 2017-05-23
 
 referred at:
 https://github.com/python/cpython/commit/d7ac06126db86f76ba92cbca4cb702852a321f78
 https://bugs.python.org/issue31845
+
+At 2017-05-23, commit c7ec9985bbd added _PyMainInterpreterConfig with 1
+field.
+
+At 2017-09-07, commit 2ebc5ce42a8a9e047e790aefbf9a94811569b2b6:
+
+* _PyCoreConfig: 5 fields
+* _PyMainInterpreterConfig: 1 field
+
+Commits::
+
+    commit 6b4be195cd8868b76eb6fbe166acc39beee8ce36
+    Author: Eric Snow <ericsnowcurrently@gmail.com>
+    Date:   Mon May 22 21:36:03 2017 -0700
+
+        bpo-22257: Small changes for PEP 432. (#1728)
+
+        PEP 432 specifies a number of large changes to interpreter startup code, including exposing a cleaner C-API. The major changes depend on a number of smaller changes. This patch includes all those smaller changes.
+
+        +typedef struct {
+        +    wchar_t *filename;           /* Trailing arg without -c or -m */
+        +    wchar_t *command;            /* -c argument */
+        +    wchar_t *module;             /* -m argument */
+        +    PyObject *warning_options;   /* -W options */
+        +    PyObject *extra_options;     /* -X options */
+        +    int print_help;              /* -h, -? options */
+        +    int print_version;           /* -V option */
+        +    int bytes_warning;           /* Py_BytesWarningFlag */
+        +    int debug;                   /* Py_DebugFlag */
+        +    int inspect;                 /* Py_InspectFlag */
+        +    int interactive;             /* Py_InteractiveFlag */
+        +    int isolated;                /* Py_IsolatedFlag */
+        +    int optimization_level;      /* Py_OptimizeFlag */
+        +    int dont_write_bytecode;     /* Py_DontWriteBytecodeFlag */
+        +    int no_user_site_directory;  /* Py_NoUserSiteDirectory */
+        +    int no_site_import;          /* Py_NoSiteFlag */
+        +    int use_unbuffered_io;       /* Py_UnbufferedStdioFlag */
+        +    int verbosity;               /* Py_VerboseFlag */
+        +    int quiet_flag;              /* Py_QuietFlag */
+        +    int skip_first_line;         /* -x option */
+        +} _Py_CommandLineDetails;
+
+        _PySys_BeginInit()
+        _PySys_EndInit()
+
+    commit 1abcf6700b4da6207fe859de40c6c1bada6b4fec
+    Author: Eric Snow <ericsnowcurrently@gmail.com>
+    Date:   Tue May 23 21:46:51 2017 -0700
+
+        bpo-22257: Private C-API for core runtime initialization (PEP 432). (#1772)
+
+        (patch by Nick Coghlan)
+
+        +typedef struct {
+        +    int ignore_environment;
+        +    int use_hash_seed;
+        +    unsigned long hash_seed;
+        +    int _disable_importlib; /* Needed by freeze_importlib */
+        +} _PyCoreConfig;
+
+2017-10-23
+PYTHONDONTWRITEBYTECODE and PYTHONOPTIMIZE have no effect
+https://bugs.python.org/issue31845
+(Python 3.7 regression)
+
+Somehow related, 2017
+---------------------
+
+2017-07-05 .. 2017-11-24
+Consolidate stateful C globals under a single struct.
+https://bugs.python.org/issue30860
+Eric Snow
+
+Commit::
+
+    commit 2ebc5ce42a8a9e047e790aefbf9a94811569b2b6 (HEAD)
+    Author: Eric Snow <ericsnowcurrently@gmail.com>
+    Date:   Thu Sep 7 23:51:28 2017 -0600
+
+        bpo-30860: Consolidate stateful runtime globals. (#3397)
+
+        * group the (stateful) runtime globals into various topical structs
+        * consolidate the topical structs under a single top-level _PyRuntimeState struct
+        * add a check-c-globals.py script that helps identify runtime globals
+
+        Other globals are excluded (see globals.txt and check-c-globals.py).
+
+        _PyCoreConfig:
+
+        +    char *allocator;
+
 
 Python Configuration
 ====================
@@ -991,24 +1247,36 @@ https://bugs.python.org/issue22213
 Similar issue: https://bugs.python.org/issue35706
 
 
-Well, it's a strange story. At the beginning, I had a very simple use case... it took me more or less one year to implement it :-) My use case was to add... a new -X utf8 command line option:
+Well, it's a strange story. At the beginning, I had a very simple use
+case... it took me more or less one year to implement it :-) My use case
+was to add... a new -X utf8 command line option:
 
 * parsing the command line requires to decode bytes using an encoding
 * the encoding depends on the locale, environment variable and options on the command line
 * environment variables depend on the command line (-E option)
 
-If the utf8 mode is enabled (PEP 540), the encoding must be set to UTF-8, all configuration must be removed and the whole configuration (env vars, cmdline, etc.) must be read again from scratch :-)
+If the utf8 mode is enabled (PEP 540), the encoding must be set to
+UTF-8, all configuration must be removed and the whole configuration
+(env vars, cmdline, etc.) must be read again from scratch :-)
 
-To be able to do that, I had to collect *every single* thing which has an impact on the Python initialization: all things that I moved into _PyCoreConfig.
+To be able to do that, I had to collect *every single* thing which has
+an impact on the Python initialization: all things that I moved into
+_PyCoreConfig.
 
-... but I didn't want to break the backward compatibility, so I had to keep support for Py_xxx global configuration variables... and also the few initialization functions like Py_SetPath() or Py_SetStandardStreamEncoding().
+... but I didn't want to break the backward compatibility, so I had to
+keep support for Py_xxx global configuration variables... and also the
+few initialization functions like Py_SetPath() or
+Py_SetStandardStreamEncoding().
 
 Later it becomes very dark, my goal became very unclear and I looked at the PEP 432 :-)
 
 
-If a _PyCoreConfig field is set: it has the priority over any other way to initialize the field. _PyCoreConfig has the highest prioririty.
+If a _PyCoreConfig field is set: it has the priority over any other way
+to initialize the field. _PyCoreConfig has the highest prioririty.
 
-For example, _PyCoreConfig allows to completely ignore the code which computes sys.path (and related variables) by setting directly the "path configuration":
+For example, _PyCoreConfig allows to completely ignore the code which
+computes sys.path (and related variables) by setting directly the "path
+configuration":
 
 Nick:
 https://bugs.python.org/issue22213#msg335688
@@ -1104,6 +1372,17 @@ files or more, to update an API for example.
 
 PEP 587 History
 ===============
+
+Emails
+------
+
+1 August 2018
+[Python-Dev] New _Py_InitializeFromConfig() function (PEP 432)
+http://git.net/python-development/msg33070.html
+http://git.net/python-development/msg39698.html
+
+Wed Mar 27 13:48:59 EDT 2019
+https://mail.python.org/pipermail/python-dev/2019-March/156884.html
 
 Version 1 (March 28, 2019)
 --------------------------
@@ -1203,3 +1482,21 @@ While I like the idea of the PEP 432, the implementation was far from
 being usable. The expected API itself wasn't well defined. I decided
 to remove _PyMainInterpreterConfig structure until we reopen the
 discussion of "Multi-Phase Initialization".
+
+Dev
+===
+
+Technically, I could push a single giant commit, but it would be
+impossible to review it, even for myself, whereas I'm reading each
+change multiple times. I'm testing each change on Windows, macOS,
+Linux and FreeBSD to make sure that everything is fine.
+
+Documentation
+=============
+
+Another part of the work is to enhance the documentation. You can for
+example now find an explicit list of C functions which can be called
+before Py_Initialize():
+
+https://docs.python.org/dev/c-api/init.html#before-python-initialization
+
