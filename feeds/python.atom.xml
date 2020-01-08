@@ -1,5 +1,137 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-06-19T12:00:00+02:00</updated><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-08T15:00:00+01:00</updated><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+&lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
+&lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
+example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
+Python competitive&lt;/a&gt; (LWN article); &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf"&gt;slides&lt;/a&gt;.
+At EuroPython 2019 (Basel), I gave the keynote &amp;quot;Python Performance: Past,
+Present and Future&amp;quot;: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf"&gt;slides …&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+&lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
+&lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
+example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
+Python competitive&lt;/a&gt; (LWN article); &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf"&gt;slides&lt;/a&gt;.
+At EuroPython 2019 (Basel), I gave the keynote &amp;quot;Python Performance: Past,
+Present and Future&amp;quot;: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf"&gt;slides&lt;/a&gt;
+and &lt;a class="reference external" href="https://www.youtube.com/watch?v=T6vC_LOHBJ4&amp;amp;feature=youtu.be&amp;amp;t=1875"&gt;video&lt;/a&gt;.  I
+gave my vision on the Python performance and listed 3 projects to speedup
+Python that I consider as realistic:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;subinterpreters: see Eric Snow's &lt;a class="reference external" href="https://github.com/ericsnowcurrently/multi-core-python/"&gt;multi-core-python&lt;/a&gt; project&lt;/li&gt;
+&lt;li&gt;better C API: see &lt;a class="reference external" href="https://github.com/pyhandle/hpy"&gt;HPy (new C API)&lt;/a&gt;
+and &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;tracing garbage collector for CPython&lt;/li&gt;
+&lt;/ul&gt;
+&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
+&lt;p&gt;This article is about &lt;strong&gt;subinterpreters&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="subinterpreters"&gt;
+&lt;h2&gt;Subinterpreters&lt;/h2&gt;
+&lt;p&gt;Eric Snow is working on subinterpreters since 2015, see his first blog post
+published in September 2016: &lt;a class="reference external" href="http://ericsnowcurrently.blogspot.com/2016/09/solving-mutli-core-python.html"&gt;Solving Multi-Core Python&lt;/a&gt;.
+See Eric Snow's &lt;a class="reference external" href="https://github.com/ericsnowcurrently/multi-core-python/wiki"&gt;multi-core-python project wiki&lt;/a&gt; for the whole
+history.&lt;/p&gt;
+&lt;p&gt;In September 2017, he wrote a concrete proposal: &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0554/"&gt;PEP 554: Multiple
+Interpreters in the Stdlib&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Eric mentions the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0432/"&gt;PEP 432: Simplifying the CPython startup sequence&lt;/a&gt; as one blocker issue. I fixed
+this issue (at least for the subinterpreters case) with my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0587/"&gt;PEP 587: Python
+Initialization Configuration&lt;/a&gt; that
+I implemented in Python 3.8.&lt;/p&gt;
+&lt;p&gt;Sadly, implementing subinterpreters in the 30 years old CPython project is hard
+since a lot of code has to be updated. CPython is made of not less than &lt;strong&gt;603K
+lines of C code&lt;/strong&gt; (and 815K lines of Python code)!&lt;/p&gt;
+&lt;p&gt;In May 2018, at CPython sprint during Pycon US, I discussed subinterpreters
+with Eric Snow and Nick Coghlan. I draw an overview of Python internals and the
+different &amp;quot;states&amp;quot; on a whiteboard:&lt;/p&gt;
+&lt;img alt="Python states" src="https://vstinner.github.io/images/subinterpreters2.jpg" /&gt;
+&lt;p&gt;Python and Python subinterpreter lifecycles (creation and finalization):&lt;/p&gt;
+&lt;img alt="Python subinterpreter lifecycle" src="https://vstinner.github.io/images/subinterpreters1.jpg" /&gt;
+&lt;p&gt;As a follow-up of this meeting, I wrote down the current state and what should
+be done: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/runtime.html"&gt;Reorganize Python “runtime”&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="getting-the-current-python-thread-state"&gt;
+&lt;h2&gt;Getting the current Python thread state&lt;/h2&gt;
+&lt;p&gt;In the current master branch of Python, getting the current Python thread state
+is done using these two macros:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#define _PyRuntimeState_GetThreadState(runtime) \
+    ((PyThreadState*)_Py_atomic_load_relaxed(&amp;amp;(runtime)-&amp;gt;gilstate.tstate_current))
+
+#define _PyThreadState_GET() _PyRuntimeState_GetThreadState(&amp;amp;_PyRuntime)
+&lt;/pre&gt;
+&lt;p&gt;These macros depend on the global &lt;tt class="docutils literal"&gt;_PyRuntime&lt;/tt&gt; variable: instance of the
+&lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt; structure. There is exactly one instance of
+&lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt;: data shared by all interpreters on purpose (more info
+about &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt; below).&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_Py_atomic_load_relaxed()&lt;/tt&gt; uses an atomic operation which may become an
+performance issue if Python is modified to get the Python thread state in more
+places. I tried to check if it uses a slow atomic read instruction, but it
+seems like only a write uses an explicit memory fence operation: read seems to
+be &amp;quot;free&amp;quot; (it's a regular efficient &lt;tt class="docutils literal"&gt;MOV&lt;/tt&gt; instruction). I only checked the
+x86-64 machine code, it may be different on other architectures.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gil-state"&gt;
+&lt;h2&gt;GIL state&lt;/h2&gt;
+&lt;p&gt;Currently, the &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt; structure has a &lt;tt class="docutils literal"&gt;gilstate&lt;/tt&gt; field which is
+shared between all subinterpreters. The long term goal of the PEP 554
+(subinterpreters) is to &lt;strong&gt;have one GIL per subinterpeters&lt;/strong&gt; to &lt;strong&gt;execute
+multiple interpreters in parallel&lt;/strong&gt;. Currently, only one interpreter can be
+executed at the same time: there is no parallelism, except if a thread releases
+the GIL which is not the common case.&lt;/p&gt;
+&lt;p&gt;It's tracked by these two issues:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue10915"&gt;Make the PyGILState API compatible with multiple interpreters&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue15751"&gt;Support subinterpreters in the GIL state API&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I expect that fixing this issue may require to add a lock somewhere which &lt;strong&gt;can
+hurt performances&lt;/strong&gt;, depending on how the GIL state is accessed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="passing-a-state-to-internal-function-calls"&gt;
+&lt;h2&gt;Passing a state to internal function calls&lt;/h2&gt;
+&lt;p&gt;To avoid any risk of performance penality with incoming Python internal changes
+for subinterpreters, but also to make things more explicit, I proposed to
+&lt;strong&gt;pass explicitly &amp;quot;a state&amp;quot; to internal C function calls&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;First, it wasn't obvious which &amp;quot;state&amp;quot; should be passed: &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt;, a structure containing both, or something else?&lt;/p&gt;
+&lt;p&gt;Moreover, it was unclear how to get the runtime from &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt; or how
+to get runtime from &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt;?&lt;/p&gt;
+&lt;p&gt;I started to &lt;strong&gt;pass runtime to some functions&lt;/strong&gt; (&lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt;): &lt;a class="reference external" href="https://bugs.python.org/issue36710"&gt;Pass
+_PyRuntimeState as an argument rather than using the _PyRuntime global variable&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Then I pushed more changes to &lt;strong&gt;pass tstate to some other functions&lt;/strong&gt;
+(&lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt;): &lt;a class="reference external" href="https://bugs.python.org/issue38644"&gt;Pass explicitly tstate to function calls&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I added &lt;tt class="docutils literal"&gt;PyInterpreterState.runtime&lt;/tt&gt; so getting &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt; from
+&lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt; is now done using: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;tstate-&amp;gt;interp-&amp;gt;runtime&lt;/span&gt;&lt;/tt&gt;. It's no
+longer needed to pass &lt;tt class="docutils literal"&gt;runtime&lt;/tt&gt; &lt;strong&gt;and&lt;/strong&gt; &lt;tt class="docutils literal"&gt;tstate&lt;/tt&gt; to internal functions:
+&lt;tt class="docutils literal"&gt;tstate&lt;/tt&gt; is enough.&lt;/p&gt;
+&lt;p&gt;Slowly, I modified the internals to only pass &lt;tt class="docutils literal"&gt;tstate&lt;/tt&gt; to internal functions:
+&lt;strong&gt;tstate should become the root object to access all Python states&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;I ended with a thread on the python-dev mailing list to summarize this work:
+&lt;a class="reference external" href="https://mail.python.org/archives/list/python-dev&amp;#64;python.org/thread/PQBGECVGVYFTVDLBYURLCXA3T7IPEHHO/#Q4IPXMQIM5YRLZLHADUGSUT4ZLXQ6MYY"&gt;Pass the Python thread state to internal C functions&lt;/a&gt;.
+The feedback was quite positive, most core developers agreed that passing
+explicitly tstate is a good practice and the work should be continued.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyruntimestate-and-pyinterpreterstate"&gt;
+&lt;h2&gt;_PyRuntimeState and PyInterpreterState&lt;/h2&gt;
+&lt;p&gt;Currently, some &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt; fields are shared by all interperters,
+whereas they should be moved into &lt;tt class="docutils literal"&gt;PyInterpreterState&lt;/tt&gt;: it's still a work in
+progress.&lt;/p&gt;
+&lt;p&gt;For example, I continued the work started by Eric Snow to move the garbage
+collector state from &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;PyInterpreterState&lt;/tt&gt;: &lt;a class="reference external" href="https://bugs.python.org/issue36854"&gt;GC
+operates out of global runtime state.&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;As explained above, another example is &lt;tt class="docutils literal"&gt;gilstate&lt;/tt&gt; that should also be moved
+to &lt;tt class="docutils literal"&gt;PyInterpreterState&lt;/tt&gt;, but that's a complex change that should be well
+prepared to not break anything.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="more-subinterpreter-work"&gt;
+&lt;h2&gt;More subinterpreter work&lt;/h2&gt;
+&lt;p&gt;Implementing subinterpreters also requires to cleanup various parts of Python
+internals.&lt;/p&gt;
+&lt;p&gt;For example, I modified Python so Py_NewInterpreter() and Py_EndInterpreter()
+(create and finalize a subinterpreter) share more code with Py_Initialize()
+and Py_Finalize() (create and finalize the &lt;strong&gt;main&lt;/strong&gt; interpreter):
+&lt;a class="reference external" href="https://bugs.python.org/issue38858"&gt;new_interpreter() should reuse more Py_InitializeFromConfig() code&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;They are still many issues to be fixed: &lt;strong&gt;it's moving slowly but steadily!&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which

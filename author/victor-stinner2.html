@@ -22,6 +22,31 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://vstinner.github.io/python3-locales-encodings.html" rel="bookmark"
+                           title="Permalink to Python 3, locales and encodings">Python 3, locales and encodings</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2018-09-06T16:00:00+02:00">
+                Published: jeu. 06 septembre 2018
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/unicode.html">unicode</a> <a href="https://vstinner.github.io/tag/locales.html">locales</a> </p>
+</footer><!-- /.post-info -->                <p>Recently, I worked on a change which looked simple: move the code to initialize
+the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
+I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
+I didn't expect that I would spend 2 weeks on these issues …</p>
+                <a class="readmore" href="https://vstinner.github.io/python3-locales-encodings.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="bookmark"
                            title="Permalink to Python 3.7 UTF-8 Mode">Python 3.7 UTF-8 Mode</a></h1>
                 </header>
@@ -260,42 +285,6 @@ for me to have a new look on a tricky integer overflow issue.</p>
 <div class="section" id="modify-importtime-to-use-time-perf-counter-clock">
 <h2>Modify importtime …</h2></div>
                 <a class="readmore" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="bookmark"
-                           title="Permalink to My contributions to CPython during 2017 Q3: Part 3 (funny bugs)">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-10-19T16:00:00+02:00">
-                Published: jeu. 19 octobre 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
-(july, august, september), Part 3 (funny bugs).</p>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
-threads)</a>.</p>
-<p>Summary:</p>
-<ul class="simple">
-<li>FreeBSD bug: minor() device regression</li>
-<li>regrtest snowball effect when hunting memory leaks</li>
-<li>Bugfixes</li>
-<li>Other Changes</li>
-</ul>
-<div class="section" id="freebsd-bug-minor-device-regression">
-<h2>FreeBSD bug: minor() device regression</h2>
-<a class="reference external image-reference" href="https://www.freebsd.org/"><img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /></a>
-<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

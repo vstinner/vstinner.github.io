@@ -20,7 +20,157 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/split-include-directory-python38.html">Split Include/ directory in Python 3.8</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/cpython-pass-tstate.html">Pass the Python thread state explicitly</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-01-08T15:00:00+01:00">
+                Published: mer. 08 janvier 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><div class="section" id="keeping-python-competitive">
+<h2>Keeping Python competitive</h2>
+<p>I'm trying to find ways to make Python more efficient for many years, see for
+example my discussion at the Language Summit during Pycon US 2017: <a class="reference external" href="https://lwn.net/Articles/723949/">Keeping
+Python competitive</a> (LWN article); <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf">slides</a>.
+At EuroPython 2019 (Basel), I gave the keynote &quot;Python Performance: Past,
+Present and Future&quot;: <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf">slides</a>
+and <a class="reference external" href="https://www.youtube.com/watch?v=T6vC_LOHBJ4&amp;feature=youtu.be&amp;t=1875">video</a>.  I
+gave my vision on the Python performance and listed 3 projects to speedup
+Python that I consider as realistic:</p>
+<ul class="simple">
+<li>subinterpreters: see Eric Snow's <a class="reference external" href="https://github.com/ericsnowcurrently/multi-core-python/">multi-core-python</a> project</li>
+<li>better C API: see <a class="reference external" href="https://github.com/pyhandle/hpy">HPy (new C API)</a>
+and <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a></li>
+<li>tracing garbage collector for CPython</li>
+</ul>
+<img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" />
+<p>This article is about <strong>subinterpreters</strong>.</p>
+</div>
+<div class="section" id="subinterpreters">
+<h2>Subinterpreters</h2>
+<p>Eric Snow is working on subinterpreters since 2015, see his first blog post
+published in September 2016: <a class="reference external" href="http://ericsnowcurrently.blogspot.com/2016/09/solving-mutli-core-python.html">Solving Multi-Core Python</a>.
+See Eric Snow's <a class="reference external" href="https://github.com/ericsnowcurrently/multi-core-python/wiki">multi-core-python project wiki</a> for the whole
+history.</p>
+<p>In September 2017, he wrote a concrete proposal: <a class="reference external" href="https://www.python.org/dev/peps/pep-0554/">PEP 554: Multiple
+Interpreters in the Stdlib</a>.</p>
+<p>Eric mentions the <a class="reference external" href="https://www.python.org/dev/peps/pep-0432/">PEP 432: Simplifying the CPython startup sequence</a> as one blocker issue. I fixed
+this issue (at least for the subinterpreters case) with my <a class="reference external" href="https://www.python.org/dev/peps/pep-0587/">PEP 587: Python
+Initialization Configuration</a> that
+I implemented in Python 3.8.</p>
+<p>Sadly, implementing subinterpreters in the 30 years old CPython project is hard
+since a lot of code has to be updated. CPython is made of not less than <strong>603K
+lines of C code</strong> (and 815K lines of Python code)!</p>
+<p>In May 2018, at CPython sprint during Pycon US, I discussed subinterpreters
+with Eric Snow and Nick Coghlan. I draw an overview of Python internals and the
+different &quot;states&quot; on a whiteboard:</p>
+<img alt="Python states" src="https://vstinner.github.io/images/subinterpreters2.jpg" />
+<p>Python and Python subinterpreter lifecycles (creation and finalization):</p>
+<img alt="Python subinterpreter lifecycle" src="https://vstinner.github.io/images/subinterpreters1.jpg" />
+<p>As a follow-up of this meeting, I wrote down the current state and what should
+be done: <a class="reference external" href="https://pythoncapi.readthedocs.io/runtime.html">Reorganize Python “runtime”</a>.</p>
+</div>
+<div class="section" id="getting-the-current-python-thread-state">
+<h2>Getting the current Python thread state</h2>
+<p>In the current master branch of Python, getting the current Python thread state
+is done using these two macros:</p>
+<pre class="literal-block">
+#define _PyRuntimeState_GetThreadState(runtime) \
+    ((PyThreadState*)_Py_atomic_load_relaxed(&amp;(runtime)-&gt;gilstate.tstate_current))
+
+#define _PyThreadState_GET() _PyRuntimeState_GetThreadState(&amp;_PyRuntime)
+</pre>
+<p>These macros depend on the global <tt class="docutils literal">_PyRuntime</tt> variable: instance of the
+<tt class="docutils literal">_PyRuntimeState</tt> structure. There is exactly one instance of
+<tt class="docutils literal">_PyRuntimeState</tt>: data shared by all interpreters on purpose (more info
+about <tt class="docutils literal">_PyRuntimeState</tt> below).</p>
+<p><tt class="docutils literal">_Py_atomic_load_relaxed()</tt> uses an atomic operation which may become an
+performance issue if Python is modified to get the Python thread state in more
+places. I tried to check if it uses a slow atomic read instruction, but it
+seems like only a write uses an explicit memory fence operation: read seems to
+be &quot;free&quot; (it's a regular efficient <tt class="docutils literal">MOV</tt> instruction). I only checked the
+x86-64 machine code, it may be different on other architectures.</p>
+</div>
+<div class="section" id="gil-state">
+<h2>GIL state</h2>
+<p>Currently, the <tt class="docutils literal">_PyRuntimeState</tt> structure has a <tt class="docutils literal">gilstate</tt> field which is
+shared between all subinterpreters. The long term goal of the PEP 554
+(subinterpreters) is to <strong>have one GIL per subinterpeters</strong> to <strong>execute
+multiple interpreters in parallel</strong>. Currently, only one interpreter can be
+executed at the same time: there is no parallelism, except if a thread releases
+the GIL which is not the common case.</p>
+<p>It's tracked by these two issues:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue10915">Make the PyGILState API compatible with multiple interpreters</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue15751">Support subinterpreters in the GIL state API</a></li>
+</ul>
+<p>I expect that fixing this issue may require to add a lock somewhere which <strong>can
+hurt performances</strong>, depending on how the GIL state is accessed.</p>
+</div>
+<div class="section" id="passing-a-state-to-internal-function-calls">
+<h2>Passing a state to internal function calls</h2>
+<p>To avoid any risk of performance penality with incoming Python internal changes
+for subinterpreters, but also to make things more explicit, I proposed to
+<strong>pass explicitly &quot;a state&quot; to internal C function calls</strong>.</p>
+<p>First, it wasn't obvious which &quot;state&quot; should be passed: <tt class="docutils literal">_PyRuntimeState</tt>,
+<tt class="docutils literal">PyThreadState</tt>, a structure containing both, or something else?</p>
+<p>Moreover, it was unclear how to get the runtime from <tt class="docutils literal">PyThreadState</tt> or how
+to get runtime from <tt class="docutils literal">PyThreadState</tt>?</p>
+<p>I started to <strong>pass runtime to some functions</strong> (<tt class="docutils literal">_PyRuntimeState</tt>): <a class="reference external" href="https://bugs.python.org/issue36710">Pass
+_PyRuntimeState as an argument rather than using the _PyRuntime global variable</a>.</p>
+<p>Then I pushed more changes to <strong>pass tstate to some other functions</strong>
+(<tt class="docutils literal">PyThreadState</tt>): <a class="reference external" href="https://bugs.python.org/issue38644">Pass explicitly tstate to function calls</a>.</p>
+<p>I added <tt class="docutils literal">PyInterpreterState.runtime</tt> so getting <tt class="docutils literal">_PyRuntimeState</tt> from
+<tt class="docutils literal">PyThreadState</tt> is now done using: <tt class="docutils literal"><span class="pre">tstate-&gt;interp-&gt;runtime</span></tt>. It's no
+longer needed to pass <tt class="docutils literal">runtime</tt> <strong>and</strong> <tt class="docutils literal">tstate</tt> to internal functions:
+<tt class="docutils literal">tstate</tt> is enough.</p>
+<p>Slowly, I modified the internals to only pass <tt class="docutils literal">tstate</tt> to internal functions:
+<strong>tstate should become the root object to access all Python states</strong>.</p>
+<p>I ended with a thread on the python-dev mailing list to summarize this work:
+<a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/PQBGECVGVYFTVDLBYURLCXA3T7IPEHHO/#Q4IPXMQIM5YRLZLHADUGSUT4ZLXQ6MYY">Pass the Python thread state to internal C functions</a>.
+The feedback was quite positive, most core developers agreed that passing
+explicitly tstate is a good practice and the work should be continued.</p>
+</div>
+<div class="section" id="pyruntimestate-and-pyinterpreterstate">
+<h2>_PyRuntimeState and PyInterpreterState</h2>
+<p>Currently, some <tt class="docutils literal">_PyRuntimeState</tt> fields are shared by all interperters,
+whereas they should be moved into <tt class="docutils literal">PyInterpreterState</tt>: it's still a work in
+progress.</p>
+<p>For example, I continued the work started by Eric Snow to move the garbage
+collector state from <tt class="docutils literal">_PyRuntimeState</tt> to <tt class="docutils literal">PyInterpreterState</tt>: <a class="reference external" href="https://bugs.python.org/issue36854">GC
+operates out of global runtime state.</a>.</p>
+<p>As explained above, another example is <tt class="docutils literal">gilstate</tt> that should also be moved
+to <tt class="docutils literal">PyInterpreterState</tt>, but that's a complex change that should be well
+prepared to not break anything.</p>
+</div>
+<div class="section" id="more-subinterpreter-work">
+<h2>More subinterpreter work</h2>
+<p>Implementing subinterpreters also requires to cleanup various parts of Python
+internals.</p>
+<p>For example, I modified Python so Py_NewInterpreter() and Py_EndInterpreter()
+(create and finalize a subinterpreter) share more code with Py_Initialize()
+and Py_Finalize() (create and finalize the <strong>main</strong> interpreter):
+<a class="reference external" href="https://bugs.python.org/issue38858">new_interpreter() should reuse more Py_InitializeFromConfig() code</a>.</p>
+<p>They are still many issues to be fixed: <strong>it's moving slowly but steadily!</strong></p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/split-include-directory-python38.html" rel="bookmark"
+                           title="Permalink to Split Include/ directory in Python 3.8">Split Include/ directory in Python 3.8</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2019-06-19T12:00:00+02:00">
                 Published: mer. 19 juin 2019
@@ -31,179 +181,14 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
-</footer><!-- /.post-info --><p>In September 2017, during the CPython sprint at Facebook, I proposed my
+</footer><!-- /.post-info -->                <p>In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a>.
 I'm still working on the Python C API at: <a class="reference external" href="http://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a>.</p>
 <p>My analysis is that the C API leaks too many implementation details which
-prevent to optimize Python and make the implementation of PyPy (cpyext) more
-painful.</p>
-<p>In Python 3.8, I created <tt class="docutils literal">Include/cpython/</tt> sub-directory to stop adding new
-APIs to the stable API by mistake.</p>
-<p>I moved more private functions into the internal C API: <tt class="docutils literal">Include/internal/</tt>
-directory.</p>
-<p>I also converted some macros like <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> to static
-inline functions to have well defined parameter and return type, and to avoid
-macro pitfals.</p>
-<p>Finally, I removed 3 functions from the C API.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
-<div class="section" id="include-internal">
-<h2>Include/internal/</h2>
-<p>In Python 3.7, <strong>Eric Snow</strong> created <tt class="docutils literal">Include/internal/</tt> sub-directory for
-the CPython &quot;internal C API&quot;: API which should not be used outside CPython code
-base. In Python 3.6, these APIs were surrounded by:</p>
-<pre class="literal-block">
-#ifdef Py_BUILD_CORE
-...
-#endif
-</pre>
-<p>In Python 3.8, I continued this work by moving more private functions into
-this directory: see <a class="reference external" href="https://bugs.python.org/issue35081">bpo-35081</a>.</p>
-<p>I started a thread on python-dev: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2018-October/155587.html">[Python-Dev] Rename Include/internal/ to
-Include/pycore/</a>. But
-it was decided to keep <tt class="docutils literal">Include/internal/</tt> name. It was decided that internal
-header files must not be included implicitly by the generic <tt class="docutils literal">#include
-&lt;Python.h&gt;</tt>, but included explicitly. For example, when I moved
-<tt class="docutils literal">_PyObject_GC_TRACK()</tt> and <tt class="docutils literal">_PyObject_GC_UNTRACK()</tt> to the internal C API,
-I had to add <tt class="docutils literal">#include &quot;pycore_object.h&quot;</tt> to 32 C files!</p>
-<p><a class="reference external" href="https://bugs.python.org/issue35296">I also modified make install</a> to install
-this internal C API, so it can be used for specific needs like debuggers or
-profilers which have to access CPython internals (access structure fields) but
-cannot call functions. For example, <strong>Eric Snow</strong> moved the <tt class="docutils literal">PyInterpreterState</tt>
-structure to the internal C API.</p>
-<p>Installing the internal C API ease the migration of APIs to internal: if an API
-is still needed after it's moved, it's now possible to opt-in to use it.</p>
-<p>Using the internal C API requires to define <tt class="docutils literal">Py_BUILD_CORE_MODULE</tt> macro and
-use a different include, like <tt class="docutils literal">#include &quot;internal/pycore_pystate.h&quot;</tt>. It's
-more complicated on purpose: ensure that it's not used by mistake.</p>
-<p>Python 3.8 now provides 21 internal header files:</p>
-<pre class="literal-block">
-pycore_accu.h       pycore_getopt.h      pycore_pyhash.h
-pycore_atomic.h     pycore_gil.h         pycore_pylifecycle.h
-pycore_ceval.h      pycore_hamt.h        pycore_pymem.h
-pycore_code.h       pycore_initconfig.h  pycore_pystate.h
-pycore_condvar.h    pycore_object.h      pycore_traceback.h
-pycore_context.h    pycore_pathconfig.h  pycore_tupleobject.h
-pycore_fileutils.h  pycore_pyerrors.h    pycore_warnings.h
-</pre>
-</div>
-<div class="section" id="include-cpython">
-<h2>Include/cpython/</h2>
-<p>The <a class="reference external" href="https://www.python.org/dev/peps/pep-0384/">PEP 384 &quot;Defining a Stable ABI&quot;</a> introduced <tt class="docutils literal">Py_LIMITED_API</tt>
-macro to exclude functions from the Python C API. The problem is when a new API
-is added, it has to explicitly be excluded using <tt class="docutils literal">#ifndef Py_LIMITED_API</tt>.
-If the author forgets it, the function is added to be stable API by mistake.</p>
-<p>I proposed to move the API which should be excluded from the stable ABI to a
-new subdirectory. I created a <a class="reference external" href="https://discuss.python.org/t/poll-what-is-your-favorite-name-for-the-new-include-subdirectory/477">poll on the sub-directory name</a>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">Include/cpython/</tt></li>
-<li><tt class="docutils literal">Include/board/</tt></li>
-<li><tt class="docutils literal">Include/impl/</tt></li>
-<li><tt class="docutils literal">Include/pycapi/</tt> (the name that I proposed initially)</li>
-<li><tt class="docutils literal">Include/unstable/</tt></li>
-<li>other (add comment)</li>
-</ul>
-<p>The <tt class="docutils literal">Include/cpython/</tt> name won with 100% of the 3 votes (and a few more
-supports in the python-dev discussion and in the bug tracker) :-)</p>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue35134">bpo-35134: Add a new Include/cpython/ subdirectory for the &quot;CPython
-API&quot; with implementation details</a>.</p>
-<p>My initial description of the directory content:</p>
-<blockquote>
-The new subdirectory will contain <tt class="docutils literal">#ifndef Py_LIMITED_API</tt> code, not the
-“Stable ABI” of <a class="reference external" href="https://www.python.org/dev/peps/pep-0384/">PEP 384</a>, but
-more “implementation details” of CPython.</blockquote>
-<p>The change is backward compatible: <tt class="docutils literal">#include &lt;Python.h&gt;</tt> will still provide
-exactly the same API. For example, <tt class="docutils literal">object.h</tt> automatically includes
-<tt class="docutils literal">cpython/object.h</tt>. But <tt class="docutils literal">Include/cpython/</tt> headers must not be included
-directly (it would fail with a compilation error).</p>
-<p>For example, <tt class="docutils literal">Include/object.h</tt> now ends with:</p>
-<pre class="literal-block">
-#ifndef Py_LIMITED_API
-#  define Py_CPYTHON_OBJECT_H
-#  include  &quot;cpython/object.h&quot;
-#  undef Py_CPYTHON_OBJECT_H
-#endif
-</pre>
-<p><tt class="docutils literal">Include/cpython/object.h</tt> structure (content replaced with <tt class="docutils literal">...</tt>):</p>
-<pre class="literal-block">
-#ifndef Py_CPYTHON_OBJECT_H
-#  error &quot;this header file must not be included directly&quot;
-#endif
-
-#ifdef __cplusplus
-extern &quot;C&quot; {
-#endif
-
-...
-
-#ifdef __cplusplus
-}
-#endif
-</pre>
-<p>In Python 3.8, the work is not complete. I tried to double- or even
-triple-check my changes to ensure that I don't remove an API by mistake. This
-work is still on-going in Python 3.9.</p>
-</div>
-<div class="section" id="summary-of-include-directories">
-<h2>Summary of Include/ directories</h2>
-<p>The header files have been reorganized to better separate the different kinds
-of APIs:</p>
-<ul class="simple">
-<li><tt class="docutils literal"><span class="pre">Include/*.h</span></tt> should be the portable public stable C API.</li>
-<li><tt class="docutils literal"><span class="pre">Include/cpython/*.h</span></tt> should be the unstable C API specific to CPython;
-public API, with some private API prefixed by <tt class="docutils literal">_Py</tt> or <tt class="docutils literal">_PY</tt>.</li>
-<li><tt class="docutils literal"><span class="pre">Include/internal/*.h</span></tt> is the private internal C API very specific to
-CPython. This API comes with no backward compatibility warranty and should
-not be used outside CPython. It is only exposed for very specific needs
-like debuggers and profiles which has to access to CPython internals
-without calling functions. This API is now installed by <tt class="docutils literal">make install</tt>.</li>
-</ul>
-</div>
-<div class="section" id="convert-macros-to-static-inline-functions">
-<h2>Convert macros to static inline functions</h2>
-<p>In <a class="reference external" href="https://bugs.python.org/issue35059">bpo-35059</a>, I converted some macros
-to static inline functions:</p>
-<ul class="simple">
-<li><tt class="docutils literal">Py_INCREF()</tt>, <tt class="docutils literal">Py_DECREF()</tt></li>
-<li><tt class="docutils literal">Py_XINCREF()</tt>, <tt class="docutils literal">Py_XDECREF()</tt></li>
-<li><tt class="docutils literal">PyObject_INIT()</tt>, <tt class="docutils literal">PyObject_INIT_VAR()</tt></li>
-<li>Private functions: <tt class="docutils literal">_PyObject_GC_TRACK()</tt>, <tt class="docutils literal">_PyObject_GC_UNTRACK()</tt>,
-<tt class="docutils literal">_Py_Dealloc()</tt></li>
-</ul>
-<p>Compared to macros, static inline functions have multiple advantages:</p>
-<ul class="simple">
-<li>Parameter types and return type are well defined;</li>
-<li>They don't have issues specific to macros: see <a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html">GCC Macro Pitfals</a>;</li>
-<li>Variables have a well defined local scope.</li>
-</ul>
-<p>Python 3.7 uses ugly macros with comma and semicolon. Example:</p>
-<pre class="literal-block">
-#define _Py_REF_DEBUG_COMMA ,
-#define _Py_CHECK_REFCNT(OP) /* a semicolon */;
-
-#define _Py_NewReference(op) (                          \
-    _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
-    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
-    Py_REFCNT(op) = 1)
-</pre>
-<p><a class="reference external" href="https://www.python.org/dev/peps/pep-0007/#c-dialect">Python 3.6 requires C99 standard of the C dialect</a>. It was time to start
-to use it :-)</p>
-</div>
-<div class="section" id="removed-functions">
-<h2>Removed functions</h2>
-<p><a class="reference external" href="https://bugs.python.org/issue35713">bpo-35713</a>: I removed
-<tt class="docutils literal">PyByteArray_Init()</tt> and <tt class="docutils literal">PyByteArray_Fini()</tt> functions. They did nothing
-since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
-ABI), and were not documented.</p>
-<p><a class="reference external" href="https://bugs.python.org/issue36728">bpo-36728</a>: I also removed
-<tt class="docutils literal">PyEval_ReInitThreads()</tt> function. It should not be called explicitly: use
-<tt class="docutils literal">PyOS_AfterFork_Child()</tt> instead.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+prevent to optimize Python …</p>
+                <a class="readmore" href="https://vstinner.github.io/split-include-directory-python38.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -420,31 +405,6 @@ Interpreter Lock), one of the most critical part of Python. I had to dig the
 Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
 this time, <em>threads were …</em></p>
                 <a class="readmore" href="https://vstinner.github.io/python37-gil-change.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="bookmark"
-                           title="Permalink to Python 3.7 nanoseconds">Python 3.7 nanoseconds</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-06T16:30:00+01:00">
-                Published: mar. 06 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
-nanoseconds as integer internally. It became possible to propose again my old
-idea of getting time as nanoseconds at Python level and so I wrote a new
-<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond …</p>
-                <a class="readmore" href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

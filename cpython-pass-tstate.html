@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="utf-8" />
+        <title>Pass the Python thread state explicitly</title>
+        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
+        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <nav><ul>
+                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
+                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
+                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/python.html">python</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/cpython-pass-tstate.html" rel="bookmark"
+           title="Permalink to Pass the Python thread state explicitly">Pass the Python thread state explicitly</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2020-01-08T15:00:00+01:00">
+                Published: mer. 08 janvier 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info -->      <div class="section" id="keeping-python-competitive">
+<h2>Keeping Python competitive</h2>
+<p>I'm trying to find ways to make Python more efficient for many years, see for
+example my discussion at the Language Summit during Pycon US 2017: <a class="reference external" href="https://lwn.net/Articles/723949/">Keeping
+Python competitive</a> (LWN article); <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf">slides</a>.
+At EuroPython 2019 (Basel), I gave the keynote &quot;Python Performance: Past,
+Present and Future&quot;: <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf">slides</a>
+and <a class="reference external" href="https://www.youtube.com/watch?v=T6vC_LOHBJ4&amp;feature=youtu.be&amp;t=1875">video</a>.  I
+gave my vision on the Python performance and listed 3 projects to speedup
+Python that I consider as realistic:</p>
+<ul class="simple">
+<li>subinterpreters: see Eric Snow's <a class="reference external" href="https://github.com/ericsnowcurrently/multi-core-python/">multi-core-python</a> project</li>
+<li>better C API: see <a class="reference external" href="https://github.com/pyhandle/hpy">HPy (new C API)</a>
+and <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a></li>
+<li>tracing garbage collector for CPython</li>
+</ul>
+<img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" />
+<p>This article is about <strong>subinterpreters</strong>.</p>
+</div>
+<div class="section" id="subinterpreters">
+<h2>Subinterpreters</h2>
+<p>Eric Snow is working on subinterpreters since 2015, see his first blog post
+published in September 2016: <a class="reference external" href="http://ericsnowcurrently.blogspot.com/2016/09/solving-mutli-core-python.html">Solving Multi-Core Python</a>.
+See Eric Snow's <a class="reference external" href="https://github.com/ericsnowcurrently/multi-core-python/wiki">multi-core-python project wiki</a> for the whole
+history.</p>
+<p>In September 2017, he wrote a concrete proposal: <a class="reference external" href="https://www.python.org/dev/peps/pep-0554/">PEP 554: Multiple
+Interpreters in the Stdlib</a>.</p>
+<p>Eric mentions the <a class="reference external" href="https://www.python.org/dev/peps/pep-0432/">PEP 432: Simplifying the CPython startup sequence</a> as one blocker issue. I fixed
+this issue (at least for the subinterpreters case) with my <a class="reference external" href="https://www.python.org/dev/peps/pep-0587/">PEP 587: Python
+Initialization Configuration</a> that
+I implemented in Python 3.8.</p>
+<p>Sadly, implementing subinterpreters in the 30 years old CPython project is hard
+since a lot of code has to be updated. CPython is made of not less than <strong>603K
+lines of C code</strong> (and 815K lines of Python code)!</p>
+<p>In May 2018, at CPython sprint during Pycon US, I discussed subinterpreters
+with Eric Snow and Nick Coghlan. I draw an overview of Python internals and the
+different &quot;states&quot; on a whiteboard:</p>
+<img alt="Python states" src="https://vstinner.github.io/images/subinterpreters2.jpg" />
+<p>Python and Python subinterpreter lifecycles (creation and finalization):</p>
+<img alt="Python subinterpreter lifecycle" src="https://vstinner.github.io/images/subinterpreters1.jpg" />
+<p>As a follow-up of this meeting, I wrote down the current state and what should
+be done: <a class="reference external" href="https://pythoncapi.readthedocs.io/runtime.html">Reorganize Python “runtime”</a>.</p>
+</div>
+<div class="section" id="getting-the-current-python-thread-state">
+<h2>Getting the current Python thread state</h2>
+<p>In the current master branch of Python, getting the current Python thread state
+is done using these two macros:</p>
+<pre class="literal-block">
+#define _PyRuntimeState_GetThreadState(runtime) \
+    ((PyThreadState*)_Py_atomic_load_relaxed(&amp;(runtime)-&gt;gilstate.tstate_current))
+
+#define _PyThreadState_GET() _PyRuntimeState_GetThreadState(&amp;_PyRuntime)
+</pre>
+<p>These macros depend on the global <tt class="docutils literal">_PyRuntime</tt> variable: instance of the
+<tt class="docutils literal">_PyRuntimeState</tt> structure. There is exactly one instance of
+<tt class="docutils literal">_PyRuntimeState</tt>: data shared by all interpreters on purpose (more info
+about <tt class="docutils literal">_PyRuntimeState</tt> below).</p>
+<p><tt class="docutils literal">_Py_atomic_load_relaxed()</tt> uses an atomic operation which may become an
+performance issue if Python is modified to get the Python thread state in more
+places. I tried to check if it uses a slow atomic read instruction, but it
+seems like only a write uses an explicit memory fence operation: read seems to
+be &quot;free&quot; (it's a regular efficient <tt class="docutils literal">MOV</tt> instruction). I only checked the
+x86-64 machine code, it may be different on other architectures.</p>
+</div>
+<div class="section" id="gil-state">
+<h2>GIL state</h2>
+<p>Currently, the <tt class="docutils literal">_PyRuntimeState</tt> structure has a <tt class="docutils literal">gilstate</tt> field which is
+shared between all subinterpreters. The long term goal of the PEP 554
+(subinterpreters) is to <strong>have one GIL per subinterpeters</strong> to <strong>execute
+multiple interpreters in parallel</strong>. Currently, only one interpreter can be
+executed at the same time: there is no parallelism, except if a thread releases
+the GIL which is not the common case.</p>
+<p>It's tracked by these two issues:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue10915">Make the PyGILState API compatible with multiple interpreters</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue15751">Support subinterpreters in the GIL state API</a></li>
+</ul>
+<p>I expect that fixing this issue may require to add a lock somewhere which <strong>can
+hurt performances</strong>, depending on how the GIL state is accessed.</p>
+</div>
+<div class="section" id="passing-a-state-to-internal-function-calls">
+<h2>Passing a state to internal function calls</h2>
+<p>To avoid any risk of performance penality with incoming Python internal changes
+for subinterpreters, but also to make things more explicit, I proposed to
+<strong>pass explicitly &quot;a state&quot; to internal C function calls</strong>.</p>
+<p>First, it wasn't obvious which &quot;state&quot; should be passed: <tt class="docutils literal">_PyRuntimeState</tt>,
+<tt class="docutils literal">PyThreadState</tt>, a structure containing both, or something else?</p>
+<p>Moreover, it was unclear how to get the runtime from <tt class="docutils literal">PyThreadState</tt> or how
+to get runtime from <tt class="docutils literal">PyThreadState</tt>?</p>
+<p>I started to <strong>pass runtime to some functions</strong> (<tt class="docutils literal">_PyRuntimeState</tt>): <a class="reference external" href="https://bugs.python.org/issue36710">Pass
+_PyRuntimeState as an argument rather than using the _PyRuntime global variable</a>.</p>
+<p>Then I pushed more changes to <strong>pass tstate to some other functions</strong>
+(<tt class="docutils literal">PyThreadState</tt>): <a class="reference external" href="https://bugs.python.org/issue38644">Pass explicitly tstate to function calls</a>.</p>
+<p>I added <tt class="docutils literal">PyInterpreterState.runtime</tt> so getting <tt class="docutils literal">_PyRuntimeState</tt> from
+<tt class="docutils literal">PyThreadState</tt> is now done using: <tt class="docutils literal"><span class="pre">tstate-&gt;interp-&gt;runtime</span></tt>. It's no
+longer needed to pass <tt class="docutils literal">runtime</tt> <strong>and</strong> <tt class="docutils literal">tstate</tt> to internal functions:
+<tt class="docutils literal">tstate</tt> is enough.</p>
+<p>Slowly, I modified the internals to only pass <tt class="docutils literal">tstate</tt> to internal functions:
+<strong>tstate should become the root object to access all Python states</strong>.</p>
+<p>I ended with a thread on the python-dev mailing list to summarize this work:
+<a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/PQBGECVGVYFTVDLBYURLCXA3T7IPEHHO/#Q4IPXMQIM5YRLZLHADUGSUT4ZLXQ6MYY">Pass the Python thread state to internal C functions</a>.
+The feedback was quite positive, most core developers agreed that passing
+explicitly tstate is a good practice and the work should be continued.</p>
+</div>
+<div class="section" id="pyruntimestate-and-pyinterpreterstate">
+<h2>_PyRuntimeState and PyInterpreterState</h2>
+<p>Currently, some <tt class="docutils literal">_PyRuntimeState</tt> fields are shared by all interperters,
+whereas they should be moved into <tt class="docutils literal">PyInterpreterState</tt>: it's still a work in
+progress.</p>
+<p>For example, I continued the work started by Eric Snow to move the garbage
+collector state from <tt class="docutils literal">_PyRuntimeState</tt> to <tt class="docutils literal">PyInterpreterState</tt>: <a class="reference external" href="https://bugs.python.org/issue36854">GC
+operates out of global runtime state.</a>.</p>
+<p>As explained above, another example is <tt class="docutils literal">gilstate</tt> that should also be moved
+to <tt class="docutils literal">PyInterpreterState</tt>, but that's a complex change that should be well
+prepared to not break anything.</p>
+</div>
+<div class="section" id="more-subinterpreter-work">
+<h2>More subinterpreter work</h2>
+<p>Implementing subinterpreters also requires to cleanup various parts of Python
+internals.</p>
+<p>For example, I modified Python so Py_NewInterpreter() and Py_EndInterpreter()
+(create and finalize a subinterpreter) share more code with Py_Initialize()
+and Py_Finalize() (create and finalize the <strong>main</strong> interpreter):
+<a class="reference external" href="https://bugs.python.org/issue38858">new_interpreter() should reuse more Py_InitializeFromConfig() code</a>.</p>
+<p>They are still many issues to be fixed: <strong>it's moving slowly but steadily!</strong></p>
+</div>
+
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
+
+                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>
