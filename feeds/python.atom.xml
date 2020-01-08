@@ -92,8 +92,8 @@ for subinterpreters, but also to make things more explicit, I proposed to
 &lt;strong&gt;pass explicitly &amp;quot;a state&amp;quot; to internal C function calls&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;First, it wasn't obvious which &amp;quot;state&amp;quot; should be passed: &lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt;,
 &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt;, a structure containing both, or something else?&lt;/p&gt;
-&lt;p&gt;Moreover, it was unclear how to get the runtime from &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt; or how
-to get runtime from &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt;?&lt;/p&gt;
+&lt;p&gt;Moreover, it was unclear how to get the runtime from &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt;, and how
+to get &lt;tt class="docutils literal"&gt;PyThreadState&lt;/tt&gt; from runtime?&lt;/p&gt;
 &lt;p&gt;I started to &lt;strong&gt;pass runtime to some functions&lt;/strong&gt; (&lt;tt class="docutils literal"&gt;_PyRuntimeState&lt;/tt&gt;): &lt;a class="reference external" href="https://bugs.python.org/issue36710"&gt;Pass
 _PyRuntimeState as an argument rather than using the _PyRuntime global variable&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Then I pushed more changes to &lt;strong&gt;pass tstate to some other functions&lt;/strong&gt;
