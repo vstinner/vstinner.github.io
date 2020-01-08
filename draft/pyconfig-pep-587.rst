@@ -2,6 +2,12 @@
 PyConfig: PEP 587
 +++++++++++++++++
 
+:date: 2020-01-08 17:00
+:tags: cpython
+:category: python
+:slug: pyconfig-pepe-587
+:authors: Victor Stinner
+
 Changing the Python default encoding to UTF-8 is an old idea. After I
 saw enough bug reports, I decided to implement it as the PEP 540 in
 Python 3.7: ``python3.7 -X utf8`` ignores your locale and forces the
@@ -31,16 +37,10 @@ Timeline
 Statistics: 2018-01 to 2019-10
 ==============================
 
-  * At 2017-12-13, _PyCoreConfig had 14 fields
-  * At 2017-12-05, _Py_CommandLineDetails had 21 fields
-  * In Python 3.7, _PyCoreConfig has 34 fields
-  * At XXX, _PyPreConfig had 8 fields
-  * 2018-01-01, commit e8ed96550c6aa9a1e39c36e67e892994e25e2c41:
-
-    * _Py_CommandLineDetails: 22 fields
-    * _PyMain: 13 fields
-    * _PyCoreConfig: 27 fields
-    * _PyMainInterpreterConfig: 10 fields
+* At 2017-12-13, _PyCoreConfig had 14 fields
+* At 2017-12-05, _Py_CommandLineDetails had 21 fields
+* In Python 3.7, _PyCoreConfig has 34 fields
+* At XXX, _PyPreConfig had 8 fields
 
 At 2018-01-01, commit e8ed96550c6aa9a1e39c36e67e892994e25e2c41:
 
@@ -117,7 +117,7 @@ https://grokbase.com/t/python/python-ideas/12cvekqk1f/pep-432-simplifying-the-cp
     though we seem to be getting away with it for the moment, and have
     been for a long time).
 
-Christian:
+Christian::
 
 
     Hello Nick, we could use the opportunity and move more settings to
@@ -155,6 +155,8 @@ Split pylifecycle.c out from pythonrun.c
 https://bugs.python.org/issue22869
 Nick Coghlan
 2014-11-14 .. 2014-11-22
+
+Commit::
 
     commit d600951748d7a19cdb3e58a376c51ed804b630e6
     Author: Nick Coghlan <ncoghlan@gmail.com>
@@ -302,6 +304,8 @@ before Py_Initialize() in some cases.
 Py_Main() was a long list of special cases. The configuration rules were
 not consistent. For example, PYTHONCOERCECLOCALE was read before the
 command line arguments were parsed, and so -E wasn't respected.
+
+Message::
 
     https://github.com/python/cpython/commit/358e5e17a51ba00742bfaee4557a94c3c4179c22
 
