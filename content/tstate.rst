@@ -128,8 +128,8 @@ for subinterpreters, but also to make things more explicit, I proposed to
 First, it wasn't obvious which "state" should be passed: ``_PyRuntimeState``,
 ``PyThreadState``, a structure containing both, or something else?
 
-Moreover, it was unclear how to get the runtime from ``PyThreadState`` or how
-to get runtime from ``PyThreadState``?
+Moreover, it was unclear how to get the runtime from ``PyThreadState``, and how
+to get ``PyThreadState`` from runtime?
 
 I started to **pass runtime to some functions** (``_PyRuntimeState``): `Pass
 _PyRuntimeState as an argument rather than using the _PyRuntime global variable
