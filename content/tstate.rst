@@ -1,8 +1,8 @@
-+++++++++++
-Pass tstate
-+++++++++++
++++++++++++++++++++++++++++++++++++++++
+Pass the Python thread state explicitly
++++++++++++++++++++++++++++++++++++++++
 
-:date: 2019-12-09 12:00
+:date: 2020-01-08 15:00
 :tags: cpython
 :category: python
 :slug: cpython-pass-tstate
