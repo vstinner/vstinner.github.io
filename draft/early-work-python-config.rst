@@ -24,7 +24,7 @@ ways to set them:
 2012, PEP 432: Simplifying the CPython startup sequence
 ========================================================
 
-In December 2012, Nick Coghlan started proposed a new PEP on the python-ideas
+In December 2012, Nick Coghlan proposed a new PEP on the python-ideas
 list, `PEP 432: Simplifying the CPython startup sequence
 <https://mail.python.org/archives/list/python-ideas@python.org/thread/A57LOY7CPBQWE7NLDV3YQTIPN7RVFXFM/#TLFTYGIQXNEGY5YWM4AYSOPYK25QA3EF>`_:
 
@@ -41,20 +41,19 @@ list, `PEP 432: Simplifying the CPython startup sequence
     though we seem to be getting away with it for the moment, and have
     been for a long time).
 
-Christian Heimes commented::
-
+Christian Heimes commented:
 
     Hello Nick, we could use the opportunity and move more settings to
     Py_CoreConfig. At the moment several settings are stored in static
-    variables:
+    variables::
 
-    Python/pythonrun.c:
+        Python/pythonrun.c
 
-    static wchar_t *progname
-    static wchar_t *default_home
-    static wchar_t env_home[PATH_MAX+1]
+        static wchar_t *progname
+        static wchar_t *default_home
+        static wchar_t env_home[PATH_MAX+1]
 
-One month later, January 2013, Nick posted `Updated `PEP 432 "Restructuring the CPython startup sequence" <https://www.python.org/dev/peps/pep-0432/>`__: Simplifying the
+One month later, January 2013, Nick posted `Updated PEP 432: Simplifying the
 CPython update sequence
 <https://mail.python.org/pipermail/python-ideas/2013-January/018511.html>`_:
 
@@ -84,38 +83,32 @@ November 2014, Nick Coghlan started to implement his PEP in `bpo-22869
 
     - interpreter startup and shutdown code moved to a new
       pylifecycle.c module
-    - Py_OptimizeFlag moved into the new module with the other
+    - Py_OptimizeFlag moved into the new modulewith the other
       global flags
 
-2017
-----
+2017: Three New Structures
+--------------------------
 
-`PEP 432 "Restructuring the CPython startup sequence" <https://www.python.org/dev/peps/pep-0432/>`__: Redesign the interpreter startup sequence
-https://bugs.python.org/issue22257
-Nick Coghlan
-2014-08-23 but first commit at 2017-05-23
+In August 2014, Nick Coghlan created `bpo-22257: PEP 432: Redesign the
+interpreter startup sequence <https://bugs.python.org/issue22257>`_.
 
-referred at:
-https://github.com/python/cpython/commit/d7ac06126db86f76ba92cbca4cb702852a321f78
-https://bugs.python.org/issue31845
+In 2016, Nick worked in a PEP 432 branch of a CPython fork (Mercurial
+repository on Bitbucket).
 
-At 2017-05-23, commit c7ec9985bbd added _PyMainInterpreterConfig with 1
-field.
+In May 2017, Eric Snow reviewed and merged his work as 3 commits.
 
-At 2017-09-07, `commit 2ebc5ce4 <https://github.com/python/cpython/commit/2ebc5ce42a8a9e047e790aefbf9a94811569b2b6>`__:
-
-* _PyCoreConfig: 5 fields
-* _PyMainInterpreterConfig: 1 field
-
-Commits::
+commit 6b4be195cd8868b76eb6fbe166acc39beee8ce36::
 
     commit 6b4be195cd8868b76eb6fbe166acc39beee8ce36
     Author: Eric Snow <ericsnowcurrently@gmail.com>
     Date:   Mon May 22 21:36:03 2017 -0700
 
-        bpo-22257: Small changes for `PEP 432 "Restructuring the CPython startup sequence" <https://www.python.org/dev/peps/pep-0432/>`__. (#1728)
+        bpo-22257: Small changes for PEP 432. (#1728)
 
-        `PEP 432 "Restructuring the CPython startup sequence" <https://www.python.org/dev/peps/pep-0432/>`__ specifies a number of large changes to interpreter startup code, including exposing a cleaner C-API. The major changes depend on a number of smaller changes. This patch includes all those smaller changes.
+        PEP 432 specifies a number of large changes to interpreter startup
+        code, including exposing a cleaner C-API. The major changes depend on a
+        number of smaller changes. This patch includes all those smaller
+        changes.
 
         +typedef struct {
         +    wchar_t *filename;           /* Trailing arg without -c or -m */
@@ -143,11 +136,13 @@ Commits::
         _PySys_BeginInit()
         _PySys_EndInit()
 
+commit 1abcf6700b4da6207fe859de40c6c1bada6b4fec::
+
     commit 1abcf6700b4da6207fe859de40c6c1bada6b4fec
     Author: Eric Snow <ericsnowcurrently@gmail.com>
     Date:   Tue May 23 21:46:51 2017 -0700
 
-        bpo-22257: Private C-API for core runtime initialization (`PEP 432 "Restructuring the CPython startup sequence" <https://www.python.org/dev/peps/pep-0432/>`__). (#1772)
+        bpo-22257: Private C-API for core runtime initialization (PEP 432). (#1772)
 
         (patch by Nick Coghlan)
 
@@ -158,35 +153,43 @@ Commits::
         +    int _disable_importlib; /* Needed by freeze_importlib */
         +} _PyCoreConfig;
 
-2017-10-23
-PYTHONDONTWRITEBYTECODE and PYTHONOPTIMIZE have no effect
-https://bugs.python.org/issue31845
-(Python 3.7 regression)
+commit c7ec9985bbdbb2b073f2c37febd18268817da29a::
 
-Somehow related, 2017
----------------------
-
-2017-07-05 .. 2017-11-24
-Consolidate stateful C globals under a single struct.
-https://bugs.python.org/issue30860
-Eric Snow
-
-Commit::
-
-    commit 2ebc5ce42a8a9e047e790aefbf9a94811569b2b6 (HEAD)
+    commit c7ec9985bbdbb2b073f2c37febd18268817da29a
     Author: Eric Snow <ericsnowcurrently@gmail.com>
-    Date:   Thu Sep 7 23:51:28 2017 -0600
+    Date:   Tue May 23 23:00:52 2017 -0700
 
-        bpo-30860: Consolidate stateful runtime globals. (#3397)
+        bpo-22257: Private C-API for main interpreter initialization (PEP 432). (#1729)
 
-        * group the (stateful) runtime globals into various topical structs
-        * consolidate the topical structs under a single top-level _PyRuntimeState struct
-        * add a check-c-globals.py script that helps identify runtime globals
+        (patch by Nick Coghlan)
 
-        Other globals are excluded (see globals.txt and check-c-globals.py).
+        +typedef struct {
+        +    int install_signal_handlers;
+        +} _PyMainInterpreterConfig;
 
-        _PyCoreConfig:
+In September 2017 at `commit 2ebc5ce4
+<https://github.com/python/cpython/commit/2ebc5ce42a8a9e047e790aefbf9a94811569b2b6>`__,
+there were 3 structures:
 
-        +    char *allocator;
+* _Py_CommandLineDetails: 20 fields
+* _PyCoreConfig: 5 fields
+* _PyMainInterpreterConfig: 1 field
 
+October 2017, a regression of Python 3.7 has been reported: `bpo-31845:
+PYTHONDONTWRITEBYTECODE and PYTHONOPTIMIZE have no effect
+<https://bugs.python.org/issue31845>`_. It has been fixed by::
 
+    commit d7ac06126db86f76ba92cbca4cb702852a321f78
+    Author: Nick Coghlan <ncoghlan@gmail.com>
+    Date:   Wed Oct 25 12:11:26 2017 +1000
+
+        bpo-31845: Fix reading flags from environment (GH-4105)
+
+        The startup refactoring means command line settings
+        are now applied after settings are read from the
+        environment.
+
+        This updates the way command line settings are applied
+        to account for that, ensures more settings are first read
+        from the environment in _PyInitializeCore, and adds a
+        simple test case covering the flags that are easy to check.
