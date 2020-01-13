@@ -21,6 +21,9 @@ ways to set them:
 * global configuration variables of the C API (ex: ``Py_IsolatedFlag``);
 * function calls of the C API (ex: ``Py_SetProgramName()``).
 
+Python can be configured directly by the used, or using the C API when Python
+is embedded in an application.
+
 2012, PEP 432: Simplifying the CPython startup sequence
 ========================================================
 
@@ -75,7 +78,7 @@ Terry Reedy commented:
 2014: new pylifecycle.c file
 ============================
 
-November 2014, Nick Coghlan started to implement his PEP in `bpo-22869
+In November 2014, Nick Coghlan started to implement his PEP in `bpo-22869
 <https://bugs.python.org/issue22869>`_ with `commit d6009517
 <https://github.com/python/cpython/commit/d600951748d7a19cdb3e58a376c51ed804b630e6>`__::
 
@@ -97,7 +100,11 @@ repository on Bitbucket).
 
 In May 2017, Eric Snow reviewed and merged his work as 3 commits.
 
-commit 6b4be195cd8868b76eb6fbe166acc39beee8ce36::
+Commit 1: _Py_CommandLineDetails
+--------------------------------
+
+`Commit 1 (6b4be195)
+<https://github.com/python/cpython/commit/6b4be195cd8868b76eb6fbe166acc39beee8ce36>`__::
 
     commit 6b4be195cd8868b76eb6fbe166acc39beee8ce36
     Author: Eric Snow <ericsnowcurrently@gmail.com>
@@ -110,33 +117,41 @@ commit 6b4be195cd8868b76eb6fbe166acc39beee8ce36::
         number of smaller changes. This patch includes all those smaller
         changes.
 
-        +typedef struct {
-        +    wchar_t *filename;           /* Trailing arg without -c or -m */
-        +    wchar_t *command;            /* -c argument */
-        +    wchar_t *module;             /* -m argument */
-        +    PyObject *warning_options;   /* -W options */
-        +    PyObject *extra_options;     /* -X options */
-        +    int print_help;              /* -h, -? options */
-        +    int print_version;           /* -V option */
-        +    int bytes_warning;           /* Py_BytesWarningFlag */
-        +    int debug;                   /* Py_DebugFlag */
-        +    int inspect;                 /* Py_InspectFlag */
-        +    int interactive;             /* Py_InteractiveFlag */
-        +    int isolated;                /* Py_IsolatedFlag */
-        +    int optimization_level;      /* Py_OptimizeFlag */
-        +    int dont_write_bytecode;     /* Py_DontWriteBytecodeFlag */
-        +    int no_user_site_directory;  /* Py_NoUserSiteDirectory */
-        +    int no_site_import;          /* Py_NoSiteFlag */
-        +    int use_unbuffered_io;       /* Py_UnbufferedStdioFlag */
-        +    int verbosity;               /* Py_VerboseFlag */
-        +    int quiet_flag;              /* Py_QuietFlag */
-        +    int skip_first_line;         /* -x option */
-        +} _Py_CommandLineDetails;
+It splits the initialization of the ``sys`` module into subfunctions:
+``_PySys_BeginInit()`` and ``_PySys_EndInit()``.
 
-        _PySys_BeginInit()
-        _PySys_EndInit()
+It also adds the first private structure, only used in ``main.c``,
+``_Py_CommandLineDetails``::
 
-commit 1abcf6700b4da6207fe859de40c6c1bada6b4fec::
+    typedef struct {
+        wchar_t *filename;           /* Trailing arg without -c or -m */
+        wchar_t *command;            /* -c argument */
+        wchar_t *module;             /* -m argument */
+        PyObject *warning_options;   /* -W options */
+        PyObject *extra_options;     /* -X options */
+        int print_help;              /* -h, -? options */
+        int print_version;           /* -V option */
+        int bytes_warning;           /* Py_BytesWarningFlag */
+        int debug;                   /* Py_DebugFlag */
+        int inspect;                 /* Py_InspectFlag */
+        int interactive;             /* Py_InteractiveFlag */
+        int isolated;                /* Py_IsolatedFlag */
+        int optimization_level;      /* Py_OptimizeFlag */
+        int dont_write_bytecode;     /* Py_DontWriteBytecodeFlag */
+        int no_user_site_directory;  /* Py_NoUserSiteDirectory */
+        int no_site_import;          /* Py_NoSiteFlag */
+        int use_unbuffered_io;       /* Py_UnbufferedStdioFlag */
+        int verbosity;               /* Py_VerboseFlag */
+        int quiet_flag;              /* Py_QuietFlag */
+        int skip_first_line;         /* -x option */
+    } _Py_CommandLineDetails;
+
+
+Commit 2: Core initialization
+-----------------------------
+
+`Commit 2 (1abcf670)
+<https://github.com/python/cpython/commit/1abcf6700b4da6207fe859de40c6c1bada6b4fec>`__::
 
     commit 1abcf6700b4da6207fe859de40c6c1bada6b4fec
     Author: Eric Snow <ericsnowcurrently@gmail.com>
@@ -146,14 +161,21 @@ commit 1abcf6700b4da6207fe859de40c6c1bada6b4fec::
 
         (patch by Nick Coghlan)
 
-        +typedef struct {
-        +    int ignore_environment;
-        +    int use_hash_seed;
-        +    unsigned long hash_seed;
-        +    int _disable_importlib; /* Needed by freeze_importlib */
-        +} _PyCoreConfig;
+It adds the second structure, ``_PyCoreConfig``::
 
-commit c7ec9985bbdbb2b073f2c37febd18268817da29a::
+    typedef struct {
+        int ignore_environment;
+        int use_hash_seed;
+        unsigned long hash_seed;
+        int _disable_importlib; /* Needed by freeze_importlib */
+    } _PyCoreConfig;
+
+
+Commit 3: Main interpreter
+--------------------------
+
+`Commit 3 (c7ec9985)
+<https://github.com/python/cpython/commit/c7ec9985bbdbb2b073f2c37febd18268817da29a>`__::
 
     commit c7ec9985bbdbb2b073f2c37febd18268817da29a
     Author: Eric Snow <ericsnowcurrently@gmail.com>
@@ -163,33 +185,20 @@ commit c7ec9985bbdbb2b073f2c37febd18268817da29a::
 
         (patch by Nick Coghlan)
 
-        +typedef struct {
-        +    int install_signal_handlers;
-        +} _PyMainInterpreterConfig;
+It adds the third structure, ``_PyMainInterpreterConfig``::
 
-In September 2017 at `commit 2ebc5ce4
-<https://github.com/python/cpython/commit/2ebc5ce42a8a9e047e790aefbf9a94811569b2b6>`__,
-there were 3 structures:
+    typedef struct {
+        int install_signal_handlers;
+    } _PyMainInterpreterConfig;
 
-* _Py_CommandLineDetails: 20 fields
-* _PyCoreConfig: 5 fields
-* _PyMainInterpreterConfig: 1 field
+Structure fields
+----------------
 
-October 2017, a regression of Python 3.7 has been reported: `bpo-31845:
-PYTHONDONTWRITEBYTECODE and PYTHONOPTIMIZE have no effect
-<https://bugs.python.org/issue31845>`_. It has been fixed by::
+Statistics on structure fields number in September 2017 (at `commit 2ebc5ce4
+<https://github.com/python/cpython/commit/2ebc5ce42a8a9e047e790aefbf9a94811569b2b6>`__):
 
-    commit d7ac06126db86f76ba92cbca4cb702852a321f78
-    Author: Nick Coghlan <ncoghlan@gmail.com>
-    Date:   Wed Oct 25 12:11:26 2017 +1000
+* ``Py_CommandLineDetails``: 20 fields
+* ``PyCoreConfig``: 5 fields
+* ``PyMainInterpreterConfig``: 1 field
 
-        bpo-31845: Fix reading flags from environment (GH-4105)
-
-        The startup refactoring means command line settings
-        are now applied after settings are read from the
-        environment.
-
-        This updates the way command line settings are applied
-        to account for that, ensures more settings are first read
-        from the environment in _PyInitializeCore, and adds a
-        simple test case covering the flags that are easy to check.
+The number of fields gives an idea of the Python configuration progress.
