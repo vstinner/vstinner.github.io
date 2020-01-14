@@ -1,11 +1,11 @@
-+++++++++++++++++++++++++++++++++++++++++
-PyConfig: Development Mode and UTF-8 Mode
-+++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++
+PyConfig: Development Mode
+++++++++++++++++++++++++++
 
 :date: 2020-01-13 23:00
 :tags: cpython
 :category: python
-:slug: pyconfig-utf8-dev-mode
+:slug: pyconfig-dev-mode
 :authors: Victor Stinner
 
 Development mode: -X dev
@@ -37,9 +37,49 @@ dev command line option
 
 In Novembre 2017, Nick Coghlan proposed `PEP 565: Show DeprecationWarning in
 __main__ <https://www.python.org/dev/peps/pep-0565/>`_. I wasn't convinced that
-this idea was enough, so I came back with my idea, now on the python-dev list,
-`Add a developer mode to Python: -X dev command line option
+only displaying warnings in the __main__ module is enough to help developers
+to fix issues in their code. I came back with my idea, now on the python-dev
+list, `Add a developer mode to Python: -X dev command line option
 <https://mail.python.org/pipermail/python-dev/2017-November/150514.html>`__.
+
+This mode shows ``DeprecationWarning`` and ``ResourceWarning`` is all modules,
+not only in the ``__main__`` module. Having an opt-in mode for developers was
+the best option in my opinion. Python should not spam users with warnings which
+are designed for developers than users.
+
+Implementation issues
+---------------------
+
+When I proposed the idea, my plan was to call exec() to replace the current
+process with a new process. But when I tried to implement it, it was more
+tricky than expected. My first blocker issue was to remove ``-O`` option from
+the command line. I hate having to parse the command line: it is very fragile,
+it's easy to make mistake.
+
+So I tried to write a clean implementation: configure Python properly in
+"development mode". One blocker issue is to implement ``PYTHONMALLOC=debug``.
+The C code to read and apply the Python configuration used Python objects
+before the Python initialization even started. For example, ``-W`` and ``-X``
+options were stored as Python lists. It means that the Python memory allocator
+was used before Python would be able to parse ``PYTHONMALLOC`` environment
+variable.
+
+Moreover, the Python configuration is quite complex. Many options are
+inter-dependent. For example, the ``-E`` command line option ignores
+environment variables with a name staring with ``PYTHON``: like
+``PYTHONMALLOC``! Python has to parse the command line before being able to
+handle ``PYTHONMALLOC``. But, again, the code parsing the command line used
+Python objects.
+
+In short, it wasn't possible to write a clean implementation of the development
+mode.
+
+main.c refactoring
+------------------
+
+For all these reasons, I decided to look at ``Modules/main.c`` to see if I
+could enhance the code to avoid some of these "bootstrap issues". At this time,
+I didn't know that I will work on this file for one year and a half!
 
 In `bpo-32030 <https://bugs.python.org/issue32030>`__, I prepared the Python
 code base to be able to implement ``-X dev`` more easily later::
@@ -99,80 +139,3 @@ https://bugs.python.org/issue31970
 I completed the documentation and fixed warnings filters (`bpo-32089 <https://bugs.python.org/issue32089>`__).
 
     https://bugs.python.org/issue32089
-
-Implementation of the PEP 540: UTF-8 Mode
-=========================================
-
-Issue created in January 2017: https://bugs.python.org/issue29240
-
-"TODO: re-encode sys.argv from the local encoding to UTF-8 in Py_Main()
-when the UTF-8 mode is enabled"
-
-PR created in March 2017: https://github.com/python/cpython/pull/855
-
-2017-12-13::
-
-    bpo-29240: PEP 540: Add a new UTF-8 Mode (#855)
-    https://github.com/python/cpython/commit/91106cd9ff2f321c0f60fbaa09fd46c80aa5c266
-
-At the first PEP 540 commit, _PyCoreConfig had 14 fields.
-
-
-2017-12-16::
-
-    New changeset 9454060e84a669dde63824d9e2fcaf295e34f687 by Victor Stinner in branch 'master':
-    bpo-29240, bpo-32030: Py_Main() re-reads config if encoding changes (#4899)
-    https://github.com/python/cpython/commit/9454060e84a669dde63824d9e2fcaf295e34f687
-
-    while (1) {
-        /* Watchdog to prevent an infinite loop */
-        loops++;
-        if (loops == 3) {
-            pymain->err = _Py_INIT_ERR("Encoding changed twice while "
-                                       "reading the configuration");
-            goto done;
-        }
-        ...
-        res = pymain_read_conf_impl(pymain);
-        ...
-
-        if (!encoding_changed) {
-            break;
-        }
-        ...
-    }
-
-2017-12-21, problems arise::
-
-    New changeset 424315fa865b43f67e36a40647107379adf031da by Victor Stinner in branch 'master':
-    bpo-29240: Skip test_readline.test_nonascii() (#4968)
-    https://github.com/python/cpython/commit/424315fa865b43f67e36a40647107379adf031da
-
-
-2018-01-10::
-
-    New changeset 2cba6b85797ba60d67389126f184aad5c9e02ff3 by Victor Stinner in branch 'master':
-    bpo-29240: readline now ignores the UTF-8 Mode (#5145)
-    https://github.com/python/cpython/commit/2cba6b85797ba60d67389126f184aad5c9e02ff3
-
-    Add new fuctions ignoring the UTF-8 mode:
-
-    * _Py_DecodeCurrentLocale()
-    * _Py_EncodeCurrentLocale()
-    * _PyUnicode_DecodeCurrentLocaleAndSize()
-    * _PyUnicode_EncodeCurrentLocale()
-
-time.strftime() must use the current LC_CTYPE encoding, not UTF-8 if the
-UTF-8 mode is enabled.
-
-2018-01-15::
-
-    https://github.com/python/cpython/commit/7ed7aead9503102d2ed316175f198104e0cd674c
-
-    bpo-29240: Fix locale encodings in UTF-8 Mode (#5170)
-
-    Modify locale.localeconv(), time.tzname, os.strerror() and other
-    functions to ignore the UTF-8 Mode: always use the current locale
-    encoding.
-
-
