@@ -1,5 +1,284 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-08T15:00:00+01:00</updated><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-16T12:00:00+01:00</updated><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
+(-X dev)&lt;/a&gt; that I &lt;strong&gt;added
+to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
+&lt;p&gt;The development mode enables runtime checks which are too expensive to be
+enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
+(-X dev)&lt;/a&gt; that I &lt;strong&gt;added
+to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
+&lt;p&gt;The development mode enables runtime checks which are too expensive to be
+enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev&lt;/tt&gt; command line option
+or by &lt;tt class="docutils literal"&gt;PYTHONDEVMODE=1&lt;/tt&gt; environment variable.  It helps developers to spot
+bugs in their code and helps them to be prepared for future Python changes.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;&lt;em&gt;Ready to race, by Guillaume Singelin.&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="email-sent-to-python-ideas"&gt;
+&lt;h2&gt;Email sent to python-ideas&lt;/h2&gt;
+&lt;p&gt;In March 2016, I proposed &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2016-March/039314.html"&gt;Add a developer mode to Python: -X dev command line
+option&lt;/a&gt; on
+the python-ideas list:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;When I develop on CPython, I'm always building Python in debug mode
+using &lt;tt class="docutils literal"&gt;./configure &lt;span class="pre"&gt;--with-pydebug&lt;/span&gt;&lt;/tt&gt;. This mode enables a &lt;strong&gt;lot&lt;/strong&gt; of extra
+checks which helps me to detect bugs earlier. The debug mode makes Python
+much slower and so is not enabled by default.&lt;/p&gt;
+&lt;p&gt;I propose to add a &amp;quot;development mode&amp;quot; to Python, to get a few checks
+to detect bugs earlier: a new &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; dev&lt;/tt&gt; command line option. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+python3.6 -X dev script.py
+&lt;/pre&gt;
+&lt;p&gt;I propose to enable:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Show &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;ResourceWarning warnings&lt;/tt&gt;: &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-Wd&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Show &lt;tt class="docutils literal"&gt;BytesWarning&lt;/tt&gt; warning: &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-b&lt;/span&gt;&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Enable Python assertions (&lt;tt class="docutils literal"&gt;assert&lt;/tt&gt;) and set &lt;tt class="docutils literal"&gt;__debug__&lt;/tt&gt; to True:
+remove (or just ignore) &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O&lt;/span&gt;&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-OO&lt;/span&gt;&lt;/tt&gt; command line arguments&lt;/li&gt;
+&lt;li&gt;faulthandler to get a Python traceback on segfault and fatal errors:
+&lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-X&lt;/span&gt; faulthandler&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Debug hooks on Python memory allocators: &lt;tt class="docutils literal"&gt;PYTHONMALLOC=debug&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I wrote an implementation of this development mode using &lt;tt class="docutils literal"&gt;exec()&lt;/tt&gt;. &lt;strong&gt;Ronald
+Oussoren&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue26670#msg262659"&gt;commented my patch&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Why does this patch execv() the interpreter to set options? I'd expect it
+to be possible to get the same result by updating the argument parsing code
+in Py_Main.&lt;/blockquote&gt;
+&lt;p&gt;More on that later :-) &lt;strong&gt;Marc-Andre Lemburg&lt;/strong&gt; &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2016-March/039325.html"&gt;didn't buy the idea&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;I'm not sure whether this would make things easier for the
+majority of developers&lt;/strong&gt;, e.g. someone not writing C extensions
+would likely not be interested in debugging memory allocations
+or segfaults, someone spending more time on numerics wouldn't
+bother with bytes warnings, etc.&lt;/blockquote&gt;
+&lt;p&gt;Opinion shared by &lt;strong&gt;Ethan Furman&lt;/strong&gt;, so I gave up at this point, closed my issue
+and my PR.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="async-keyword-deprecationwarning-and-pep-565"&gt;
+&lt;h2&gt;async keyword, DeprecationWarning and PEP 565&lt;/h2&gt;
+&lt;p&gt;At November 1, 2017, Ned Deily, the Python 3.7 release release,
+sent an email to python-dev: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150061.html"&gt;Reminder: 12 weeks to 3.7 feature code cutoff&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;A discussion started on &lt;tt class="docutils literal"&gt;async&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;await&lt;/tt&gt; becoming keywords and how this
+incompatible change was conducted. Read LWN article &lt;a class="reference external" href="https://lwn.net/Articles/740804/"&gt;Who should see Python
+deprecation warnings?&lt;/a&gt; (December 2017) by
+Jonathan Corbet for the whole story:&lt;/p&gt;
+&lt;blockquote&gt;
+In early November, one sub-thread of a big discussion on preparing for the
+Python 3.7 release focused on the await and async identifiers. They will
+become keywords in 3.7, meaning that any code using those names for any
+other purpose will break. Nick Coghlan observed that &lt;strong&gt;Python 3.6 does not
+warn&lt;/strong&gt; about the use of those names, calling it &amp;quot;a fairly major
+oversight/bug&amp;quot;. &lt;strong&gt;In truth, though, Python 3.6 does emit warnings in that
+case — but users rarely see them.&lt;/strong&gt;&lt;/blockquote&gt;
+&lt;p&gt;The question is who should see &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt;. Long time ago, it has
+been decided to hide them by default to not bother users. Users are not able to
+fix them, and so it is only a source of annoyance.&lt;/p&gt;
+&lt;p&gt;If the warning is displayed by default, developers can be annoyed by warnings
+coming from code that they cannot easily fix, like third-party dependencies.&lt;/p&gt;
+&lt;p&gt;At November 12, 2017, Nick Coghlan proposed &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0565/"&gt;PEP 565: Show DeprecationWarning
+in __main__&lt;/a&gt; as a compromise:&lt;/p&gt;
+&lt;blockquote&gt;
+This change will mean that code entered at the interactive prompt and code
+in single file scripts will revert to reporting these warnings by default,
+while they will &lt;strong&gt;continue to be silenced by default for packaged code&lt;/strong&gt;
+distributed as part of an importable module.&lt;/blockquote&gt;
+&lt;p&gt;The PEP has been approved and implemented in Python 3.7. For example,
+&lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; is now displayed by default when running a script and in
+the REPL:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ cat example.py
+import imp
+
+$ python3 example.py
+example.py:1: DeprecationWarning: the imp module is deprecated ...
+  import imp
+
+$ python3
+Python 3.7.6 (default, Dec 19 2019, 22:52:49)
+&amp;gt;&amp;gt;&amp;gt; import imp
+__main__:1: DeprecationWarning: the imp module is deprecated ...
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="development-mode-proposed-on-python-dev"&gt;
+&lt;h2&gt;Development mode proposed on python-dev&lt;/h2&gt;
+&lt;p&gt;I was not convinced that only displaying warnings in the &lt;tt class="docutils literal"&gt;__main__&lt;/tt&gt; module is
+enough to help developers to fix issues in their code. A project is way larger
+than just this module.&lt;/p&gt;
+&lt;p&gt;I came back with my idea, now on the python-dev list: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150514.html"&gt;Add a developer mode to
+Python: -X dev command line option&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;This mode shows &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;ResourceWarning&lt;/tt&gt; is all modules,
+not only in the &lt;tt class="docutils literal"&gt;__main__&lt;/tt&gt; module.  In my opinion, having an opt-in mode for
+developers is the best option. Python should not spam users with warnings which
+are targeting developers.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;In the context of Python 3.7 incompatible changes, the feedback was way better
+this time.&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="issues-with-the-python-initialization"&gt;
+&lt;h2&gt;Issues with the Python initialization&lt;/h2&gt;
+&lt;p&gt;When I proposed the idea, my plan was to call exec() to replace the current
+process with a new process. But when I tried to implement it, it was more
+tricky than expected. My first blocker issue was to remove &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-O&lt;/span&gt;&lt;/tt&gt; option from
+the command line. I hate having to parse the command line: it is very fragile
+and it's too easy to make mistake.&lt;/p&gt;
+&lt;p&gt;So I tried to write a clean implementation: configure Python properly in
+&amp;quot;development mode&amp;quot;. The first blocker issue was to implement
+&lt;tt class="docutils literal"&gt;PYTHONMALLOC=debug&lt;/tt&gt;.  The C code to read and apply the Python configuration
+used Python objects before the Python initialization even started. For example,
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-W&lt;/span&gt;&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt;&lt;/tt&gt; options were stored as Python lists. It means that the Python
+memory allocator was used before Python would be able to parse &lt;tt class="docutils literal"&gt;PYTHONMALLOC&lt;/tt&gt;
+environment variable.&lt;/p&gt;
+&lt;p&gt;Moreover, the Python configuration is quite complex. Many options are
+inter-dependent. For example, the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-E&lt;/span&gt;&lt;/tt&gt; command line option ignores
+environment variables with a name staring with &lt;tt class="docutils literal"&gt;PYTHON&lt;/tt&gt;: like
+&lt;tt class="docutils literal"&gt;PYTHONMALLOC&lt;/tt&gt;! Python has to parse the command line before being able to
+handle &lt;tt class="docutils literal"&gt;PYTHONMALLOC&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Python lists depends on the memory allocator which depends on &lt;tt class="docutils literal"&gt;PYTHONMALLOC&lt;/tt&gt;
+environment variable which depends on the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-E&lt;/span&gt;&lt;/tt&gt; command line option which
+depends on Python lists...&lt;/p&gt;
+&lt;p&gt;In short, &lt;strong&gt;it wasn't possible to write a clean implementation of the
+development mode without refactoring the Python initialization code&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="refactoring-main-c"&gt;
+&lt;h2&gt;Refactoring main.c&lt;/h2&gt;
+&lt;p&gt;For all these reasons, I refactored Python initialization code in &lt;tt class="docutils literal"&gt;main.c&lt;/tt&gt;,
+with &lt;a class="reference external" href="https://bugs.python.org/issue32030"&gt;bpo-32030&lt;/a&gt; with two &lt;strong&gt;large&lt;/strong&gt;
+changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/f7e5b56c37eb859e225e886c79c5d742c567ee95"&gt;commit f7e5b56c&lt;/a&gt;:
+bpo-32030: Split Py_Main() into subfunctions&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/python/cpython/commit/a7368ac6360246b1ef7f8f152963c2362d272183"&gt;commit a7368ac6&lt;/a&gt;:
+bpo-32030: Enhance Py_Main()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-x-dev-option"&gt;
+&lt;h2&gt;Add -X dev option&lt;/h2&gt;
+&lt;p&gt;Since I got enough approval by my peers (core developers), I pushed &lt;a class="reference external" href="https://github.com/python/cpython/commit/ccb0442a338066bf40fe417455e5a374e5238afb"&gt;commit
+ccb0442a&lt;/a&gt;
+of &lt;a class="reference external" href="https://bugs.python.org/issue32043"&gt;bpo-32043&lt;/a&gt; to add the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-X&lt;/span&gt; dev&lt;/tt&gt;
+command line option. Thanks to the previous refactoring, the implementation is
+less intrusive.&lt;/p&gt;
+&lt;p&gt;Effects of the development mode:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;default&lt;/tt&gt; warnings option. For example, display &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;ResourceWarning&lt;/tt&gt; warnings.&lt;/li&gt;
+&lt;li&gt;Install &lt;a class="reference external" href="https://docs.python.org/dev/c-api/memory.html#c.PyMem_SetupDebugHooks"&gt;debug hooks on memory allocators&lt;/a&gt; as if
+&lt;tt class="docutils literal"&gt;PYTHONMALLOC&lt;/tt&gt; is set to &lt;tt class="docutils literal"&gt;debug&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Enable my &lt;a class="reference external" href="https://docs.python.org/dev/library/faulthandler.html"&gt;faulthandler&lt;/a&gt; module to dump the
+Python traceback on a crash.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-pythondevmode-environment-variable"&gt;
+&lt;h2&gt;Add PYTHONDEVMODE environment variable&lt;/h2&gt;
+&lt;p&gt;In a PR review, Antoine Pitrou &lt;a class="reference external" href="https://github.com/python/cpython/pull/4478#pullrequestreview-77874230"&gt;proposed&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Speaking of which, perhaps it would be nice to set those environment
+variables so that child processes launched using subprocess inherit them?&lt;/blockquote&gt;
+&lt;p&gt;I created &lt;a class="reference external" href="https://bugs.python.org/issue32101"&gt;bpo-32101&lt;/a&gt; to add
+&lt;tt class="docutils literal"&gt;PYTHONDEVMODE&lt;/tt&gt; environment variable: &lt;a class="reference external" href="https://github.com/python/cpython/commit/5e3806f8cfd84722fc55d4299dc018ad9b0f8401"&gt;commit 5e3806f8&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Setting &lt;tt class="docutils literal"&gt;PYTHONDEVMODE=1&lt;/tt&gt; allows to also enable the development mode in
+Python child processes, without having to touch their command line.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="enable-asyncio-debug-mode"&gt;
+&lt;h2&gt;Enable asyncio debug mode&lt;/h2&gt;
+&lt;p&gt;I created &lt;a class="reference external" href="https://bugs.python.org/issue32047"&gt;bpo-32047: asyncio: enable debug mode when -X dev is used&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150572.html"&gt;asked in the -X dev thread on
+python-dev&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+What do you think? Is it ok to include asyncio in the global &amp;quot;developer mode&amp;quot;?&lt;/blockquote&gt;
+&lt;p&gt;Antoine Pitrou didn't like the idea because asyncio debug mode was &amp;quot;quite
+expensive&amp;quot;, but Yury Selivanov (one of the asyncio maintainers) and Barry
+Warsaw liked the idea, so I merged my PR: &lt;a class="reference external" href="https://github.com/python/cpython/commit/44862df2eeec62adea20672b0fe2a5d3e160569e"&gt;commit 44862df2&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Antoine Pitrou created &lt;a class="reference external" href="https://bugs.python.org/issue31970"&gt;bpo-31970: asyncio debug mode is very slow&lt;/a&gt;. Hopefully, he found a way to make
+asyncio debug mode more efficient by truncating tracebacks to 10 frames
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/921e9432a1461bbf312c9c6dcc2b916be6c05fa0"&gt;commit 921e9432&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-warnings-filters"&gt;
+&lt;h2&gt;Fix warnings filters&lt;/h2&gt;
+&lt;p&gt;While checking warnings filters, I noticed that the development mode was hiding
+some ResourceWarning warnings. I completed the documentation and fixed warnings
+filters in &lt;a class="reference external" href="https://bugs.python.org/issue32089"&gt;bpo-32089&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-8-logs-close-exception"&gt;
+&lt;h2&gt;Python 3.8 logs close() exception&lt;/h2&gt;
+&lt;p&gt;By default, Python ignores silently &lt;tt class="docutils literal"&gt;EBADF&lt;/tt&gt; error (bad file descriptor) which
+can lead to a &lt;strong&gt;severe crash&lt;/strong&gt; , &lt;a class="reference external" href="https://bugs.python.org/issue18748"&gt;bpo-18748&lt;/a&gt; (simplified gdb traceback):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Program received signal SIGABRT, Aborted.
+[Switching to Thread 0xb7b0eb70 (LWP 17152)]
+0xb7fe1424 in __kernel_vsyscall ()
+(gdb) bt
+#0  0xb7fe1424 in __kernel_vsyscall ()
+#1  0xb7e4e941 in *__GI_raise (sig=6)
+#2  0xb7e51d72 in *__GI_abort ()
+#3  0xb7e8ae15 in __libc_message (do_abort=1, fmt=0xb7f606f5 &amp;quot;%s&amp;quot;)
+#4  0xb7e8af44 in *__GI___libc_fatal (message=0xb7fc75ec
+    &amp;quot;libgcc_s.so.1 must be installed for pthread_cancel to work\n&amp;quot;)
+#5  0xb7fc4ffa in pthread_cancel_init ()
+#6  0xb7fc509d in _Unwind_ForcedUnwind (...)
+#7  0xb7fc2b98 in *__GI___pthread_unwind (buf=&amp;lt;optimized out&amp;gt;)
+#8  0xb7fbcce0 in __do_cancel () at pthreadP.h:265
+#9  __pthread_exit (value=0x0) at pthread_exit.c:30
+...
+&lt;/pre&gt;
+&lt;p&gt;Notice the &lt;tt class="docutils literal"&gt;&amp;quot;libgcc_s.so.1 must be installed for pthread_cancel to work&amp;quot;&lt;/tt&gt; error
+message: the glibc loads dynamically &lt;tt class="docutils literal"&gt;libgcc_s.so.1&lt;/tt&gt; library when a thread
+completes, but another thread closed its file descriptor!&lt;/p&gt;
+&lt;p&gt;The worst is that &lt;strong&gt;the crash is not deterministic&lt;/strong&gt;: it's a &lt;strong&gt;race condition&lt;/strong&gt;
+which requires to try many times, even with an example designed to trigger the
+crash!&lt;/p&gt;
+&lt;p&gt;Since the &lt;tt class="docutils literal"&gt;EBADF&lt;/tt&gt; error is silently ignored, it is hard to notice or to debug
+such issue. I modified the development mode in Python 3.8 to &lt;strong&gt;log close()
+exceptions in io.IOBase destructor&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;It was not accepted to always log the &lt;tt class="docutils literal"&gt;close()&lt;/tt&gt; exception. So having an
+opt-in development mode is a good practical compromise!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-9-checks-encoding-and-errors"&gt;
+&lt;h2&gt;Python 3.9 checks encoding and errors&lt;/h2&gt;
+&lt;p&gt;In June 2019, my colleague &lt;strong&gt;Miro Hrončok&lt;/strong&gt; reported &lt;a class="reference external" href="https://bugs.python.org/issue37388"&gt;bpo-37388&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;I was just bit by specifying an nonexisitng error handler for
+bytes.decode() without noticing.&lt;/p&gt;
+&lt;p&gt;Consider this code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;gt;&amp;gt;&amp;gt; 'a'.encode('cp1250').decode('utf-8', errors='Boom, Shaka Laka, Boom!')
+'a'
+&lt;/pre&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I modified the development mode in Python 3.9, to also check &lt;em&gt;encoding&lt;/em&gt; and
+&lt;em&gt;errors&lt;/em&gt; arguments on string encoding and decoding operations, like
+&lt;tt class="docutils literal"&gt;bytes.decode()&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;str.encode()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;By default, for best performance, the &lt;em&gt;errors&lt;/em&gt; argument is only checked at the
+first encoding/decoding error and the &lt;em&gt;encoding&lt;/em&gt; argument is sometimes ignored
+for empty strings.&lt;/p&gt;
+&lt;p&gt;Having an opt-in development mode allows to enable additional debug checks at
+runtime, without having to care too much about the performance overhead.&lt;/p&gt;
+&lt;p&gt;Note: I love the choice of the example, &amp;quot;Boom, Shaka Laka, Boom!&amp;quot;
+from the game Gruntz :-D&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="development-mode-example"&gt;
+&lt;h2&gt;Development Mode Example&lt;/h2&gt;
+&lt;p&gt;Even in the &lt;tt class="docutils literal"&gt;__main__&lt;/tt&gt; module with PEP 565, &lt;tt class="docutils literal"&gt;ResourceWarning&lt;/tt&gt; is still not
+displayed by default (PEP 565 only shows &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -c 'print(len(open(&amp;quot;README.rst&amp;quot;).readlines()))'
+39
+&lt;/pre&gt;
+&lt;p&gt;The development mode shows the warning:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3 -X dev -c 'print(len(open(&amp;quot;README.rst&amp;quot;).readlines()))'
+-c:1: ResourceWarning: unclosed file &amp;lt;_io.TextIOWrapper name='README.rst' mode='r' encoding='UTF-8'&amp;gt;
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+39
+&lt;/pre&gt;
+&lt;p&gt;Not closing a resource explicitly can leave a resource open for way longer than
+expected. It can cause severe issues at Python exit. It is bad in CPython, but
+it is even worse in PyPy. &lt;strong&gt;Closing resources explicitly makes an application
+more deterministic and more reliable.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;If one of the development mode effect causes an issue, it is still possible to
+override most options. For example,
+&lt;tt class="docutils literal"&gt;PYTHONMALLOC=default python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev ...&lt;/tt&gt; command enables the development
+mode without installing debug hooks on memory allocators.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
 &lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
 &lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
 example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
