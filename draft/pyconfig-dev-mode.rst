@@ -1,19 +1,24 @@
-++++++++++++++++++++++++++++++++++++++++++
-PyConfig: Python Development Mode (-X dev)
-++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++
+Python 3.7 Development Mode
++++++++++++++++++++++++++++
 
 :date: 2020-01-13 23:00
 :tags: cpython
 :category: python
-:slug: pyconfig-dev-mode
+:slug: python37-dev-mode
 :authors: Victor Stinner
 
-This article describes the discussion on the design of the development mode
-that I added to Python 3.7 and how it was implemented. It can be enabled by
-``python3 -X dev`` command line or ``PYTHONDEVMODE=1`` environment variable.
+This article describes the discussion on the design of the **development mode**
+that I **added to Python 3.7** and how it was implemented.
 
-python-ideas
-============
+The development mode enables runtime checks which are too expensive to be
+enabled by default. It can be enabled by ``python3 -X dev`` command line or
+``PYTHONDEVMODE=1`` environment variable.  It helps developers to spot bugs in
+their code and helps them to be prepared for future Python changes.
+
+
+Email sent to python-ideas
+==========================
 
 In March 2016, I proposed on Python-ideas, `Add a developer mode to Python: -X
 dev command line option
@@ -22,7 +27,7 @@ dev command line option
     When I develop on CPython, I'm always building Python in debug mode
     using ``./configure --with-pydebug``. This mode enables a **lot** of extra
     checks which helps me to detect bugs earlier. The debug mode makes Python
-    much slower and so is not the default.
+    much slower and so is not enabled by default.
 
     I propose to add a "development mode" to Python, to get a few checks
     to detect bugs earlier: a new ``-X dev`` command line option. Example::
@@ -39,8 +44,8 @@ dev command line option
       ``python -X faulthandler``
     * Debug hooks on Python memory allocators: ``PYTHONMALLOC=debug``
 
-I even wrote an implementation using ``exec()``. Ronald Oussoren `commented my
-patch <https://bugs.python.org/issue26670#msg262659>`_:
+I wrote an implementation of this development mode using ``exec()``. Ronald
+Oussoren `commented my patch <https://bugs.python.org/issue26670#msg262659>`_:
 
     Why does this patch execv() the interpreter to set options? I'd expect it
     to be possible to get the same result by updating the argument parsing code
@@ -51,8 +56,8 @@ More on that later :-)
 Marc-Andre Lemburg `didn't buy the idea
 <https://mail.python.org/pipermail/python-ideas/2016-March/039325.html>`_:
 
-    I'm not sure whether this would make things easier for the
-    majority of developers, e.g. someone not writing C extensions
+    **I'm not sure whether this would make things easier for the
+    majority of developers**, e.g. someone not writing C extensions
     would likely not be interested in debugging memory allocations
     or segfaults, someone spending more time on numerics wouldn't
     bother with bytes warnings, etc.
@@ -60,11 +65,17 @@ Marc-Andre Lemburg `didn't buy the idea
 Opinion shared by Ethan Furman, so I gave up at this point. I closed my issue.
 
 
-DeprecationWarning and async keyword
-====================================
+async keyword, DeprecationWarning and PEP 565
+=============================================
 
-LWN: `Who should see Python deprecation warnings?
-<https://lwn.net/Articles/740804/>`_ (December 2017) by Jonathan Corbet.
+At November 1, 2017, Ned Deily, the Python 3.7 release release,
+sent an email to python-dev: `Reminder: 12 weeks to 3.7 feature code cutoff
+<https://mail.python.org/pipermail/python-dev/2017-November/150061.html>`_.
+
+A discussion started on ``async`` and ``await`` becoming keywords and how this
+incompatible change was conducted. Read LWN article `Who should see Python
+deprecation warnings?  <https://lwn.net/Articles/740804/>`_ (December 2017) by
+Jonathan Corbet for the whole story:
 
      In early November, one sub-thread of a big discussion on preparing for the
      Python 3.7 release focused on the await and async identifiers. They will
@@ -74,23 +85,57 @@ LWN: `Who should see Python deprecation warnings?
      oversight/bug". In truth, though, Python 3.6 does emit warnings in that
      case — but users rarely see them.
 
-https://mail.python.org/pipermail/python-dev/2017-November/150132.html
+The question is who should see ``DeprecationWarning``. Long time ago, it was
+decided to hide them by default to not bother users. Users are not able to fix
+them, and so it is only a source of annoyance.
 
-https://mail.python.org/pipermail/python-dev/2017-November/150250.html
+If the warning is displayed by default, developers can be annoyed by warnings
+coming from code that they cannot easily fix, like third-party dependencies.
 
-In Novembre 2017, Nick Coghlan proposed `PEP 565: Show DeprecationWarning in
-__main__ <https://www.python.org/dev/peps/pep-0565/>`_.
+At Novembre 12, 2017, Nick Coghlan proposed `PEP 565: Show DeprecationWarning
+in __main__ <https://www.python.org/dev/peps/pep-0565/>`_ as a compromise:
 
-I wasn't convinced that only displaying warnings in the __main__ module is
-enough to help developers to fix issues in their code. I came back with my
-idea, now on the python-dev list, `Add a developer mode to Python: -X dev
-command line option
+    This change will mean that code entered at the interactive prompt and code
+    in single file scripts will revert to reporting these warnings by default,
+    while they will **continue to be silenced by default for packaged code**
+    distributed as part of an importable module.
+
+The PEP has been approved and implemented in Python 3.7. For example,
+``DeprecationWarning`` is now displayed by default when running a script and in
+the REPL::
+
+    $ cat example.py
+    import imp
+
+    $ python3 example.py
+    example.py:1: DeprecationWarning: the imp module is deprecated ...
+      import imp
+
+    $ python3
+    Python 3.7.6 (default, Dec 19 2019, 22:52:49)
+    >>> import imp
+    __main__:1: DeprecationWarning: the imp module is deprecated ...
+
+
+Development mode proposed on python-dev
+=======================================
+
+I wasn't convinced that only displaying warnings in the ``__main__`` module is
+enough to help developers to fix issues in their code. A project is way larger
+than just this module.
+
+I came back with my idea, now on the python-dev list, `Add a developer mode to
+Python: -X dev command line option
 <https://mail.python.org/pipermail/python-dev/2017-November/150514.html>`__.
 
 This mode shows ``DeprecationWarning`` and ``ResourceWarning`` is all modules,
-not only in the ``__main__`` module. Having an opt-in mode for developers was
+not only in the ``__main__`` module. Having an opt-in mode for developers is
 the best option in my opinion. Python should not spam users with warnings which
-are designed for developers than users.
+are targeting for developers.
+
+In the context of Python 3.7 incompatible changes, the feedback was way better
+this time.
+
 
 Implementation issues
 =====================
@@ -98,28 +143,32 @@ Implementation issues
 When I proposed the idea, my plan was to call exec() to replace the current
 process with a new process. But when I tried to implement it, it was more
 tricky than expected. My first blocker issue was to remove ``-O`` option from
-the command line. I hate having to parse the command line: it is very fragile,
-it's easy to make mistake.
+the command line. I hate having to parse the command line: it is very fragile
+and it's too easy to make mistake.
 
 So I tried to write a clean implementation: configure Python properly in
-"development mode". One blocker issue is to implement ``PYTHONMALLOC=debug``.
-The C code to read and apply the Python configuration used Python objects
-before the Python initialization even started. For example, ``-W`` and ``-X``
-options were stored as Python lists. It means that the Python memory allocator
-was used before Python would be able to parse ``PYTHONMALLOC`` environment
-variable.
+"development mode". The first blocker issue was to implement
+``PYTHONMALLOC=debug``.  The C code to read and apply the Python configuration
+used Python objects before the Python initialization even started. For example,
+``-W`` and ``-X`` options were stored as Python lists. It means that the Python
+memory allocator was used before Python would be able to parse ``PYTHONMALLOC``
+environment variable.
 
 Moreover, the Python configuration is quite complex. Many options are
 inter-dependent. For example, the ``-E`` command line option ignores
 environment variables with a name staring with ``PYTHON``: like
 ``PYTHONMALLOC``! Python has to parse the command line before being able to
-handle ``PYTHONMALLOC``. But, again, the code parsing the command line used
-Python objects.
+handle ``PYTHONMALLOC``.
 
-In short, it wasn't possible to write a clean implementation of the development
-mode.
+Python lists depends on the memory allocator which depends on ``PYTHONMALLOC``
+environment variable which depends on the ``-E`` command line option which
+depends on Python lists...
 
-main.c refactoring
+In short, **it wasn't possible to write a clean implementation of the
+development mode without refactoring the Python initialization code**.
+
+
+Refactoring main.c
 ==================
 
 For all these reasons, I decided to look at ``Modules/main.c`` to see if I
@@ -127,7 +176,8 @@ could enhance the code to avoid some of these "bootstrap issues". At this time,
 I didn't know that I will work on this file for one year and a half!
 
 In `bpo-32030 <https://bugs.python.org/issue32030>`__, I prepared the Python
-code base to be able to implement ``-X dev`` more easily later::
+code base to be able to implement ``-X dev`` more easily later with two
+changes::
 
     commit f7e5b56c37eb859e225e886c79c5d742c567ee95
     Author: Victor Stinner <victor.stinner@gmail.com>
@@ -144,8 +194,11 @@ code base to be able to implement ``-X dev`` more easily later::
 Add -X dev option
 =================
 
-In `bpo-32043 <https://bugs.python.org/issue32043>`__, I pushed `commit ccb0442a
-<https://github.com/python/cpython/commit/ccb0442a338066bf40fe417455e5a374e5238afb>`__::
+Since I got enough approval by my peers (core developers), I pushed `commit
+ccb0442a
+<https://github.com/python/cpython/commit/ccb0442a338066bf40fe417455e5a374e5238afb>`__
+of `bpo-32043 <https://bugs.python.org/issue32043>`__ to implement the
+development mode::
 
     commit ccb0442a338066bf40fe417455e5a374e5238afb
     Author: Victor Stinner <victor.stinner@gmail.com>
@@ -156,24 +209,31 @@ In `bpo-32043 <https://bugs.python.org/issue32043>`__, I pushed `commit ccb0442a
         Add a new "developer mode": new "-X dev" command line option to
         enable debug checks at runtime.
 
+Thanks to the previous refactoring, the implementation is not too intrusive.
+
 Effects of the development mode:
 
 * Add ``default`` warnings option. For example, display ``DeprecationWarning``
   and ``ResourceWarning`` warnings.
-* Install debug hooks on memory allocators as if ``PYTHONMALLOC`` is set to
-  ``debug``.
-* Enable the `faulthandler`` module to dump the Python traceback on a crash.
+* Install `debug hooks on memory allocators
+  <https://docs.python.org/dev/c-api/memory.html#c.PyMem_SetupDebugHooks>`_ as if
+  ``PYTHONMALLOC`` is set to ``debug``.
+* Enable my `faulthandler
+  <https://docs.python.org/dev/library/faulthandler.html>`_ module to dump the
+  Python traceback on a crash.
+
 
 Add PYTHONDEVMODE environment variable
 ======================================
 
-Antoine Pitrou `proposed
-<https://github.com/python/cpython/pull/4478#pullrequestreview-77874230>`_ to
-add an environment variable to enable the new Python "developer mode" to
-inherit the developer mode in child Python processes.
+In a PR review, Antoine Pitrou `proposed
+<https://github.com/python/cpython/pull/4478#pullrequestreview-77874230>`_:
 
-I created `bpo-32101 <https://bugs.python.org/issue32101>`__ and then I pushed
-`commit 5e3806f8
+    Speaking of which, perhaps it would be nice to set those environment
+    variables so that child processes launched using subprocess inherit them?
+
+I created `bpo-32101 <https://bugs.python.org/issue32101>`__ to add
+``PYTHONDEVMODE`` environment variable, `commit 5e3806f8
 <https://github.com/python/cpython/commit/5e3806f8cfd84722fc55d4299dc018ad9b0f8401>`__::
 
     commit 5e3806f8cfd84722fc55d4299dc018ad9b0f8401
@@ -182,16 +242,15 @@ I created `bpo-32101 <https://bugs.python.org/issue32101>`__ and then I pushed
 
         bpo-32101: Add PYTHONDEVMODE environment variable (#4624)
 
-        * bpo-32101: Add sys.flags.dev_mode flag
-          Rename also the "Developer mode" to the "Development mode".
-        * bpo-32101: Add PYTHONDEVMODE environment variable
-          Mention it in the development chapiter.
+Setting ``PYTHONDEVMODE=1`` allows to also enable the development mode in
+Python child processes, without having to touch their command line.
+
 
 Enable asyncio debug mode
 =========================
 
 I created `bpo-32047: asyncio: enable debug mode when -X dev is used
-<https://bugs.python.org/issue32047>`_. `I asked in the -X dev thread on
+<https://bugs.python.org/issue32047>`_ and `asked in the -X dev thread on
 python-dev
 <https://mail.python.org/pipermail/python-dev/2017-November/150572.html>`_:
 
@@ -204,47 +263,42 @@ Warsaw liked the idea, so I merged my PR: `commit 44862df2
 
 Antoine Pitrou created `bpo-31970: asyncio debug mode is very slow
 <https://bugs.python.org/issue31970>`_. Hopefully, he found a way to make
-asyncio debug mode more efficient by truncating tracebacks to 10 frames:
+asyncio debug mode more efficient by truncating tracebacks to 10 frames
+(`commit 921e9432
+<https://github.com/python/cpython/commit/921e9432a1461bbf312c9c6dcc2b916be6c05fa0>`__).
 
-`commit 921e9432 <https://github.com/python/cpython/commit/921e9432a1461bbf312c9c6dcc2b916be6c05fa0>`__::
-
-    commit 921e9432a1461bbf312c9c6dcc2b916be6c05fa0
-    Author: Antoine Pitrou <pitrou@free.fr>
-    Date:   Tue Nov 7 17:23:29 2017 +0100
-
-        bpo-31970: Reduce performance overhead of asyncio debug mode. (#4314)
 
 Warnings
 ========
 
-I completed the documentation and fixed warnings filters (`bpo-32089
-<https://bugs.python.org/issue32089>`__).
+While checking warnings filters, I noticed that the development mode was hiding
+some ResourceWarning warnings. I completed the documentation and fixed warnings
+filters in `bpo-32089 <https://bugs.python.org/issue32089>`__.
 
-Example
-=======
 
-Even with PEP 565, ``ResourceWarning`` is still not displayed by default::
+Development Mode Example
+========================
+
+Even in the ``__main__`` module with PEP 565 implemented, ``ResourceWarning``
+is still not displayed by default (this PEP only cares about
+``DeprecationWarning``)::
 
     $ python3 -c 'print(len(open("README.rst").readlines()))'
     39
 
-But it is displayed in development mode::
+The development mode shows the warning::
 
     $ python3 -X dev -c 'print(len(open("README.rst").readlines()))'
     -c:1: ResourceWarning: unclosed file <_io.TextIOWrapper name='README.rst' mode='r' encoding='UTF-8'>
     ResourceWarning: Enable tracemalloc to get the object allocation traceback
     39
 
-If one of the development mode side effect causes an issue, it is still
-possible to override most options. For example, ``PYTHONMALLOC=default`` does
-not install debug hooks on memory allocators.
+Not closing a resource explicitly can leave a resource open for way longer than
+expected. It can cause severe issues at Python exit. It is bad in CPython, but
+it is even worse in PyPy. **Closing resources explicitly makes an application
+more deterministic and more reliable.**
 
-
-PEP 565
-=======
-
-By the way, Python 3.7 also got the implementation of Nick's `PEP 565: Show
-DeprecationWarning in __main__ <https://www.python.org/dev/peps/pep-0565/>`__.
-
-Example: XXX
-
+If one of the development mode effect causes an issue, it is still possible to
+override most options. For example,
+``PYTHONMALLOC=default python3 -X dev ...`` command enables the development
+mode without installing debug hooks on memory allocators.
