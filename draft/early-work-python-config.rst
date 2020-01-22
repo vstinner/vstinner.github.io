@@ -2,7 +2,7 @@
 Early work on Python configuration
 ++++++++++++++++++++++++++++++++++
 
-:date: 2020-01-08 18:00
+:date: 2020-01-16 18:00
 :tags: cpython
 :category: python
 :slug: early-work-python-configuration

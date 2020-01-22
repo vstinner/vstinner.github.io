@@ -2,11 +2,19 @@
 PyConfig: UTF-8 Mode
 ++++++++++++++++++++
 
-:date: 2020-01-13 23:00
+:date: 2020-01-16 17:30
 :tags: cpython
 :category: python
 :slug: pyconfig-utf8-mode
 :authors: Victor Stinner
+
+In my `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_ article, I explained
+how the PEP 540 has been designed, but I didn't go into the details about
+its implementation. The C code of the Python initialization caused my headache.
+It's very old C code which was never seriously refactored.
+
+XXX Nick's refactoring
+
 
 Implementation of the PEP 540: UTF-8 Mode
 =========================================
