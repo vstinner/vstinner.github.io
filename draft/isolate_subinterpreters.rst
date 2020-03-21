@@ -21,6 +21,45 @@ Isolate subinterpreters
 * `bpo-40010 <https://bugs.python.org/issue40010>`__:
   Inefficient signal handling in multithreaded applications
 
+https://pythondev.readthedocs.io/subinterpreters.html
+
+Delete thread state
+===================
+
+Clear daemon threads state in Py_Finalize() => new crashes
+
+2019-11-20: https://github.com/python/cpython/commit/9da7430675ceaeae5abeb9c9f7cd552b71b3a93a ::
+
+    bpo-36854: Clear the current thread later (GH-17279)
+
+    Clear the current thread later in the Python finalization.
+
+    * The PyInterpreterState_Delete() function is now responsible
+      to call PyThreadState_Swap(NULL).
+    * The tstate_delete_common() function is now responsible to clear the
+      "autoTSSKey" thread local storage and it only clears it once the
+      thread state is fully cleared. It allows to still get the current
+      thread from TSS in tstate_delete_common().
+
+Big change to get GC state from state: https://github.com/python/cpython/commit/67e0de6f0b060ac8f373952f0ca4b3117ad5b611
+
+Final commit: https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700
+
+
+Daemon threads, take_gil()
+==========================
+
+A very old issues...
+
+First fix: XXX
+
+* `bpo-39877 <https://bugs.python.org/issue39877>`__:
+  Daemon thread is crashing in PyEval_RestoreThread() while the main thread is exiting the process
+
+4 changes in bpo-39877
+
+take_gil() now checks if the thread must exit at 3 different places.
+
 Eric
 ====
 
@@ -47,7 +86,24 @@ Then I pushed more changes to **pass tstate to some other functions**
 GC module
 =========
 
-XXX
+2019-05-08: Eric Snow opens the issue.
+
+2019-11-20.
+
+https://bugs.python.org/issue36854
+
+::
+
+    commit 7247407c35330f3f6292f1d40606b7ba6afd5700
+    Author: Victor Stinner <vstinner@python.org>
+    Date:   Wed Nov 20 12:25:50 2019 +0100
+
+        bpo-36854: Move _PyRuntimeState.gc to PyInterpreterState (GH-17287)
+
+        * Rename _PyGC_InitializeRuntime() to _PyGC_InitState()
+        * finalize_interp_clear() now also calls _PyGC_Fini() in
+          subinterpreters (clear the GC state).
+
 
 C API
 =====
@@ -69,6 +125,116 @@ C API
 
         Add Include/cpython/ceval.h header file.
 
+
+
+Move
+====
+
+``_PyRuntimeState.finalizing (PyThreadState *)``
+becomes
+``_PyRuntimeState _finalizing (_Py_atomic_address: PyThreadState *)``
++ ``PyInterpreterState.finalizing (int)`` (NEW!)
+
+Move ``_PyRuntimeState.gc`` to ``PyInterpreterState.gc``
+
+Move ``_PyRuntimeState.warnings`` to ``PyInterpreterState.warnings``
+
+NEW: PyInterpreterState.dict
+NEW: PyInterpreterState.audit_hooks
+NEW: PyInterpreterState.parser
+NEW: PyInterpreterState.small_ints
+
+Warnings
+========
+
+Move ``_PyRuntimeState.warnings`` to ``PyInterpreterState.warnings``
+
+https://bugs.python.org/issue36737
+
+commit 86ea58149c3e83f402cecd17e6a536865fb06ce1
+Author: Eric Snow <ericsnowcurrently@gmail.com>
+Date:   Fri May 10 13:29:55 2019 -0400
+
+    bpo-36737: Use the module state C-API for warnings. (gh-13159)
+
+
+
+Share code for initialization and finalization
+==============================================
+
+Share more code between main interpreter and subinterpreters for
+initialization: Py_Initialize() and Py_NewInterpreter(), and finalization:
+Py_Finalize() and Py_EndInterpreter().
+
+2019-11-19 to 2019-12-17: https://bugs.python.org/issue38858
+
+    Currently, new_interpreter() is a subset of Py_InitializeFromConfig(): the
+    code was duplicated. I would prefer that both functions stay in sync and so
+    that new_interpreter() reuses more Py_InitializeFromConfig() code.
+
+16 commits
+
+Better isolate builtins and sys modules.
+
+Preparation work to cleanup types in subinterpreters as well.
+
+Share more code between main and subinterpreters for the finalization. +++
+
+Call init_set_builtins_open() in subinterpreter: "Set builtins.open to io.OpenWrapper".
+
+bpo-38858: _PyImport_FixupExtensionObject() handles subinterpreters (GH-17350)
+
+    If _PyImport_FixupExtensionObject() is called from a subinterpreter,
+    leave extensions unchanged and don't copy the module dictionary
+    into def->m_base.m_copy.
+
+bpo-38858: new_interpreter() reuses pycore_init_builtins() (GH-17351)
+
+    new_interpreter() now calls _PyBuiltin_Init() to create the builtins
+    module and calls _PyImport_FixupBuiltin(), rather than using
+    _PyImport_FindBuiltin(tstate, "builtins").
+
+    pycore_init_builtins() is now responsible to initialize
+    intepr->builtins_copy: inline _PyImport_Init() and remove this
+    function.
+
+bpo-38858: new_interpreter() reuses _PySys_Create() (GH-17481)
+
+    new_interpreter() now calls _PySys_Create() to create a new sys
+    module isolated from the main interpreter. It now calls
+    _PySys_InitCore() and _PyImport_FixupBuiltin().
+
+    init_interp_main() now calls _PySys_InitMain().
+
+small_ints
+==========
+
+Commit: https://github.com/python/cpython/commit/ef5aa9af7c7e493402ac62009e4400aed7c3d54e
+
+    FYI this change broke librepo which calls PyLong_FromLong() without holding
+    the GIL. In Python 3.8, "it works". In Python 3.9, it does crash:
+    get_small_int() gets a NULL tstate and then dereference a NULL pointer.
+
+    librepo bug:
+    https://bugzilla.redhat.com/show_bug.cgi?id=1788918
+
+    IMHO it's a bug in librepo: the GIL must be held to use Python C API.
+
+Reference leaks
+===============
+
+IGNORE: https://bugs.python.org/issue38858#msg357052
+
+GC state: https://bugs.python.org/issue36854#msg357150
+
+Long analysis.
+
+    bpo-36854: Fix refleak in subinterpreter (GH-17331)
+    https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c
+
+I'm not fully happy with this solution, but at least, it allows me to move on
+to the next tasks to implement subinterpreters like PR 17315 (bpo-38858: Small
+integer per interpreter).
 
 
 Move some ceval fields from _PyRuntime.ceval to PyInterpreterState.ceval
@@ -176,4 +342,11 @@ Changes::
           caller holds the GIL, and only falls back on
           PyGILState_GetThisThreadState() if _PyThreadState_GET()
           returns NULL.
+
+TODO
+====
+
+* Move _PyRuntimeState.gilstate to PyInterpreterState.
+* Decide how to handle None, True, False and Ellipsis singletons:
+  https://bugs.python.org/issue39511
 
