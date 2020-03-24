@@ -23,10 +23,40 @@ Isolate subinterpreters
 
 https://pythondev.readthedocs.io/subinterpreters.html
 
+_PyThreadState_DeleteExcept
+===========================
+
+https://bugs.python.org/issue19466
+
+2013-10-31: I open the issue to detect ResourceWarning in daemon threads.
+
 Delete thread state
 ===================
 
+https://bugs.python.org/issue19466
+
 Clear daemon threads state in Py_Finalize() => new crashes
+
+"It is possible to clear the Python threads earlier since Python 3.2, because
+Python threads will now exit cleanly when they try to acquire the GIL: see
+PyEval_RestoreThread()."
+
+Attempt #1, 12 Nov 2013: https://hg.python.org/cpython/rev/c2a13acd5e2b
+
+    Close #19466: Clear the frames of daemon threads earlier during the Python
+    shutdown to call objects destructors. So "unclosed file" resource warnings are
+    now corretly emitted for daemon threads. [#19466]
+
+Py_Finalize() calls _PyThreadState_DeleteExcept()::
+
+
+    +    /* Destroy the state of all threads except of the current thread: in
+    +       practice, only daemon threads should still be alive. Clear frames of
+    +       other threads to call objects destructor. Destructors will be called in
+    +       the current Python thread. Since _Py_Finalizing has been set, no other
+    +       Python threads can lock the GIL at this point (if they try, they will
+    +       exit immediatly). */
+    +    _PyThreadState_DeleteExcept(tstate);
 
 2019-11-20: https://github.com/python/cpython/commit/9da7430675ceaeae5abeb9c9f7cd552b71b3a93a ::
 
@@ -41,9 +71,26 @@ Clear daemon threads state in Py_Finalize() => new crashes
       thread state is fully cleared. It allows to still get the current
       thread from TSS in tstate_delete_common().
 
-Big change to get GC state from state: https://github.com/python/cpython/commit/67e0de6f0b060ac8f373952f0ca4b3117ad5b611
+https://github.com/python/cpython/commit/4d96b4635aeff1b8ad41d41422ce808ce0b971c8
 
-Final commit: https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700
+    bpo-39511: PyThreadState_Clear() calls on_delete (GH-18296)
+
+    PyThreadState.on_delete is a callback used to notify Python when a
+    thread completes. _thread._set_sentinel() function creates a lock
+    which is released when the thread completes. It sets on_delete
+    callback to the internal release_sentinel() function. This lock is
+    known as Threading._tstate_lock in the threading module.
+
+    The release_sentinel() function uses the Python C API. The problem is
+    that on_delete is called late in the Python finalization, when the C
+    API is no longer fully working.
+
+    The PyThreadState_Clear() function now calls the
+    PyThreadState.on_delete callback. Previously, that happened in
+    PyThreadState_Delete().
+
+    The release_sentinel() function is now called when the C API is still
+    fully working.
 
 
 Daemon threads, take_gil()
@@ -75,22 +122,21 @@ Latest attempt: `commit 6a150bca
 Isolate
 =======
 
-I started to **pass runtime to some functions** (``_PyRuntimeState``): `Pass
-_PyRuntimeState as an argument rather than using the _PyRuntime global variable
+2019-04-24 to 2019-06-19, then 2019-11-12 to 2019-11-20: I started to **pass
+runtime to some functions** (``_PyRuntimeState``): `Pass _PyRuntimeState as an
+argument rather than using the _PyRuntime global variable
 <https://bugs.python.org/issue36710>`_.
 
-Then I pushed more changes to **pass tstate to some other functions**
-(``PyThreadState``): `Pass explicitly tstate to function calls
-<https://bugs.python.org/issue38644>`_.
+2019-10-30 to 2020-02-11: Then I pushed more changes to **pass tstate to some
+other functions** (``PyThreadState``): `Pass explicitly tstate to function
+calls <https://bugs.python.org/issue38644>`_.
 
 GC module
 =========
 
 2019-05-08: Eric Snow opens the issue.
 
-2019-11-20.
-
-https://bugs.python.org/issue36854
+2019-11-20 to 2019-11-22 (issue opened at 2019-05-08): https://bugs.python.org/issue36854
 
 ::
 
@@ -103,6 +149,10 @@ https://bugs.python.org/issue36854
         * Rename _PyGC_InitializeRuntime() to _PyGC_InitState()
         * finalize_interp_clear() now also calls _PyGC_Fini() in
           subinterpreters (clear the GC state).
+
+Big change to get GC state from state: https://github.com/python/cpython/commit/67e0de6f0b060ac8f373952f0ca4b3117ad5b611
+
+Final commit: https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700
 
 
 C API
@@ -236,6 +286,8 @@ I'm not fully happy with this solution, but at least, it allows me to move on
 to the next tasks to implement subinterpreters like PR 17315 (bpo-38858: Small
 integer per interpreter).
 
+importlib vs _weakref: https://bugs.python.org/issue40050
+
 
 Move some ceval fields from _PyRuntime.ceval to PyInterpreterState.ceval
 ========================================================================
@@ -350,3 +402,12 @@ TODO
 * Decide how to handle None, True, False and Ellipsis singletons:
   https://bugs.python.org/issue39511
 
+
+Isolate module state: PEP 489
+=============================
+
+Replace PyModule_Create with PyModule_Init?
+
+* reload
+* unload
+* per-interpreter
