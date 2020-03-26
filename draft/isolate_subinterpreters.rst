@@ -12,6 +12,8 @@ Isolate subinterpreters
 
 * `bpo-33608 <https://bugs.python.org/issue33608>`__:
   Add a cross-interpreter-safe mechanism to indicate that an object may be destroyed.
+* `bpo-36479: https://bugs.python.org/issue36479
+  <Exit threads when interpreter is finalizing rather than runtime>`_
 * `bpo-37127 <https://bugs.python.org/issue37127>`__:
   Handling pending calls during runtime finalization may cause problems.
 * `bpo-39877 <https://bugs.python.org/issue39877>`__:
