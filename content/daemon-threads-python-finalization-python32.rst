@@ -56,18 +56,18 @@ daemon thread completes.
 Don't destroy the GIL at exit
 =============================
 
-In November 2009, **Antoine Pitrou** implements a new GIL (Global Interpreter
+In November 2009, **Antoine Pitrou** implemented a new GIL (Global Interpreter
 Lock) in Python 3.2: `commit 074e5ed9
 <https://github.com/python/cpython/commit/074e5ed974be65fbcfe75a4c0529dbc53f13446f>`__.
 
-In September 2010, he finds a crash with daemon threads while stressing
+In September 2010, he found a crash with daemon threads while stressing
 ``test_threading``: `bpo-9901: GIL destruction can fail
-<https://bugs.python.org/issue9901>`_. ``test_finalize_with_trace()`` fails
+<https://bugs.python.org/issue9901>`_. ``test_finalize_with_trace()`` failed
 with::
 
     Fatal Python error: pthread_mutex_destroy(gil_mutex) failed
 
-He pushs a fix for this crash in Python 3.2, `commit b0b384b7
+He pushed a fix for this crash in Python 3.2, `commit b0b384b7
 <https://github.com/python/cpython/commit/b0b384b7c0333bf1183cd6f90c0a3f9edaadd6b9>`__::
 
     Issue #9901: Destroying the GIL in Py_Finalize() can fail if some other
@@ -93,23 +93,22 @@ This bug is a race condition. It depends on which order threads are executed,
 on which order objects are finalized, on which order memory is deallocated,
 etc.
 
-The crash is reported first in April 2005: `bpo-1193099: Embedded python thread
+The crash was first reported in April 2005: `bpo-1193099: Embedded python thread
 crashes <https://bugs.python.org/issue1193099>`_. In January 2008, **Gregory P.
-Smith** reports `bpo-1856: shutdown (exit) can hang or segfault with daemon
-threads running <https://bugs.python.org/issue1856#msg60014>`_ which will
-become the reference issue for this bug. He writes a short Python program
-reproducing the bug: spawn 40 daemon threads which do some I/O operations and
-sleep randomly between 0 ms and 5 ms in a loop.
+Smith** reported `bpo-1856: shutdown (exit) can hang or segfault with daemon
+threads running <https://bugs.python.org/issue1856#msg60014>`_. He wrote a
+short Python program reproducing the bug: spawn 40 daemon threads which do some
+I/O operations and sleep randomly between 0 ms and 5 ms in a loop.
 
-**Adam Olsen** `proposes a solution
+**Adam Olsen** `proposed a solution
 <https://bugs.python.org/issue1856#msg60059>`_ (with a patch):
 
     I think **non-main threads should kill themselves off** if they grab the
     interpreter lock and the interpreter is tearing down. They're about to get
     killed off anyway, when the process exits.
 
-In May 2011, **Antoine Pitrou** push a fix to Python 3.3 (6 years after the
-first bug report!) which implements this solution, `commit 0d5e52d3
+In May 2011, **Antoine Pitrou** pushed a fix to Python 3.3 (6 years after the
+first bug report) which implements this solution, `commit 0d5e52d3
 <https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1>`__::
 
     Issue #1856: Avoid crashes and lockups when daemon threads run while the
@@ -121,7 +120,7 @@ PyEval_RestoreThread() fix explanation
 ======================================
 
 The fix adds a new ``_Py_Finalizing`` variable which is set by
-``Py_Finalize()`` to (the Python thread state of) the thread which runs the
+``Py_Finalize()`` to the (Python thread state of the) thread which runs the
 finalization.
 
 Simplified patch of the ``PyEval_RestoreThread()`` fix::
@@ -161,16 +160,16 @@ when calling ``PyEval_RestoreThread()``.
 Revert take_gil() backport to 2.7
 =================================
 
-In June 2014, **Benjamin Peterson** (Python 2.7 release manager) backports
+In June 2014, **Benjamin Peterson** (Python 2.7 release manager) backported
 Antoine's change to Python 2.7: fix included in 2.7.8.
 
-Problem: the Ceph project `starts to crash with Python 2.7.8
+Problem: the Ceph project `started to crash with Python 2.7.8
 <https://tracker.ceph.com/issues/8797>`_.
 
-In November 2014, the change is reverted in the future Python 2.7.9: see
+In November 2014, the change was reverted in Python 2.7.9: see
 `bpo-21963 discussion <https://bugs.python.org/issue21963>`_ for the rationale.
 
-In 2014, I already write:
+In 2014, I already wrote:
 
     Anyway, **daemon threads are evil** :-( Expecting them to exit cleanly
     automatically is not good. Last time I tried to improve code to cleanup
