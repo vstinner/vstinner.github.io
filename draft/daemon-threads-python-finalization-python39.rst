@@ -1,151 +1,19 @@
-++++++++++++++++++++++++++++++++++++++++++
-Daemon threads and the Python finalization
-++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Daemon threads and the Python finalization in Python 3.9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2020-03-26 22:00
+:date: 2020-03-30 22:00
 :tags: cpython
 :category: cpython
-:slug: daemon-threads-python-finalization
+:slug: daemon-threads-python-finalization-python39
 :authors: Victor Stinner
 
-Daemon threads
-==============
+My previous article `Daemon threads and the Python finalization in Python 3.9
+<{filename}/daemon-threads-python-finalization-python32.rst>`_ introduces
+issues caused by daemon threads in the Python finalization.
 
-Python has a special kind of thread: "daemon" threads. The difference with
-regular threads is that Python doesn't wait until daemon threads complete at
-exit, whereas it blocks until all regular ("non-daemon") threads complete.
-
-Example::
-
-    import threading, time
-    thread = threading.Thread(target=time.sleep, args=(5.0,), daemon=False)
-    thread.start()
-
-This Python program spawns a regular thread which sleeps for 5 seconds. Python
-takes 5 seconds to exit::
-
-    $ time python3 sleep.py
-
-    real   0m5,047s
-
-If I replace ``daemon=False`` with ``daemon=True`` to spawn a daemon thread
-instead, Python exits immediately (57 ms)::
-
-    $ time python3 sleep.py
-
-    real   0m0,057s
-
-Note: Calling explicitly ``Thread.join()`` waits until the thread complete and
-it works for daemon threads as well.
-
-
-Crashes during Python finalization
-==================================
-
-There are different projects trying to properly destroy all Python objects at
-Python exit. There are different reasons: better track the lifetime of objects,
-support multiple interpreters, support to start and stop Python multiple times
-when Python is embedded in an application, etc.
-
-Daemon threads is causing troubles since they are still running while Python is
-finalizing and even while the process is exiting. What happens when a daemon
-thread tries to use a Python object after Python destroyed all runtime states
-(interpreter, Python thread state, modules, etc.)?
-
-It works most of the time, but sometimes Python does crash randomly when a
-daemon is still running at exit. This problem was known since at least April
-2005: `bpo-1193099: Embedded python thread crashes
-<https://bugs.python.org/issue1193099>`_.
-
-In January 2008, **Gregory P. Smith** reports:
-`bpo-1856: shutdown (exit) can hang or segfault with daemon threads running
-<https://bugs.python.org/issue1856#msg60014>`_.
-
-He wrote a short Python program to trigger the bug: spawn 40 daemon threads
-which run a loop:
-
-* do some I/O
-* sleep randomly between 0 ms and 5 ms
-
-**Adam Olsen** `proposes a solution
-<https://bugs.python.org/issue1856#msg60059>`_ (with a patch):
-
-    I think non-main threads should kill themselves off if they grab the
-    interpreter lock and the interpreter is tearing down. They're about to get
-    killed off anyway, when the process exits.
-
-GIL bug
-=======
-
-September 2010, **Antoine Pitrou** found a variant of this bug while stressing
-``test_threading``: `bpo-9901: GIL destruction can fail
-<https://bugs.python.org/issue9901>`_. ``test_finalize_with_trace()`` fails
-with::
-
-    Fatal Python error: pthread_mutex_destroy(gil_mutex) failed
-
-Antoine pushed a fix in Python 3.2::
-
-    commit b0b384b7c0333bf1183cd6f90c0a3f9edaadd6b9
-    Author: Antoine Pitrou <solipsis@pitrou.net>
-    Date:   Mon Sep 20 20:13:48 2010 +0000
-
-        Issue #9901: Destroying the GIL in Py_Finalize() can fail if some other
-        threads are still running.  Instead, reinitialize the GIL on a second
-        call to Py_Initialize().
-
-First PyEval_RestoreThread() fix in Python 3.3
-==============================================
-
-May 2011, back to `bpo-1856 <https://bugs.python.org/issue1856#msg60014>`__,
-**Antoine Pitrou** pushed a fix into Python 3.3::
-
-    commit 0d5e52d3469a310001afe50689f77ddba6d554d1
-    Author: Antoine Pitrou <solipsis@pitrou.net>
-    Date:   Wed May 4 20:02:30 2011 +0200
-
-        Issue #1856: Avoid crashes and lockups when daemon threads run while the
-        interpreter is shutting down; instead, these threads are now killed when
-        they try to take the GIL.
-
-Simplified extract of the fix::
-
-    @@ -440,6 +440,12 @@ PyEval_RestoreThread()
-             take_gil(tstate);
-    +        if (_Py_Finalizing && tstate != _Py_Finalizing) {
-    +            drop_gil(tstate);
-    +            PyThread_exit_thread();
-    +        }
-
-``PyEval_RestoreThread()`` now checks if Python is finalizing (or has been
-finalized) using a new ``_Py_Finalizing`` variable which is set by
-``Py_Finalize()``. ``PyEval_RestoreThread()`` is called when a threads tries
-to acquire the GIL. Example of code releasing the GIL to call ``fchmod()``::
-
-        Py_BEGIN_ALLOW_THREADS
-        res = fchmod(fd, mode);
-        Py_END_ALLOW_THREADS
-
-The ``Py_BEGIN_ALLOW_THREADS`` macro calls ``PyEval_SaveThread()`` which
-releases the GIL, whereas the ``Py_END_ALLOW_THREADS`` macro acquires the GIL.
-
-With Antoine's change, a thread now exits immediately when it attempts to
-acquire the GIL.
-
-Changing Python finalization is risky. In June 2014, **Benjamin Peterson**
-(Python 2.7 release manager) backports Antoine's change to Python 2.7: fix
-included in 2.7.8. Problem, Ceph project `started to crash
-<https://tracker.ceph.com/issues/8797>`_. in November 2014, the change is
-reverted: see `bpo-21963 discussion <https://bugs.python.org/issue21963>`_.
-
-In 2014, I already wrote:
-
-    Anyway, **daemon threads are evil** :-( Expecting them to exit cleanly
-    automatically is not good. Last time I tried to improve code to cleanup
-    Python at exit in Python 3.4, I also had a regression (just before the
-    release of Python 3.4.0): see the `issue #21788
-    <https://bugs.python.org/issue21788>`_.
-
+Here we will see new issues arisen by the work on isolating subinterpreters
+done in Python 3.9.
 
 Race condition in Python finalization
 =====================================
@@ -523,3 +391,4 @@ While working on https://bugs.python.org/issue40010 I write fix 4::
 
         bpo-39877, bpo-40010: Add a third tstate_must_exit() check in
         take_gil() to prevent using tstate which has been freed.
+
