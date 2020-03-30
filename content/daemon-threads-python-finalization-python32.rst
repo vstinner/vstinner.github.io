@@ -1,6 +1,6 @@
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Daemon threads and the Python finalization in Python 3.2
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Daemon threads and the Python finalization in Python 3.2 and 3.3
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2020-03-26 22:00
 :tags: cpython
@@ -8,16 +8,16 @@ Daemon threads and the Python finalization in Python 3.2
 :slug: daemon-threads-python-finalization-python32
 :authors: Victor Stinner
 
-At exit, the Python finalization calls Python objects finalizers and
-deallocates memory.  The daemon threads are a special kind of threads which
-continue to run during and after the Python finalization. These daemon threads
-are causing race conditions and tricky issues in the Python finalization.
+At exit, the Python finalization calls Python objects finalizers (the
+``__del__()`` method) and deallocates memory.  The daemon threads are a special
+kind of threads which continue to run during and after the Python finalization.
+They are causing race conditions and tricky bugs in the Python finalization.
 
-This article is about the bugs fixed in the Python finalization during the
-Python 3.2 development (2009 and 2010).
+This article covers bugs fixed in the Python finalization in Python 3.2 and
+Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).
 
 .. image:: {static}/images/coronamaison_luppi.jpg
-   :alt: Maze
+   :alt: #CoronaMaison by Luppi
    :target: https://twitter.com/LuppiChan/status/1240346448606171136
 
 Drawing: `#CoronaMaison by Luppi
@@ -28,7 +28,7 @@ Daemon threads
 
 Python has a special kind of thread: "daemon" threads. The difference with
 regular threads is that Python doesn't wait until daemon threads complete at
-exit, whereas it blocks until all regular ("non-daemon") threads complete.
+exit, whereas it waits until all regular ("non-daemon") threads complete.
 Example::
 
     import threading, time
@@ -49,18 +49,18 @@ instead, Python exits immediately (57 ms)::
 
     real   0m0,057s
 
-Note: Calling explicitly ``Thread.join()`` also waits until a daemon thread
-completes.
+Note: The ``Thread.join()`` method can be called explicitly to wait until a
+daemon thread completes.
 
 
 Don't destroy the GIL at exit
 =============================
 
-November 2009, **Antoine Pitrou** implements a new GIL in Python 3.2: `commit
-074e5ed9
+In November 2009, **Antoine Pitrou** implements a new GIL (Global Interpreter
+Lock) in Python 3.2: `commit 074e5ed9
 <https://github.com/python/cpython/commit/074e5ed974be65fbcfe75a4c0529dbc53f13446f>`__.
 
-September 2010, he finds a crash daemon threads while stressing
+In September 2010, he finds a crash with daemon threads while stressing
 ``test_threading``: `bpo-9901: GIL destruction can fail
 <https://bugs.python.org/issue9901>`_. ``test_finalize_with_trace()`` fails
 with::
@@ -79,22 +79,27 @@ thread is waiting for it, the thread can crash. The fix is to **no longer
 destroy the GIL at exit**.
 
 
-Crash in take_gil()
-===================
+Exit the thread in PyEval_RestoreThread()
+=========================================
 
-A daemon thread can crash at exit after Python deallocates the Python thread
-state of the thread in ``Py_Finalize()``. During ``Py_Finalize()``, the thread
-running ``Py_Finalize()`` can release the GIL which wakes up the daemon thread.
-The daemon thread crash while taking the the GIL in ``take_gil()``, since its
-state was deallocated.
+The Python finalization clears and deallocates the "Python thread state" of all
+threads (in ``PyInterpreterState_Delete()``) which calls Python object
+finalizers of these threads. Calling a finalizer can drop the GIL to call a
+system call. For example, closing a file drops the GIL. When the GIL is
+dropped, a daemon thread is awaken to take the GIL. Since the Python thread
+state was just deallocated, the daemon thread crash.
 
-This problem is first reported in April 2005: `bpo-1193099: Embedded python
-thread crashes <https://bugs.python.org/issue1193099>`_. In January 2008,
-**Gregory P. Smith** reports `bpo-1856: shutdown (exit) can hang or segfault
-with daemon threads running <https://bugs.python.org/issue1856#msg60014>`_
-which will become the reference issue for this bug. He writes a short Python
-program to reproduce the bug: spawn 40 daemon threads which some I/O and sleep
-randomly between 0 ms and 5 ms in a loop.
+This bug is a race condition. It depends on which order threads are executed,
+on which order objects are finalized, on which order memory is deallocated,
+etc.
+
+The crash is reported first in April 2005: `bpo-1193099: Embedded python thread
+crashes <https://bugs.python.org/issue1193099>`_. In January 2008, **Gregory P.
+Smith** reports `bpo-1856: shutdown (exit) can hang or segfault with daemon
+threads running <https://bugs.python.org/issue1856#msg60014>`_ which will
+become the reference issue for this bug. He writes a short Python program
+reproducing the bug: spawn 40 daemon threads which do some I/O operations and
+sleep randomly between 0 ms and 5 ms in a loop.
 
 **Adam Olsen** `proposes a solution
 <https://bugs.python.org/issue1856#msg60059>`_ (with a patch):
@@ -103,18 +108,23 @@ randomly between 0 ms and 5 ms in a loop.
     interpreter lock and the interpreter is tearing down. They're about to get
     killed off anyway, when the process exits.
 
-May 2011, **Antoine Pitrou** pushed a fix into Python 3.3 (6 years after the
-first bug report!) which implements this solution::
+In May 2011, **Antoine Pitrou** push a fix to Python 3.3 (6 years after the
+first bug report!) which implements this solution, `commit 0d5e52d3
+<https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1>`__::
 
-    commit 0d5e52d3469a310001afe50689f77ddba6d554d1
-    Author: Antoine Pitrou <solipsis@pitrou.net>
-    Date:   Wed May 4 20:02:30 2011 +0200
+    Issue #1856: Avoid crashes and lockups when daemon threads run while the
+    interpreter is shutting down; instead, these threads are now killed when
+    they try to take the GIL.
 
-        Issue #1856: Avoid crashes and lockups when daemon threads run while the
-        interpreter is shutting down; instead, these threads are now killed when
-        they try to take the GIL.
 
-Simplified extract of the fix in ``PyEval_RestoreThread()`` function::
+PyEval_RestoreThread() fix explanation
+======================================
+
+The fix adds a new ``_Py_Finalizing`` variable which is set by
+``Py_Finalize()`` to (the Python thread state of) the thread which runs the
+finalization.
+
+Simplified patch of the ``PyEval_RestoreThread()`` fix::
 
     @@ -440,6 +440,12 @@ PyEval_RestoreThread()
              take_gil(tstate);
@@ -123,27 +133,29 @@ Simplified extract of the fix in ``PyEval_RestoreThread()`` function::
     +            PyThread_exit_thread();
     +        }
 
-``PyEval_RestoreThread()`` now checks if Python is finalizing (or has been
-finalized) using a new ``_Py_Finalizing`` variable which is set by
-``Py_Finalize()``.
+If Python is finalizing (``_Py_Finalizing`` is not NULL) and
+``PyEval_RestoreThread()`` is called by a thread which is not thread running
+the finalization, the thread exits immediately (call
+``PyThread_exit_thread()``).
 
-``PyEval_RestoreThread()`` is called when a threads tries to acquire the GIL.
-Example of code releasing the GIL to call ``fchmod()``::
+``PyEval_RestoreThread()`` is called when a thread takes the GIL.  Typical
+example of code which drops the GIL to call a system call (close a file
+descriptor, ``io.FileIO()`` finalizer) and then takes again the GIL::
 
         Py_BEGIN_ALLOW_THREADS
-        res = fchmod(fd, mode);
+        close(fd);
         Py_END_ALLOW_THREADS
 
-The ``Py_BEGIN_ALLOW_THREADS`` macro calls ``PyEval_SaveThread()`` which
-releases the GIL, whereas the ``Py_END_ALLOW_THREADS`` macro acquires the GIL.
-Pseudo-code::
+The ``Py_BEGIN_ALLOW_THREADS`` macro calls ``PyEval_SaveThread()`` to drop the
+GIL, and the ``Py_END_ALLOW_THREADS`` macro calls ``PyEval_RestoreThread()`` to
+take the GIL.  Pseudo-code::
 
         PyEval_SaveThread();     // drop the GIL
-        res = fchmod(fd, mode);
+        close(fd);
         PyEval_RestoreThread();  // take the GIL
 
-With Antoine's change,  if Python is finalizing, a thread now exits immediately
-when it attempts to take the GIL.
+With Antoine's fix, if Python is finalizing, a thread now exits immediately
+when calling ``PyEval_RestoreThread()``.
 
 
 Revert take_gil() backport to 2.7
@@ -152,9 +164,11 @@ Revert take_gil() backport to 2.7
 In June 2014, **Benjamin Peterson** (Python 2.7 release manager) backports
 Antoine's change to Python 2.7: fix included in 2.7.8.
 
-Problem, Ceph project `starts to crash with Python 2.7.8
-<https://tracker.ceph.com/issues/8797>`_. In November 2014, the change is
-reverted: see `bpo-21963 discussion <https://bugs.python.org/issue21963>`_.
+Problem: the Ceph project `starts to crash with Python 2.7.8
+<https://tracker.ceph.com/issues/8797>`_.
+
+In November 2014, the change is reverted in the future Python 2.7.9: see
+`bpo-21963 discussion <https://bugs.python.org/issue21963>`_ for the rationale.
 
 In 2014, I already write:
 
@@ -169,8 +183,9 @@ Conclusion
 
 Daemon threads are causing issues in Python finalization.
 
-Python 3.2 gets a new GIL and also two fixes for bugs related to daemon
-threads.
+Python 3.2 (released in February 2011) gets a new GIL and also a bugfix for
+daemon thread. Python 3.3 (released in September 2012) also gets a bugfix for
+daemon threads. The Python finalization is now more reliable.
 
 Changing Python finalization is risky. A backport of a bugfix into Python 2.7
-causes a regression which requires to revert the backport.
+causes a regression which requires to revert the bugfix.
