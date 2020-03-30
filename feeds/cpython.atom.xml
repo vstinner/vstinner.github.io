@@ -1,5 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2019-03-06T20:00:00+01:00</updated><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-03-26T22:00:00+01:00</updated><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
+&lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
+kind of threads which continue to run during and after the Python finalization.
+They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
+&lt;p&gt;This article covers bugs …&lt;/p&gt;</summary><content type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
+&lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
+kind of threads which continue to run during and after the Python finalization.
+They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
+&lt;p&gt;This article covers bugs fixed in the Python finalization in Python 3.2 and
+Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;#CoronaMaison by Luppi&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="daemon-threads"&gt;
+&lt;h2&gt;Daemon threads&lt;/h2&gt;
+&lt;p&gt;Python has a special kind of thread: &amp;quot;daemon&amp;quot; threads. The difference with
+regular threads is that Python doesn't wait until daemon threads complete at
+exit, whereas it waits until all regular (&amp;quot;non-daemon&amp;quot;) threads complete.
+Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+import threading, time
+thread = threading.Thread(target=time.sleep, args=(5.0,), daemon=False)
+thread.start()
+&lt;/pre&gt;
+&lt;p&gt;This Python program spawns a regular thread which sleeps for 5 seconds. Python
+takes 5 seconds to exit:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ time python3 sleep.py
+
+real   0m5,047s
+&lt;/pre&gt;
+&lt;p&gt;If &lt;tt class="docutils literal"&gt;daemon=False&lt;/tt&gt; is replaced with &lt;tt class="docutils literal"&gt;daemon=True&lt;/tt&gt; to spawn a daemon thread
+instead, Python exits immediately (57 ms):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ time python3 sleep.py
+
+real   0m0,057s
+&lt;/pre&gt;
+&lt;p&gt;Note: The &lt;tt class="docutils literal"&gt;Thread.join()&lt;/tt&gt; method can be called explicitly to wait until a
+daemon thread completes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="don-t-destroy-the-gil-at-exit"&gt;
+&lt;h2&gt;Don't destroy the GIL at exit&lt;/h2&gt;
+&lt;p&gt;In November 2009, &lt;strong&gt;Antoine Pitrou&lt;/strong&gt; implemented a new GIL (Global Interpreter
+Lock) in Python 3.2: &lt;a class="reference external" href="https://github.com/python/cpython/commit/074e5ed974be65fbcfe75a4c0529dbc53f13446f"&gt;commit 074e5ed9&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In September 2010, he found a crash with daemon threads while stressing
+&lt;tt class="docutils literal"&gt;test_threading&lt;/tt&gt;: &lt;a class="reference external" href="https://bugs.python.org/issue9901"&gt;bpo-9901: GIL destruction can fail&lt;/a&gt;. &lt;tt class="docutils literal"&gt;test_finalize_with_trace()&lt;/tt&gt; failed
+with:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Fatal Python error: pthread_mutex_destroy(gil_mutex) failed
+&lt;/pre&gt;
+&lt;p&gt;He pushed a fix for this crash in Python 3.2, &lt;a class="reference external" href="https://github.com/python/cpython/commit/b0b384b7c0333bf1183cd6f90c0a3f9edaadd6b9"&gt;commit b0b384b7&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Issue #9901: Destroying the GIL in Py_Finalize() can fail if some other
+threads are still running.  Instead, reinitialize the GIL on a second
+call to Py_Initialize().
+&lt;/pre&gt;
+&lt;p&gt;The Python GIL internally uses a lock. If the lock is destroyed while a daemon
+thread is waiting for it, the thread can crash. The fix is to &lt;strong&gt;no longer
+destroy the GIL at exit&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="exit-the-thread-in-pyeval-restorethread"&gt;
+&lt;h2&gt;Exit the thread in PyEval_RestoreThread()&lt;/h2&gt;
+&lt;p&gt;The Python finalization clears and deallocates the &amp;quot;Python thread state&amp;quot; of all
+threads (in &lt;tt class="docutils literal"&gt;PyInterpreterState_Delete()&lt;/tt&gt;) which calls Python object
+finalizers of these threads. Calling a finalizer can drop the GIL to call a
+system call. For example, closing a file drops the GIL. When the GIL is
+dropped, a daemon thread is awaken to take the GIL. Since the Python thread
+state was just deallocated, the daemon thread crash.&lt;/p&gt;
+&lt;p&gt;This bug is a race condition. It depends on which order threads are executed,
+on which order objects are finalized, on which order memory is deallocated,
+etc.&lt;/p&gt;
+&lt;p&gt;The crash was first reported in April 2005: &lt;a class="reference external" href="https://bugs.python.org/issue1193099"&gt;bpo-1193099: Embedded python thread
+crashes&lt;/a&gt;. In January 2008, &lt;strong&gt;Gregory P.
+Smith&lt;/strong&gt; reported &lt;a class="reference external" href="https://bugs.python.org/issue1856#msg60014"&gt;bpo-1856: shutdown (exit) can hang or segfault with daemon
+threads running&lt;/a&gt;. He wrote a
+short Python program reproducing the bug: spawn 40 daemon threads which do some
+I/O operations and sleep randomly between 0 ms and 5 ms in a loop.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Adam Olsen&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue1856#msg60059"&gt;proposed a solution&lt;/a&gt; (with a patch):&lt;/p&gt;
+&lt;blockquote&gt;
+I think &lt;strong&gt;non-main threads should kill themselves off&lt;/strong&gt; if they grab the
+interpreter lock and the interpreter is tearing down. They're about to get
+killed off anyway, when the process exits.&lt;/blockquote&gt;
+&lt;p&gt;In May 2011, &lt;strong&gt;Antoine Pitrou&lt;/strong&gt; pushed a fix to Python 3.3 (6 years after the
+first bug report) which implements this solution, &lt;a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1"&gt;commit 0d5e52d3&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Issue #1856: Avoid crashes and lockups when daemon threads run while the
+interpreter is shutting down; instead, these threads are now killed when
+they try to take the GIL.
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyeval-restorethread-fix-explanation"&gt;
+&lt;h2&gt;PyEval_RestoreThread() fix explanation&lt;/h2&gt;
+&lt;p&gt;The fix adds a new &lt;tt class="docutils literal"&gt;_Py_Finalizing&lt;/tt&gt; variable which is set by
+&lt;tt class="docutils literal"&gt;Py_Finalize()&lt;/tt&gt; to the (Python thread state of the) thread which runs the
+finalization.&lt;/p&gt;
+&lt;p&gt;Simplified patch of the &lt;tt class="docutils literal"&gt;PyEval_RestoreThread()&lt;/tt&gt; fix:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;#64;&amp;#64; -440,6 +440,12 &amp;#64;&amp;#64; PyEval_RestoreThread()
+         take_gil(tstate);
++        if (_Py_Finalizing &amp;amp;&amp;amp; tstate != _Py_Finalizing) {
++            drop_gil(tstate);
++            PyThread_exit_thread();
++        }
+&lt;/pre&gt;
+&lt;p&gt;If Python is finalizing (&lt;tt class="docutils literal"&gt;_Py_Finalizing&lt;/tt&gt; is not NULL) and
+&lt;tt class="docutils literal"&gt;PyEval_RestoreThread()&lt;/tt&gt; is called by a thread which is not thread running
+the finalization, the thread exits immediately (call
+&lt;tt class="docutils literal"&gt;PyThread_exit_thread()&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyEval_RestoreThread()&lt;/tt&gt; is called when a thread takes the GIL.  Typical
+example of code which drops the GIL to call a system call (close a file
+descriptor, &lt;tt class="docutils literal"&gt;io.FileIO()&lt;/tt&gt; finalizer) and then takes again the GIL:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Py_BEGIN_ALLOW_THREADS
+close(fd);
+Py_END_ALLOW_THREADS
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;Py_BEGIN_ALLOW_THREADS&lt;/tt&gt; macro calls &lt;tt class="docutils literal"&gt;PyEval_SaveThread()&lt;/tt&gt; to drop the
+GIL, and the &lt;tt class="docutils literal"&gt;Py_END_ALLOW_THREADS&lt;/tt&gt; macro calls &lt;tt class="docutils literal"&gt;PyEval_RestoreThread()&lt;/tt&gt; to
+take the GIL.  Pseudo-code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyEval_SaveThread();     // drop the GIL
+close(fd);
+PyEval_RestoreThread();  // take the GIL
+&lt;/pre&gt;
+&lt;p&gt;With Antoine's fix, if Python is finalizing, a thread now exits immediately
+when calling &lt;tt class="docutils literal"&gt;PyEval_RestoreThread()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="revert-take-gil-backport-to-2-7"&gt;
+&lt;h2&gt;Revert take_gil() backport to 2.7&lt;/h2&gt;
+&lt;p&gt;In June 2014, &lt;strong&gt;Benjamin Peterson&lt;/strong&gt; (Python 2.7 release manager) backported
+Antoine's change to Python 2.7: fix included in 2.7.8.&lt;/p&gt;
+&lt;p&gt;Problem: the Ceph project &lt;a class="reference external" href="https://tracker.ceph.com/issues/8797"&gt;started to crash with Python 2.7.8&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In November 2014, the change was reverted in Python 2.7.9: see
+&lt;a class="reference external" href="https://bugs.python.org/issue21963"&gt;bpo-21963 discussion&lt;/a&gt; for the rationale.&lt;/p&gt;
+&lt;p&gt;In 2014, I already wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+Anyway, &lt;strong&gt;daemon threads are evil&lt;/strong&gt; :-( Expecting them to exit cleanly
+automatically is not good. Last time I tried to improve code to cleanup
+Python at exit in Python 3.4, I also had a regression (just before the
+release of Python 3.4.0): see the &lt;a class="reference external" href="https://bugs.python.org/issue21788"&gt;issue #21788&lt;/a&gt;.&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Daemon threads caused crashes in the Python finalization, first noticed in
+2005.&lt;/p&gt;
+&lt;p&gt;Python 3.2 (released in February 2011) got a new GIL and also a bugfix for
+daemon thread. Python 3.3 (released in September 2012) also got a bugfix for
+daemon threads. The Python finalization became more reliable.&lt;/p&gt;
+&lt;p&gt;Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
+caused a regression which required to revert the bugfix in Python 2.7.9.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a

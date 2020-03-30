@@ -20,7 +20,178 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python37-dev-mode.html">Python 3.7 Development Mode</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-03-26T22:00:00+01:00">
+                Published: jeu. 26 mars 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>At exit, the Python finalization calls Python objects finalizers (the
+<tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
+kind of threads which continue to run during and after the Python finalization.
+They are causing race conditions and tricky bugs in the Python finalization.</p>
+<p>This article covers bugs fixed in the Python finalization in Python 3.2 and
+Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).</p>
+<a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"><img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /></a>
+<p>Drawing: <a class="reference external" href="https://twitter.com/LuppiChan/status/1240346448606171136">#CoronaMaison by Luppi</a>.</p>
+<div class="section" id="daemon-threads">
+<h2>Daemon threads</h2>
+<p>Python has a special kind of thread: &quot;daemon&quot; threads. The difference with
+regular threads is that Python doesn't wait until daemon threads complete at
+exit, whereas it waits until all regular (&quot;non-daemon&quot;) threads complete.
+Example:</p>
+<pre class="literal-block">
+import threading, time
+thread = threading.Thread(target=time.sleep, args=(5.0,), daemon=False)
+thread.start()
+</pre>
+<p>This Python program spawns a regular thread which sleeps for 5 seconds. Python
+takes 5 seconds to exit:</p>
+<pre class="literal-block">
+$ time python3 sleep.py
+
+real   0m5,047s
+</pre>
+<p>If <tt class="docutils literal">daemon=False</tt> is replaced with <tt class="docutils literal">daemon=True</tt> to spawn a daemon thread
+instead, Python exits immediately (57 ms):</p>
+<pre class="literal-block">
+$ time python3 sleep.py
+
+real   0m0,057s
+</pre>
+<p>Note: The <tt class="docutils literal">Thread.join()</tt> method can be called explicitly to wait until a
+daemon thread completes.</p>
+</div>
+<div class="section" id="don-t-destroy-the-gil-at-exit">
+<h2>Don't destroy the GIL at exit</h2>
+<p>In November 2009, <strong>Antoine Pitrou</strong> implemented a new GIL (Global Interpreter
+Lock) in Python 3.2: <a class="reference external" href="https://github.com/python/cpython/commit/074e5ed974be65fbcfe75a4c0529dbc53f13446f">commit 074e5ed9</a>.</p>
+<p>In September 2010, he found a crash with daemon threads while stressing
+<tt class="docutils literal">test_threading</tt>: <a class="reference external" href="https://bugs.python.org/issue9901">bpo-9901: GIL destruction can fail</a>. <tt class="docutils literal">test_finalize_with_trace()</tt> failed
+with:</p>
+<pre class="literal-block">
+Fatal Python error: pthread_mutex_destroy(gil_mutex) failed
+</pre>
+<p>He pushed a fix for this crash in Python 3.2, <a class="reference external" href="https://github.com/python/cpython/commit/b0b384b7c0333bf1183cd6f90c0a3f9edaadd6b9">commit b0b384b7</a>:</p>
+<pre class="literal-block">
+Issue #9901: Destroying the GIL in Py_Finalize() can fail if some other
+threads are still running.  Instead, reinitialize the GIL on a second
+call to Py_Initialize().
+</pre>
+<p>The Python GIL internally uses a lock. If the lock is destroyed while a daemon
+thread is waiting for it, the thread can crash. The fix is to <strong>no longer
+destroy the GIL at exit</strong>.</p>
+</div>
+<div class="section" id="exit-the-thread-in-pyeval-restorethread">
+<h2>Exit the thread in PyEval_RestoreThread()</h2>
+<p>The Python finalization clears and deallocates the &quot;Python thread state&quot; of all
+threads (in <tt class="docutils literal">PyInterpreterState_Delete()</tt>) which calls Python object
+finalizers of these threads. Calling a finalizer can drop the GIL to call a
+system call. For example, closing a file drops the GIL. When the GIL is
+dropped, a daemon thread is awaken to take the GIL. Since the Python thread
+state was just deallocated, the daemon thread crash.</p>
+<p>This bug is a race condition. It depends on which order threads are executed,
+on which order objects are finalized, on which order memory is deallocated,
+etc.</p>
+<p>The crash was first reported in April 2005: <a class="reference external" href="https://bugs.python.org/issue1193099">bpo-1193099: Embedded python thread
+crashes</a>. In January 2008, <strong>Gregory P.
+Smith</strong> reported <a class="reference external" href="https://bugs.python.org/issue1856#msg60014">bpo-1856: shutdown (exit) can hang or segfault with daemon
+threads running</a>. He wrote a
+short Python program reproducing the bug: spawn 40 daemon threads which do some
+I/O operations and sleep randomly between 0 ms and 5 ms in a loop.</p>
+<p><strong>Adam Olsen</strong> <a class="reference external" href="https://bugs.python.org/issue1856#msg60059">proposed a solution</a> (with a patch):</p>
+<blockquote>
+I think <strong>non-main threads should kill themselves off</strong> if they grab the
+interpreter lock and the interpreter is tearing down. They're about to get
+killed off anyway, when the process exits.</blockquote>
+<p>In May 2011, <strong>Antoine Pitrou</strong> pushed a fix to Python 3.3 (6 years after the
+first bug report) which implements this solution, <a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1">commit 0d5e52d3</a>:</p>
+<pre class="literal-block">
+Issue #1856: Avoid crashes and lockups when daemon threads run while the
+interpreter is shutting down; instead, these threads are now killed when
+they try to take the GIL.
+</pre>
+</div>
+<div class="section" id="pyeval-restorethread-fix-explanation">
+<h2>PyEval_RestoreThread() fix explanation</h2>
+<p>The fix adds a new <tt class="docutils literal">_Py_Finalizing</tt> variable which is set by
+<tt class="docutils literal">Py_Finalize()</tt> to the (Python thread state of the) thread which runs the
+finalization.</p>
+<p>Simplified patch of the <tt class="docutils literal">PyEval_RestoreThread()</tt> fix:</p>
+<pre class="literal-block">
+&#64;&#64; -440,6 +440,12 &#64;&#64; PyEval_RestoreThread()
+         take_gil(tstate);
++        if (_Py_Finalizing &amp;&amp; tstate != _Py_Finalizing) {
++            drop_gil(tstate);
++            PyThread_exit_thread();
++        }
+</pre>
+<p>If Python is finalizing (<tt class="docutils literal">_Py_Finalizing</tt> is not NULL) and
+<tt class="docutils literal">PyEval_RestoreThread()</tt> is called by a thread which is not thread running
+the finalization, the thread exits immediately (call
+<tt class="docutils literal">PyThread_exit_thread()</tt>).</p>
+<p><tt class="docutils literal">PyEval_RestoreThread()</tt> is called when a thread takes the GIL.  Typical
+example of code which drops the GIL to call a system call (close a file
+descriptor, <tt class="docutils literal">io.FileIO()</tt> finalizer) and then takes again the GIL:</p>
+<pre class="literal-block">
+Py_BEGIN_ALLOW_THREADS
+close(fd);
+Py_END_ALLOW_THREADS
+</pre>
+<p>The <tt class="docutils literal">Py_BEGIN_ALLOW_THREADS</tt> macro calls <tt class="docutils literal">PyEval_SaveThread()</tt> to drop the
+GIL, and the <tt class="docutils literal">Py_END_ALLOW_THREADS</tt> macro calls <tt class="docutils literal">PyEval_RestoreThread()</tt> to
+take the GIL.  Pseudo-code:</p>
+<pre class="literal-block">
+PyEval_SaveThread();     // drop the GIL
+close(fd);
+PyEval_RestoreThread();  // take the GIL
+</pre>
+<p>With Antoine's fix, if Python is finalizing, a thread now exits immediately
+when calling <tt class="docutils literal">PyEval_RestoreThread()</tt>.</p>
+</div>
+<div class="section" id="revert-take-gil-backport-to-2-7">
+<h2>Revert take_gil() backport to 2.7</h2>
+<p>In June 2014, <strong>Benjamin Peterson</strong> (Python 2.7 release manager) backported
+Antoine's change to Python 2.7: fix included in 2.7.8.</p>
+<p>Problem: the Ceph project <a class="reference external" href="https://tracker.ceph.com/issues/8797">started to crash with Python 2.7.8</a>.</p>
+<p>In November 2014, the change was reverted in Python 2.7.9: see
+<a class="reference external" href="https://bugs.python.org/issue21963">bpo-21963 discussion</a> for the rationale.</p>
+<p>In 2014, I already wrote:</p>
+<blockquote>
+Anyway, <strong>daemon threads are evil</strong> :-( Expecting them to exit cleanly
+automatically is not good. Last time I tried to improve code to cleanup
+Python at exit in Python 3.4, I also had a regression (just before the
+release of Python 3.4.0): see the <a class="reference external" href="https://bugs.python.org/issue21788">issue #21788</a>.</blockquote>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>Daemon threads caused crashes in the Python finalization, first noticed in
+2005.</p>
+<p>Python 3.2 (released in February 2011) got a new GIL and also a bugfix for
+daemon thread. Python 3.3 (released in September 2012) also got a bugfix for
+daemon threads. The Python finalization became more reliable.</p>
+<p>Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
+caused a regression which required to revert the bugfix in Python 2.7.9.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/python37-dev-mode.html" rel="bookmark"
+                           title="Permalink to Python 3.7 Development Mode">Python 3.7 Development Mode</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-01-16T12:00:00+01:00">
                 Published: jeu. 16 janvier 2020
@@ -31,287 +202,14 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
+</footer><!-- /.post-info -->                <p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
 (-X dev)</a> that I <strong>added
 to Python 3.7</strong> and how it has been implemented.</p>
 <p>The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev</tt> command line option
-or by <tt class="docutils literal">PYTHONDEVMODE=1</tt> environment variable.  It helps developers to spot
-bugs in their code and helps them to be prepared for future Python changes.</p>
-<a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"><img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /></a>
-<p><em>Ready to race, by Guillaume Singelin.</em></p>
-<div class="section" id="email-sent-to-python-ideas">
-<h2>Email sent to python-ideas</h2>
-<p>In March 2016, I proposed <a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2016-March/039314.html">Add a developer mode to Python: -X dev command line
-option</a> on
-the python-ideas list:</p>
-<blockquote>
-<p>When I develop on CPython, I'm always building Python in debug mode
-using <tt class="docutils literal">./configure <span class="pre">--with-pydebug</span></tt>. This mode enables a <strong>lot</strong> of extra
-checks which helps me to detect bugs earlier. The debug mode makes Python
-much slower and so is not enabled by default.</p>
-<p>I propose to add a &quot;development mode&quot; to Python, to get a few checks
-to detect bugs earlier: a new <tt class="docutils literal"><span class="pre">-X</span> dev</tt> command line option. Example:</p>
-<pre class="literal-block">
-python3.6 -X dev script.py
-</pre>
-<p>I propose to enable:</p>
-<ul class="simple">
-<li>Show <tt class="docutils literal">DeprecationWarning</tt> and <tt class="docutils literal">ResourceWarning warnings</tt>: <tt class="docutils literal">python <span class="pre">-Wd</span></tt></li>
-<li>Show <tt class="docutils literal">BytesWarning</tt> warning: <tt class="docutils literal">python <span class="pre">-b</span></tt></li>
-<li>Enable Python assertions (<tt class="docutils literal">assert</tt>) and set <tt class="docutils literal">__debug__</tt> to True:
-remove (or just ignore) <tt class="docutils literal"><span class="pre">-O</span></tt> or <tt class="docutils literal"><span class="pre">-OO</span></tt> command line arguments</li>
-<li>faulthandler to get a Python traceback on segfault and fatal errors:
-<tt class="docutils literal">python <span class="pre">-X</span> faulthandler</tt></li>
-<li>Debug hooks on Python memory allocators: <tt class="docutils literal">PYTHONMALLOC=debug</tt></li>
-</ul>
-</blockquote>
-<p>I wrote an implementation of this development mode using <tt class="docutils literal">exec()</tt>. <strong>Ronald
-Oussoren</strong> <a class="reference external" href="https://bugs.python.org/issue26670#msg262659">commented my patch</a>:</p>
-<blockquote>
-Why does this patch execv() the interpreter to set options? I'd expect it
-to be possible to get the same result by updating the argument parsing code
-in Py_Main.</blockquote>
-<p>More on that later :-) <strong>Marc-Andre Lemburg</strong> <a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2016-March/039325.html">didn't buy the idea</a>:</p>
-<blockquote>
-<strong>I'm not sure whether this would make things easier for the
-majority of developers</strong>, e.g. someone not writing C extensions
-would likely not be interested in debugging memory allocations
-or segfaults, someone spending more time on numerics wouldn't
-bother with bytes warnings, etc.</blockquote>
-<p>Opinion shared by <strong>Ethan Furman</strong>, so I gave up at this point, closed my issue
-and my PR.</p>
-</div>
-<div class="section" id="async-keyword-deprecationwarning-and-pep-565">
-<h2>async keyword, DeprecationWarning and PEP 565</h2>
-<p>At November 1, 2017, Ned Deily, the Python 3.7 release release,
-sent an email to python-dev: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150061.html">Reminder: 12 weeks to 3.7 feature code cutoff</a>.</p>
-<p>A discussion started on <tt class="docutils literal">async</tt> and <tt class="docutils literal">await</tt> becoming keywords and how this
-incompatible change was conducted. Read LWN article <a class="reference external" href="https://lwn.net/Articles/740804/">Who should see Python
-deprecation warnings?</a> (December 2017) by
-Jonathan Corbet for the whole story:</p>
-<blockquote>
-In early November, one sub-thread of a big discussion on preparing for the
-Python 3.7 release focused on the await and async identifiers. They will
-become keywords in 3.7, meaning that any code using those names for any
-other purpose will break. Nick Coghlan observed that <strong>Python 3.6 does not
-warn</strong> about the use of those names, calling it &quot;a fairly major
-oversight/bug&quot;. <strong>In truth, though, Python 3.6 does emit warnings in that
-case — but users rarely see them.</strong></blockquote>
-<p>The question is who should see <tt class="docutils literal">DeprecationWarning</tt>. Long time ago, it has
-been decided to hide them by default to not bother users. Users are not able to
-fix them, and so it is only a source of annoyance.</p>
-<p>If the warning is displayed by default, developers can be annoyed by warnings
-coming from code that they cannot easily fix, like third-party dependencies.</p>
-<p>At November 12, 2017, Nick Coghlan proposed <a class="reference external" href="https://www.python.org/dev/peps/pep-0565/">PEP 565: Show DeprecationWarning
-in __main__</a> as a compromise:</p>
-<blockquote>
-This change will mean that code entered at the interactive prompt and code
-in single file scripts will revert to reporting these warnings by default,
-while they will <strong>continue to be silenced by default for packaged code</strong>
-distributed as part of an importable module.</blockquote>
-<p>The PEP has been approved and implemented in Python 3.7. For example,
-<tt class="docutils literal">DeprecationWarning</tt> is now displayed by default when running a script and in
-the REPL:</p>
-<pre class="literal-block">
-$ cat example.py
-import imp
-
-$ python3 example.py
-example.py:1: DeprecationWarning: the imp module is deprecated ...
-  import imp
-
-$ python3
-Python 3.7.6 (default, Dec 19 2019, 22:52:49)
-&gt;&gt;&gt; import imp
-__main__:1: DeprecationWarning: the imp module is deprecated ...
-</pre>
-</div>
-<div class="section" id="development-mode-proposed-on-python-dev">
-<h2>Development mode proposed on python-dev</h2>
-<p>I was not convinced that only displaying warnings in the <tt class="docutils literal">__main__</tt> module is
-enough to help developers to fix issues in their code. A project is way larger
-than just this module.</p>
-<p>I came back with my idea, now on the python-dev list: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150514.html">Add a developer mode to
-Python: -X dev command line option</a>.</p>
-<p>This mode shows <tt class="docutils literal">DeprecationWarning</tt> and <tt class="docutils literal">ResourceWarning</tt> is all modules,
-not only in the <tt class="docutils literal">__main__</tt> module.  In my opinion, having an opt-in mode for
-developers is the best option. Python should not spam users with warnings which
-are targeting developers.</p>
-<p><strong>In the context of Python 3.7 incompatible changes, the feedback was way better
-this time.</strong></p>
-</div>
-<div class="section" id="issues-with-the-python-initialization">
-<h2>Issues with the Python initialization</h2>
-<p>When I proposed the idea, my plan was to call exec() to replace the current
-process with a new process. But when I tried to implement it, it was more
-tricky than expected. My first blocker issue was to remove <tt class="docutils literal"><span class="pre">-O</span></tt> option from
-the command line. I hate having to parse the command line: it is very fragile
-and it's too easy to make mistake.</p>
-<p>So I tried to write a clean implementation: configure Python properly in
-&quot;development mode&quot;. The first blocker issue was to implement
-<tt class="docutils literal">PYTHONMALLOC=debug</tt>.  The C code to read and apply the Python configuration
-used Python objects before the Python initialization even started. For example,
-<tt class="docutils literal"><span class="pre">-W</span></tt> and <tt class="docutils literal"><span class="pre">-X</span></tt> options were stored as Python lists. It means that the Python
-memory allocator was used before Python would be able to parse <tt class="docutils literal">PYTHONMALLOC</tt>
-environment variable.</p>
-<p>Moreover, the Python configuration is quite complex. Many options are
-inter-dependent. For example, the <tt class="docutils literal"><span class="pre">-E</span></tt> command line option ignores
-environment variables with a name staring with <tt class="docutils literal">PYTHON</tt>: like
-<tt class="docutils literal">PYTHONMALLOC</tt>! Python has to parse the command line before being able to
-handle <tt class="docutils literal">PYTHONMALLOC</tt>.</p>
-<p>Python lists depends on the memory allocator which depends on <tt class="docutils literal">PYTHONMALLOC</tt>
-environment variable which depends on the <tt class="docutils literal"><span class="pre">-E</span></tt> command line option which
-depends on Python lists...</p>
-<p>In short, <strong>it wasn't possible to write a clean implementation of the
-development mode without refactoring the Python initialization code</strong>.</p>
-</div>
-<div class="section" id="refactoring-main-c">
-<h2>Refactoring main.c</h2>
-<p>For all these reasons, I refactored Python initialization code in <tt class="docutils literal">main.c</tt>,
-with <a class="reference external" href="https://bugs.python.org/issue32030">bpo-32030</a> with two <strong>large</strong>
-changes:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://github.com/python/cpython/commit/f7e5b56c37eb859e225e886c79c5d742c567ee95">commit f7e5b56c</a>:
-bpo-32030: Split Py_Main() into subfunctions</li>
-<li><a class="reference external" href="https://github.com/python/cpython/commit/a7368ac6360246b1ef7f8f152963c2362d272183">commit a7368ac6</a>:
-bpo-32030: Enhance Py_Main()</li>
-</ul>
-</div>
-<div class="section" id="add-x-dev-option">
-<h2>Add -X dev option</h2>
-<p>Since I got enough approval by my peers (core developers), I pushed <a class="reference external" href="https://github.com/python/cpython/commit/ccb0442a338066bf40fe417455e5a374e5238afb">commit
-ccb0442a</a>
-of <a class="reference external" href="https://bugs.python.org/issue32043">bpo-32043</a> to add the <tt class="docutils literal"><span class="pre">-X</span> dev</tt>
-command line option. Thanks to the previous refactoring, the implementation is
-less intrusive.</p>
-<p>Effects of the development mode:</p>
-<ul class="simple">
-<li>Add <tt class="docutils literal">default</tt> warnings option. For example, display <tt class="docutils literal">DeprecationWarning</tt>
-and <tt class="docutils literal">ResourceWarning</tt> warnings.</li>
-<li>Install <a class="reference external" href="https://docs.python.org/dev/c-api/memory.html#c.PyMem_SetupDebugHooks">debug hooks on memory allocators</a> as if
-<tt class="docutils literal">PYTHONMALLOC</tt> is set to <tt class="docutils literal">debug</tt>.</li>
-<li>Enable my <a class="reference external" href="https://docs.python.org/dev/library/faulthandler.html">faulthandler</a> module to dump the
-Python traceback on a crash.</li>
-</ul>
-</div>
-<div class="section" id="add-pythondevmode-environment-variable">
-<h2>Add PYTHONDEVMODE environment variable</h2>
-<p>In a PR review, Antoine Pitrou <a class="reference external" href="https://github.com/python/cpython/pull/4478#pullrequestreview-77874230">proposed</a>:</p>
-<blockquote>
-Speaking of which, perhaps it would be nice to set those environment
-variables so that child processes launched using subprocess inherit them?</blockquote>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue32101">bpo-32101</a> to add
-<tt class="docutils literal">PYTHONDEVMODE</tt> environment variable: <a class="reference external" href="https://github.com/python/cpython/commit/5e3806f8cfd84722fc55d4299dc018ad9b0f8401">commit 5e3806f8</a>.</p>
-<p>Setting <tt class="docutils literal">PYTHONDEVMODE=1</tt> allows to also enable the development mode in
-Python child processes, without having to touch their command line.</p>
-</div>
-<div class="section" id="enable-asyncio-debug-mode">
-<h2>Enable asyncio debug mode</h2>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue32047">bpo-32047: asyncio: enable debug mode when -X dev is used</a> and <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150572.html">asked in the -X dev thread on
-python-dev</a>:</p>
-<blockquote>
-What do you think? Is it ok to include asyncio in the global &quot;developer mode&quot;?</blockquote>
-<p>Antoine Pitrou didn't like the idea because asyncio debug mode was &quot;quite
-expensive&quot;, but Yury Selivanov (one of the asyncio maintainers) and Barry
-Warsaw liked the idea, so I merged my PR: <a class="reference external" href="https://github.com/python/cpython/commit/44862df2eeec62adea20672b0fe2a5d3e160569e">commit 44862df2</a>.</p>
-<p>Antoine Pitrou created <a class="reference external" href="https://bugs.python.org/issue31970">bpo-31970: asyncio debug mode is very slow</a>. Hopefully, he found a way to make
-asyncio debug mode more efficient by truncating tracebacks to 10 frames
-(<a class="reference external" href="https://github.com/python/cpython/commit/921e9432a1461bbf312c9c6dcc2b916be6c05fa0">commit 921e9432</a>).</p>
-</div>
-<div class="section" id="fix-warnings-filters">
-<h2>Fix warnings filters</h2>
-<p>While checking warnings filters, I noticed that the development mode was hiding
-some ResourceWarning warnings. I completed the documentation and fixed warnings
-filters in <a class="reference external" href="https://bugs.python.org/issue32089">bpo-32089</a>.</p>
-</div>
-<div class="section" id="python-3-8-logs-close-exception">
-<h2>Python 3.8 logs close() exception</h2>
-<p>By default, Python ignores silently <tt class="docutils literal">EBADF</tt> error (bad file descriptor) which
-can lead to a <strong>severe crash</strong> , <a class="reference external" href="https://bugs.python.org/issue18748">bpo-18748</a> (simplified gdb traceback):</p>
-<pre class="literal-block">
-Program received signal SIGABRT, Aborted.
-[Switching to Thread 0xb7b0eb70 (LWP 17152)]
-0xb7fe1424 in __kernel_vsyscall ()
-(gdb) bt
-#0  0xb7fe1424 in __kernel_vsyscall ()
-#1  0xb7e4e941 in *__GI_raise (sig=6)
-#2  0xb7e51d72 in *__GI_abort ()
-#3  0xb7e8ae15 in __libc_message (do_abort=1, fmt=0xb7f606f5 &quot;%s&quot;)
-#4  0xb7e8af44 in *__GI___libc_fatal (message=0xb7fc75ec
-    &quot;libgcc_s.so.1 must be installed for pthread_cancel to work\n&quot;)
-#5  0xb7fc4ffa in pthread_cancel_init ()
-#6  0xb7fc509d in _Unwind_ForcedUnwind (...)
-#7  0xb7fc2b98 in *__GI___pthread_unwind (buf=&lt;optimized out&gt;)
-#8  0xb7fbcce0 in __do_cancel () at pthreadP.h:265
-#9  __pthread_exit (value=0x0) at pthread_exit.c:30
-...
-</pre>
-<p>Notice the <tt class="docutils literal">&quot;libgcc_s.so.1 must be installed for pthread_cancel to work&quot;</tt> error
-message: the glibc loads dynamically <tt class="docutils literal">libgcc_s.so.1</tt> library when a thread
-completes, but another thread closed its file descriptor!</p>
-<p>The worst is that <strong>the crash is not deterministic</strong>: it's a <strong>race condition</strong>
-which requires to try many times, even with an example designed to trigger the
-crash!</p>
-<p>Since the <tt class="docutils literal">EBADF</tt> error is silently ignored, it is hard to notice or to debug
-such issue. I modified the development mode in Python 3.8 to <strong>log close()
-exceptions in io.IOBase destructor</strong>.</p>
-<p>It was not accepted to always log the <tt class="docutils literal">close()</tt> exception. So having an
-opt-in development mode is a good practical compromise!</p>
-</div>
-<div class="section" id="python-3-9-checks-encoding-and-errors">
-<h2>Python 3.9 checks encoding and errors</h2>
-<p>In June 2019, my colleague <strong>Miro Hrončok</strong> reported <a class="reference external" href="https://bugs.python.org/issue37388">bpo-37388</a>:</p>
-<blockquote>
-<p>I was just bit by specifying an nonexisitng error handler for
-bytes.decode() without noticing.</p>
-<p>Consider this code:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; 'a'.encode('cp1250').decode('utf-8', errors='Boom, Shaka Laka, Boom!')
-'a'
-</pre>
-</blockquote>
-<p>I modified the development mode in Python 3.9, to also check <em>encoding</em> and
-<em>errors</em> arguments on string encoding and decoding operations, like
-<tt class="docutils literal">bytes.decode()</tt> or <tt class="docutils literal">str.encode()</tt>.</p>
-<p>By default, for best performance, the <em>errors</em> argument is only checked at the
-first encoding/decoding error and the <em>encoding</em> argument is sometimes ignored
-for empty strings.</p>
-<p>Having an opt-in development mode allows to enable additional debug checks at
-runtime, without having to care too much about the performance overhead.</p>
-<p>Note: I love the choice of the example, &quot;Boom, Shaka Laka, Boom!&quot;
-from the game Gruntz :-D</p>
-</div>
-<div class="section" id="development-mode-example">
-<h2>Development Mode Example</h2>
-<p>Even in the <tt class="docutils literal">__main__</tt> module with PEP 565, <tt class="docutils literal">ResourceWarning</tt> is still not
-displayed by default (PEP 565 only shows <tt class="docutils literal">DeprecationWarning</tt>):</p>
-<pre class="literal-block">
-$ python3 -c 'print(len(open(&quot;README.rst&quot;).readlines()))'
-39
-</pre>
-<p>The development mode shows the warning:</p>
-<pre class="literal-block">
-$ python3 -X dev -c 'print(len(open(&quot;README.rst&quot;).readlines()))'
--c:1: ResourceWarning: unclosed file &lt;_io.TextIOWrapper name='README.rst' mode='r' encoding='UTF-8'&gt;
-ResourceWarning: Enable tracemalloc to get the object allocation traceback
-39
-</pre>
-<p>Not closing a resource explicitly can leave a resource open for way longer than
-expected. It can cause severe issues at Python exit. It is bad in CPython, but
-it is even worse in PyPy. <strong>Closing resources explicitly makes an application
-more deterministic and more reliable.</strong></p>
-<p>If one of the development mode effect causes an issue, it is still possible to
-override most options. For example,
-<tt class="docutils literal">PYTHONMALLOC=default python3 <span class="pre">-X</span> dev ...</tt> command enables the development
-mode without installing debug hooks on memory allocators.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev …</tt></p>
+                <a class="readmore" href="https://vstinner.github.io/python37-dev-mode.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -529,31 +427,6 @@ Interpreter Lock), one of the most critical part of Python. I had to dig the
 Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
 this time, <em>threads were …</em></p>
                 <a class="readmore" href="https://vstinner.github.io/python37-gil-change.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="bookmark"
-                           title="Permalink to Python 3.7 nanoseconds">Python 3.7 nanoseconds</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-06T16:30:00+01:00">
-                Published: mar. 06 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
-nanoseconds as integer internally. It became possible to propose again my old
-idea of getting time as nanoseconds at Python level and so I wrote a new
-<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond …</p>
-                <a class="readmore" href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
