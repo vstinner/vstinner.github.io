@@ -180,11 +180,12 @@ In 2014, I already wrote:
 Conclusion
 ==========
 
-Daemon threads are causing issues in Python finalization.
+Daemon threads caused crashes in the Python finalization, first noticed in
+2005.
 
-Python 3.2 (released in February 2011) gets a new GIL and also a bugfix for
-daemon thread. Python 3.3 (released in September 2012) also gets a bugfix for
-daemon threads. The Python finalization is now more reliable.
+Python 3.2 (released in February 2011) got a new GIL and also a bugfix for
+daemon thread. Python 3.3 (released in September 2012) also got a bugfix for
+daemon threads. The Python finalization became more reliable.
 
-Changing Python finalization is risky. A backport of a bugfix into Python 2.7
-causes a regression which requires to revert the bugfix.
+Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
+caused a regression which required to revert the bugfix in Python 2.7.9.
