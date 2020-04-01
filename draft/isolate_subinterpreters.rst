@@ -413,3 +413,11 @@ Replace PyModule_Create with PyModule_Init?
 * reload
 * unload
 * per-interpreter
+
+tstate
+======
+
+bpo-20526: Fix PyThreadState_Clear(): don't decref frame
+
+* https://bugs.python.org/issue20526
+* https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf
