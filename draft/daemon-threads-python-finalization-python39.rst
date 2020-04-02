@@ -2,15 +2,17 @@
 Daemon threads and the Python finalization in Python 3.9
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2020-03-30 22:00
+:date: 2020-04-02 22:00
 :tags: cpython
 :category: cpython
 :slug: daemon-threads-python-finalization-python39
 :authors: Victor Stinner
 
-My previous article `Daemon threads and the Python finalization in Python 3.9
+
+My previous article `Daemon threads and the Python finalization in Python 3.2 and 3.3
 <{filename}/daemon-threads-python-finalization-python32.rst>`_ introduces
-issues caused by daemon threads in the Python finalization.
+issues caused by daemon threads in the Python finalization and past changes to
+make them work.
 
 Here we will see new issues arisen by the work on isolating subinterpreters
 done in Python 3.9.
@@ -18,52 +20,67 @@ done in Python 3.9.
 Race condition in Python finalization
 =====================================
 
-In March 2019, I notices that ``test_threading.test_threads_join_2()`` was
+Buildbots and the bug
+---------------------
+
+In March 2019, I noticed that ``test_threading.test_threads_join_2()`` was
 killed by SIGABRT on the FreeBSD CURRENT buildbot, `bpo-36402
 <https://bugs.python.org/issue36402>`_::
 
     Fatal Python error: Py_EndInterpreter: not the last thread
 
-It is a race condition: the build is a success since the test passed when
-re-run.
+The test **failed** randomly on buildbots when tests were **run in parallel**.
+Then test_threading **passed** when it was **re-run sequentially**.  Such
+failure was silently ignored, since the build was seen overall as a success.
+
+The test ``test_threading.test_threads_join_2()`` was added by `commit 7b476993
+<https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1>`__
+in 2013.
 
 I already saw the bug in 2016 (`bpo-27791
 <https://bugs.python.org/issue27791>`_, and `bpo-28084
 <https://bugs.python.org/issue28084>`_ reported by Christian Heimes) on a
-FreeBSD buildbot, but I closed the issue since I only saw it twice in 4 months
-and I didn't have access to FreeBSD to attempt to reproduce the crash.
+FreeBSD buildbot.
 
-A similar bug, `bpo-36989 <https://bugs.python.org/issue36989>`_, was reported
-on AIX in May 2019: ``test_threading.test_daemon_threads_fatal_error()``.
+In 2016, I simply closed the issue because I only saw it once in 4 months and
+**I didn't have access to FreeBSD to attempt to reproduce the crash**.
 
-In June 2019, I find a reliable way to reproduce the bug: `add random sleeps
-to the test <https://github.com/python/cpython/pull/13889/files>`_. Since it
-becomes easy for me to reproduce the issue, I can analyze it more easily. I
-identify a race condition in the Python finalization. I also understand that
-the bug is not specific to subinterpreters:
+Analysis of the race condition
+------------------------------
 
-    The test shows the bug using subinterpreters (Py_EndInterpreter), but the
-    bug also exists in Py_Finalize() which hash the same race condition.
+In 2019, I had a FreeBSD VM to attempt to reproduce the bug locally.
 
-I write a patch for Py_Finalize() to help me to reproduce the bug without
+In June 2019, I found a reliable way to reproduce the bug by `adding random
+sleeps to the test <https://github.com/python/cpython/pull/13889/files>`_. With
+this patch, I was also able to reproduce the bug on Linux. **I'm way more
+comfortable to debug an issue on Linux** with my favorite debugging tools.
+
+I identified a race condition in the Python finalization. I also understood
+that the bug was not specific to subinterpreters:
+
+    The test shows the bug using subinterpreters (Py_EndInterpreter), but
+    **the bug also exists in Py_Finalize()** which has the same race condition.
+
+I wrote a patch for ``Py_Finalize()`` to help me to reproduce the bug without
 subinterpreters::
 
     +    if (tstate != interp->tstate_head || tstate->next != NULL) {
     +        Py_FatalError("Py_EndInterpreter: not the last thread");
     +    }
 
-I fix the race condition in ``threading._shutdown()``::
 
-    commit 468e5fec8a2f534f1685d59da3ca4fad425c38dd
-    Author: Victor Stinner <vstinner@redhat.com>
-    Date:   Thu Jun 13 01:30:17 2019 +0200
+Fix threading._shutdown() race condition
+----------------------------------------
 
-        bpo-36402: Fix threading._shutdown() race condition (GH-13948)
+Finally, I fixed the race condition in ``threading._shutdown()``,
+`commit 468e5fec <https://github.com/python/cpython/commit/468e5fec8a2f534f1685d59da3ca4fad425c38dd>`__::
 
-        Fix a race condition at Python shutdown when waiting for threads.
-        Wait until the Python thread state of all non-daemon threads get
-        deleted (join all non-daemon threads), rather than just wait until
-        Python threads complete.
+    bpo-36402: Fix threading._shutdown() race condition (GH-13948)
+
+    Fix a race condition at Python shutdown when waiting for threads.  Wait
+    until the Python thread state of all non-daemon threads get deleted
+    (join all non-daemon threads), rather than just wait until Python
+    threads complete.
 
 Note: This change introduced a regression (memory leak) which is not fixed yet:
 `bpo-37788 <https://bugs.python.org/issue37788>`_.
@@ -75,7 +92,7 @@ Forbid daemon threads in subinterpreters
 In June 2019, while working on `bpo-36402
 <https://bugs.python.org/issue36402>`_ fix, I find a reliable way with daemon
 threads to trigger a bug when a subinterpreter is finalized (even with
-bpo-36402 fix)::
+`bpo-36402 <https://bugs.python.org/issue36402>`__ fix)::
 
     Fatal Python error: Py_EndInterpreter: not the last thread
 
