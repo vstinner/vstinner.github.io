@@ -45,8 +45,8 @@ FreeBSD buildbot.
 In 2016, I simply closed the issue because I only saw it once in 4 months and
 **I didn't have access to FreeBSD to attempt to reproduce the crash**.
 
-Analysis of the race condition
-------------------------------
+Reproduce the race condition
+----------------------------
 
 In 2019, I had a FreeBSD VM to attempt to reproduce the bug locally.
 
@@ -68,9 +68,55 @@ subinterpreters::
     +        Py_FatalError("Py_EndInterpreter: not the last thread");
     +    }
 
+threading._shutdown() race condition
+------------------------------------
 
-Fix threading._shutdown() race condition
-----------------------------------------
+``threading._shutdown()`` uses ``threading.enumerate()`` which iterates on
+``threading._active`` dictionary.
+
+``threading.Thread`` registers itself into ``threading._active`` when the
+thread starts. It unregisters itself from ``threading._active`` when it
+completes.
+
+The problem is that the underlying native thread is still running and the
+Python thread state is not destroyed yet after the thread has been
+unregistered.
+
+``_thread._set_sentinel()`` creates a lock and registers a
+``tstate->on_delete`` callback to release this lock. It's called by
+``threading.Thread`` when the thread starts to set
+``threading.Thread._tstate_lock``.  This lock is used by
+``threading.Thread.join()`` method to wait until the thread completes.
+
+``_thread.start_new_thread()`` calls the C function ``t_bootstrap()`` which
+ends with::
+
+    tstate->interp->num_threads--;
+    PyThreadState_Clear(tstate);
+    PyThreadState_DeleteCurrent();
+    PyThread_exit_thread();
+
+When the native thread completes, ``_PyThreadState_DeleteCurrent()`` is called
+``tstate->on_delete()`` which releases ``threading.Thread._tstate_lock`` lock.
+
+The root issue is that:
+
+* ``threading._shutdown()`` rely on ``threading._alive`` dictionary
+* ``Py_EndInterpreter()`` rely on the interpreter linked list of Python thread
+  states: ``interp->tstate_head``.
+
+The lock on Python thread states and ``PyThreadState.on_delete callback`` were
+added in 2013 by **Antoine Pitrou** to Python 3.4 in `bpo-18808
+<https://bugs.python.org/issue18808>`_ with `commit 7b476993
+<https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1>`__::
+
+    Issue #18808: Thread.join() now waits for the underlying thread state
+    to be destroyed before returning. This prevents unpredictable aborts
+    in Py_EndInterpreter() when some non-daemon threads are still running.
+
+
+Fix threading._shutdown()
+-------------------------
 
 Finally, I fixed the race condition in ``threading._shutdown()``,
 `commit 468e5fec <https://github.com/python/cpython/commit/468e5fec8a2f534f1685d59da3ca4fad425c38dd>`__::
@@ -82,6 +128,19 @@ Finally, I fixed the race condition in ``threading._shutdown()``,
     (join all non-daemon threads), rather than just wait until Python
     threads complete.
 
+The fix is to modify ``threading._shutdown()`` to wait until the Python thread
+states of all threads get deleted, rather than calling the ``join()`` method of
+threads. The ``join()`` does not warranty that the Python thread state has been
+deleted.
+
+The Python finalization calls ``threading._shutdown()`` to wait until all
+threads complete. Only non-daemon threads are awaited: daemon threads can
+continue to run after ``threading._shutdown()``.
+
+``Py_EndInterpreter()`` requires that the Python thread states of all threads
+have been deleted. **What about daemon threads?** More about that in the next
+section ;-)
+
 Note: This change introduced a regression (memory leak) which is not fixed yet:
 `bpo-37788 <https://bugs.python.org/issue37788>`_.
 
@@ -90,39 +149,30 @@ Forbid daemon threads in subinterpreters
 ========================================
 
 In June 2019, while working on `bpo-36402
-<https://bugs.python.org/issue36402>`_ fix, I find a reliable way with daemon
-threads to trigger a bug when a subinterpreter is finalized (even with
-`bpo-36402 <https://bugs.python.org/issue36402>`__ fix)::
+<https://bugs.python.org/issue36402>`_ fix, I found a reliable way to trigger a
+bug with daemon threads when a subinterpreter is finalized (even after
+`bpo-36402 <https://bugs.python.org/issue36402>`__ has been fixed)::
 
     Fatal Python error: Py_EndInterpreter: not the last thread
 
-I report `bpo-37266 <https://bugs.python.org/issue37266>`_ to propose to forbid
-the creation of daemon threads in subinterpreters.
+I reported `bpo-37266 <https://bugs.python.org/issue37266>`_ to propose to
+forbid the creation of daemon threads in subinterpreters.
 
-Change::
+I fixed the issue with `commit 066e5b1a
+<https://github.com/python/cpython/commit/066e5b1a917ec2134e8997d2cadd815724314252>`__::
 
-    commit 066e5b1a917ec2134e8997d2cadd815724314252
-    Author: Victor Stinner <vstinner@redhat.com>
-    Date:   Fri Jun 14 18:55:22 2019 +0200
+    bpo-37266: Daemon threads are now denied in subinterpreters (GH-14049)
 
-        bpo-37266: Daemon threads are now denied in subinterpreters (GH-14049)
+    In a subinterpreter, spawning a daemon thread now raises an
+    exception. Daemon threads were never supported in subinterpreters.
+    Previously, the subinterpreter finalization crashed with a Pyton
+    fatal error if a daemon thread was still running.
 
-        In a subinterpreter, spawning a daemon thread now raises an
-        exception. Daemon threads were never supported in subinterpreters.
-        Previously, the subinterpreter finalization crashed with a Pyton
-        fatal error if a daemon thread was still running.
+The change adds this check to ``Thread.start()``::
 
-        * Add _thread._is_main_interpreter()
-        * threading.Thread.start() now raises RuntimeError if the thread is a
-          daemon thread and the method is called from a subinterpreter.
-        * The _thread module now uses Argument Clinic for the new function.
-        * Use textwrap.dedent() in test_threading.SubinterpThreadingTests
-
-XXX::
-
-        if self.daemon and not _is_main_interpreter():
-            raise RuntimeError("daemon thread are not supported "
-                               "in subinterpreters")
+    if self.daemon and not _is_main_interpreter():
+        raise RuntimeError("daemon thread are not supported "
+                           "in subinterpreters")
 
 I commented:
 
@@ -132,8 +182,8 @@ I commented:
 concurrent.futures <https://bugs.python.org/issue39812>`_ as a follow-up.
 
 In February 2020, when rebuilding Fedora Rawhide with Python 3.9, **Miro
-Hrončok** of my team notices that my change `broke the python-jep project
-<https://bugzilla.redhat.com/show_bug.cgi?id=1792062>`_. I `report the bug
+Hrončok** of my team noticed that my change `broke the python-jep project
+<https://bugzilla.redhat.com/show_bug.cgi?id=1792062>`_. I `reported the bug
 upstream <https://github.com/ninia/jep/issues/229>`_. The fix is to use regular
 threads rather than daemon threads (`commit
 <https://github.com/ninia/jep/commit/a31d461c6cacc96de68d68320eaa83e19a45d0cc>`__).
@@ -142,21 +192,32 @@ threads rather than daemon threads (`commit
 Daemon threads strike back
 ==========================
 
-In March 2019, **Remy Noel** reports that a multithreaded Python application
+In March 2019, **Remy Noel** reports in `bpo-36469
+<https://bugs.python.org/issue36469>`_ that a multithreaded Python application
 using 20 daemon threads hangs randomly at exit with Python 3.5:
 
     The bug happens about once every two weeks on a script that is fired more
     than 10K times a day.
 
-**Eric Snow** investigates.
+**Eric Snow** analyzed the bug and understood that it is related to daemon
+threads and Python finalization.
 
-XXX fix XXX
+He created `bpo-36475 <https://bugs.python.org/issue36475>`__:
+"PyEval_AcquireLock() and PyEval_AcquireThread() do not handle runtime
+finalization properly".
 
+Daemon threads keep running until they finish or until finalization starts.
+For the latter, there is a check right after the thread acquires the GIL which
+causes the thread to exit if runtime finalization has started. [1]  However,
+there are functions in the C-API that facilitate acquiring the GIL, but do not
+cause the thread to exit during finalization:
 
-Second fix
-==========
+  PyEval_AcquireLock()
+  PyEval_AcquireThread()
 
-bpo-36475
+Daemon threads that acquire the GIL through these can cause a deadlock during
+finalization.  (See issue #36469.)  They should probably be updated to match
+what PyEval_RestoreThread() does.
 
 Python 3.8::
 
