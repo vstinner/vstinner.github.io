@@ -8,244 +8,65 @@ Daemon threads and the Python finalization in Python 3.9
 :slug: daemon-threads-python-finalization-python39
 :authors: Victor Stinner
 
-
 My previous article `Daemon threads and the Python finalization in Python 3.2 and 3.3
 <{filename}/daemon-threads-python-finalization-python32.rst>`_ introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.
 
-Here we will see new issues arisen by the work on isolating subinterpreters
-done in Python 3.9.
+This article is about new issues arisen by the work on isolating
+subinterpreters done in Python 3.9.
 
-Race condition in Python finalization
-=====================================
+PyEval_AcquireThread() exits if Python is finalizing
+====================================================
 
-Buildbots and the bug
----------------------
-
-In March 2019, I noticed that ``test_threading.test_threads_join_2()`` was
-killed by SIGABRT on the FreeBSD CURRENT buildbot, `bpo-36402
-<https://bugs.python.org/issue36402>`_::
-
-    Fatal Python error: Py_EndInterpreter: not the last thread
-
-The test **failed** randomly on buildbots when tests were **run in parallel**.
-Then test_threading **passed** when it was **re-run sequentially**.  Such
-failure was silently ignored, since the build was seen overall as a success.
-
-The test ``test_threading.test_threads_join_2()`` was added by `commit 7b476993
-<https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1>`__
-in 2013.
-
-I already saw the bug in 2016 (`bpo-27791
-<https://bugs.python.org/issue27791>`_, and `bpo-28084
-<https://bugs.python.org/issue28084>`_ reported by Christian Heimes) on a
-FreeBSD buildbot.
-
-In 2016, I simply closed the issue because I only saw it once in 4 months and
-**I didn't have access to FreeBSD to attempt to reproduce the crash**.
-
-Reproduce the race condition
-----------------------------
-
-In 2019, I had a FreeBSD VM to attempt to reproduce the bug locally.
-
-In June 2019, I found a reliable way to reproduce the bug by `adding random
-sleeps to the test <https://github.com/python/cpython/pull/13889/files>`_. With
-this patch, I was also able to reproduce the bug on Linux. **I'm way more
-comfortable to debug an issue on Linux** with my favorite debugging tools.
-
-I identified a race condition in the Python finalization. I also understood
-that the bug was not specific to subinterpreters:
-
-    The test shows the bug using subinterpreters (Py_EndInterpreter), but
-    **the bug also exists in Py_Finalize()** which has the same race condition.
-
-I wrote a patch for ``Py_Finalize()`` to help me to reproduce the bug without
-subinterpreters::
-
-    +    if (tstate != interp->tstate_head || tstate->next != NULL) {
-    +        Py_FatalError("Py_EndInterpreter: not the last thread");
-    +    }
-
-threading._shutdown() race condition
-------------------------------------
-
-``threading._shutdown()`` uses ``threading.enumerate()`` which iterates on
-``threading._active`` dictionary.
-
-``threading.Thread`` registers itself into ``threading._active`` when the
-thread starts. It unregisters itself from ``threading._active`` when it
-completes.
-
-The problem is that the underlying native thread is still running and the
-Python thread state is not destroyed yet after the thread has been
-unregistered.
-
-``_thread._set_sentinel()`` creates a lock and registers a
-``tstate->on_delete`` callback to release this lock. It's called by
-``threading.Thread`` when the thread starts to set
-``threading.Thread._tstate_lock``.  This lock is used by
-``threading.Thread.join()`` method to wait until the thread completes.
-
-``_thread.start_new_thread()`` calls the C function ``t_bootstrap()`` which
-ends with::
-
-    tstate->interp->num_threads--;
-    PyThreadState_Clear(tstate);
-    PyThreadState_DeleteCurrent();
-    PyThread_exit_thread();
-
-When the native thread completes, ``_PyThreadState_DeleteCurrent()`` is called
-``tstate->on_delete()`` which releases ``threading.Thread._tstate_lock`` lock.
-
-The root issue is that:
-
-* ``threading._shutdown()`` rely on ``threading._alive`` dictionary
-* ``Py_EndInterpreter()`` rely on the interpreter linked list of Python thread
-  states: ``interp->tstate_head``.
-
-The lock on Python thread states and ``PyThreadState.on_delete callback`` were
-added in 2013 by **Antoine Pitrou** to Python 3.4 in `bpo-18808
-<https://bugs.python.org/issue18808>`_ with `commit 7b476993
-<https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1>`__::
-
-    Issue #18808: Thread.join() now waits for the underlying thread state
-    to be destroyed before returning. This prevents unpredictable aborts
-    in Py_EndInterpreter() when some non-daemon threads are still running.
-
-
-Fix threading._shutdown()
--------------------------
-
-Finally, I fixed the race condition in ``threading._shutdown()``,
-`commit 468e5fec <https://github.com/python/cpython/commit/468e5fec8a2f534f1685d59da3ca4fad425c38dd>`__::
-
-    bpo-36402: Fix threading._shutdown() race condition (GH-13948)
-
-    Fix a race condition at Python shutdown when waiting for threads.  Wait
-    until the Python thread state of all non-daemon threads get deleted
-    (join all non-daemon threads), rather than just wait until Python
-    threads complete.
-
-The fix is to modify ``threading._shutdown()`` to wait until the Python thread
-states of all threads get deleted, rather than calling the ``join()`` method of
-threads. The ``join()`` does not warranty that the Python thread state has been
-deleted.
-
-The Python finalization calls ``threading._shutdown()`` to wait until all
-threads complete. Only non-daemon threads are awaited: daemon threads can
-continue to run after ``threading._shutdown()``.
-
-``Py_EndInterpreter()`` requires that the Python thread states of all threads
-have been deleted. **What about daemon threads?** More about that in the next
-section ;-)
-
-Note: This change introduced a regression (memory leak) which is not fixed yet:
-`bpo-37788 <https://bugs.python.org/issue37788>`_.
-
-
-Forbid daemon threads in subinterpreters
-========================================
-
-In June 2019, while working on `bpo-36402
-<https://bugs.python.org/issue36402>`_ fix, I found a reliable way to trigger a
-bug with daemon threads when a subinterpreter is finalized (even after
-`bpo-36402 <https://bugs.python.org/issue36402>`__ has been fixed)::
-
-    Fatal Python error: Py_EndInterpreter: not the last thread
-
-I reported `bpo-37266 <https://bugs.python.org/issue37266>`_ to propose to
-forbid the creation of daemon threads in subinterpreters.
-
-I fixed the issue with `commit 066e5b1a
-<https://github.com/python/cpython/commit/066e5b1a917ec2134e8997d2cadd815724314252>`__::
-
-    bpo-37266: Daemon threads are now denied in subinterpreters (GH-14049)
-
-    In a subinterpreter, spawning a daemon thread now raises an
-    exception. Daemon threads were never supported in subinterpreters.
-    Previously, the subinterpreter finalization crashed with a Pyton
-    fatal error if a daemon thread was still running.
-
-The change adds this check to ``Thread.start()``::
-
-    if self.daemon and not _is_main_interpreter():
-        raise RuntimeError("daemon thread are not supported "
-                           "in subinterpreters")
-
-I commented:
-
-    **Daemon threads must die.** That's a first step towards their death!
-
-**Antoine Pitrou** created `bpo-39812: Avoid daemon threads in
-concurrent.futures <https://bugs.python.org/issue39812>`_ as a follow-up.
-
-In February 2020, when rebuilding Fedora Rawhide with Python 3.9, **Miro
-Hrončok** of my team noticed that my change `broke the python-jep project
-<https://bugzilla.redhat.com/show_bug.cgi?id=1792062>`_. I `reported the bug
-upstream <https://github.com/ninia/jep/issues/229>`_. The fix is to use regular
-threads rather than daemon threads (`commit
-<https://github.com/ninia/jep/commit/a31d461c6cacc96de68d68320eaa83e19a45d0cc>`__).
-
-
-Daemon threads strike back
-==========================
-
-In March 2019, **Remy Noel** reports in `bpo-36469
-<https://bugs.python.org/issue36469>`_ that a multithreaded Python application
+In March 2019, **Remy Noel** created `bpo-36469
+<https://bugs.python.org/issue36469>`_: a multithreaded Python application
 using 20 daemon threads hangs randomly at exit with Python 3.5:
 
     The bug happens about once every two weeks on a script that is fired more
     than 10K times a day.
 
 **Eric Snow** analyzed the bug and understood that it is related to daemon
-threads and Python finalization.
+threads and Python finalization. He identified that ``PyEval_AcquireLock()``
+and ``PyEval_AcquireThread()`` function take the GIL but don't exit the thread
+if Python is finalizing.
 
-He created `bpo-36475 <https://bugs.python.org/issue36475>`__:
-"PyEval_AcquireLock() and PyEval_AcquireThread() do not handle runtime
-finalization properly".
+When Python is finalizing and a daemon thread takes the GIL, Python can hang
+randomly.
 
-Daemon threads keep running until they finish or until finalization starts.
-For the latter, there is a check right after the thread acquires the GIL which
-causes the thread to exit if runtime finalization has started. [1]  However,
-there are functions in the C-API that facilitate acquiring the GIL, but do not
-cause the thread to exit during finalization:
+Eric created `bpo-36475 <https://bugs.python.org/issue36475>`__ to propose to
+modify ``PyEval_AcquireLock()`` and ``PyEval_AcquireThread()`` to also exit
+the thread in this case. In April 2019, **Joannah Nanjekye** fixed the issue
+with `commit f781d202
+<https://github.com/python/cpython/commit/f781d202a2382731b43bade845a58d28a02e9ea1>`__::
 
-  PyEval_AcquireLock()
-  PyEval_AcquireThread()
+    bpo-36475: Finalize PyEval_AcquireLock() and PyEval_AcquireThread() properly (GH-12667)
 
-Daemon threads that acquire the GIL through these can cause a deadlock during
-finalization.  (See issue #36469.)  They should probably be updated to match
-what PyEval_RestoreThread() does.
+    PyEval_AcquireLock() and PyEval_AcquireThread() now
+    terminate the current thread if called while the interpreter is
+    finalizing, making them consistent with PyEval_RestoreThread(),
+    Py_END_ALLOW_THREADS, and PyGILState_Ensure().
 
-Python 3.8::
+The fix adds ``exit_thread_if_finalizing()`` function which exit the thread if
+Python is finalizing. This function is called after each to ``take_gil()``.
 
-    commit f781d202a2382731b43bade845a58d28a02e9ea1
-    Author: Joannah Nanjekye <33177550+nanjekyejoannah@users.noreply.github.com>
-    Date:   Mon Apr 29 04:38:45 2019 -0400
+The fix is very similar to ``PyEval_RestoreThread()`` fix made in 2013 (`commit
+0d5e52d3
+<https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1>`__)
+to fix `bpo-1856 <https://bugs.python.org/issue1856#msg60014>`_ (Python crash
+involving daemon threads during Python exit).
 
-        bpo-36475: Finalize PyEval_AcquireLock() and PyEval_AcquireThread() properly (GH-12667)
-
-        PyEval_AcquireLock() and PyEval_AcquireThread() now
-        terminate the current thread if called while the interpreter is
-        finalizing, making them consistent with PyEval_RestoreThread(),
-        Py_END_ALLOW_THREADS, and PyGILState_Ensure().
 
 Third fix
 =========
 
-December 2019, I report `bpo-39088 <https://bugs.python.org/issue39088>`_:
-test_concurrent_futures crashed with python.core core dump on AMD64 FreeBSD
-Shared 3.x.
+Crash on FreeBSD
+----------------
 
-Sometimes, test_multiprocessing_spawn does crash in PyEval_RestoreThread() on
-FreeBSD with a coredump. This issue should be the root cause of bpo-39088:
-"test_concurrent_futures crashed with python.core core dump on AMD64 FreeBSD
-Shared 3.x", where the second comment is a test_multiprocessing_spawn failure
-with "...  After:  ['python.core'] ..."
-
-March 2019, I succeed to reproduce the bug on FreeBSD and debug it in gdb::
+In December 2019, I reported `bpo-39088 <https://bugs.python.org/issue39088>`_:
+test_concurrent_futures crashed with ``python.core core`` dump on AMD64 FreeBSD
+Shared 3.x. In March 2019, I succeeded to reproduce the bug on FreeBSD and was
+able to debug the coredump in gdb::
 
     (gdb) frame
     #0  0x00000000003b518c in PyEval_RestoreThread (tstate=0x801f23790) at Python/ceval.c:387
@@ -254,15 +75,13 @@ March 2019, I succeed to reproduce the bug on FreeBSD and debug it in gdb::
     (gdb) p tstate->interp
     $3 = (PyInterpreterState *) 0xdddddddddddddddd
 
-The Python thread state was freed: its memory was filled with ``0xDD`` byte
-("dead byte") to detect when freed memory is read.
+The Python thread state (``tstate``) was freed. In debug mode, the "free()"
+function of the Python memory allocator fills freed memory with ``0xDD`` byte
+pattern ("dead byte") to detect usage of freed memory.
 
-The problem is that Python already freed the memory of all PyThreadState
-structures, whereas PyEval_RestoreThread(tstate) dereferences tstate to get the
-_PyRuntimeState structure.
-
-A daemon thread crash in ``PyEval_RestoreThread()``, while the main thread is
-exiting the process after ``Py_Finalize()`` has been called.
+The problem is that Python finalization already freed the memory of all
+PyThreadState structures, when ``PyEval_RestoreThread(tstate)`` is called by a
+daemon thread and dereferences tstate to get the ``_PyRuntimeState`` structure.
 
 This bug is a regression caused by my change:
 `Add PyInterpreterState.runtime field
@@ -281,131 +100,103 @@ with::
         ...
     }
 
-I create `bpo-39877 <https://bugs.python.org/issue39877>`_ to investigate this
+Fix PyEval_RestoreThread() for daemon threads
+---------------------------------------------
+
+I created `bpo-39877 <https://bugs.python.org/issue39877>`__ to investigate this
 bug.
 
-I write a patch (add ``sleep(1);`` at ``Py_RunMain()`` exit) and a script
-(spawn daemon threads with a random sleep between 0.0 and 1.0 second) to
-reproduce the bug on Linux.
+I was able to reproduce the crash on Linux with a script which spawns daemon
+threads which sleep between 0.0 and 1.0 second and by adding ``sleep(1);`` at
+``Py_RunMain()`` exit.
 
-Prepare fix 1::
+I wrote a ``PyEval_RestoreThread()`` fix which access to
+``_PyRuntimeState.finalizing`` without the GIL.  **Antoine Pitrou** asked me to
+convert this variable to an atomic variable to avoid inconsistencies in
+parallel accesses. In March 2020, I pushed `commit 7b3c252d
+<https://github.com/python/cpython/commit/7b3c252dc7f44d4bdc4c7c82d225ebd09c78f520>`__::
 
-    commit 7b3c252dc7f44d4bdc4c7c82d225ebd09c78f520
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Sat Mar 7 00:24:23 2020 +0100
+    bpo-39877: _PyRuntimeState.finalizing becomes atomic (GH-18816)
 
-        bpo-39877: _PyRuntimeState.finalizing becomes atomic (GH-18816)
+    Convert _PyRuntimeState.finalizing field to an atomic variable:
 
-        Convert _PyRuntimeState.finalizing field to an atomic variable:
+    * Rename it to _finalizing
+    * Change its type to _Py_atomic_address
+    * Add _PyRuntimeState_GetFinalizing() and _PyRuntimeState_SetFinalizing()
+      functions
+    * Remove _Py_CURRENTLY_FINALIZING() function: replace it with testing
+      directly _PyRuntimeState_GetFinalizing() value
 
-        * Rename it to _finalizing
-        * Change its type to _Py_atomic_address
-        * Add _PyRuntimeState_GetFinalizing() and _PyRuntimeState_SetFinalizing()
-          functions
-        * Remove _Py_CURRENTLY_FINALIZING() function: replace it with testing
-          directly _PyRuntimeState_GetFinalizing() value
+    Convert _PyRuntimeState_GetThreadState() to static inline function.
 
-        Convert _PyRuntimeState_GetThreadState() to static inline function.
+The day after, I pushed `commit eb4e2ae2
+<https://github.com/python/cpython/commit/eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e>`__::
 
-Fix 1::
+    bpo-39877: Fix PyEval_RestoreThread() for daemon threads (GH-18811)
 
-    commit eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Sun Mar 8 11:57:45 2020 +0100
+    * exit_thread_if_finalizing() does now access directly _PyRuntime
+      variable, rather than using tstate->interp->runtime since tstate
+      can be a dangling pointer after Py_Finalize() has been called.
+    * exit_thread_if_finalizing() is now called *before* calling
+      take_gil(). _PyRuntime.finalizing is an atomic variable,
+      we don't need to hold the GIL to access it.
 
-        bpo-39877: Fix PyEval_RestoreThread() for daemon threads (GH-18811)
+``exit_thread_if_finalizing()`` is now called **before** ``take_gil()`` to
+ensure that ``take_gil()`` cannot be called with an invalid Python thread state
+(``tstate``).
 
-        * exit_thread_if_finalizing() does now access directly _PyRuntime
-          variable, rather than using tstate->interp->runtime since tstate
-          can be a dangling pointer after Py_Finalize() has been called.
-        * exit_thread_if_finalizing() is now called *before* calling
-          take_gil(). _PyRuntime.finalizing is an atomic variable,
-          we don't need to hold the GIL to access it.
-        * Add ensure_tstate_not_null() function to check that tstate is not
-          NULL at runtime. Check tstate earlier. take_gil() does not longer
-          check if tstate is NULL.
-
-        Cleanup:
-
-        * PyEval_RestoreThread() no longer saves/restores errno: it's already
-          done inside take_gil().
-        * PyEval_AcquireLock(), PyEval_AcquireThread(),
-          PyEval_RestoreThread() and _PyEval_EvalFrameDefault() now check if
-          tstate is valid with the new is_tstate_valid() function which uses
-          _PyMem_IsPtrFreed().
-
-I comment:
+I commented:
 
     Ok, it should now be fixed.
 
-While trying to fix bpo-19466, work on PR 18848, I noticed that my commit
-eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e introduced a race condition :-(
 
-The problem is that while the main thread is executing Py_FinalizeEx(), daemon
-threads can be waiting in take_gil(). Py_FinalizeEx() calls
-_PyRuntimeState_SetFinalizing(runtime, tstate). Later, Py_FinalizeEx() executes
-arbitrary Python code in _PyImport_Cleanup(tstate) which releases the GIL to
-give a chance to other threads to execute: (...)
+Clear Python thread states earlier: failed attempt in 2013
+==========================================================
 
-At this point, one daemon thread manages to get the GIL: take_gil()
-completes... even if runtime->finalizing is not NULL. I expected that
-exit_thread_if_finalizing() would exit the thread, but
-exit_thread_if_finalizing() is now called *after* take_gil().
+In 2013, I opened `bpo-19466 <https://bugs.python.org/issue19466>`_ to clear
+earlier the Python thread state of threads during Python finalization. My
+intent was to get ``ResourceWarning`` warnings in daemon threads as well.
+In November 2013, I pushed `commit 45956b9a
+<https://github.com/python/cpython/commit/45956b9a33af634a2919ade64c1dd223ab2d5235>`__::
 
-Prepare::
+    Close #19466: Clear the frames of daemon threads earlier during the Python
+    shutdown to call objects destructors. So "unclosed file" resource warnings
+    are now corretly emitted for daemon threads.
 
-    commit 3225b9f9739cd4bcca372d0fa939cea1ae5c6402
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Mon Mar 9 20:56:57 2020 +0100
-
-        bpo-39877: Remove useless PyEval_InitThreads() calls (GH-18883)
-
-        Py_Initialize() calls PyEval_InitThreads() since Python 3.7. It's no
-        longer needed to call it explicitly.
-
-Prepare::
-
-    commit 111e4ee52a1739e7c7221adde2fc364ef4954af2
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Mon Mar 9 21:24:14 2020 +0100
-
-        bpo-39877: Py_Initialize() pass tstate to PyEval_InitThreads() (GH-18884)
+Later, I discovered a crash in the the garbage collector while trying to
+reproduce a race condition in asyncio: I created `bpo-20526
+<https://bugs.python.org/issue20526>`_. Sadly, this bug was trigger by my
+previous change. I decided that it's safer to revert my change.
 
 
-Prepare::
+take_gil() also exits thread at exit point
+==========================================
 
-    commit 85f5a69ae1541271286bb0f0e0303aabf792dd5c
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Mon Mar 9 22:12:04 2020 +0100
+After fixing ``PyEval_RestoreThread()``, I decided to attempt again to fix
+`bpo-19466 <https://bugs.python.org/issue19466>`_. Sadly, I discovered that my
+``PyEval_RestoreThread()`` fix **introduced a race condition**!
 
-        bpo-39877: Refactor take_gil() function (GH-18885)
+While the main thread finalizes Python, daemon threads can be waiting for the
+GIL: they block in ``take_gil()`` after, they already checked
+``exit_thread_if_finalizing()``. When the main thread releases the GIL during
+finalization, a daemon thread take the GIL instead of exiting.
 
-        * Remove ceval parameter of take_gil(): get it from tstate.
-        * Move exit_thread_if_finalizing() call inside take_gil(). Replace
-          exit_thread_if_finalizing() with tstate_must_exit(): the caller is
-          now responsible to call PyThread_exit_thread().
-        * Move is_tstate_valid() assertion inside take_gil(). Remove
-          is_tstate_valid(): inline code into take_gil().
-        * Move gil_created() assertion inside take_gil().
+The solution is to call ``exit_thread_if_finalizing()`` twice in
+``take_gil()``: at entry point **and** at exit point.
 
-Fix 2::
+In March 2020, I pushed `commit 9229eeee <https://github.com/python/cpython/commit/9229eeee105f19705f72e553cf066751ac47c7b7>`__::
 
-    commit 9229eeee105f19705f72e553cf066751ac47c7b7
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Mon Mar 9 23:10:53 2020 +0100
+    bpo-39877: take_gil() checks tstate_must_exit() twice (GH-18890)
 
-        bpo-39877: take_gil() checks tstate_must_exit() twice (GH-18890)
+    take_gil() now also checks tstate_must_exit() after acquiring
+    the GIL: exit the thread if Py_Finalize() has been called.
 
-        take_gil() now also checks tstate_must_exit() after acquiring
-        the GIL: exit the thread if Py_Finalize() has been called.
-
-
-Funny/not funny, bpo-36818 added a similar bug with commit
-396e0a8d9dc65453cb9d53500d0a620602656cfe in June 2019: bpo-37135. I reverted
-the change to fix the issue.
-
-Hopefully, it should now be fixed and the rationale for accessing directly
-_PyRuntime should now be better documented.
+Funny/not funny, in June 2019, Eric Snow added a very similar bug in `bpo-36818
+<https://bugs.python.org/issue36818>`_ with `commit 396e0a8d
+<https://github.com/python/cpython/commit/396e0a8d9dc65453cb9d53500d0a620602656cfe>`__:
+`bpo-37135 <https://bugs.python.org/issue37135>`_ (test_multiprocessing_spawn
+segfault on FreeBSD). I reverted his change to fix the issue. At this time, I
+didn't have the bandwidth to investigate the root cause.
 
 I comment:
 
@@ -422,51 +213,36 @@ I comment:
     after bpo-19466 has been fixed (clear Python thread states of daemon
     threads earlier).
 
-Cleanup::
+More bugs
+=========
 
-    commit 175a704abfcb3400aaeb66d4f098d92ca7e30892
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Tue Mar 10 00:37:48 2020 +0100
+While working on move pending calls from _PyRuntime to PyInterpreterState,
+`bpo-3998 <https://bugs.python.org/issue39984>`_, I had another bug. At March 18, 2020, I pushed
+yet another ``take_gil()`` fix, `commit 29356e03
+<https://github.com/python/cpython/commit/29356e03d4f8800b04f799efe7a10e3ce8b16f61>`__::
 
-        bpo-39877: PyGILState_Ensure() don't call PyEval_InitThreads() (GH-18891)
+    bpo-39877: Fix take_gil() for daemon threads (GH-19054)
 
-        PyGILState_Ensure() doesn't call PyEval_InitThreads() anymore when a
-        new Python thread state is created. The GIL is created by
-        Py_Initialize() since Python 3.7, it's not needed to call
-        PyEval_InitThreads() explicitly.
+    bpo-39877, bpo-39984: If the thread must exit, don't access tstate to
+    prevent a potential crash: tstate memory has been freed.
 
-        Add an assertion to ensure that the GIL is already created.
+And while working on the inefficient signal handling in multithreaded
+applications (`bpo-40010 <https://bugs.python.org/issue40010>`_), I discovered
+that the previous fix was not enough! At March 19, 2020, I had to push yet another
+``take_gil()`` fix, `commit a36adfa6
+<https://github.com/python/cpython/commit/a36adfa6bbf5e612a4d4639124502135690899b8>`__::
 
-I comment:
+    bpo-39877: 4th take_gil() fix for daemon threads (GH-19080)
 
-    The initial issue is now fixed. I close the issue.
+    bpo-39877, bpo-40010: Add a third tstate_must_exit() check in
+    take_gil() to prevent using tstate which has been freed.
 
-    take_gil() only checks if the thread must exit once the GIL is acquired.
-    Maybe it would be able to exit earlier, but I took the safe approach. If we
-    must exit, drop the GIL and then exit. That's basically Python 3.8
-    behavior.
+I can only hope that this fix should be the last one to fix all `bpo-39877
+<https://bugs.python.org/issue39877>`__ corner cases with daemon threads in
+``take_gil()``!
 
-But I pushed two more fixes!
 
-While working on https://bugs.python.org/issue39984 I write fix 3::
+Conclusion
+==========
 
-    commit 29356e03d4f8800b04f799efe7a10e3ce8b16f61
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Wed Mar 18 03:04:33 2020 +0100
-
-        bpo-39877: Fix take_gil() for daemon threads (GH-19054)
-
-        bpo-39877, bpo-39984: If the thread must exit, don't access tstate to
-        prevent a potential crash: tstate memory has been freed.
-
-While working on https://bugs.python.org/issue40010 I write fix 4::
-
-    commit a36adfa6bbf5e612a4d4639124502135690899b8
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Thu Mar 19 19:48:25 2020 +0100
-
-        bpo-39877: 4th take_gil() fix for daemon threads (GH-19080)
-
-        bpo-39877, bpo-40010: Add a third tstate_must_exit() check in
-        take_gil() to prevent using tstate which has been freed.
-
+xxx
