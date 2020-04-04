@@ -20,7 +20,192 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/threading-shutdown-race-condition.html">Threading shutdown race condition</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-04-03T20:00:00+02:00">
+                Published: ven. 03 avril 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>This article is about a race condition in threading shutdown that I fixed in
+Python 3.9 in March 2019. I also forbid spawning daemon threads in
+subinterpreters to fix another related bug.</p>
+<a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"><img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /></a>
+<p>Drawing: <a class="reference external" href="https://twitter.com/neeljulien/status/1240292383369150464">#CoronaMaison by Julien Neel</a>.</p>
+<div class="section" id="race-condition-in-threading-shutdown">
+<h2>Race condition in threading shutdown</h2>
+<div class="section" id="random-test-failure-noticed-on-freebsd-buildbot">
+<h3>Random test failure noticed on FreeBSD buildbot</h3>
+<p>In March 2019, I noticed that <tt class="docutils literal">test_threading.test_threads_join_2()</tt> was
+killed by SIGABRT on the FreeBSD CURRENT buildbot, <a class="reference external" href="https://bugs.python.org/issue36402">bpo-36402</a>:</p>
+<pre class="literal-block">
+Fatal Python error: Py_EndInterpreter: not the last thread
+</pre>
+<p>The <tt class="docutils literal">test_threads_join_2()</tt> test <strong>failed randomly</strong> on buildbots when tests
+were <strong>run in parallel</strong>, but test_threading <strong>passed</strong> when it was <strong>re-run
+sequentially</strong>.  Such failure was silently ignored, since the build was seen
+overall as a success.</p>
+<p>The test <tt class="docutils literal">test_threading.test_threads_join_2()</tt> was added by in 2013 <a class="reference external" href="https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1">commit
+7b476993</a>.</p>
+<p>In 2016, I already reported the same test failure: <a class="reference external" href="https://bugs.python.org/issue27791">bpo-27791</a> (same test, also on FreeBSD). And
+Christian Heimes reported a similar issue: <a class="reference external" href="https://bugs.python.org/issue28084">bpo-28084</a>. I simply closed these issues because I
+only saw the failure once in 4 months and <strong>I didn't have access to FreeBSD to
+attempt to reproduce the crash</strong>.</p>
+</div>
+<div class="section" id="reproduce-the-race-condition">
+<h3>Reproduce the race condition</h3>
+<p>In 2019, I had a FreeBSD VM to attempt to reproduce the bug locally.</p>
+<p>In June 2019, I found a reliable way to reproduce the bug by <a class="reference external" href="https://github.com/python/cpython/pull/13889/files">adding random
+sleeps to the test</a>. With
+this patch, I was also able to reproduce the bug on Linux. <strong>I am way more
+comfortable to debug an issue on Linux</strong> with my favorite debugging tools!</p>
+<p>I identified a race condition in the Python finalization. I also understood
+that the bug was not specific to subinterpreters:</p>
+<blockquote>
+The test shows the bug using subinterpreters (Py_EndInterpreter), but
+<strong>the bug also exists in Py_Finalize()</strong> which has the same race condition.</blockquote>
+<p>I wrote a patch for <tt class="docutils literal">Py_Finalize()</tt> to help me to reproduce the bug without
+subinterpreters:</p>
+<pre class="literal-block">
++    if (tstate != interp-&gt;tstate_head || tstate-&gt;next != NULL) {
++        Py_FatalError(&quot;Py_EndInterpreter: not the last thread&quot;);
++    }
+</pre>
+</div>
+<div class="section" id="id1">
+<h3>threading._shutdown() race condition</h3>
+<p><tt class="docutils literal">threading._shutdown()</tt> uses <tt class="docutils literal">threading.enumerate()</tt> which iterates on
+<tt class="docutils literal">threading._active</tt> dictionary.</p>
+<p><tt class="docutils literal">threading.Thread</tt> registers itself into <tt class="docutils literal">threading._active</tt> when the
+thread starts. It unregisters itself from <tt class="docutils literal">threading._active</tt> when it
+completes.</p>
+<p>The bug occurs when the thread is unregistered whereas the underlying native
+thread is still running and <strong>the Python thread state is not deleted yet</strong>.</p>
+<p><tt class="docutils literal">_thread._set_sentinel()</tt> creates a lock and registers a
+<tt class="docutils literal"><span class="pre">tstate-&gt;on_delete</span></tt> callback to release this lock. It's called by
+<tt class="docutils literal">threading.Thread</tt> when the thread starts to set
+<tt class="docutils literal">threading.Thread._tstate_lock</tt>.  This lock is used by
+<tt class="docutils literal">threading.Thread.join()</tt> method to wait until the thread completes.</p>
+<p><tt class="docutils literal">_thread.start_new_thread()</tt> calls the C function <tt class="docutils literal">t_bootstrap()</tt> which
+ends with:</p>
+<pre class="literal-block">
+tstate-&gt;interp-&gt;num_threads--;
+PyThreadState_Clear(tstate);
+PyThreadState_DeleteCurrent();
+PyThread_exit_thread();
+</pre>
+<p>When the native thread completes, <tt class="docutils literal">_PyThreadState_DeleteCurrent()</tt> is called:
+it calls <tt class="docutils literal"><span class="pre">tstate-&gt;on_delete()</span></tt> callback which releases
+<tt class="docutils literal">threading.Thread._tstate_lock</tt> lock.</p>
+<p>The root issue is that:</p>
+<ul class="simple">
+<li><tt class="docutils literal">threading._shutdown()</tt> rely on <tt class="docutils literal">threading._alive</tt> dictionary</li>
+<li><tt class="docutils literal">Py_EndInterpreter()</tt> rely on the interpreter linked list of Python thread
+states of the interpreter (<tt class="docutils literal"><span class="pre">interp-&gt;tstate_head</span></tt>).</li>
+</ul>
+<p>The lock on Python thread states (<tt class="docutils literal">threading.Thread._tstate_lock</tt>) and
+<tt class="docutils literal">PyThreadState.on_delete</tt> callback were added in 2013 by <strong>Antoine Pitrou</strong>
+to Python 3.4, <a class="reference external" href="https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1">commit 7b476993</a>
+of <a class="reference external" href="https://bugs.python.org/issue18808">bpo-18808</a>:</p>
+<pre class="literal-block">
+Issue #18808: Thread.join() now waits for the underlying thread state
+to be destroyed before returning. This prevents unpredictable aborts
+in Py_EndInterpreter() when some non-daemon threads are still running.
+</pre>
+</div>
+<div class="section" id="fix-threading-shutdown">
+<h3>Fix threading._shutdown()</h3>
+<p>Finally in June 2019, I fixed the race condition in <tt class="docutils literal">threading._shutdown()</tt>
+with <a class="reference external" href="https://github.com/python/cpython/commit/468e5fec8a2f534f1685d59da3ca4fad425c38dd">commit 468e5fec</a>:</p>
+<pre class="literal-block">
+bpo-36402: Fix threading._shutdown() race condition (GH-13948)
+
+Fix a race condition at Python shutdown when waiting for threads.  Wait
+until the Python thread state of all non-daemon threads get deleted
+(join all non-daemon threads), rather than just wait until Python
+threads complete.
+</pre>
+<p>The fix is to modify <tt class="docutils literal">threading._shutdown()</tt> to wait until the Python thread
+state of all non-daemon threads get deleted, rather than calling the <tt class="docutils literal">join()</tt>
+method of all non-daemon threads. The <tt class="docutils literal">join()</tt> does not ensure that the
+Python thread state is deleted.</p>
+<p>The Python finalization calls <tt class="docutils literal">threading._shutdown()</tt> to wait until all
+threads complete. Only non-daemon threads are awaited: daemon threads can
+continue to run after <tt class="docutils literal">threading._shutdown()</tt>.</p>
+<p><tt class="docutils literal">Py_EndInterpreter()</tt> requires that the Python thread states of all threads
+have been deleted. <strong>What about daemon threads?</strong> More about that in the next
+section ;-)</p>
+<p>Note: This change introduced a regression (memory leak) which is not fixed yet:
+<a class="reference external" href="https://bugs.python.org/issue37788">bpo-37788</a>.</p>
+</div>
+</div>
+<div class="section" id="forbid-daemon-threads-in-subinterpreters">
+<h2>Forbid daemon threads in subinterpreters</h2>
+<p>In June 2019, while fixing the threading shutdown, I found a reliable way to
+trigger a bug with daemon threads when a subinterpreter is finalized:</p>
+<pre class="literal-block">
+Fatal Python error: Py_EndInterpreter: not the last thread
+</pre>
+<p>By design, daemon threads can run after a Python interpreter is finalized,
+whereas <tt class="docutils literal">Py_EndInterpreter()</tt> requires that all threads completed.</p>
+<p>I reported <a class="reference external" href="https://bugs.python.org/issue37266">bpo-37266</a> to propose to
+forbid the creation of daemon threads in subinterpreters. I fixed the issue
+with <a class="reference external" href="https://github.com/python/cpython/commit/066e5b1a917ec2134e8997d2cadd815724314252">commit 066e5b1a</a>:</p>
+<pre class="literal-block">
+bpo-37266: Daemon threads are now denied in subinterpreters (GH-14049)
+
+In a subinterpreter, spawning a daemon thread now raises an
+exception. Daemon threads were never supported in subinterpreters.
+Previously, the subinterpreter finalization crashed with a Pyton
+fatal error if a daemon thread was still running.
+</pre>
+<p>The change adds this check to <tt class="docutils literal">Thread.start()</tt>:</p>
+<pre class="literal-block">
+if self.daemon and not _is_main_interpreter():
+    raise RuntimeError(&quot;daemon thread are not supported &quot;
+                       &quot;in subinterpreters&quot;)
+</pre>
+<p>I commented:</p>
+<blockquote>
+<strong>Daemon threads must die.</strong> That's a first step towards their death!</blockquote>
+<p><strong>Antoine Pitrou</strong> created <a class="reference external" href="https://bugs.python.org/issue39812">bpo-39812: Avoid daemon threads in
+concurrent.futures</a> as a follow-up.</p>
+<p>In February 2020, when rebuilding Fedora Rawhide with Python 3.9, <strong>Miro
+Hrončok</strong> of my team noticed that my change <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1792062">broke the python-jep project</a>. I <a class="reference external" href="https://github.com/ninia/jep/issues/229">reported the bug
+upstream</a>. It has been fixed by
+using regular threads, rather than daemon threads: <a class="reference external" href="https://github.com/ninia/jep/commit/a31d461c6cacc96de68d68320eaa83e19a45d0cc">commit</a>.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>A random failure on a FreeBSD buildbot was hiding a severe race condition in
+the threading shutdown. The bug existed since 2013, but was silently ignored
+since the test passed when re-run.</p>
+<p>The race condition was that that the threading shutdown didn't ensure that the
+Python thread state of all non-daemon threads are deleted, whereas it is a
+<tt class="docutils literal">Py_EndInterpreter()</tt> requirement.</p>
+<p>I fixed the threading shutdown by waiting until the Python thread state of all
+non-daemon threads is deleted.</p>
+<p>I also modified <tt class="docutils literal">Thread.start()</tt> to forbid spawning daemon threads in Python
+subinterpreters to fix a related issue.</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="bookmark"
+                           title="Permalink to Daemon threads and the Python finalization in Python 3.2 and 3.3">Daemon threads and the Python finalization in Python 3.2 and 3.3</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-03-26T22:00:00+01:00">
                 Published: jeu. 26 mars 2020
@@ -31,159 +216,14 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>At exit, the Python finalization calls Python objects finalizers (the
+</footer><!-- /.post-info -->                <p>At exit, the Python finalization calls Python objects finalizers (the
 <tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.</p>
-<p>This article covers bugs fixed in the Python finalization in Python 3.2 and
-Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).</p>
-<a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"><img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /></a>
-<p>Drawing: <a class="reference external" href="https://twitter.com/LuppiChan/status/1240346448606171136">#CoronaMaison by Luppi</a>.</p>
-<div class="section" id="daemon-threads">
-<h2>Daemon threads</h2>
-<p>Python has a special kind of thread: &quot;daemon&quot; threads. The difference with
-regular threads is that Python doesn't wait until daemon threads complete at
-exit, whereas it waits until all regular (&quot;non-daemon&quot;) threads complete.
-Example:</p>
-<pre class="literal-block">
-import threading, time
-thread = threading.Thread(target=time.sleep, args=(5.0,), daemon=False)
-thread.start()
-</pre>
-<p>This Python program spawns a regular thread which sleeps for 5 seconds. Python
-takes 5 seconds to exit:</p>
-<pre class="literal-block">
-$ time python3 sleep.py
-
-real   0m5,047s
-</pre>
-<p>If <tt class="docutils literal">daemon=False</tt> is replaced with <tt class="docutils literal">daemon=True</tt> to spawn a daemon thread
-instead, Python exits immediately (57 ms):</p>
-<pre class="literal-block">
-$ time python3 sleep.py
-
-real   0m0,057s
-</pre>
-<p>Note: The <tt class="docutils literal">Thread.join()</tt> method can be called explicitly to wait until a
-daemon thread completes.</p>
-</div>
-<div class="section" id="don-t-destroy-the-gil-at-exit">
-<h2>Don't destroy the GIL at exit</h2>
-<p>In November 2009, <strong>Antoine Pitrou</strong> implemented a new GIL (Global Interpreter
-Lock) in Python 3.2: <a class="reference external" href="https://github.com/python/cpython/commit/074e5ed974be65fbcfe75a4c0529dbc53f13446f">commit 074e5ed9</a>.</p>
-<p>In September 2010, he found a crash with daemon threads while stressing
-<tt class="docutils literal">test_threading</tt>: <a class="reference external" href="https://bugs.python.org/issue9901">bpo-9901: GIL destruction can fail</a>. <tt class="docutils literal">test_finalize_with_trace()</tt> failed
-with:</p>
-<pre class="literal-block">
-Fatal Python error: pthread_mutex_destroy(gil_mutex) failed
-</pre>
-<p>He pushed a fix for this crash in Python 3.2, <a class="reference external" href="https://github.com/python/cpython/commit/b0b384b7c0333bf1183cd6f90c0a3f9edaadd6b9">commit b0b384b7</a>:</p>
-<pre class="literal-block">
-Issue #9901: Destroying the GIL in Py_Finalize() can fail if some other
-threads are still running.  Instead, reinitialize the GIL on a second
-call to Py_Initialize().
-</pre>
-<p>The Python GIL internally uses a lock. If the lock is destroyed while a daemon
-thread is waiting for it, the thread can crash. The fix is to <strong>no longer
-destroy the GIL at exit</strong>.</p>
-</div>
-<div class="section" id="exit-the-thread-in-pyeval-restorethread">
-<h2>Exit the thread in PyEval_RestoreThread()</h2>
-<p>The Python finalization clears and deallocates the &quot;Python thread state&quot; of all
-threads (in <tt class="docutils literal">PyInterpreterState_Delete()</tt>) which calls Python object
-finalizers of these threads. Calling a finalizer can drop the GIL to call a
-system call. For example, closing a file drops the GIL. When the GIL is
-dropped, a daemon thread is awaken to take the GIL. Since the Python thread
-state was just deallocated, the daemon thread crash.</p>
-<p>This bug is a race condition. It depends on which order threads are executed,
-on which order objects are finalized, on which order memory is deallocated,
-etc.</p>
-<p>The crash was first reported in April 2005: <a class="reference external" href="https://bugs.python.org/issue1193099">bpo-1193099: Embedded python thread
-crashes</a>. In January 2008, <strong>Gregory P.
-Smith</strong> reported <a class="reference external" href="https://bugs.python.org/issue1856#msg60014">bpo-1856: shutdown (exit) can hang or segfault with daemon
-threads running</a>. He wrote a
-short Python program reproducing the bug: spawn 40 daemon threads which do some
-I/O operations and sleep randomly between 0 ms and 5 ms in a loop.</p>
-<p><strong>Adam Olsen</strong> <a class="reference external" href="https://bugs.python.org/issue1856#msg60059">proposed a solution</a> (with a patch):</p>
-<blockquote>
-I think <strong>non-main threads should kill themselves off</strong> if they grab the
-interpreter lock and the interpreter is tearing down. They're about to get
-killed off anyway, when the process exits.</blockquote>
-<p>In May 2011, <strong>Antoine Pitrou</strong> pushed a fix to Python 3.3 (6 years after the
-first bug report) which implements this solution, <a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1">commit 0d5e52d3</a>:</p>
-<pre class="literal-block">
-Issue #1856: Avoid crashes and lockups when daemon threads run while the
-interpreter is shutting down; instead, these threads are now killed when
-they try to take the GIL.
-</pre>
-</div>
-<div class="section" id="pyeval-restorethread-fix-explanation">
-<h2>PyEval_RestoreThread() fix explanation</h2>
-<p>The fix adds a new <tt class="docutils literal">_Py_Finalizing</tt> variable which is set by
-<tt class="docutils literal">Py_Finalize()</tt> to the (Python thread state of the) thread which runs the
-finalization.</p>
-<p>Simplified patch of the <tt class="docutils literal">PyEval_RestoreThread()</tt> fix:</p>
-<pre class="literal-block">
-&#64;&#64; -440,6 +440,12 &#64;&#64; PyEval_RestoreThread()
-         take_gil(tstate);
-+        if (_Py_Finalizing &amp;&amp; tstate != _Py_Finalizing) {
-+            drop_gil(tstate);
-+            PyThread_exit_thread();
-+        }
-</pre>
-<p>If Python is finalizing (<tt class="docutils literal">_Py_Finalizing</tt> is not NULL) and
-<tt class="docutils literal">PyEval_RestoreThread()</tt> is called by a thread which is not thread running
-the finalization, the thread exits immediately (call
-<tt class="docutils literal">PyThread_exit_thread()</tt>).</p>
-<p><tt class="docutils literal">PyEval_RestoreThread()</tt> is called when a thread takes the GIL.  Typical
-example of code which drops the GIL to call a system call (close a file
-descriptor, <tt class="docutils literal">io.FileIO()</tt> finalizer) and then takes again the GIL:</p>
-<pre class="literal-block">
-Py_BEGIN_ALLOW_THREADS
-close(fd);
-Py_END_ALLOW_THREADS
-</pre>
-<p>The <tt class="docutils literal">Py_BEGIN_ALLOW_THREADS</tt> macro calls <tt class="docutils literal">PyEval_SaveThread()</tt> to drop the
-GIL, and the <tt class="docutils literal">Py_END_ALLOW_THREADS</tt> macro calls <tt class="docutils literal">PyEval_RestoreThread()</tt> to
-take the GIL.  Pseudo-code:</p>
-<pre class="literal-block">
-PyEval_SaveThread();     // drop the GIL
-close(fd);
-PyEval_RestoreThread();  // take the GIL
-</pre>
-<p>With Antoine's fix, if Python is finalizing, a thread now exits immediately
-when calling <tt class="docutils literal">PyEval_RestoreThread()</tt>.</p>
-</div>
-<div class="section" id="revert-take-gil-backport-to-2-7">
-<h2>Revert take_gil() backport to 2.7</h2>
-<p>In June 2014, <strong>Benjamin Peterson</strong> (Python 2.7 release manager) backported
-Antoine's change to Python 2.7: fix included in 2.7.8.</p>
-<p>Problem: the Ceph project <a class="reference external" href="https://tracker.ceph.com/issues/8797">started to crash with Python 2.7.8</a>.</p>
-<p>In November 2014, the change was reverted in Python 2.7.9: see
-<a class="reference external" href="https://bugs.python.org/issue21963">bpo-21963 discussion</a> for the rationale.</p>
-<p>In 2014, I already wrote:</p>
-<blockquote>
-Anyway, <strong>daemon threads are evil</strong> :-( Expecting them to exit cleanly
-automatically is not good. Last time I tried to improve code to cleanup
-Python at exit in Python 3.4, I also had a regression (just before the
-release of Python 3.4.0): see the <a class="reference external" href="https://bugs.python.org/issue21788">issue #21788</a>.</blockquote>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>Daemon threads caused crashes in the Python finalization, first noticed in
-2005.</p>
-<p>Python 3.2 (released in February 2011) got a new GIL and also a bugfix for
-daemon thread. Python 3.3 (released in September 2012) also got a bugfix for
-daemon threads. The Python finalization became more reliable.</p>
-<p>Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
-caused a regression which required to revert the bugfix in Python 2.7.9.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<p>This article covers bugs …</p>
+                <a class="readmore" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -397,35 +437,6 @@ function.</p>
 randomly on Linux as well. In fact, it was a well hidden race condition in the
 asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which will take 5 months of …</p>
                 <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-30T18:00:00+01:00">
-                Published: mer. 30 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
-of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
-and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
-<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
-<li>Close the transport on failure: ResourceWarning</li>
-<li>Cleanup code …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

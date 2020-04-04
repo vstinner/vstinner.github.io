@@ -22,6 +22,35 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
+                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2019-01-30T18:00:00+01:00">
+                Published: mer. 30 janvier 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
+</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
+of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
+and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
+<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
+<li>Close the transport on failure: ResourceWarning</li>
+<li>Cleanup code …</li></ul>
+                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="bookmark"
                            title="Permalink to Asyncio: Proactor Cancellation From Hell">Asyncio: Proactor Cancellation From Hell</a></h1>
                 </header>
@@ -263,31 +292,6 @@ $ python3.0
 </pre>
 <p>If the locale is POSIX …</p>
                 <a class="readmore" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-gil-change.html" rel="bookmark"
-                           title="Permalink to How I fixed a very old GIL race condition in Python 3.7">How I fixed a very old GIL race condition in Python 3.7</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-08T10:00:00+01:00">
-                Published: jeu. 08 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL</strong> (Global
-Interpreter Lock), one of the most critical part of Python. I had to dig the
-Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
-this time, <em>threads were …</em></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-gil-change.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
