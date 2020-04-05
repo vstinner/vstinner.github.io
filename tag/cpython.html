@@ -20,7 +20,267 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/threading-shutdown-race-condition.html">Threading shutdown race condition</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html">GIL bugfixes for daemon threads in Python 3.9</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-04-04T22:00:00+02:00">
+                Published: sam. 04 avril 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
+issues caused by daemon threads in the Python finalization and past changes to
+make them work.</p>
+<p>This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
+Python 3.9, between March 2019 and March 2020, for daemon threads during Python
+finalization. Some bugs were old: up to 7 years old. Some bugs were triggered
+by the on-going work on isolating subinterpreters in Python 3.9.</p>
+<a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"><img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /></a>
+<p>Drawing: <a class="reference external" href="https://twitter.com/Bouletcorp/status/1241018332112998401">#CoronaMaison by Boulet</a>.</p>
+<div class="section" id="fix-1-exit-pyeval-acquirethread-if-finalizing">
+<h2>Fix 1: Exit PyEval_AcquireThread() if finalizing</h2>
+<p>In March 2019, <strong>Remy Noel</strong> created <a class="reference external" href="https://bugs.python.org/issue36469">bpo-36469</a>: a multithreaded Python application
+using 20 daemon threads hangs randomly at exit on Python 3.5:</p>
+<blockquote>
+The bug happens about once every two weeks on a script that is fired more
+than 10K times a day.</blockquote>
+<p><strong>Eric Snow</strong> analyzed the bug and understood that it is related to daemon
+threads and Python finalization. He identified that <tt class="docutils literal">PyEval_AcquireLock()</tt>
+and <tt class="docutils literal">PyEval_AcquireThread()</tt> function take the GIL but don't exit the thread
+if Python is finalizing.</p>
+<p>When Python is finalizing and a daemon thread takes the GIL, Python can hang
+randomly.</p>
+<p>Eric created <a class="reference external" href="https://bugs.python.org/issue36475">bpo-36475</a> to propose to
+modify <tt class="docutils literal">PyEval_AcquireLock()</tt> and <tt class="docutils literal">PyEval_AcquireThread()</tt> to also exit
+the thread in this case. In April 2019, <strong>Joannah Nanjekye</strong> fixed the issue
+with <a class="reference external" href="https://github.com/python/cpython/commit/f781d202a2382731b43bade845a58d28a02e9ea1">commit f781d202</a>:</p>
+<pre class="literal-block">
+bpo-36475: Finalize PyEval_AcquireLock() and PyEval_AcquireThread() properly (GH-12667)
+
+PyEval_AcquireLock() and PyEval_AcquireThread() now
+terminate the current thread if called while the interpreter is
+finalizing, making them consistent with PyEval_RestoreThread(),
+Py_END_ALLOW_THREADS, and PyGILState_Ensure().
+</pre>
+<p>The fix adds <tt class="docutils literal">exit_thread_if_finalizing()</tt> function which exit the thread if
+Python is finalizing. This function is called after each <tt class="docutils literal">take_gil()</tt> call.</p>
+<p>The fix is very similar to <tt class="docutils literal">PyEval_RestoreThread()</tt> fix made in 2013 (<a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1">commit
+0d5e52d3</a>)
+to fix <a class="reference external" href="https://bugs.python.org/issue1856#msg60014">bpo-1856</a> (Python crash
+involving daemon threads during Python exit).</p>
+</div>
+<div class="section" id="fix-2-pyeval-restorethread-on-freed-tstate">
+<h2>Fix 2: PyEval_RestoreThread() on freed tstate</h2>
+<div class="section" id="concurrent-futures-crash-on-freebsd">
+<h3>concurrent.futures crash on FreeBSD</h3>
+<p>In December 2019, I reported <a class="reference external" href="https://bugs.python.org/issue39088">bpo-39088</a>:
+test_concurrent_futures <strong>crashed randomly</strong> with a coredump on AMD64 FreeBSD
+Shared 3.x buildbot. In March 2019, I succeeded to reproduce the bug on FreeBSD
+and I was able to debug the coredump in gdb:</p>
+<pre class="literal-block">
+(gdb) frame
+#0  0x00000000003b518c in PyEval_RestoreThread (tstate=0x801f23790) at Python/ceval.c:387
+387         _PyRuntimeState *runtime = tstate-&gt;interp-&gt;runtime;
+
+(gdb) p tstate-&gt;interp
+$3 = (PyInterpreterState *) 0xdddddddddddddddd
+</pre>
+<p>The Python thread state (<tt class="docutils literal">tstate</tt>) was freed. In debug mode, the &quot;free()&quot;
+function of the Python memory allocator fills the freed memory block with
+<tt class="docutils literal">0xDD</tt> byte pattern (<tt class="docutils literal">D</tt> stands for dead byte) to detect usage of freed
+memory.</p>
+<p>The problem is that Python finalization already freed the memory of all
+PyThreadState structures, when <tt class="docutils literal">PyEval_RestoreThread(tstate)</tt> is called by a
+daemon thread. <tt class="docutils literal">PyEval_RestoreThread()</tt> dereferences <tt class="docutils literal">tstate</tt>:</p>
+<pre class="literal-block">
+_PyRuntimeState *runtime = tstate-&gt;interp-&gt;runtime;
+</pre>
+<p>This bug is a regression caused by my change:
+<a class="reference external" href="https://github.com/python/cpython/commit/01b1cc12e7c6a3d6a3d27ba7c731687d57aae92a">Add PyInterpreterState.runtime field</a>
+of <a class="reference external" href="https://bugs.python.org/issue36710">bpo-36710</a>. I replaced:</p>
+<pre class="literal-block">
+void PyEval_RestoreThread(PyThreadState *tstate) {
+    _PyRuntimeState *runtime = &amp;_PyRuntime;
+    ...
+}
+</pre>
+<p>with:</p>
+<pre class="literal-block">
+void PyEval_RestoreThread(PyThreadState *tstate) {
+    _PyRuntimeState *runtime = tstate-&gt;interp-&gt;runtime;
+    ...
+}
+</pre>
+</div>
+<div class="section" id="fix-pyeval-restorethread-for-daemon-threads">
+<h3>Fix PyEval_RestoreThread() for daemon threads</h3>
+<p>I created <a class="reference external" href="https://bugs.python.org/issue39877">bpo-39877</a> to investigate
+this bug. I managed to reproduce the crash on Linux with a script spawning
+daemon threads which sleep randomly between 0.0 and 1.0 second, and by adding
+<tt class="docutils literal">sleep(1);</tt> call at <tt class="docutils literal">Py_RunMain()</tt> exit.</p>
+<p>I wrote a <tt class="docutils literal">PyEval_RestoreThread()</tt> fix which access to
+<tt class="docutils literal">_PyRuntimeState.finalizing</tt> without the GIL.</p>
+<p><strong>Antoine Pitrou</strong> asked me to convert <tt class="docutils literal">_PyRuntimeState.finalizing</tt> to an
+atomic variable to avoid inconsistencies in case of parallel accesses. At March
+7, 2020, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/7b3c252dc7f44d4bdc4c7c82d225ebd09c78f520">commit 7b3c252d</a>:</p>
+<pre class="literal-block">
+bpo-39877: _PyRuntimeState.finalizing becomes atomic (GH-18816)
+
+Convert _PyRuntimeState.finalizing field to an atomic variable:
+
+* Rename it to _finalizing
+* Change its type to _Py_atomic_address
+* Add _PyRuntimeState_GetFinalizing() and _PyRuntimeState_SetFinalizing()
+  functions
+* Remove _Py_CURRENTLY_FINALIZING() function: replace it with testing
+  directly _PyRuntimeState_GetFinalizing() value
+
+Convert _PyRuntimeState_GetThreadState() to static inline function.
+</pre>
+<p>The day after, I pushed my fix, <a class="reference external" href="https://github.com/python/cpython/commit/eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e">commit eb4e2ae2</a>:</p>
+<pre class="literal-block">
+bpo-39877: Fix PyEval_RestoreThread() for daemon threads (GH-18811)
+
+* exit_thread_if_finalizing() does now access directly _PyRuntime
+  variable, rather than using tstate-&gt;interp-&gt;runtime since tstate
+  can be a dangling pointer after Py_Finalize() has been called.
+* exit_thread_if_finalizing() is now called *before* calling
+  take_gil(). _PyRuntime.finalizing is an atomic variable,
+  we don't need to hold the GIL to access it.
+</pre>
+<p><tt class="docutils literal">exit_thread_if_finalizing()</tt> is now called <strong>before</strong> <tt class="docutils literal">take_gil()</tt> to
+ensure that <tt class="docutils literal">take_gil()</tt> cannot be called with an invalid Python thread state
+(<tt class="docutils literal">tstate</tt>).</p>
+<p>I commented <em>naively</em>:</p>
+<blockquote>
+Ok, it should now be fixed.</blockquote>
+</div>
+</div>
+<div class="section" id="clear-python-thread-states-earlier-my-first-failed-attempt-in-2013">
+<h2>Clear Python thread states earlier: my first failed attempt in 2013</h2>
+<p>In 2013, I opened <a class="reference external" href="https://bugs.python.org/issue19466">bpo-19466</a> to clear
+earlier the Python thread state of threads during Python finalization. My
+intent was to display <tt class="docutils literal">ResourceWarning</tt> warnings of daemon threads as well.
+In November 2013, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/45956b9a33af634a2919ade64c1dd223ab2d5235">commit 45956b9a</a>:</p>
+<pre class="literal-block">
+Close #19466: Clear the frames of daemon threads earlier during the Python
+shutdown to call objects destructors. So &quot;unclosed file&quot; resource warnings
+are now corretly emitted for daemon threads.
+</pre>
+<p>Later, I discovered a crash in the the garbage collector while trying to
+reproduce a race condition in asyncio: I created <a class="reference external" href="https://bugs.python.org/issue20526">bpo-20526</a>. Sadly, this bug was trigger by my
+previous change. I decided that it's safer to revert my change.</p>
+<p>By the way, when I looked again at <a class="reference external" href="https://bugs.python.org/issue20526">bpo-20526</a>, I was able to reproduce again the
+garbage collector bug, likely because of recent changes. With the help of
+<strong>Pablo Galindo Salgado</strong>, Pablo and me <a class="reference external" href="https://bugs.python.org/issue20526#msg364851">understood the root issue</a>.  At March 24, 2020, I pushed
+a fix (<a class="reference external" href="https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf">commit</a>)
+to finally fix this 7 years old bug! The fix removes the following line from
+<tt class="docutils literal">PyThreadState_Clear()</tt>:</p>
+<pre class="literal-block">
+Py_CLEAR(tstate-&gt;frame);
+</pre>
+</div>
+<div class="section" id="fix-3-exit-also-take-gil-at-exit-point-if-finalizing">
+<h2>Fix 3: Exit also take_gil() at exit point if finalizing</h2>
+<p>After fixing <tt class="docutils literal">PyEval_RestoreThread()</tt>, I decided to attempt again to fix
+<a class="reference external" href="https://bugs.python.org/issue19466">bpo-19466</a> (clear earlier Python thread
+states). Sadly, I discovered that my <tt class="docutils literal">PyEval_RestoreThread()</tt> fix
+<strong>introduced a race condition</strong>!</p>
+<p>While the main thread finalizes Python, daemon threads can be waiting for the
+GIL: they block in <tt class="docutils literal">take_gil()</tt>. When the main thread releases the GIL during
+finalization, a daemon thread take the GIL instead of exiting. Daemon threads
+only check if they must exit <strong>before</strong> trying to take the GIL.</p>
+<p>The solution is to call <tt class="docutils literal">exit_thread_if_finalizing()</tt> twice in
+<tt class="docutils literal">take_gil()</tt>: before <strong>and</strong> after taking the GIL.</p>
+<p>In March 2020, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/9229eeee105f19705f72e553cf066751ac47c7b7">commit 9229eeee</a>:</p>
+<pre class="literal-block">
+bpo-39877: take_gil() checks tstate_must_exit() twice (GH-18890)
+
+take_gil() now also checks tstate_must_exit() after acquiring
+the GIL: exit the thread if Py_Finalize() has been called.
+</pre>
+<p>I commented:</p>
+<blockquote>
+<p>I ran multiple times <tt class="docutils literal">daemon_threads_exit.py</tt> with <tt class="docutils literal">slow_exit.patch</tt>:
+no crash.</p>
+<p>I also ran multiple times <tt class="docutils literal">stress.py</tt> + <tt class="docutils literal">sleep_at_exit.patch</tt> of
+bpo-37135: no crash.</p>
+<p>And I tested <tt class="docutils literal">asyncio_gc.py</tt> of bpo-19466: no crash neither.</p>
+<p><strong>Python finalization now looks reliable.</strong> I'm not sure if it's &quot;more&quot;
+reliable than previously, but at least, I cannot get a crash anymore, even
+after bpo-19466 has been fixed (clear Python thread states of daemon
+threads earlier).</p>
+</blockquote>
+<p>Funny fact, in June 2019, <strong>Eric Snow</strong> added a very similar bug in <a class="reference external" href="https://bugs.python.org/issue36818">bpo-36818</a> with <a class="reference external" href="https://github.com/python/cpython/commit/396e0a8d9dc65453cb9d53500d0a620602656cfe">commit 396e0a8d</a>:
+test_multiprocessing_spawn segfault on FreeBSD (<a class="reference external" href="https://bugs.python.org/issue37135">bpo-37135</a>). I reverted his change to fix the
+issue. At this time, I didn't have the bandwidth to investigate the root cause.
+I just reverted Eric's change.</p>
+</div>
+<div class="section" id="fix-4-exit-take-gil-while-waiting-for-the-gil-if-finalizing">
+<h2>Fix 4: Exit take_gil() while waiting for the GIL if finalizing</h2>
+<p>While I was working on moving pending calls from <tt class="docutils literal">_PyRuntime</tt> to
+<tt class="docutils literal">PyInterpreterState</tt>, <a class="reference external" href="https://bugs.python.org/issue39984">bpo-3998</a>, I had
+another bug.</p>
+<p>At March 18, 2020, I pushed a <tt class="docutils literal">take_gil()</tt> fix to avoid accessing <tt class="docutils literal">tstate</tt>
+if Python is finalizing, <a class="reference external" href="https://github.com/python/cpython/commit/29356e03d4f8800b04f799efe7a10e3ce8b16f61">commit 29356e03</a>:</p>
+<pre class="literal-block">
+bpo-39877: Fix take_gil() for daemon threads (GH-19054)
+
+bpo-39877, bpo-39984: If the thread must exit, don't access tstate to
+prevent a potential crash: tstate memory has been freed.
+</pre>
+<p>And while working on the inefficient signal handling in multithreaded
+applications (<a class="reference external" href="https://bugs.python.org/issue40010">bpo-40010</a>), I discovered
+that the previous fix was not enough!</p>
+<p>At March 19, 2020, I pushed a <tt class="docutils literal">take_gil()</tt> fix to exit while <tt class="docutils literal">take_gil()</tt>
+is waiting for the GIL if Python is finalizing, <a class="reference external" href="https://github.com/python/cpython/commit/a36adfa6bbf5e612a4d4639124502135690899b8">commit a36adfa6</a>:</p>
+<pre class="literal-block">
+bpo-39877: 4th take_gil() fix for daemon threads (GH-19080)
+
+bpo-39877, bpo-40010: Add a third tstate_must_exit() check in
+take_gil() to prevent using tstate which has been freed.
+</pre>
+<p>I can only hope that this fix is the last one to fix all corner cases with
+daemon threads in <tt class="docutils literal">take_gil()</tt> (<a class="reference external" href="https://bugs.python.org/issue39877">bpo-39877</a>)!</p>
+</div>
+<div class="section" id="summy-of-gil-bugfixes">
+<h2>Summy of GIL bugfixes</h2>
+<p>The GIL got 5 main bugfixes for daemon threads and Python finalization:</p>
+<ul class="simple">
+<li>May 2011, <strong>Antoine Pitrou</strong>,
+<a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1">commit 0d5e52d3</a>:
+<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>after</strong> taking the GIL (1 check)</li>
+<li>April 2019, <strong>Joannah Nanjekye</strong>,
+<a class="reference external" href="https://github.com/python/cpython/commit/f781d202a2382731b43bade845a58d28a02e9ea1">commit f781d202</a>:
+PyEval_AcquireLock() and PyEval_AcquireThread() also exit if Python is finalizing</li>
+<li>March 8, 2020, <strong>Victor Stinner</strong>,
+<a class="reference external" href="https://github.com/python/cpython/commit/eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e">commit eb4e2ae2</a>:
+<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>before</strong> taking the GIL (1 check)</li>
+<li>March 9, 2020, <strong>Victor Stinner</strong>,
+<a class="reference external" href="https://github.com/python/cpython/commit/9229eeee105f19705f72e553cf066751ac47c7b7">commit 9229eeee</a>:
+<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>before and after</strong> taking the GIL (2 checks)</li>
+<li>March 19, 2020, <strong>Victor Stinner</strong>,
+<a class="reference external" href="https://github.com/python/cpython/commit/a36adfa6bbf5e612a4d4639124502135690899b8">commit a36adfa6</a>:
+<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>before, while, and after</strong> taking the GIL (3 checks)</li>
+</ul>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="bookmark"
+                           title="Permalink to Threading shutdown race condition">Threading shutdown race condition</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-04-03T20:00:00+02:00">
                 Published: ven. 03 avril 2020
@@ -31,7 +291,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>This article is about a race condition in threading shutdown that I fixed in
+</footer><!-- /.post-info -->                <p>This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.</p>
 <a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"><img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /></a>
@@ -39,165 +299,10 @@ subinterpreters to fix another related bug.</p>
 <div class="section" id="race-condition-in-threading-shutdown">
 <h2>Race condition in threading shutdown</h2>
 <div class="section" id="random-test-failure-noticed-on-freebsd-buildbot">
-<h3>Random test failure noticed on FreeBSD buildbot</h3>
-<p>In March 2019, I noticed that <tt class="docutils literal">test_threading.test_threads_join_2()</tt> was
-killed by SIGABRT on the FreeBSD CURRENT buildbot, <a class="reference external" href="https://bugs.python.org/issue36402">bpo-36402</a>:</p>
-<pre class="literal-block">
-Fatal Python error: Py_EndInterpreter: not the last thread
-</pre>
-<p>The <tt class="docutils literal">test_threads_join_2()</tt> test <strong>failed randomly</strong> on buildbots when tests
-were <strong>run in parallel</strong>, but test_threading <strong>passed</strong> when it was <strong>re-run
-sequentially</strong>.  Such failure was silently ignored, since the build was seen
-overall as a success.</p>
-<p>The test <tt class="docutils literal">test_threading.test_threads_join_2()</tt> was added by in 2013 <a class="reference external" href="https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1">commit
-7b476993</a>.</p>
-<p>In 2016, I already reported the same test failure: <a class="reference external" href="https://bugs.python.org/issue27791">bpo-27791</a> (same test, also on FreeBSD). And
-Christian Heimes reported a similar issue: <a class="reference external" href="https://bugs.python.org/issue28084">bpo-28084</a>. I simply closed these issues because I
-only saw the failure once in 4 months and <strong>I didn't have access to FreeBSD to
-attempt to reproduce the crash</strong>.</p>
-</div>
-<div class="section" id="reproduce-the-race-condition">
-<h3>Reproduce the race condition</h3>
-<p>In 2019, I had a FreeBSD VM to attempt to reproduce the bug locally.</p>
-<p>In June 2019, I found a reliable way to reproduce the bug by <a class="reference external" href="https://github.com/python/cpython/pull/13889/files">adding random
-sleeps to the test</a>. With
-this patch, I was also able to reproduce the bug on Linux. <strong>I am way more
-comfortable to debug an issue on Linux</strong> with my favorite debugging tools!</p>
-<p>I identified a race condition in the Python finalization. I also understood
-that the bug was not specific to subinterpreters:</p>
-<blockquote>
-The test shows the bug using subinterpreters (Py_EndInterpreter), but
-<strong>the bug also exists in Py_Finalize()</strong> which has the same race condition.</blockquote>
-<p>I wrote a patch for <tt class="docutils literal">Py_Finalize()</tt> to help me to reproduce the bug without
-subinterpreters:</p>
-<pre class="literal-block">
-+    if (tstate != interp-&gt;tstate_head || tstate-&gt;next != NULL) {
-+        Py_FatalError(&quot;Py_EndInterpreter: not the last thread&quot;);
-+    }
-</pre>
-</div>
-<div class="section" id="id1">
-<h3>threading._shutdown() race condition</h3>
-<p><tt class="docutils literal">threading._shutdown()</tt> uses <tt class="docutils literal">threading.enumerate()</tt> which iterates on
-<tt class="docutils literal">threading._active</tt> dictionary.</p>
-<p><tt class="docutils literal">threading.Thread</tt> registers itself into <tt class="docutils literal">threading._active</tt> when the
-thread starts. It unregisters itself from <tt class="docutils literal">threading._active</tt> when it
-completes.</p>
-<p>The bug occurs when the thread is unregistered whereas the underlying native
-thread is still running and <strong>the Python thread state is not deleted yet</strong>.</p>
-<p><tt class="docutils literal">_thread._set_sentinel()</tt> creates a lock and registers a
-<tt class="docutils literal"><span class="pre">tstate-&gt;on_delete</span></tt> callback to release this lock. It's called by
-<tt class="docutils literal">threading.Thread</tt> when the thread starts to set
-<tt class="docutils literal">threading.Thread._tstate_lock</tt>.  This lock is used by
-<tt class="docutils literal">threading.Thread.join()</tt> method to wait until the thread completes.</p>
-<p><tt class="docutils literal">_thread.start_new_thread()</tt> calls the C function <tt class="docutils literal">t_bootstrap()</tt> which
-ends with:</p>
-<pre class="literal-block">
-tstate-&gt;interp-&gt;num_threads--;
-PyThreadState_Clear(tstate);
-PyThreadState_DeleteCurrent();
-PyThread_exit_thread();
-</pre>
-<p>When the native thread completes, <tt class="docutils literal">_PyThreadState_DeleteCurrent()</tt> is called:
-it calls <tt class="docutils literal"><span class="pre">tstate-&gt;on_delete()</span></tt> callback which releases
-<tt class="docutils literal">threading.Thread._tstate_lock</tt> lock.</p>
-<p>The root issue is that:</p>
-<ul class="simple">
-<li><tt class="docutils literal">threading._shutdown()</tt> rely on <tt class="docutils literal">threading._alive</tt> dictionary</li>
-<li><tt class="docutils literal">Py_EndInterpreter()</tt> rely on the interpreter linked list of Python thread
-states of the interpreter (<tt class="docutils literal"><span class="pre">interp-&gt;tstate_head</span></tt>).</li>
-</ul>
-<p>The lock on Python thread states (<tt class="docutils literal">threading.Thread._tstate_lock</tt>) and
-<tt class="docutils literal">PyThreadState.on_delete</tt> callback were added in 2013 by <strong>Antoine Pitrou</strong>
-to Python 3.4, <a class="reference external" href="https://github.com/python/cpython/commit/7b4769937fb612d576b6829c3b834f3dd31752f1">commit 7b476993</a>
-of <a class="reference external" href="https://bugs.python.org/issue18808">bpo-18808</a>:</p>
-<pre class="literal-block">
-Issue #18808: Thread.join() now waits for the underlying thread state
-to be destroyed before returning. This prevents unpredictable aborts
-in Py_EndInterpreter() when some non-daemon threads are still running.
-</pre>
-</div>
-<div class="section" id="fix-threading-shutdown">
-<h3>Fix threading._shutdown()</h3>
-<p>Finally in June 2019, I fixed the race condition in <tt class="docutils literal">threading._shutdown()</tt>
-with <a class="reference external" href="https://github.com/python/cpython/commit/468e5fec8a2f534f1685d59da3ca4fad425c38dd">commit 468e5fec</a>:</p>
-<pre class="literal-block">
-bpo-36402: Fix threading._shutdown() race condition (GH-13948)
-
-Fix a race condition at Python shutdown when waiting for threads.  Wait
-until the Python thread state of all non-daemon threads get deleted
-(join all non-daemon threads), rather than just wait until Python
-threads complete.
-</pre>
-<p>The fix is to modify <tt class="docutils literal">threading._shutdown()</tt> to wait until the Python thread
-state of all non-daemon threads get deleted, rather than calling the <tt class="docutils literal">join()</tt>
-method of all non-daemon threads. The <tt class="docutils literal">join()</tt> does not ensure that the
-Python thread state is deleted.</p>
-<p>The Python finalization calls <tt class="docutils literal">threading._shutdown()</tt> to wait until all
-threads complete. Only non-daemon threads are awaited: daemon threads can
-continue to run after <tt class="docutils literal">threading._shutdown()</tt>.</p>
-<p><tt class="docutils literal">Py_EndInterpreter()</tt> requires that the Python thread states of all threads
-have been deleted. <strong>What about daemon threads?</strong> More about that in the next
-section ;-)</p>
-<p>Note: This change introduced a regression (memory leak) which is not fixed yet:
-<a class="reference external" href="https://bugs.python.org/issue37788">bpo-37788</a>.</p>
-</div>
-</div>
-<div class="section" id="forbid-daemon-threads-in-subinterpreters">
-<h2>Forbid daemon threads in subinterpreters</h2>
-<p>In June 2019, while fixing the threading shutdown, I found a reliable way to
-trigger a bug with daemon threads when a subinterpreter is finalized:</p>
-<pre class="literal-block">
-Fatal Python error: Py_EndInterpreter: not the last thread
-</pre>
-<p>By design, daemon threads can run after a Python interpreter is finalized,
-whereas <tt class="docutils literal">Py_EndInterpreter()</tt> requires that all threads completed.</p>
-<p>I reported <a class="reference external" href="https://bugs.python.org/issue37266">bpo-37266</a> to propose to
-forbid the creation of daemon threads in subinterpreters. I fixed the issue
-with <a class="reference external" href="https://github.com/python/cpython/commit/066e5b1a917ec2134e8997d2cadd815724314252">commit 066e5b1a</a>:</p>
-<pre class="literal-block">
-bpo-37266: Daemon threads are now denied in subinterpreters (GH-14049)
-
-In a subinterpreter, spawning a daemon thread now raises an
-exception. Daemon threads were never supported in subinterpreters.
-Previously, the subinterpreter finalization crashed with a Pyton
-fatal error if a daemon thread was still running.
-</pre>
-<p>The change adds this check to <tt class="docutils literal">Thread.start()</tt>:</p>
-<pre class="literal-block">
-if self.daemon and not _is_main_interpreter():
-    raise RuntimeError(&quot;daemon thread are not supported &quot;
-                       &quot;in subinterpreters&quot;)
-</pre>
-<p>I commented:</p>
-<blockquote>
-<strong>Daemon threads must die.</strong> That's a first step towards their death!</blockquote>
-<p><strong>Antoine Pitrou</strong> created <a class="reference external" href="https://bugs.python.org/issue39812">bpo-39812: Avoid daemon threads in
-concurrent.futures</a> as a follow-up.</p>
-<p>In February 2020, when rebuilding Fedora Rawhide with Python 3.9, <strong>Miro
-Hrončok</strong> of my team noticed that my change <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1792062">broke the python-jep project</a>. I <a class="reference external" href="https://github.com/ninia/jep/issues/229">reported the bug
-upstream</a>. It has been fixed by
-using regular threads, rather than daemon threads: <a class="reference external" href="https://github.com/ninia/jep/commit/a31d461c6cacc96de68d68320eaa83e19a45d0cc">commit</a>.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>A random failure on a FreeBSD buildbot was hiding a severe race condition in
-the threading shutdown. The bug existed since 2013, but was silently ignored
-since the test passed when re-run.</p>
-<p>The race condition was that that the threading shutdown didn't ensure that the
-Python thread state of all non-daemon threads are deleted, whereas it is a
-<tt class="docutils literal">Py_EndInterpreter()</tt> requirement.</p>
-<p>I fixed the threading shutdown by waiting until the Python thread state of all
-non-daemon threads is deleted.</p>
-<p>I also modified <tt class="docutils literal">Thread.start()</tt> to forbid spawning daemon threads in Python
-subinterpreters to fix a related issue.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<h3>Random test failure noticed on FreeBSD buildbot …</h3></div></div>
+                <a class="readmore" href="https://vstinner.github.io/threading-shutdown-race-condition.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -406,42 +511,6 @@ directory looks like a very bad idea.</p>
 <tt class="docutils literal">surrogateescape</tt> error handler.</p>
 <p><strong>This …</strong></p>
                 <a class="readmore" href="https://vstinner.github.io/pep-383.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="bookmark"
-                           title="Permalink to Python 3.0 listdir() Bug on Undecodable Filenames">Python 3.0 listdir() Bug on Undecodable Filenames</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-09T13:00:00+01:00">
-                Published: ven. 09 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Ten years ago, when Python 3.0 final was released, <tt class="docutils literal">os.listdir(str)</tt>
-<strong>ignored silently undecodable filenames</strong>:</p>
-<pre class="literal-block">
-$ python3.0
-&gt;&gt;&gt; os.mkdir(b'x')
-&gt;&gt;&gt; open(b'x/nonascii\xff', 'w').close()
-&gt;&gt;&gt; os.listdir('x')
-[]
-</pre>
-<p>You had to use bytes to see all filenames:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; os.listdir(b'x')
-[b'nonascii\xff']
-</pre>
-<p>If the locale is POSIX …</p>
-                <a class="readmore" href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->
