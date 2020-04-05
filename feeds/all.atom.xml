@@ -8,7 +8,7 @@ issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
 &lt;p&gt;This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
 Python 3.9, between March 2019 and March 2020, for daemon threads during Python
-finalization. Some bugs were old: up to 7 years old. Some bugs were triggered
+finalization. Some bugs were old: up to 6 years old. Some bugs were triggered
 by the on-going work on isolating subinterpreters in Python 3.9.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;#CoronaMaison by Boulet&lt;/a&gt;.&lt;/p&gt;
@@ -149,7 +149,7 @@ previous change. I decided that it's safer to revert my change.&lt;/p&gt;
 garbage collector bug, likely because of recent changes. With the help of
 &lt;strong&gt;Pablo Galindo Salgado&lt;/strong&gt;, Pablo and me &lt;a class="reference external" href="https://bugs.python.org/issue20526#msg364851"&gt;understood the root issue&lt;/a&gt;.  At March 24, 2020, I pushed
 a fix (&lt;a class="reference external" href="https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf"&gt;commit&lt;/a&gt;)
-to finally fix this 7 years old bug! The fix removes the following line from
+to finally fix this 6 years old bug! The fix removes the following line from
 &lt;tt class="docutils literal"&gt;PyThreadState_Clear()&lt;/tt&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 Py_CLEAR(tstate-&amp;gt;frame);
