@@ -1,11 +1,11 @@
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Daemon threads and the Python finalization in Python 3.9
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++
+GIL bugfixes for daemon threads in Python 3.9
++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2020-04-04 22:00
 :tags: cpython
 :category: cpython
-:slug: daemon-threads-python-finalization-python39
+:slug: gil-bugfixes-daemon-threads-python39
 :authors: Victor Stinner
 
 My previous article `Daemon threads and the Python finalization in Python 3.2 and 3.3
@@ -13,10 +13,10 @@ My previous article `Daemon threads and the Python finalization in Python 3.2 an
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.
 
-This article is about bugfixes in the infamous GIL (Global Interpreter Lock) in
+This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
 Python 3.9, between March 2019 and March 2020, for daemon threads during Python
-finalization. Some bugs were old, some other bugs were triggered by the
-on-going work on isolating subinterpreters in Python 3.9.
+finalization. Some bugs were old: up to 7 years old. Some bugs were triggered
+by the on-going work on isolating subinterpreters in Python 3.9.
 
 .. image:: {static}/images/coronamaison_boulet.jpg
    :alt: `#CoronaMaison by Boulet
@@ -30,7 +30,7 @@ Fix 1: Exit PyEval_AcquireThread() if finalizing
 
 In March 2019, **Remy Noel** created `bpo-36469
 <https://bugs.python.org/issue36469>`_: a multithreaded Python application
-using 20 daemon threads hangs randomly at exit with Python 3.5:
+using 20 daemon threads hangs randomly at exit on Python 3.5:
 
     The bug happens about once every two weeks on a script that is fired more
     than 10K times a day.
@@ -66,11 +66,11 @@ to fix `bpo-1856 <https://bugs.python.org/issue1856#msg60014>`_ (Python crash
 involving daemon threads during Python exit).
 
 
-Fix 2: PyEval_RestoreThread() called after tstate was freed
-===========================================================
+Fix 2: PyEval_RestoreThread() on freed tstate
+=============================================
 
-Crash on FreeBSD
-----------------
+concurrent.futures crash on FreeBSD
+-----------------------------------
 
 In December 2019, I reported `bpo-39088 <https://bugs.python.org/issue39088>`_:
 test_concurrent_futures **crashed randomly** with a coredump on AMD64 FreeBSD
