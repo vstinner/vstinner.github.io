@@ -15,7 +15,7 @@ make them work.
 
 This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
 Python 3.9, between March 2019 and March 2020, for daemon threads during Python
-finalization. Some bugs were old: up to 7 years old. Some bugs were triggered
+finalization. Some bugs were old: up to 6 years old. Some bugs were triggered
 by the on-going work on isolating subinterpreters in Python 3.9.
 
 .. image:: {static}/images/coronamaison_boulet.jpg
@@ -187,7 +187,7 @@ garbage collector bug, likely because of recent changes. With the help of
 <https://bugs.python.org/issue20526#msg364851>`_.  At March 24, 2020, I pushed
 a fix (`commit
 <https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf>`__)
-to finally fix this 7 years old bug! The fix removes the following line from
+to finally fix this 6 years old bug! The fix removes the following line from
 ``PyThreadState_Clear()``::
 
      Py_CLEAR(tstate->frame);
