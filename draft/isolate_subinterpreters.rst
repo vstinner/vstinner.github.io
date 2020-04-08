@@ -421,3 +421,10 @@ bpo-20526: Fix PyThreadState_Clear(): don't decref frame
 
 * https://bugs.python.org/issue20526
 * https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf
+
+Regression
+==========
+
+The os.unsetenv() function is now also available on Windows. (Contributed by Victor Stinner in bpo-39413.)
+
+The os.putenv() and os.unsetenv() functions are now always available. (Contributed by Victor Stinner in bpo-39395.)
