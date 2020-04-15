@@ -50,7 +50,7 @@ involving daemon threads during Python exit).&lt;/p&gt;
 &lt;h3&gt;concurrent.futures crash on FreeBSD&lt;/h3&gt;
 &lt;p&gt;In December 2019, I reported &lt;a class="reference external" href="https://bugs.python.org/issue39088"&gt;bpo-39088&lt;/a&gt;:
 test_concurrent_futures &lt;strong&gt;crashed randomly&lt;/strong&gt; with a coredump on AMD64 FreeBSD
-Shared 3.x buildbot. In March 2019, I succeeded to reproduce the bug on FreeBSD
+Shared 3.x buildbot. In March 2020, I succeeded to reproduce the bug on FreeBSD
 and I was able to debug the coredump in gdb:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 (gdb) frame
