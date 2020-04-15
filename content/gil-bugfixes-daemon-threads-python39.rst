@@ -74,7 +74,7 @@ concurrent.futures crash on FreeBSD
 
 In December 2019, I reported `bpo-39088 <https://bugs.python.org/issue39088>`_:
 test_concurrent_futures **crashed randomly** with a coredump on AMD64 FreeBSD
-Shared 3.x buildbot. In March 2019, I succeeded to reproduce the bug on FreeBSD
+Shared 3.x buildbot. In March 2020, I succeeded to reproduce the bug on FreeBSD
 and I was able to debug the coredump in gdb::
 
     (gdb) frame
