@@ -249,8 +249,9 @@ bpo-38858: new_interpreter() reuses _PySys_Create() (GH-17481)
 
     init_interp_main() now calls _PySys_InitMain().
 
-small_ints
-==========
+
+Per-interpreter small integer singletons
+========================================
 
 NEW: PyInterpreterState.small_ints
 
@@ -265,25 +266,9 @@ Commit: https://github.com/python/cpython/commit/ef5aa9af7c7e493402ac62009e4400a
 
     IMHO it's a bug in librepo: the GIL must be held to use Python C API.
 
-Reference leaks
-===============
 
-IGNORE: https://bugs.python.org/issue38858#msg357052
-
-Long analysis.
-
-    bpo-36854: Fix refleak in subinterpreter (GH-17331)
-    https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c
-
-I'm not fully happy with this solution, but at least, it allows me to move on
-to the next tasks to implement subinterpreters like PR 17315 (bpo-38858: Small
-integer per interpreter).
-
-importlib vs _weakref: https://bugs.python.org/issue40050
-
-
-Pending calls
-=============
+Per-interpreter pending calls
+=============================
 
 Factor out a private, per-interpreter _Py_AddPendingCall():
 
@@ -397,23 +382,63 @@ Move some ceval fields from _PyRuntime.ceval to PyInterpreterState.ceval changes
           PyGILState_GetThisThreadState() if _PyThreadState_GET()
           returns NULL.
 
-Isolate module state: PEP 489
-=============================
 
-Replace PyModule_Create with PyModule_Init?
+C extensions modules (PEPs 489 and 573)
+=======================================
 
-* reload
-* unload
-* per-interpreter
+Multi-phase extension initialization
+------------------------------------
+
+`PEP 489 -- Multi-phase extension module initialization
+<https://www.python.org/dev/peps/pep-0489/>`_.
+
+Replace PyModule_Create with PyModule_Init. Benefits:
+
+* multiple instances of the same C extension
+* Reload an extension
+* Unload an extension: destroy objects, release memory
+* Per-interpreter extension
+
+Special case (bug): `atexit module should not be loaded more than once per
+interpreter <https://bugs.python.org/issue40288>`_.
+
+Module state
+------------
+
+Add a module state to C extension modules.
+
+`PEP 573 -- Module State Access from C Extension Methods
+<https://www.python.org/dev/peps/pep-0573/>`_ accepted in Python 3.9 (not
+implemented yet).
 
 
-tstate
-======
+Fix PyThreadState.frame borrowed reference
+==========================================
 
 bpo-20526: Fix PyThreadState_Clear(): don't decref frame
 
 * https://bugs.python.org/issue20526
 * https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf
+
+_PyEval_EvalFrameDefault() doesn't reset tstate->frame if _PyCode_InitOpcache() fails:
+https://bugs.python.org/issue40048
+
+
+Reference leaks
+===============
+
+IGNORE: https://bugs.python.org/issue38858#msg357052
+
+Long analysis.
+
+    bpo-36854: Fix refleak in subinterpreter (GH-17331)
+    https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c
+
+I'm not fully happy with this solution, but at least, it allows me to move on
+to the next tasks to implement subinterpreters like PR 17315 (bpo-38858: Small
+integer per interpreter).
+
+importlib vs _weakref: https://bugs.python.org/issue40050
 
 
 Regression
