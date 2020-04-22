@@ -25,40 +25,32 @@ Isolate subinterpreters
 
 https://pythondev.readthedocs.io/subinterpreters.html
 
-_PyThreadState_DeleteExcept
-===========================
+Opaque PyInterpreterState
+=========================
 
-https://bugs.python.org/issue19466
+Change in Python 3.8.
 
-2013-10-31: I open the issue to detect ResourceWarning in daemon threads.
+https://bugs.python.org/issue35886
 
-Delete thread state
-===================
+Long thread on python-dev: https://mail.python.org/pipermail/python-dev/2019-February/156344.html
 
-https://bugs.python.org/issue19466
+cffi fix, include internal ``pycore_pystate.h``: https://bitbucket.org/cffi/cffi/commits/07d1803cb17b
 
-Clear daemon threads state in Py_Finalize() => new crashes
+Only 3 projects are known to be broken by this change:
 
-"It is possible to clear the Python threads earlier since Python 3.2, because
-Python threads will now exit cleanly when they try to acquire the GIL: see
-PyEval_RestoreThread()."
+* cffi (which indirectly broke brotlipy and httpbin)
+* Blender
+* FreeBSD
 
-Attempt #1, 12 Nov 2013: https://hg.python.org/cpython/rev/c2a13acd5e2b
+These projects have already been fixed. Usually, the code is easy to be
+updated:
 
-    Close #19466: Clear the frames of daemon threads earlier during the Python
-    shutdown to call objects destructors. So "unclosed file" resource warnings are
-    now corretly emitted for daemon threads. [#19466]
-
-Py_Finalize() calls _PyThreadState_DeleteExcept()::
+* Replace ``interp->modules`` with ``PyImport_GetModuleDict()``
+* Replace ``interp->builtins`` with ``PyEval_GetBuiltins()``
 
 
-    +    /* Destroy the state of all threads except of the current thread: in
-    +       practice, only daemon threads should still be alive. Clear frames of
-    +       other threads to call objects destructor. Destructors will be called in
-    +       the current Python thread. Since _Py_Finalizing has been set, no other
-    +       Python threads can lock the GIL at this point (if they try, they will
-    +       exit immediatly). */
-    +    _PyThreadState_DeleteExcept(tstate);
+Call PyThreadState.on_delete earlier
+====================================
 
 2019-11-20: https://github.com/python/cpython/commit/9da7430675ceaeae5abeb9c9f7cd552b71b3a93a ::
 
@@ -95,34 +87,8 @@ https://github.com/python/cpython/commit/4d96b4635aeff1b8ad41d41422ce808ce0b971c
     fully working.
 
 
-Daemon threads, take_gil()
-==========================
-
-A very old issues...
-
-First fix: XXX
-
-* `bpo-39877 <https://bugs.python.org/issue39877>`__:
-  Daemon thread is crashing in PyEval_RestoreThread() while the main thread is exiting the process
-
-4 changes in bpo-39877
-
-take_gil() now checks if the thread must exit at 3 different places.
-
-Eric
-====
-
-Factor out a private, per-interpreter _Py_AddPendingCall():
-
-* 2019-02-24: commit => reverted 8 days later
-* 2019-04-12: 2nd commit => reverted 1h later
-* 2019-06-01: 3rd commit => reverted 2 days later
-
-Latest attempt: `commit 6a150bca
-<https://github.com/python/cpython/commit/6a150bcaeb190d1731b38ab9c7a5d1a352847ddc>`__.
-
-Isolate
-=======
+Pass runtime and tstate explicitly
+==================================
 
 2019-04-24 to 2019-06-19, then 2019-11-12 to 2019-11-20: I started to **pass
 runtime to some functions** (``_PyRuntimeState``): `Pass _PyRuntimeState as an
@@ -135,6 +101,10 @@ calls <https://bugs.python.org/issue38644>`_.
 
 GC module
 =========
+
+GC state: https://bugs.python.org/issue36854#msg357150
+
+Move ``_PyRuntimeState.gc`` to ``PyInterpreterState.gc``
 
 2019-05-08: Eric Snow opens the issue.
 
@@ -157,44 +127,65 @@ Big change to get GC state from state: https://github.com/python/cpython/commit/
 Final commit: https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700
 
 
-C API
-=====
-
-::
-
-    commit f4b1e3d7c64985f5d5b00f6cc9a1c146bbbfd613
-    Author: Victor Stinner <vstinner@python.org>
-    Date:   Mon Nov 4 19:48:34 2019 +0100
-
-        bpo-38644: Add Py_EnterRecursiveCall() to the limited API (GH-17046)
-
-        Provide Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() as
-        regular functions for the limited API. Previously, there were defined
-        as macros, but these macros didn't work with the limited API which
-        cannot access PyThreadState.recursion_depth field.
-
-        Remove _Py_CheckRecursionLimit from the stable ABI.
-
-        Add Include/cpython/ceval.h header file.
-
-
-
-Move
-====
-
-``_PyRuntimeState.finalizing (PyThreadState *)``
-becomes
-``_PyRuntimeState _finalizing (_Py_atomic_address: PyThreadState *)``
-+ ``PyInterpreterState.finalizing (int)`` (NEW!)
-
-Move ``_PyRuntimeState.gc`` to ``PyInterpreterState.gc``
-
-Move ``_PyRuntimeState.warnings`` to ``PyInterpreterState.warnings``
+PyInterpreterState.dict
+=======================
 
 NEW: PyInterpreterState.dict
-NEW: PyInterpreterState.audit_hooks
+
+Provide convenient C API for storing per-interpreter state
+https://bugs.python.org/issue36124
+
+Change::
+
+    commit d2fdd1fedf6b9dc785cf5025b548a989faed089a
+    Author: Eric Snow <ericsnowcurrently@gmail.com>
+    Date:   Fri Mar 15 17:47:43 2019 -0600
+
+        bpo-36124: Add PyInterpreterState.dict. (gh-12132)
+
+New ``PyInterpreterState_GetDict()`` function. It is not used yet in Python
+3.9.
+
+PyThreadState already had a dict member since Python 1.5.1::
+
+    commit 204751b127b847828c0e5351534b508ebffe697a
+    Author: Guido van Rossum <guido@python.org>
+    Date:   Fri Apr 10 20:19:01 1998 +0000
+
+        Add dict struct member and PyThreadState_GetDict() prototype.
+
+The ``_asyncio`` module uses ``PyThreadState.dict`` to optimize
+``_asyncio._get_running_loop()`` and ``_asyncio`` internals. Commit of bpo-32296 (Python 3.7)::
+
+    commit 9d411c119fdd8e42209ec16be27686a843507f18
+    Author: Yury Selivanov <yury@magic.io>
+    Date:   Tue Jan 23 15:10:03 2018 -0500
+
+        bpo-32296: Make get_running_loop() another 4-5x faster (#5277)
+
+Python 2.7 usage of ``PyThreadState_GetDict()``:
+
+* ctypes: "error object" capsule
+* thread._local object
+* Py_ReprEnter() guard
+
+
+parser
+======
+
 NEW: PyInterpreterState.parser
-NEW: PyInterpreterState.small_ints
+
+"Global C variables are a problem"
+https://bugs.python.org/issue36876
+
+Change::
+
+    commit 9def81aa52adc3cc89554156e40742cf17312825
+    Author: Vinay Sajip <vinay_sajip@yahoo.co.uk>
+    Date:   Thu Nov 7 10:08:58 2019 +0000
+
+        bpo-36876: Moved Parser/listnode.c statics to interpreter state. (GH-16328)
+
 
 Warnings
 ========
@@ -261,6 +252,8 @@ bpo-38858: new_interpreter() reuses _PySys_Create() (GH-17481)
 small_ints
 ==========
 
+NEW: PyInterpreterState.small_ints
+
 Commit: https://github.com/python/cpython/commit/ef5aa9af7c7e493402ac62009e4400aed7c3d54e
 
     FYI this change broke librepo which calls PyLong_FromLong() without holding
@@ -277,8 +270,6 @@ Reference leaks
 
 IGNORE: https://bugs.python.org/issue38858#msg357052
 
-GC state: https://bugs.python.org/issue36854#msg357150
-
 Long analysis.
 
     bpo-36854: Fix refleak in subinterpreter (GH-17331)
@@ -291,10 +282,19 @@ integer per interpreter).
 importlib vs _weakref: https://bugs.python.org/issue40050
 
 
-Move some ceval fields from _PyRuntime.ceval to PyInterpreterState.ceval
-========================================================================
+Pending calls
+=============
 
-Changes::
+Factor out a private, per-interpreter _Py_AddPendingCall():
+
+* 2019-02-24: commit => reverted 8 days later
+* 2019-04-12: 2nd commit => reverted 1h later
+* 2019-06-01: 3rd commit => reverted 2 days later
+
+Last attempt: `commit 6a150bca
+<https://github.com/python/cpython/commit/6a150bcaeb190d1731b38ab9c7a5d1a352847ddc>`__.
+
+Move some ceval fields from _PyRuntime.ceval to PyInterpreterState.ceval changes::
 
     commit dab8423d220243efabbbcafafc12d90145539b50
     Author: Victor Stinner <vstinner@python.org>
@@ -397,14 +397,6 @@ Changes::
           PyGILState_GetThisThreadState() if _PyThreadState_GET()
           returns NULL.
 
-TODO
-====
-
-* Move _PyRuntimeState.gilstate to PyInterpreterState.
-* Decide how to handle None, True, False and Ellipsis singletons:
-  https://bugs.python.org/issue39511
-
-
 Isolate module state: PEP 489
 =============================
 
@@ -414,6 +406,7 @@ Replace PyModule_Create with PyModule_Init?
 * unload
 * per-interpreter
 
+
 tstate
 ======
 
@@ -422,9 +415,18 @@ bpo-20526: Fix PyThreadState_Clear(): don't decref frame
 * https://bugs.python.org/issue20526
 * https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf
 
+
 Regression
 ==========
 
 The os.unsetenv() function is now also available on Windows. (Contributed by Victor Stinner in bpo-39413.)
 
 The os.putenv() and os.unsetenv() functions are now always available. (Contributed by Victor Stinner in bpo-39395.)
+
+
+TODO
+====
+
+* Move _PyRuntimeState.gilstate to PyInterpreterState.
+* Decide how to handle None, True, False and Ellipsis singletons:
+  https://bugs.python.org/issue39511
