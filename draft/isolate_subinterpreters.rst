@@ -30,7 +30,13 @@ Opaque PyInterpreterState
 
 Change in Python 3.8.
 
-https://bugs.python.org/issue35886
+2019-02-02: Eric Snow creates https://bugs.python.org/issue35886
+
+`commit <https://github.com/python/cpython/commit/be3b295838547bba267eb08434b418ef0df87ee0>`__::
+
+    bpo-35886: Make PyInterpreterState an opaque type in the public API. (GH-11731)
+
+Moved PyInterpreterState structure from Include/cpython/pystate.h to Include/internal/pycore_pystate.h.
 
 Long thread on python-dev: https://mail.python.org/pipermail/python-dev/2019-February/156344.html
 
