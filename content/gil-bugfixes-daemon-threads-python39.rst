@@ -274,7 +274,7 @@ daemon threads in ``take_gil()`` (`bpo-39877
 
 
 Summary of GIL bugfixes
-=====================
+=======================
 
 The GIL got 5 main bugfixes for daemon threads and Python finalization:
 
