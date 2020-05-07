@@ -173,7 +173,7 @@ In November 2013, I pushed `commit 45956b9a
 
     Close #19466: Clear the frames of daemon threads earlier during the Python
     shutdown to call objects destructors. So "unclosed file" resource warnings
-    are now corretly emitted for daemon threads.
+    are now correctly emitted for daemon threads.
 
 Later, I discovered a crash in the the garbage collector while trying to
 reproduce a race condition in asyncio: I created `bpo-20526
@@ -273,7 +273,7 @@ daemon threads in ``take_gil()`` (`bpo-39877
 <https://bugs.python.org/issue39877>`__)!
 
 
-Summy of GIL bugfixes
+Summary of GIL bugfixes
 =====================
 
 The GIL got 5 main bugfixes for daemon threads and Python finalization:
