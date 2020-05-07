@@ -278,7 +278,7 @@ override most options. For example,
 &lt;tt class="docutils literal"&gt;PYTHONMALLOC=default python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev ...&lt;/tt&gt; command enables the development
 mode without installing debug hooks on memory allocators.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
 &lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
 &lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
 example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
@@ -410,7 +410,7 @@ and Py_Finalize() (create and finalize the &lt;strong&gt;main&lt;/strong&gt; int
 &lt;a class="reference external" href="https://bugs.python.org/issue38858"&gt;new_interpreter() should reuse more Py_InitializeFromConfig() code&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;They are still many issues to be fixed: &lt;strong&gt;it's moving slowly but steadily!&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
@@ -581,7 +581,7 @@ ABI), and were not documented.&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;PyEval_ReInitThreads()&lt;/tt&gt; function. It should not be called explicitly: use
 &lt;tt class="docutils literal"&gt;PyOS_AfterFork_Child()&lt;/tt&gt; instead.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
@@ -1000,7 +1000,7 @@ old issue &lt;a class="reference external" href="https://bugs.python.org/issue12
 add &lt;a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook"&gt;threading.excepthook()&lt;/a&gt;,
 but that's a different story!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+</content><category term="python"></category><category term="python"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
 still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
@@ -1499,7 +1499,7 @@ variable to control UTF-8 Mode.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
@@ -1767,7 +1767,7 @@ images.  In 2017, Nick Coghlan wrote the PEP 538 &amp;quot;Coercing the legacy C
 to a UTF-8 based locale&amp;quot; which has been approved by INADA Naoki and implemented
 in Python 3.7.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
 proposed two major backward incompatible changes for Python 3.6 on Windows:
 &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
 filesystem encoding to UTF-8&lt;/a&gt;.
@@ -1935,7 +1935,7 @@ Windows is a success!&lt;/p&gt;
 &lt;p&gt;Python 3.6 now has a better Unicode support thanks on Windows to the PEP 528
 and PEP 529!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
 filesystem encoding changed multiple times. &lt;strong&gt;It took 6 years to choose the best
 Python filesystem encoding on each platform.&lt;/strong&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;I have been officially promoted as a core developer&lt;/strong&gt; in January 2010 by
@@ -2366,7 +2366,7 @@ locale encoding as the filesystem encoding&lt;/strong&gt;. This change fixed man
 &lt;p&gt;December 2012, I forced the filesystem encoding to ASCII on FreeBSD and Solaris
 when the announced locale encoding is wrong.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
 undecodable filenames in Python 3.0 and that lying on the real content of a
 directory looks like a very bad idea.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
@@ -2501,7 +2501,7 @@ bytes unchanged.&lt;/p&gt;
 Unicode issues on Unix. It is still widely used in Python 3.6 to &lt;strong&gt;not annoy
 users with Unicode errors&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
 &lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 $ python3.0
@@ -2810,7 +2810,7 @@ of bugs will keep me busy the next 10 years&lt;/strong&gt; (2008-2018)...&lt;/p&
 &lt;p&gt;&lt;strong&gt;This article is the first in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system.&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
 Interpreter Lock), one of the most critical part of Python. I had to dig the
 Git history to find a &lt;strong&gt;change made 26 years ago&lt;/strong&gt; by &lt;strong&gt;Guido van Rossum&lt;/strong&gt;: at
 this time, &lt;em&gt;threads were …&lt;/em&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
@@ -3035,7 +3035,7 @@ the bug is behind us: it's now fully fixed in the future Python 3.7!&lt;/p&gt;
 &lt;p&gt;See &lt;a class="reference external" href="https://bugs.python.org/issue20891"&gt;bpo-20891&lt;/a&gt; for the full story.
 Thanks to all developers who helped me to fix this bug!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
 &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
@@ -3143,7 +3143,7 @@ wasn't tested at all!&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; to emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and I removed the legacy
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; function.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I have been trying to convert all Python clocks to use internally
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 perf_counter() nanoseconds</title><link href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html" rel="alternate"></link><published>2018-03-06T15:00:00+01:00</published><updated>2018-03-06T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-perf-counter-nanoseconds.html</id><summary type="html">&lt;p&gt;Since 2012, I have been trying to convert all Python clocks to use internally
 nanoseconds. The last clock which still used floating point internally was
 &lt;tt class="docutils literal"&gt;time.perf_counter()&lt;/tt&gt;. INADA Naoki's new importtime tool was an opportunity
 for me to have a new look on a tricky integer overflow issue.&lt;/p&gt;
@@ -3349,7 +3349,7 @@ identified a precision loss caused by my internal &lt;tt class="docutils literal
 time as nanoseconds. Thanks to maths, I succeeded to use nanoseconds and
 prevent any risk of integer overflow.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="alternate"></link><published>2017-10-19T16:00:00+02:00</published><updated>2017-10-19T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html" rel="alternate"></link><published>2017-10-19T16:00:00+02:00</published><updated>2017-10-19T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part3.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 3 (funny bugs).&lt;/p&gt;
 &lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads)&lt;/a&gt;.&lt;/p&gt;
@@ -3488,7 +3488,7 @@ integer expressions&amp;quot; warning.&lt;/li&gt;
 &lt;tt class="docutils literal"&gt;cell_set_contents()&lt;/tt&gt; symbol in the C API.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html" rel="alternate"></link><published>2017-10-19T15:00:00+02:00</published><updated>2017-10-19T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html" rel="alternate"></link><published>2017-10-19T15:00:00+02:00</published><updated>2017-10-19T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-19:/contrib-cpython-2017q3-part2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 2: &amp;quot;Dangling threads&amp;quot;.&lt;/p&gt;
 &lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html"&gt;My contributions to CPython during 2017 Q3: Part 1&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Next reports:&lt;/p&gt;
@@ -3845,7 +3845,7 @@ prevent &amp;quot;dangling thread&amp;quot; warnings.&lt;/li&gt;
 bugs)&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 1</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html" rel="alternate"></link><published>2017-10-18T15:00:00+02:00</published><updated>2017-10-18T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-18:/contrib-cpython-2017q3-part1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q3: Part 1</title><link href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html" rel="alternate"></link><published>2017-10-18T15:00:00+02:00</published><updated>2017-10-18T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-10-18:/contrib-cpython-2017q3-part1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 1.&lt;/p&gt;
 &lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html"&gt;My contributions to CPython during 2017 Q2 (part1)&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Next reports:&lt;/p&gt;
@@ -4122,7 +4122,7 @@ into the try block.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Next report:&lt;/strong&gt; &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
 threads)&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Python Security</title><link href="https://vstinner.github.io/python-security.html" rel="alternate"></link><published>2017-09-15T22:00:00+02:00</published><updated>2017-09-15T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-09-15:/python-security.html</id><summary type="html">&lt;p&gt;I am working on the Python security for years, but I never wrote anything about
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python Security</title><link href="https://vstinner.github.io/python-security.html" rel="alternate"></link><published>2017-09-15T22:00:00+02:00</published><updated>2017-09-15T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-09-15:/python-security.html</id><summary type="html">&lt;p&gt;I am working on the Python security for years, but I never wrote anything about
 that. Let's fix this!&lt;/p&gt;
 &lt;div class="section" id="psrt"&gt;
 &lt;h2&gt;PSRT&lt;/h2&gt;
@@ -4233,7 +4233,7 @@ at startup).&lt;/p&gt;
 &lt;p&gt;Last months, I also started to collect random notes about the Python security.&lt;/p&gt;
 &lt;p&gt;Explore my &lt;a class="reference external" href="https://python-security.readthedocs.io/"&gt;python-security.readthedocs.io&lt;/a&gt; documentation and send me feedback!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="security"></category><category term="python"></category></entry><entry><title>A New C API for CPython</title><link href="https://vstinner.github.io/new-python-c-api.html" rel="alternate"></link><published>2017-09-07T18:00:00+02:00</published><updated>2017-09-07T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-09-07:/new-python-c-api.html</id><summary type="html">&lt;p&gt;I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+</content><category term="python"></category><category term="security"></category><category term="python"></category></entry><entry><title>A New C API for CPython</title><link href="https://vstinner.github.io/new-python-c-api.html" rel="alternate"></link><published>2017-09-07T18:00:00+02:00</published><updated>2017-09-07T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-09-07:/new-python-c-api.html</id><summary type="html">&lt;p&gt;I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
 of writing a new C API for CPython hiding implementation details and replacing
 macros with function calls.&lt;/p&gt;
 &lt;img alt="CPython sprint at Facebook, september 2017" src="https://vstinner.github.io/images/cpython_sprint_sept2017.jpg" /&gt;
@@ -4444,7 +4444,7 @@ able to reemove the GIL.&lt;/p&gt;
 &lt;p&gt;Removing reference counting would make Gilectomy much simpler.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><updated>2017-07-13T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+</content><category term="python"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><updated>2017-07-13T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Security&lt;/li&gt;
 &lt;li&gt;Trick bug: Clang 4.0, dtoa and strict aliasing&lt;/li&gt;
@@ -4739,7 +4739,7 @@ access!&lt;/p&gt;
 11. I don't know why. The test is special, it tests a process which crashs
 while being traced with &lt;tt class="docutils literal"&gt;ptrace()&lt;/tt&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 2)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part2.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><updated>2017-07-13T16:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part2.html</id><summary type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 2)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part2.html" rel="alternate"></link><published>2017-07-13T16:30:00+02:00</published><updated>2017-07-13T16:30:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part2.html</id><summary type="html">&lt;p&gt;This is the second part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Mentoring&lt;/li&gt;
 &lt;li&gt;Reference and memory leaks&lt;/li&gt;
@@ -4937,7 +4937,7 @@ where it got a bit of traction. Terry Jan Reedy also &lt;a class="reference exte
 &lt;a class="reference external image-reference" href="https://github.com/showcases/programming-languages"&gt;&lt;img alt="GitHub showcase: Programming languages" src="https://vstinner.github.io/images/github_cpython_stars.png" /&gt;&lt;/a&gt;
 &lt;p&gt;CPython now has 11,512 stars, only 861 stars behind PHP ;-)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 1)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html" rel="alternate"></link><published>2017-07-13T16:00:00+02:00</published><updated>2017-07-13T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part1.html</id><summary type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 1)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html" rel="alternate"></link><published>2017-07-13T16:00:00+02:00</published><updated>2017-07-13T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part1.html</id><summary type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Statistics&lt;/li&gt;
 &lt;li&gt;Buidbots and test.bisect&lt;/li&gt;
@@ -5089,7 +5089,7 @@ compilation outside the source directory&lt;/li&gt;
 &lt;p&gt;Note: By default, &lt;tt class="docutils literal"&gt;$(PYTHON_FOR_REGEN)&lt;/tt&gt; is no more used nor needed by &amp;quot;make&amp;quot;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Work on Python buildbots, 2017 Q2</title><link href="https://vstinner.github.io/python-buildbots-2017q2.html" rel="alternate"></link><published>2017-07-13T09:00:00+02:00</published><updated>2017-07-13T09:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/python-buildbots-2017q2.html</id><summary type="html">&lt;p&gt;I spent the last 6 months on working on buildbots: reduce the failure rate,
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Work on Python buildbots, 2017 Q2</title><link href="https://vstinner.github.io/python-buildbots-2017q2.html" rel="alternate"></link><published>2017-07-13T09:00:00+02:00</published><updated>2017-07-13T09:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/python-buildbots-2017q2.html</id><summary type="html">&lt;p&gt;I spent the last 6 months on working on buildbots: reduce the failure rate,
 send email notitication on failure, fix random bugs, detect more bugs using
 warnings, backport fixes to older branches, etc. I decided to fix &lt;em&gt;all&lt;/em&gt;
 buildbots issues: fix all warnings and all unstable tests!&lt;/p&gt;
@@ -5534,7 +5534,7 @@ failures.&lt;/li&gt;
 &lt;li&gt;June 29: &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-June/148511.html"&gt;Buildbot report (almost July)&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>New Python test.bisect tool</title><link href="https://vstinner.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><updated>2017-07-12T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-12:/python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>New Python test.bisect tool</title><link href="https://vstinner.github.io/python-test-bisect.html" rel="alternate"></link><published>2017-07-12T15:00:00+02:00</published><updated>2017-07-12T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-12:/python-test-bisect.html</id><summary type="html">&lt;p&gt;This article tells the story of the new CPython &lt;tt class="docutils literal"&gt;test.bisect&lt;/tt&gt; tool to
 identify failing tests in the CPython test suite.&lt;/p&gt;
 &lt;div class="section" id="modify-manually-a-test-file"&gt;
 &lt;h2&gt;Modify manually a test file&lt;/h2&gt;
@@ -5720,7 +5720,7 @@ Tests result: ENV CHANGED
 &lt;p&gt;Ok right, there is something wrong with test_keywords(). I just opened
 the &lt;a class="reference external" href="http://bugs.python.org/issue30908"&gt;bpo-30908&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="tests"></category></entry><entry><title>My contributions to CPython during 2017 Q1</title><link href="https://vstinner.github.io/contrib-cpython-2017q1.html" rel="alternate"></link><published>2017-07-05T12:00:00+02:00</published><updated>2017-07-05T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-05:/contrib-cpython-2017q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
+</content><category term="python"></category><category term="cpython"></category><category term="tests"></category></entry><entry><title>My contributions to CPython during 2017 Q1</title><link href="https://vstinner.github.io/contrib-cpython-2017q1.html" rel="alternate"></link><published>2017-07-05T12:00:00+02:00</published><updated>2017-07-05T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-05:/contrib-cpython-2017q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Statistics&lt;/li&gt;
@@ -6259,7 +6259,7 @@ test_timestamp_limits().&lt;/li&gt;
 using unsigned integers to support very large inodes (larger than 2^31).&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>FASTCALL issues</title><link href="https://vstinner.github.io/fastcall-issues.html" rel="alternate"></link><published>2017-02-25T00:00:00+01:00</published><updated>2017-02-25T00:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-25:/fastcall-issues.html</id><summary type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>FASTCALL issues</title><link href="https://vstinner.github.io/fastcall-issues.html" rel="alternate"></link><published>2017-02-25T00:00:00+01:00</published><updated>2017-02-25T00:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-25:/fastcall-issues.html</id><summary type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
 Python 3.7, the few remaining issues are still …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
@@ -6334,7 +6334,7 @@ METH_FASTCALL.&lt;/p&gt;
 &lt;li&gt;2017-02-08: &lt;a class="reference external" href="http://bugs.python.org/issue29502"&gt;Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>FASTCALL microbenchmarks</title><link href="https://vstinner.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><updated>2017-02-24T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-24:/fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
+</content><category term="python"></category><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>FASTCALL microbenchmarks</title><link href="https://vstinner.github.io/fastcall-microbenchmarks.html" rel="alternate"></link><published>2017-02-24T22:00:00+01:00</published><updated>2017-02-24T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-24:/fastcall-microbenchmarks.html</id><summary type="html">&lt;p&gt;For my FASTCALL project (CPython optimization avoiding temporary tuples and
 dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
 them into a new Git repository: &lt;a class="reference external" href="https://github.com/vstinner/pymicrobench"&gt;pymicrobench&lt;/a&gt;.  Benchmark results are required by
 CPython developers to prove that an optimization is worth it. It's not uncommon
@@ -6531,7 +6531,7 @@ implemented in Python:&lt;/p&gt;
 &lt;/tbody&gt;
 &lt;/table&gt;
 &lt;p&gt;Benchmarks were run on &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;speed-python&lt;/span&gt;&lt;/tt&gt;, server used to run CPython benchmarks.&lt;/p&gt;
-</content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>The start of the FASTCALL project</title><link href="https://vstinner.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><updated>2017-02-16T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-16:/start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
+</content><category term="python"></category><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>The start of the FASTCALL project</title><link href="https://vstinner.github.io/start-fastcall-project.html" rel="alternate"></link><published>2017-02-16T17:00:00+01:00</published><updated>2017-02-16T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-16:/start-fastcall-project.html</id><summary type="html">&lt;div class="section" id="false-start"&gt;
 &lt;h2&gt;False start&lt;/h2&gt;
 &lt;p&gt;In April 2016, I experimented a Python change to avoid temporary tuple to call
 functions. Builtin functions were between 20 and 50% faster!&lt;/p&gt;
@@ -6622,7 +6622,7 @@ review.&lt;/blockquote&gt;
 patches adding new private functions and then modify code to call these new
 functions.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://vstinner.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><updated>2017-02-16T11:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-16:/contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
+</content><category term="python"></category><category term="fastcall"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q4</title><link href="https://vstinner.github.io/contrib-cpython-2016q4.html" rel="alternate"></link><published>2017-02-16T11:00:00+01:00</published><updated>2017-02-16T11:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-16:/contrib-cpython-2016q4.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q4
 (october, november, december):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-10-01&amp;quot;):date(&amp;quot;2016-12-31&amp;quot;)' --no-merges -u Stinner
@@ -6972,7 +6972,7 @@ this is suboptimal. Update the documentation to suggest to reuse the
 &lt;tt class="docutils literal"&gt;hash()&lt;/tt&gt; function on a tuple, with an example.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q3</title><link href="https://vstinner.github.io/contrib-cpython-2016q3.html" rel="alternate"></link><published>2017-02-14T19:00:00+01:00</published><updated>2017-02-14T19:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-14:/contrib-cpython-2016q3.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2016 Q3&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q3</title><link href="https://vstinner.github.io/contrib-cpython-2016q3.html" rel="alternate"></link><published>2017-02-14T19:00:00+01:00</published><updated>2017-02-14T19:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-14:/contrib-cpython-2016q3.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2016 Q3&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q3
 (july, august, september):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
@@ -7287,7 +7287,7 @@ Python performance is too important. &lt;tt class="docutils literal"&gt;DEBUG_PY
 &lt;tt class="docutils literal"&gt;gcc &lt;span class="pre"&gt;-D&lt;/span&gt; DEBUG_PYDICT&lt;/tt&gt;) to check also dictionaries content.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>CPython sprint, september 2016</title><link href="https://vstinner.github.io/cpython-sprint-2016.html" rel="alternate"></link><published>2017-02-14T18:00:00+01:00</published><updated>2017-02-14T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-14:/cpython-sprint-2016.html</id><summary type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>CPython sprint, september 2016</title><link href="https://vstinner.github.io/cpython-sprint-2016.html" rel="alternate"></link><published>2017-02-14T18:00:00+01:00</published><updated>2017-02-14T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-14:/cpython-sprint-2016.html</id><summary type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
 5-9, at Instagram office in California, USA. The sprint was sponsored by
 Instagram, Microsoft, and the PSF.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;First little game:&lt;/strong&gt; Many happy faces, but &lt;em&gt;Where is Victor?&lt;/em&gt;&lt;/p&gt;
@@ -7372,7 +7372,7 @@ specific case.&lt;/p&gt;
 &lt;p&gt;Read also the official report: &lt;a class="reference external" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;Python Core Development Sprint 2016: 3.6 and
 beyond!&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>PEP 524: os.urandom() now blocks on Linux in Python 3.6</title><link href="https://vstinner.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><updated>2017-02-14T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-14:/pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>PEP 524: os.urandom() now blocks on Linux in Python 3.6</title><link href="https://vstinner.github.io/pep-524-os-urandom-blocking.html" rel="alternate"></link><published>2017-02-14T12:00:00+01:00</published><updated>2017-02-14T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-14:/pep-524-os-urandom-blocking.html</id><summary type="html">&lt;div class="section" id="getrandom-avoids-file-descriptors"&gt;
 &lt;h2&gt;getrandom() avoids file descriptors&lt;/h2&gt;
 &lt;p&gt;Last years, I'm making sometimes enhancements in the Python code used to
 generate random numbers, the C implementation of &lt;tt class="docutils literal"&gt;os.urandom()&lt;/tt&gt;. My main two
@@ -7482,7 +7482,7 @@ until the system urandom entropy pool is initialized to increase the security.&l
 &lt;li&gt;&lt;a class="reference external" href="https://lwn.net/Articles/711013/"&gt;The long road to getrandom() in glibc&lt;/a&gt; (January 2017)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="security"></category></entry><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://vstinner.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><updated>2017-02-12T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-12:/contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
+</content><category term="python"></category><category term="cpython"></category><category term="security"></category></entry><entry><title>My contributions to CPython during 2016 Q2</title><link href="https://vstinner.github.io/contrib-cpython-2016q2.html" rel="alternate"></link><published>2017-02-12T18:00:00+01:00</published><updated>2017-02-12T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-12:/contrib-cpython-2016q2.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q2
 (april, may, june):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-04-01&amp;quot;):date(&amp;quot;2016-06-30&amp;quot;)' --no-merges -u Stinner
@@ -7645,7 +7645,7 @@ written by &lt;strong&gt;Michał Bednarski&lt;/strong&gt;.&lt;/li&gt;
 &lt;li&gt;Issue #26647: Fix typo in test_grammar. Patch written by &lt;strong&gt;Demur Rumed&lt;/strong&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q1</title><link href="https://vstinner.github.io/contrib-cpython-2016q1.html" rel="alternate"></link><published>2017-02-09T17:00:00+01:00</published><updated>2017-02-09T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-09:/contrib-cpython-2016q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2016 Q1</title><link href="https://vstinner.github.io/contrib-cpython-2016q1.html" rel="alternate"></link><published>2017-02-09T17:00:00+01:00</published><updated>2017-02-09T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-02-09:/contrib-cpython-2016q1.html</id><summary type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2016 Q1
 (january, februrary, march):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 hg log -r 'date(&amp;quot;2016-01-01&amp;quot;):date(&amp;quot;2016-03-31&amp;quot;)' --no-merges -u Stinner
@@ -8180,7 +8180,7 @@ up to 80% faster. Patch written by &lt;strong&gt;Josh Snider&lt;/strong&gt;.&lt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://vstinner.github.io/openstack_mitaka_python3.html" rel="alternate"></link><published>2016-03-02T14:00:00+01:00</published><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-03-02:/openstack_mitaka_python3.html</id><summary type="html">&lt;p class="first last"&gt;Status of Python 3 in OpenStack Mitaka&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Status of Python 3 in OpenStack Mitaka</title><link href="https://vstinner.github.io/openstack_mitaka_python3.html" rel="alternate"></link><published>2016-03-02T14:00:00+01:00</published><updated>2016-03-02T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-03-02:/openstack_mitaka_python3.html</id><summary type="html">&lt;p class="first last"&gt;Status of Python 3 in OpenStack Mitaka&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;Now that most OpenStack services have reached feature freeze for the Mitaka
 cycle (November 2015-April 2016), it's time to look back on the progress made
 for Python 3 support.&lt;/p&gt;
@@ -8293,7 +8293,7 @@ a lot of information about adding Python 3 support to Python 2 code.&lt;/p&gt;
 &lt;p&gt;Join us in the &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;#openstack-python3&lt;/span&gt;&lt;/tt&gt; IRC channel on Freenode to discuss
 Python 3!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://vstinner.github.io/pybyteswriter.html" rel="alternate"></link><published>2016-03-01T16:00:00+01:00</published><updated>2016-03-01T16:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-03-01:/pybyteswriter.html</id><summary type="html">&lt;p class="first last"&gt;_PyBytesWriter API&lt;/p&gt;
+</content><category term="python"></category><category term="openstack"></category><category term="python3"></category></entry><entry><title>Fast _PyAccu, _PyUnicodeWriter and_PyBytesWriter APIs to produce strings in CPython</title><link href="https://vstinner.github.io/pybyteswriter.html" rel="alternate"></link><published>2016-03-01T16:00:00+01:00</published><updated>2016-03-01T16:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-03-01:/pybyteswriter.html</id><summary type="html">&lt;p class="first last"&gt;_PyBytesWriter API&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;This article described the _PyBytesWriter and _PyUnicodeWriter private APIs of
 CPython. These APIs are design to optimize code producing strings when the
 ouput size is not known in advance.&lt;/p&gt;
@@ -8522,7 +8522,7 @@ faster on a microbenchmark.&lt;/p&gt;
 &lt;p&gt;Later, I replaced &lt;tt class="docutils literal"&gt;char*&lt;/tt&gt; type with &lt;tt class="docutils literal"&gt;void*&lt;/tt&gt; to avoid compiler warnings
 in functions using &lt;tt class="docutils literal"&gt;Py_UCS1*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;unsigned char*&lt;/tt&gt;, unsigned types.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://vstinner.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-03-01:/contrib-cpython-2015q4.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2015 Q4&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q4</title><link href="https://vstinner.github.io/contrib-cpython-2015q4.html" rel="alternate"></link><published>2016-03-01T15:00:00+01:00</published><updated>2016-03-01T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-03-01:/contrib-cpython-2015q4.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2015 Q4&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2015 Q4
 (october, november, december):&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
@@ -8668,7 +8668,7 @@ to FAT Python ;-)&lt;/li&gt;
 &lt;li&gt;Issue #25696: Fix installation of Python on UNIX with make -j9.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://vstinner.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><published>2016-02-18T01:00:00+01:00</published><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-02-18:/contrib-cpython-2015q3.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2015 Q3&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2015 Q3</title><link href="https://vstinner.github.io/contrib-cpython-2015q3.html" rel="alternate"></link><published>2016-02-18T01:00:00+01:00</published><updated>2016-02-18T01:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-02-18:/contrib-cpython-2015q3.html</id><summary type="html">&lt;p class="first last"&gt;My contributions to CPython during 2015 Q3&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;A few years ago, someone asked me: &amp;quot;Why do you contribute to CPython? Python is
 perfect, there are no more bugs, right?&amp;quot;. The article list most of my
 contributions to CPython during 2015 Q3 (july, august, september). It gives an
@@ -8790,7 +8790,7 @@ becomes an alias to PyThreadState_Get() to avoid ABI incompatibilies.&lt;/li&gt;
 function instead of the getentropy() function.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://vstinner.github.io/pytime.html" rel="alternate"></link><published>2016-02-17T22:00:00+01:00</published><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-02-17:/pytime.html</id><summary type="html">&lt;p class="first last"&gt;History of the Python private C API _PyTime&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>History of the Python private C API _PyTime</title><link href="https://vstinner.github.io/pytime.html" rel="alternate"></link><published>2016-02-17T22:00:00+01:00</published><updated>2016-02-17T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-02-17:/pytime.html</id><summary type="html">&lt;p class="first last"&gt;History of the Python private C API _PyTime&lt;/p&gt;
 </summary><content type="html">&lt;p&gt;I added functions to the private &amp;quot;pytime&amp;quot; library to convert timestamps from/to
 various formats. I expected to spend a few days, at the end I spent 3 years
 (2012-2015) on them!&lt;/p&gt;
@@ -8856,7 +8856,7 @@ locale timestamp for example. Timezones are still an hot topic: the
 &lt;a class="reference external" href="https://mail.python.org/mailman/listinfo/datetime-sig"&gt;datetime-sig mailing list&lt;/a&gt; was created to
 enhance timezone support in Python.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://vstinner.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><published>2016-01-12T13:42:00+01:00</published><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-01-12:/fat-python-status-janv12-2016.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, January 12, 2016&lt;/p&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://vstinner.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><published>2016-01-12T13:42:00+01:00</published><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-01-12:/fat-python-status-janv12-2016.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, January 12, 2016&lt;/p&gt;
 </summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://vstinner.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: &lt;a class="reference external" href="https://vstinner.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
@@ -9070,7 +9070,7 @@ reference to simplify the code&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://vstinner.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><published>2015-11-26T17:30:00+01:00</published><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2015-11-26:/fat-python-status-nov26-2015.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, November 26, 2015&lt;/p&gt;
+</content><category term="python"></category><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://vstinner.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><published>2015-11-26T17:30:00+01:00</published><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2015-11-26:/fat-python-status-nov26-2015.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, November 26, 2015&lt;/p&gt;
 </summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://vstinner.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
@@ -9192,7 +9192,7 @@ instead of a &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;.&lt;/p&gt;
 the builtin &lt;tt class="docutils literal"&gt;dict&lt;/tt&gt; type (and the &lt;tt class="docutils literal"&gt;fat.verdict&lt;/tt&gt; type is removed).&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://vstinner.github.io/python3-sixer.html" rel="alternate"></link><published>2015-06-16T15:00:00+02:00</published><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2015-06-16:/python3-sixer.html</id><summary type="html">&lt;p class="first last"&gt;Port your Python 2 applications to Python 3 with sixer&lt;/p&gt;
+</content><category term="python"></category><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Port your Python 2 applications to Python 3 with sixer</title><link href="https://vstinner.github.io/python3-sixer.html" rel="alternate"></link><published>2015-06-16T15:00:00+02:00</published><updated>2015-06-16T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2015-06-16:/python3-sixer.html</id><summary type="html">&lt;p class="first last"&gt;Port your Python 2 applications to Python 3 with sixer&lt;/p&gt;
 </summary><content type="html">&lt;div class="section" id="from-2to3-to-2to6"&gt;
 &lt;h2&gt;From 2to3 to 2to6&lt;/h2&gt;
 &lt;p&gt;When Python 3.0 was released, the official statement was to port your
@@ -9340,4 +9340,4 @@ for to port OpenStack, it saved me hours.&lt;/p&gt;
 &lt;p&gt;I hope that the tool will now be useful to others! Don't hesitate to give me
 feedback.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python3"></category><category term="sixer"></category></entry></feed>
+</content><category term="python"></category><category term="python3"></category><category term="sixer"></category></entry></feed>

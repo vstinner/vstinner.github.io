@@ -176,7 +176,7 @@ the Linux desktop :-)&lt;/p&gt;
 &lt;p&gt;&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Olivier_Fourdan"&gt;Olivier Fourdan&lt;/a&gt; (Red Hat).&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Olivier_Fourdan"&gt;&lt;img alt="Olivier Fourdan" src="https://vstinner.github.io/images/olivier_fourdan.jpg" /&gt;&lt;/a&gt;
 &lt;/div&gt;
-</content><category term="linux"></category></entry><entry><title>Debug Hybrid Graphics issues on Linux</title><link href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="alternate"></link><published>2019-09-11T15:50:00+02:00</published><updated>2019-09-11T15:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-09-11:/debug-hybrid-graphics-issues-linux.html</id><summary type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
+</content><category term="linux"></category><category term="linux"></category></entry><entry><title>Debug Hybrid Graphics issues on Linux</title><link href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="alternate"></link><published>2019-09-11T15:50:00+02:00</published><updated>2019-09-11T15:50:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-09-11:/debug-hybrid-graphics-issues-linux.html</id><summary type="html">&lt;p&gt;&lt;a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics"&gt;Hybrid Graphics&lt;/a&gt; is a
 complex hardware and software solution to achieve longer laptop battery life:
 an &lt;strong&gt;integrated&lt;/strong&gt; graphics device is used by default, and a &lt;strong&gt;discrete&lt;/strong&gt;
 graphics device with higher graphics performances is enabled on demand.&lt;/p&gt;
@@ -431,4 +431,4 @@ active
 &lt;li&gt;&lt;a class="reference external" href="https://nouveau.freedesktop.org/wiki/Optimus"&gt;https://nouveau.freedesktop.org/wiki/Optimus&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="linux"></category></entry></feed>
+</content><category term="linux"></category><category term="linux"></category></entry></feed>

@@ -168,7 +168,7 @@ In November 2013, I pushed <a class="reference external" href="https://github.co
 <pre class="literal-block">
 Close #19466: Clear the frames of daemon threads earlier during the Python
 shutdown to call objects destructors. So &quot;unclosed file&quot; resource warnings
-are now corretly emitted for daemon threads.
+are now correctly emitted for daemon threads.
 </pre>
 <p>Later, I discovered a crash in the the garbage collector while trying to
 reproduce a race condition in asyncio: I created <a class="reference external" href="https://bugs.python.org/issue20526">bpo-20526</a>. Sadly, this bug was trigger by my
@@ -246,8 +246,8 @@ take_gil() to prevent using tstate which has been freed.
 <p>I can only hope that this fix is the last one to fix all corner cases with
 daemon threads in <tt class="docutils literal">take_gil()</tt> (<a class="reference external" href="https://bugs.python.org/issue39877">bpo-39877</a>)!</p>
 </div>
-<div class="section" id="summy-of-gil-bugfixes">
-<h2>Summy of GIL bugfixes</h2>
+<div class="section" id="summary-of-gil-bugfixes">
+<h2>Summary of GIL bugfixes</h2>
 <p>The GIL got 5 main bugfixes for daemon threads and Python finalization:</p>
 <ul class="simple">
 <li>May 2011, <strong>Antoine Pitrou</strong>,

@@ -140,7 +140,7 @@ In November 2013, I pushed &lt;a class="reference external" href="https://github
 &lt;pre class="literal-block"&gt;
 Close #19466: Clear the frames of daemon threads earlier during the Python
 shutdown to call objects destructors. So &amp;quot;unclosed file&amp;quot; resource warnings
-are now corretly emitted for daemon threads.
+are now correctly emitted for daemon threads.
 &lt;/pre&gt;
 &lt;p&gt;Later, I discovered a crash in the the garbage collector while trying to
 reproduce a race condition in asyncio: I created &lt;a class="reference external" href="https://bugs.python.org/issue20526"&gt;bpo-20526&lt;/a&gt;. Sadly, this bug was trigger by my
@@ -218,8 +218,8 @@ take_gil() to prevent using tstate which has been freed.
 &lt;p&gt;I can only hope that this fix is the last one to fix all corner cases with
 daemon threads in &lt;tt class="docutils literal"&gt;take_gil()&lt;/tt&gt; (&lt;a class="reference external" href="https://bugs.python.org/issue39877"&gt;bpo-39877&lt;/a&gt;)!&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="summy-of-gil-bugfixes"&gt;
-&lt;h2&gt;Summy of GIL bugfixes&lt;/h2&gt;
+&lt;div class="section" id="summary-of-gil-bugfixes"&gt;
+&lt;h2&gt;Summary of GIL bugfixes&lt;/h2&gt;
 &lt;p&gt;The GIL got 5 main bugfixes for daemon threads and Python finalization:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;May 2011, &lt;strong&gt;Antoine Pitrou&lt;/strong&gt;,
@@ -239,7 +239,7 @@ PyEval_AcquireLock() and PyEval_AcquireThread() also exit if Python is finalizin
 &lt;tt class="docutils literal"&gt;take_gil()&lt;/tt&gt; exits if finalizing &lt;strong&gt;before, while, and after&lt;/strong&gt; taking the GIL (3 checks)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"></link><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
+</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"></link><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;&lt;img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /&gt;&lt;/a&gt;
@@ -408,7 +408,7 @@ non-daemon threads is deleted.&lt;/p&gt;
 &lt;p&gt;I also modified &lt;tt class="docutils literal"&gt;Thread.start()&lt;/tt&gt; to forbid spawning daemon threads in Python
 subinterpreters to fix a related issue.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
+</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
 &lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
@@ -559,7 +559,7 @@ daemon threads. The Python finalization became more reliable.&lt;/p&gt;
 &lt;p&gt;Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
 caused a regression which required to revert the bugfix in Python 2.7.9.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
@@ -902,7 +902,7 @@ tests make the difference.&lt;/p&gt;
 asyncio implementation is quite complex :-)&lt;/p&gt;
 &lt;p&gt;Ok, &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; should now have a few less memory leaks :-)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
 function.&lt;/p&gt;
 &lt;p&gt;A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
@@ -1293,7 +1293,7 @@ Date:   Fri Jun 8 00:25:52 2018 +0200
 failure can hide a very severe bug.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
 and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1504,7 +1504,7 @@ Date:   Mon Jan 26 22:30:49 2015 +0100
     has the same behaviour than ReadFile().
 &lt;/pre&gt;
 &lt;/div&gt;
-</content><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
 and I was worried that test_asyncio &lt;strong&gt;randomly crashed&lt;/strong&gt; on Windows.&lt;/p&gt;
@@ -1870,7 +1870,7 @@ into the overlapped memory.&lt;/li&gt;
 &lt;li&gt;The overlapped is destroyed: &lt;strong&gt;free&lt;/strong&gt; overlapped memory.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Support non-ASCII decimal point and thousands separator&lt;/li&gt;
@@ -2201,7 +2201,7 @@ def test_zh_TW_Big5(self):
 but it's not portable nor future-proof, since most constants are hardcoded and
 depends on the operating sytem and the libc version.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
+</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
 the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
 I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
 I didn't expect that I would spend 2 weeks on these issues …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
@@ -2705,4 +2705,4 @@ Honestly, I would not bet that Python 3.8 will behave properly in all possible
 cases. At least, I tried to fix all issues that I spotted! Moreover, I added
 many tests which should help to detect bugs and prevent regressions.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="unicode"></category><category term="locales"></category></entry></feed>
+</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry></feed>
