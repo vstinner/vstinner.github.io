@@ -454,6 +454,8 @@ The os.unsetenv() function is now also available on Windows. (Contributed by Vic
 
 The os.putenv() and os.unsetenv() functions are now always available. (Contributed by Victor Stinner in bpo-39395.)
 
+https://bugs.python.org/issue40887 leak
+
 
 TODO
 ====
