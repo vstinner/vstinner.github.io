@@ -241,7 +241,6 @@ Code::
 
 Assembly::
 
-    (gdb) disassemble PyTuple_New
     Dump of assembler code for function PyTuple_New:
        0x000000000048bce0 <+0>:	push   r12
        0x000000000048bce2 <+2>:	push   rbp
@@ -317,7 +316,6 @@ Using ``cold`` attribute.
 
 Assembly::
 
-    (gdb) disassemble PyTuple_New
     Dump of assembler code for function PyTuple_New:
     Address range 0x47d4c0 to 0x47d4e9:
        0x000000000047d4c0 <+0>:	mov    rax,QWORD PTR [rip+0x2f8a71]        # 0x775f38 <_PyRuntime+568>
