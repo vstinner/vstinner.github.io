@@ -1,5 +1,29 @@
 I used ``disassemble PyTuple_New`` command of gdb to get the assembly code.
 
+Benchmark
+=========
+
+* bench_tuple: PyTuple_New(n)
+
+  * tuple-0: 4.84 ns +- 0.00 ns -> 4.47 ns +- 0.01 ns: 1.08x faster (-8%)
+  * tuple-1: 18.2 ns +- 0.2 ns -> 19.0 ns +- 0.2 ns: 1.04x slower (+4%)
+  * tuple-5: 30.1 ns +- 0.1 ns -> 31.3 ns +- 0.2 ns: 1.04x slower (+4%)
+
+* bench_dict: 10.9 ns +- 0.9 ns -> 12.8 ns +- 1.0 ns: 1.18x slower (+18%)
+* bench_fromid: 2.38 ns +- 0.01 ns -> 4.08 ns +- 0.01 ns: 1.71x slower (+71%)
+
+Changes
+=======
+
+* Reference (before first free list change):
+  commit dc24b8a2ac32114313bae519db3ccc21fe45c982
+* Make tuple free list per-interpreter:
+  commit 69ac6e58fd98de339c013fe64cd1cf763e4f9bca
+* Make dict free lists per-interpreter:
+  https://github.com/python/cpython/pull/20645
+* _PyUnicode_FromId():
+  https://github.com/python/cpython/pull/20058
+
 PyTuple_New (1)
 ===============
 
