@@ -1,34 +1,51 @@
-+++++++
-GC bugs
-+++++++
++++++++++++++++++++++++++++++++++++
+Leaks discovered by subinterpreters
++++++++++++++++++++++++++++++++++++
 
-For my work on isolating subinterpreters, I had to deal with multiple complex
-garbage collector (GC) bugs.
+:date: 2020-12-23 14:00
+:tags: cpython
+:category: cpython
+:slug: subinterpreter-leaks
+:authors: Victor Stinner
 
-When an extension module is converted to the multiphase initialization API (PEP
-489), sometimes tests using subinterpreters start to leak.
+Refleaks buildbot failures
+==========================
 
-Bug
-===
+With my work on isolating subinterpreters, old bugs about Python objects leaked
+at Python exit are suddenly becoming blocker issues. When subinterpreters share
+objects with the main interpreter, it is ok to leak these objects at Python
+exit. More than 18 000 Python objects are not destroyed at Python exit. Example
+in the current master branch::
 
-November 2019.
+    $ ./python -X showrefcount -c pass
+    [18411 refs, 6097 blocks]
 
-`bpo-36854: Make GC module state per-interpreter
-<https://bugs.python.org/issue36854>`_: test_atexit started to leak.
+When subinterpreters are better isolated, objects are no longer shared, and
+suddenly these leaks make tests using subinterpreters failing on Refleak
+buildbots. For example, when an extension module is converted to the multiphase
+initialization API (PEP 489) or when static types are converted to heap types,
+we get such issues. It is a blocker issue since I care of having only "green"
+buildbots (no test failure), otherwise we can miss regressions.
 
-Bug::
+This issue is being solved in the `bpo-1635741: Py_Finalize() doesn't clear all
+Python objects at exit <https://bugs.python.org/issue1635741>`__ which was
+opened almost 14 years ago (2007).
+
+GC state bug
+============
+
+In November 2019, I better isolated the ``gc module`` in `bpo-36854: Make GC
+module state per-interpreter <https://bugs.python.org/issue36854>`_.
+test_atexit started to leak::
 
     $ ./python -m test -R 3:3 test_atexit -m test.test_atexit.SubinterpreterTest.test_callbacks_leak
     test_atexit leaked [3988, 3986, 3988] references, sum=11962
 
-* FIX: Fix refleak in PyInit__testcapi()
-* WORKAROUND: clear manually the interpreter codecs attributes (search path,
-  search cache, error registry)
-* `commit <https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c>`__
+I fixed the usage of the ``PyModule_AddObject()`` function in the ``_testcapi``
+module: `commit
+<https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c>`__.
 
-https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c
-
-Workaround in ``finalize_interp_clear()``::
+I also pushed a **workaround** in ``finalize_interp_clear()``::
 
     +    /* bpo-36854: Explicitly clear the codec registry
     +       and trigger a GC collection */
@@ -38,9 +55,24 @@ Workaround in ``finalize_interp_clear()``::
     +    Py_CLEAR(interp->codec_error_registry);
     +    _PyGC_CollectNoFail();
 
+I dislike having to push a "temporary" workaround, but the Python finalization
+is really complex and fragile. Fixing the root issues will require too much
+work, whereas I wanted to repair the buildbots as soon as possible.
 
-weakref
-=======
+In December 2019, the workaround was partially removed by the
+commit ac0e1c2694bc199dbd073312145e3c09bee52cc4::
+
+    -    Py_CLEAR(interp->codec_search_path);
+    -    Py_CLEAR(interp->codec_search_cache);
+    -    Py_CLEAR(interp->codec_error_registry);
+
+Later (December 2020), the last GC collection was moved into
+``PyInterpreterState_Clear()``, before finalizating the GC:
+commit eba5bf2f5672bf4861c626937597b85ac0c242b9.
+
+
+weakref bug
+===========
 
 March 2020.
 
