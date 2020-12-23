@@ -3,7 +3,7 @@ Leaks discovered by subinterpreters
 +++++++++++++++++++++++++++++++++++
 
 :date: 2020-12-23 14:00
-:tags: cpython
+:tags: cpython, subinterpreters
 :category: cpython
 :slug: subinterpreter-leaks
 :authors: Victor Stinner

@@ -3,7 +3,7 @@ Daemon threads and the Python finalization in Python 3.2 and 3.3
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2020-03-26 22:00
-:tags: cpython
+:tags: cpython, subinterpreters
 :category: cpython
 :slug: daemon-threads-python-finalization-python32
 :authors: Victor Stinner

@@ -3,7 +3,7 @@ GIL bugfixes for daemon threads in Python 3.9
 +++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2020-04-04 22:00
-:tags: cpython
+:tags: cpython, subinterpreters
 :category: cpython
 :slug: gil-bugfixes-daemon-threads-python39
 :authors: Victor Stinner

@@ -3,7 +3,7 @@ Threading shutdown race condition
 ++++++++++++++++++++++++++++++++++
 
 :date: 2020-04-03 20:00
-:tags: cpython
+:tags: cpython, subinterpreters
 :category: cpython
 :slug: threading-shutdown-race-condition
 :authors: Victor Stinner
