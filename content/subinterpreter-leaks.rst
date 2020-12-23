@@ -8,6 +8,10 @@ Leaks discovered by subinterpreters
 :slug: subinterpreter-leaks
 :authors: Victor Stinner
 
+This article is about old reference leaks discovered or caused by the work on
+isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
+_signal, _ast and _thread).
+
 .. image:: {static}/images/thread_gc_bug.jpg
    :alt: _thread GC bug
 
@@ -43,8 +47,9 @@ Per-interpreter GC state
 ========================
 
 In November 2019, I made the state of the GC module per-interpreter in
-`bpo-36854 <https://bugs.python.org/issue36854>`_ and test_atexit started to
-leak::
+`bpo-36854 <https://bugs.python.org/issue36854>`_
+(`commit <https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700>`__)
+and test_atexit started to leak::
 
     $ ./python -m test -R 3:3 test_atexit -m test.test_atexit.SubinterpreterTest.test_callbacks_leak
     test_atexit leaked [3988, 3986, 3988] references, sum=11962
@@ -55,7 +60,7 @@ module (`commit
 
 I also pushed a **workaround** in ``finalize_interp_clear()``::
 
-    +    /* `bpo-36854 <https://bugs.python.org/issue36854>`__: Explicitly clear the codec registry
+    +    /* bpo-36854: Explicitly clear the codec registry
     +       and trigger a GC collection */
     +    PyInterpreterState *interp = tstate->interp;
     +    Py_CLEAR(interp->codec_search_path);
@@ -90,8 +95,8 @@ initialization API (PEP 489) in `bpo-40050
     test_importlib leaked [6303, 6299, 6303] references, sum=18905
 
 The analysis was quite long and complicated. The importlib imported some
-extension modules twice and it has a "bootstrap" code to inject frozen
-modules when the import machinery is not working yet.
+extension modules twice and it has to inject frozen modules to "bootstrap" the
+code.
 
 At the end, I fixed the issue by removing the now unused ``_weakref`` import in
 ``importlib._bootstrap_external``
@@ -128,14 +133,14 @@ to the type if the type is a heap type
 I opened `bpo-40217: The garbage collector doesn't take in account that objects
 of heap allocated types hold a strong reference to their type
 <https://bugs.python.org/issue40217>`_ to discuss the regression
-(test_threading leak).
+(the test_threading leak).
 
 
 First workaround (not merged): force a second garbage collection
 ----------------------------------------------------------------
 
-While analysing test_threading regression leak, a first workaround was
-identified: add a second ``_PyGC_CollectNoFail()`` call in
+While analysing test_threading regression leak, I identified a first
+workaround: add a second ``_PyGC_CollectNoFail()`` call in
 ``finalize_interp_clear()``.
 
 It was only a workaround which helped to understand the issue, it was not
@@ -145,7 +150,7 @@ merged.
 First fix (merged): abc_data_traverse()
 ---------------------------------------
 
-A first fix was merged: add a tp_traverse slot to the ``_abc._abc_data`` type
+I merged a first fix: add a traverse function to the ``_abc._abc_data`` type
 (`commit
 <https://github.com/python/cpython/commit/9cc3ebd7e04cb645ac7b2f372eaafa7464e16b9c>`__)::
 
@@ -168,8 +173,8 @@ the new ``abc_data_traverse()`` function.
 Again, it was only a workaround which helped to understand the issue, but it
 was not merged.
 
-Second fix (merged): call Py_VISIT(Py_TYPE(self))
--------------------------------------------------
+Second fix (merged): call Py_VISIT(Py_TYPE(self)) automatically
+---------------------------------------------------------------
 
 20 days after I opened `bpo-40217 <https://bugs.python.org/issue40217>`__,
 **Pablo Galindo** modified ``PyType_FromSpec()`` to add a wrapper around the
@@ -185,8 +190,8 @@ In May 2020, **Pablo Galindo** changed his mind. He reverted his
 (`commit
 <https://github.com/python/cpython/commit/1cf15af9a6f28750f37b08c028ada31d38e818dd>`__).
 
-At the end, ``abc_data_traverse()`` now calls ``Py_VISIT(Py_TYPE(self))``. The
-second "workaround" was the correct fix.
+At the end, ``abc_data_traverse()`` calls ``Py_VISIT(Py_TYPE(self))``. The
+second "workaround" was the correct fix!
 
 
 Convert _signal to multiphase init
@@ -202,16 +207,15 @@ and test_interpreters started to leak::
     test_interpreters leaked [237, 237, 237] references, sum=711
 
 I created `bpo-41713 <https://bugs.python.org/issue41713>`_ to track the
-regression. Since I failed to find a simpler fix, I started by reverting the
+regression. Since I failed to find a simple fix, I started by reverting the
 change which caused Refleak buildbots to fail (`commit
 <https://github.com/python/cpython/commit/4b8032e5a4994a7902076efa72fca1e2c85d8b7f>`__).
 
 I had to refactor the ``_signal`` extension module code with multiple commits
 to fix all bugs.
 
-The first fix was to remove ``static PyObject *IntHandler;``
-variable: there was no need to keep it alive, it was only needed once in
-``signal_module_exec()``.
+The first fix was to remove the ``IntHandler`` variable: there was no need to
+keep it alive, it was only needed once in ``signal_module_exec()``.
 
 The second fix is to close the Windows event at exit::
 
@@ -225,16 +229,16 @@ The second fix is to close the Windows event at exit::
 The last fix, the most important, is to clear the strong reference to old
 Python signal handlers when ``signal_module_exec()`` is called more than once::
 
-        // If signal_module_exec() is called more than one, we must
-        // clear the strong reference to the previous function.
-        Py_XSETREF(Handlers[signum].func, Py_NewRef(func));
+    // If signal_module_exec() is called more than one, we must
+    // clear the strong reference to the previous function.
+    Py_XSETREF(Handlers[signum].func, Py_NewRef(func));
+
+The ``_signal`` module is not well isolated for subinterpreters yet, but at
+least it no longer leaks.
 
 
 Per-interpreter _ast state
 ==========================
-
-AST state
----------
 
 In September 2019, the ``_ast`` extension module was converted to PEP 384
 (stable ABI) in `bpo-38113 <https://bugs.python.org/issue38113>`_ (`commit
@@ -263,15 +267,13 @@ and test_ast started to leak::
     $ ./python -m test -R 3:3 test_ast
     test_ast leaked [23640, 23636, 23640] references, sum=70916
 
-Fix test_ast leak
------------------
-
 The fix is to call ``_PyAST_Fini()`` earlier (`commit
 <https://github.com/python/cpython/commit/fd957c124c44441d9c5eaf61f7af8cf266bafcb1>`__).
 
 Python types contain a reference to themselves in in their
-``PyTypeObject.tp_mro`` member. ``_PyAST_Fini()`` must called before the
-last GC collection to destroy AST types.
+``PyTypeObject.tp_mro`` member (the MRO tuple: Method Resolution Order).
+``_PyAST_Fini()`` must called before the last GC collection to destroy AST
+types.
 
 ``_PyInterpreterState_Clear()`` now calls ``_PyAST_Fini()``. It now also
 calls ``_PyWarnings_Fini()`` on subinterpeters, not only on the main
@@ -339,16 +341,16 @@ Notes on weird GC bugs
 * ``gc.get_referents()`` and ``gc.get_referrers()`` can be used to check
   traverse functions.
 * ``gc.is_tracked()`` can be used to check if the GC tracks an object.
-* Using ``gdb`` debugger on ``gc_collect_main()`` helps to see which objects
-  are collected. See for example the ``finalize_garbage()`` functions which
-  calls finalizers on unreachable objects.
-* The solution is commonly a missing traverse functions or a missing
+* Using the ``gdb`` debugger on ``gc_collect_main()`` helps to see which
+  objects are collected. See for example the ``finalize_garbage()`` functions
+  which calls finalizers on unreachable objects.
+* The solution is usually a missing traverse functions or a missing
   ``Py_VISIT()`` in an existing traverse function.
 * GC bugs are hard to debug :-)
 
 Thanks **Pablo Galindo** for helping me to debug all these tricky GC bugs!
 
-Thanks to everybody who is helping to better isolate subintrepreters by
+Thanks to everybody who are helping to better isolate subintrepreters by
 converting extension modules to the multiphase initialization API (PEP 489) and
 by converting dozens of static types to heap types. We made huge progresses
 last months!
