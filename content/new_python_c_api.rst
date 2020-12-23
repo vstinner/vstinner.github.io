@@ -3,7 +3,7 @@ A New C API for CPython
 +++++++++++++++++++++++
 
 :date: 2017-09-07 18:00
-:tags: optimization, cpython
+:tags: optimization, cpython, c-api
 :category: python
 :slug: new-python-c-api
 :authors: Victor Stinner
