@@ -8,10 +8,10 @@ Hide implementation details in the Python C API
 :slug: hide-implementation-details-python-c-api
 :authors: Victor Stinner
 
-This article is about discussions around the C API between 2016 and 2020,
-and the creation of C API related projects: pythoncapi (website), HPy and
-pythoncapi_compat projects. More and more people are aware of issues caused by
-the C API and are working on solutions.
+This article is about discussions around the C API between 2016 and 2020, and
+the creation of C API projects: pythoncapi, HPy and pythoncapi_compat. More and
+more people are aware of issues caused by the C API and are working on
+solutions.
 
 Year 2016
 =========
@@ -24,7 +24,7 @@ the GIL. Don't merge this!
 
 At EuroPython 2016, he gave the talk `Larry Hastings - The Gilectomy
 <https://www.youtube.com/watch?v=fgWUwQVoLHo>`_ where he explained that the
-current parallelism bottleneck is CPython reference counting which doesn't
+current parallelism bottleneck is the CPython reference counting which doesn't
 scale with the number of threads.
 
 
@@ -63,22 +63,24 @@ Abstract:
     Reference counting may be emulated in a future implementation for
     backward compatibility.
 
-Plan made of multiple small steps:
+The plan is made of multiple small steps:
 
 * Step 1: Split ``Include/`` into subdirectories
 * Step 2: Add an opt-in API option to tools building packages
-* Step 3: first pass of implementation detail removal
+* Step 3: First pass of implementation detail removal
 * Step 4: Switch the default API to the new restricted python API.
 * Step 5: Continue Step 3: remove even more implementation details.
 
 September
 ---------
 
-I discussed my idea at the CPython sprint (at Instagram, California). The idea
-was liked by most (if not all) core developers who are fine with a minor
-performance slowdown (caused by replacing macros with function calls). I wrote
-`A New C API for CPython <https://vstinner.github.io/new-python-c-api.html>`_
-blog post about these discussions.
+I discussed my idea at the CPython core dev sprint (at Instagram, California).
+The idea was liked by most (if not all) core developers who are fine with a
+minor performance slowdown (caused by replacing macros with function calls).
+
+I wrote `A New C API for CPython
+<https://vstinner.github.io/new-python-c-api.html>`_ blog post about these
+discussions.
 
 November
 --------
@@ -123,7 +125,30 @@ April
 
 I proposed `PEP: Modify the C API to hide implementation details
 <https://mail.python.org/archives/list/python-dev@python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/#TKHNENOXP6H34E73XGFOL2KKXSM4Z6T2>`__
-on the python-dev list.
+on the python-dev list. The main idea is to provide a new optimized Python
+runtime which is backward incompatible on purpose, and continue to ship the
+regular runtime which is fully backward compatible.
+
+Abstract:
+
+* Hide implementation details from the C API to be able to optimize CPython and
+  make PyPy more efficient.
+* The expectation is that most C extensions don't rely directly on CPython
+  internals and so will remain compatible.
+* Continue to support old unmodified C extensions by continuing to provide the
+  fully compatible "regular" CPython runtime.
+* Provide a new optimized CPython runtime using the same CPython code base:
+  faster but can only import C extensions which don't use implementation
+  details.  Since both CPython runtimes share the same code base, features
+  implemented in CPython will be available in both runtimes.
+* Stable ABI: Only build a C extension once and use it on multiple Python
+  runtimes and different versions of the same runtime.
+* Better advertise alternative Python runtimes and better communicate on the
+  differences between the Python language and the Python implementation
+  (especially CPython).
+
+Note: Cython and cffi should be preferred to write new C extensions. This PEP
+is about existing C extensions which cannot be rewritten with Cython.
 
 June
 ----
@@ -155,4 +180,5 @@ The pythoncapi_compat project got its first two users (bitarray and immutables
 projects).
 
 I collaborated with the HPy project to create a manifesto explaining how the C
-API prevents to optimize CPython.
+API prevents to optimize CPython and makes the CPython C API inefficient on
+PyPy.
