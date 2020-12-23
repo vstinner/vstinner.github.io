@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
+        <meta name="generator" content="Pelican" />
         <title>Victor Stinner blog 3 - Victor Stinner</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
@@ -9,7 +10,7 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
                 <nav><ul>
                     <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
                     <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
@@ -20,7 +21,313 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html">GIL bugfixes for daemon threads in Python 3.9</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/subinterpreter-leaks.html">Leaks discovered by subinterpreters</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-12-23T14:00:00+01:00">
+                Published: mer. 23 décembre 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+</footer><!-- /.post-info --><p>This article is about old reference leaks discovered or caused by the work on
+isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
+_signal, _ast and _thread).</p>
+<img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
+<div class="section" id="refleaks-buildbot-failures">
+<h2>Refleaks buildbot failures</h2>
+<p>With my work on isolating subinterpreters, old bugs about Python objects leaked
+at Python exit are suddenly becoming blocker issues on buildbots.</p>
+<p>When subinterpreters still share Python objects with the main interpreter, it
+is ok-ish to leak these objects at Python exit. Right now (current master
+branch), there are still more than 18 000 Python objects which are not
+destroyed at Python exit:</p>
+<pre class="literal-block">
+$ ./python -X showrefcount -c pass
+[18411 refs, 6097 blocks]
+</pre>
+<p>This issue is being solved in the <a class="reference external" href="https://bugs.python.org/issue1635741">bpo-1635741: Py_Finalize() doesn't clear all
+Python objects at exit</a> which was
+opened almost 14 years ago (2007).</p>
+<p>When subinterpreters are better isolated, objects are no longer shared, and
+suddenly these leaks make subinterpreters tests failing on Refleak buildbots.
+For example, when an extension module is converted to the multiphase
+initialization API (PEP 489) or when static types are converted to heap types,
+these issues pop up.</p>
+<p>It is a blocker issue for me, since I care of having only &quot;green&quot; buildbots (no
+test failure), otherwise more serious regressions can be easily missed.</p>
+</div>
+<div class="section" id="per-interpreter-gc-state">
+<h2>Per-interpreter GC state</h2>
+<p>In November 2019, I made the state of the GC module per-interpreter in
+<a class="reference external" href="https://bugs.python.org/issue36854">bpo-36854</a>
+(<a class="reference external" href="https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700">commit</a>)
+and test_atexit started to leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_atexit -m test.test_atexit.SubinterpreterTest.test_callbacks_leak
+test_atexit leaked [3988, 3986, 3988] references, sum=11962
+</pre>
+<p>I fixed the usage of the <tt class="docutils literal">PyModule_AddObject()</tt> function in the <tt class="docutils literal">_testcapi</tt>
+module (<a class="reference external" href="https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c">commit</a>).</p>
+<p>I also pushed a <strong>workaround</strong> in <tt class="docutils literal">finalize_interp_clear()</tt>:</p>
+<pre class="literal-block">
++    /* bpo-36854: Explicitly clear the codec registry
++       and trigger a GC collection */
++    PyInterpreterState *interp = tstate-&gt;interp;
++    Py_CLEAR(interp-&gt;codec_search_path);
++    Py_CLEAR(interp-&gt;codec_search_cache);
++    Py_CLEAR(interp-&gt;codec_error_registry);
++    _PyGC_CollectNoFail();
+</pre>
+<p>I dislike having to push a &quot;temporary&quot; workaround, but the Python finalization
+is really complex and fragile. Fixing the root issues would require too much
+work, whereas I wanted to repair the Refleak buildbots as soon as possible.</p>
+<p>In December 2019, the workaround was partially removed (<a class="reference external" href="https://github.com/python/cpython/commit/ac0e1c2694bc199dbd073312145e3c09bee52cc4">commit</a>):</p>
+<pre class="literal-block">
+-    Py_CLEAR(interp-&gt;codec_search_path);
+-    Py_CLEAR(interp-&gt;codec_search_cache);
+-    Py_CLEAR(interp-&gt;codec_error_registry);
+</pre>
+<p>The year after (December 2020), the last GC collection was moved into
+<tt class="docutils literal">PyInterpreterState_Clear()</tt>, before finalizating the GC (<a class="reference external" href="https://github.com/python/cpython/commit/eba5bf2f5672bf4861c626937597b85ac0c242b9">commit</a>).</p>
+</div>
+<div class="section" id="port-weakref-to-multiphase-init">
+<h2>Port _weakref to multiphase init</h2>
+<p>In March 2020, the <tt class="docutils literal">_weakref</tt> module was ported to the multiphase
+initialization API (PEP 489) in <a class="reference external" href="https://bugs.python.org/issue40050">bpo-40050</a> and test_importlib started to leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_importlib
+test_importlib leaked [6303, 6299, 6303] references, sum=18905
+</pre>
+<p>The analysis was quite long and complicated. The importlib imported some
+extension modules twice and it has to inject frozen modules to &quot;bootstrap&quot; the
+code.</p>
+<p>At the end, I fixed the issue by removing the now unused <tt class="docutils literal">_weakref</tt> import in
+<tt class="docutils literal">importlib._bootstrap_external</tt>
+(<a class="reference external" href="https://github.com/python/cpython/commit/83d46e0622d2efdf5f3bf8bf8904d0dcb55fc322">commit</a>).
+The fix also avoids importing an extension module twice.</p>
+</div>
+<div class="section" id="convert-abc-static-types-to-heap-types">
+<h2>Convert _abc static types to heap types</h2>
+<p>In April 2020, the static types of the <tt class="docutils literal">_abc</tt> extension module were converted
+to heap types in <a class="reference external" href="https://bugs.python.org/issue40077">bpo-40077</a>
+(<a class="reference external" href="https://github.com/python/cpython/commit/53e4c91725083975598350877e2ed8e2d0194114">commit</a>) and
+test_threading started to leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_threading
+test_threading leaked [19, 19, 19] references, sum=57
+</pre>
+<p>I created <a class="reference external" href="https://bugs.python.org/issue40149">bpo-40149</a> to track the leak.</p>
+<div class="section" id="objects-hold-a-reference-to-heap-types">
+<h3>Objects hold a reference to heap types</h3>
+<p>In March 2019, the <tt class="docutils literal">PyObject_Init()</tt> function was modified in <a class="reference external" href="https://bugs.python.org/issue35810">bpo-35810</a> to keep a strong reference (<tt class="docutils literal">INCREF</tt>)
+to the type if the type is a heap type
+(<a class="reference external" href="https://github.com/python/cpython/commit/364f0b0f19cc3f0d5e63f571ec9163cf41c62958">commit</a>):</p>
+<pre class="literal-block">
++    if (PyType_GetFlags(tp) &amp; Py_TPFLAGS_HEAPTYPE) {
++        Py_INCREF(tp);
++    }
+</pre>
+<p>I opened <a class="reference external" href="https://bugs.python.org/issue40217">bpo-40217: The garbage collector doesn't take in account that objects
+of heap allocated types hold a strong reference to their type</a> to discuss the regression
+(the test_threading leak).</p>
+</div>
+<div class="section" id="first-workaround-not-merged-force-a-second-garbage-collection">
+<h3>First workaround (not merged): force a second garbage collection</h3>
+<p>While analysing test_threading regression leak, I identified a first
+workaround: add a second <tt class="docutils literal">_PyGC_CollectNoFail()</tt> call in
+<tt class="docutils literal">finalize_interp_clear()</tt>.</p>
+<p>It was only a workaround which helped to understand the issue, it was not
+merged.</p>
+</div>
+<div class="section" id="first-fix-merged-abc-data-traverse">
+<h3>First fix (merged): abc_data_traverse()</h3>
+<p>I merged a first fix: add a traverse function to the <tt class="docutils literal">_abc._abc_data</tt> type
+(<a class="reference external" href="https://github.com/python/cpython/commit/9cc3ebd7e04cb645ac7b2f372eaafa7464e16b9c">commit</a>):</p>
+<pre class="literal-block">
++static int
++abc_data_traverse(_abc_data *self, visitproc visit, void *arg)
++{
++    Py_VISIT(self-&gt;_abc_registry);
++    Py_VISIT(self-&gt;_abc_cache);
++    Py_VISIT(self-&gt;_abc_negative_cache);
++    return 0;
++}
+</pre>
+</div>
+<div class="section" id="second-workaround-not-merged-visit-the-type-in-abc-data-traverse">
+<h3>Second workaround (not merged): visit the type in abc_data_traverse()</h3>
+<p>A second workaround was identified: add <tt class="docutils literal"><span class="pre">Py_VISIT(Py_TYPE(self));</span></tt> to
+the new <tt class="docutils literal">abc_data_traverse()</tt> function.</p>
+<p>Again, it was only a workaround which helped to understand the issue, but it
+was not merged.</p>
+</div>
+<div class="section" id="second-fix-merged-call-py-visit-py-type-self-automatically">
+<h3>Second fix (merged): call Py_VISIT(Py_TYPE(self)) automatically</h3>
+<p>20 days after I opened <a class="reference external" href="https://bugs.python.org/issue40217">bpo-40217</a>,
+<strong>Pablo Galindo</strong> modified <tt class="docutils literal">PyType_FromSpec()</tt> to add a wrapper around the
+traverse function of heap types to ensure that <tt class="docutils literal">Py_VISIT(Py_TYPE(self))</tt> is
+always called (<a class="reference external" href="https://github.com/python/cpython/commit/0169d3003be3d072751dd14a5c84748ab63a249f">commit</a>).</p>
+</div>
+<div class="section" id="last-fix-merged-fix-every-traverse-function">
+<h3>Last fix (merged): fix every traverse function</h3>
+<p>In May 2020, <strong>Pablo Galindo</strong> changed his mind. He reverted his
+<tt class="docutils literal">PyType_FromSpec()</tt> change and instead fixed traverse function of heap types
+(<a class="reference external" href="https://github.com/python/cpython/commit/1cf15af9a6f28750f37b08c028ada31d38e818dd">commit</a>).</p>
+<p>At the end, <tt class="docutils literal">abc_data_traverse()</tt> calls <tt class="docutils literal">Py_VISIT(Py_TYPE(self))</tt>. The
+second &quot;workaround&quot; was the correct fix!</p>
+</div>
+</div>
+<div class="section" id="convert-signal-to-multiphase-init">
+<h2>Convert _signal to multiphase init</h2>
+<p>In September 2020, <strong>Mohamed Koubaa</strong> ported the <tt class="docutils literal">_signal</tt> module to the
+multiphase initialization API (PEP 489) in <a class="reference external" href="https://bugs.python.org/issue1635741">bpo-1635741</a> (<a class="reference external" href="https://github.com/python/cpython/commit/71d1bd9569c8a497e279f2fea6fe47cd70a87ea3">commit 71d1bd95</a>)
+and test_interpreters started to leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_interpreters
+test_interpreters leaked [237, 237, 237] references, sum=711
+</pre>
+<p>I created <a class="reference external" href="https://bugs.python.org/issue41713">bpo-41713</a> to track the
+regression. Since I failed to find a simple fix, I started by reverting the
+change which caused Refleak buildbots to fail (<a class="reference external" href="https://github.com/python/cpython/commit/4b8032e5a4994a7902076efa72fca1e2c85d8b7f">commit</a>).</p>
+<p>I had to refactor the <tt class="docutils literal">_signal</tt> extension module code with multiple commits
+to fix all bugs.</p>
+<p>The first fix was to remove the <tt class="docutils literal">IntHandler</tt> variable: there was no need to
+keep it alive, it was only needed once in <tt class="docutils literal">signal_module_exec()</tt>.</p>
+<p>The second fix is to close the Windows event at exit:</p>
+<pre class="literal-block">
++ #ifdef MS_WINDOWS
++     if (sigint_event != NULL) {
++         CloseHandle(sigint_event);
++         sigint_event = NULL;
++     }
++ #endif
+</pre>
+<p>The last fix, the most important, is to clear the strong reference to old
+Python signal handlers when <tt class="docutils literal">signal_module_exec()</tt> is called more than once:</p>
+<pre class="literal-block">
+// If signal_module_exec() is called more than one, we must
+// clear the strong reference to the previous function.
+Py_XSETREF(Handlers[signum].func, Py_NewRef(func));
+</pre>
+<p>The <tt class="docutils literal">_signal</tt> module is not well isolated for subinterpreters yet, but at
+least it no longer leaks.</p>
+</div>
+<div class="section" id="per-interpreter-ast-state">
+<h2>Per-interpreter _ast state</h2>
+<p>In September 2019, the <tt class="docutils literal">_ast</tt> extension module was converted to PEP 384
+(stable ABI) in <a class="reference external" href="https://bugs.python.org/issue38113">bpo-38113</a> (<a class="reference external" href="https://github.com/python/cpython/commit/ac46eb4ad6662cf6d771b20d8963658b2186c48c">commit</a>):
+the AST state moves into a module state.</p>
+<p>This change caused 3 different bugs including crashes (<a class="reference external" href="https://bugs.python.org/issue41194">bpo-41194</a>, <a class="reference external" href="https://bugs.python.org/issue41261">bpo-41261</a>, <a class="reference external" href="https://bugs.python.org/issue41631">bpo-41631</a>). The issue is complex since there are
+public C APIs which require to access AST types, whereas it became possible to
+have multiple <tt class="docutils literal">_ast</tt> extension module instances.</p>
+<p>In July 2020, I fixed the root issue in <a class="reference external" href="https://bugs.python.org/issue41194">bpo-41194</a> by replacing the module state with a
+global state (<a class="reference external" href="https://github.com/python/cpython/commit/91e1bc18bd467a13bceb62e16fbc435b33381c82">commit</a>):</p>
+<pre class="literal-block">
+static astmodulestate global_ast_state;
+</pre>
+<p>A global state is bad for subinterpreters. In November 2020, I made the AST
+state per-interpreter in <a class="reference external" href="https://bugs.python.org/issue41796">bpo-41796</a>
+(<a class="reference external" href="https://github.com/python/cpython/commit/5cf4782a2630629d0978bf4cf6b6340365f449b2">commit</a>
+and test_ast started to leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_ast
+test_ast leaked [23640, 23636, 23640] references, sum=70916
+</pre>
+<p>The fix is to call <tt class="docutils literal">_PyAST_Fini()</tt> earlier (<a class="reference external" href="https://github.com/python/cpython/commit/fd957c124c44441d9c5eaf61f7af8cf266bafcb1">commit</a>).</p>
+<p>Python types contain a reference to themselves in in their
+<tt class="docutils literal">PyTypeObject.tp_mro</tt> member (the MRO tuple: Method Resolution Order).
+<tt class="docutils literal">_PyAST_Fini()</tt> must called before the last GC collection to destroy AST
+types.</p>
+<p><tt class="docutils literal">_PyInterpreterState_Clear()</tt> now calls <tt class="docutils literal">_PyAST_Fini()</tt>. It now also
+calls <tt class="docutils literal">_PyWarnings_Fini()</tt> on subinterpeters, not only on the main
+interpreter.</p>
+</div>
+<div class="section" id="thread-lock-traverse">
+<h2>_thread lock traverse</h2>
+<p>In December 2020, while I tried to port the <tt class="docutils literal">_thread</tt> extesnion module to the multiphase initialization API
+(PEP 489), test_threading started to leak:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_threading
+test_threading leaked [56, 56, 56] references, sum=168
+</pre>
+<p>As usual, the workaround was to force a second GC collection in <tt class="docutils literal">interpreter_clear()</tt>:</p>
+<pre class="literal-block">
+     /* Last garbage collection on this interpreter */
+     _PyGC_CollectNoFail(tstate);
++    _PyGC_CollectNoFail(tstate);
+     _PyGC_Fini(tstate);
+</pre>
+<p>It took me two days to full understand the problem. I drew reference cycles
+on paper to help me to understand the problem:</p>
+<img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
+<p>There are two cycles:</p>
+<ul class="simple">
+<li>Cycle 1:<ul>
+<li>at fork function</li>
+<li>-&gt; __main__ module dict</li>
+<li>-&gt; at fork function</li>
+</ul>
+</li>
+<li>Cycle 2:<ul>
+<li>_thread lock type</li>
+<li>-&gt; lock type methods</li>
+<li>-&gt; _thread module dict</li>
+<li>-&gt; _thread local type</li>
+<li>-&gt; _thread module</li>
+<li>-&gt; _thread module state</li>
+<li>-&gt; _thread lock type</li>
+</ul>
+</li>
+</ul>
+<p>Moreover, there is a link between these two reference cycles: an instance of
+the lock type.</p>
+<p>I fixed the issue by adding a traverse function to the lock type and add
+<tt class="docutils literal">Py_TPFLAGS_HAVE_GC</tt> flag to the type (<a class="reference external" href="https://github.com/python/cpython/commit/6104013838e181e3c698cb07316f449a0c31ea96">commit</a>):</p>
+<pre class="literal-block">
++static int
++lock_traverse(lockobject *self, visitproc visit, void *arg)
++{
++    Py_VISIT(Py_TYPE(self));
++    return 0;
++}
+</pre>
+</div>
+<div class="section" id="notes-on-weird-gc-bugs">
+<h2>Notes on weird GC bugs</h2>
+<ul class="simple">
+<li><tt class="docutils literal">gc.get_referents()</tt> and <tt class="docutils literal">gc.get_referrers()</tt> can be used to check
+traverse functions.</li>
+<li><tt class="docutils literal">gc.is_tracked()</tt> can be used to check if the GC tracks an object.</li>
+<li>Using the <tt class="docutils literal">gdb</tt> debugger on <tt class="docutils literal">gc_collect_main()</tt> helps to see which
+objects are collected. See for example the <tt class="docutils literal">finalize_garbage()</tt> functions
+which calls finalizers on unreachable objects.</li>
+<li>The solution is usually a missing traverse functions or a missing
+<tt class="docutils literal">Py_VISIT()</tt> in an existing traverse function.</li>
+<li>GC bugs are hard to debug :-)</li>
+</ul>
+<p>Thanks <strong>Pablo Galindo</strong> for helping me to debug all these tricky GC bugs!</p>
+<p>Thanks to everybody who are helping to better isolate subintrepreters by
+converting extension modules to the multiphase initialization API (PEP 489) and
+by converting dozens of static types to heap types. We made huge progresses
+last months!</p>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="bookmark"
+                           title="Permalink to GIL bugfixes for daemon threads in Python 3.9">GIL bugfixes for daemon threads in Python 3.9</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-04-04T22:00:00+02:00">
                 Published: sam. 04 avril 2020
@@ -31,248 +338,14 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
+</footer><!-- /.post-info -->                <p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.</p>
 <p>This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
-Python 3.9, between March 2019 and March 2020, for daemon threads during Python
-finalization. Some bugs were old: up to 6 years old. Some bugs were triggered
-by the on-going work on isolating subinterpreters in Python 3.9.</p>
-<a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"><img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /></a>
-<p>Drawing: <a class="reference external" href="https://twitter.com/Bouletcorp/status/1241018332112998401">#CoronaMaison by Boulet</a>.</p>
-<div class="section" id="fix-1-exit-pyeval-acquirethread-if-finalizing">
-<h2>Fix 1: Exit PyEval_AcquireThread() if finalizing</h2>
-<p>In March 2019, <strong>Remy Noel</strong> created <a class="reference external" href="https://bugs.python.org/issue36469">bpo-36469</a>: a multithreaded Python application
-using 20 daemon threads hangs randomly at exit on Python 3.5:</p>
-<blockquote>
-The bug happens about once every two weeks on a script that is fired more
-than 10K times a day.</blockquote>
-<p><strong>Eric Snow</strong> analyzed the bug and understood that it is related to daemon
-threads and Python finalization. He identified that <tt class="docutils literal">PyEval_AcquireLock()</tt>
-and <tt class="docutils literal">PyEval_AcquireThread()</tt> function take the GIL but don't exit the thread
-if Python is finalizing.</p>
-<p>When Python is finalizing and a daemon thread takes the GIL, Python can hang
-randomly.</p>
-<p>Eric created <a class="reference external" href="https://bugs.python.org/issue36475">bpo-36475</a> to propose to
-modify <tt class="docutils literal">PyEval_AcquireLock()</tt> and <tt class="docutils literal">PyEval_AcquireThread()</tt> to also exit
-the thread in this case. In April 2019, <strong>Joannah Nanjekye</strong> fixed the issue
-with <a class="reference external" href="https://github.com/python/cpython/commit/f781d202a2382731b43bade845a58d28a02e9ea1">commit f781d202</a>:</p>
-<pre class="literal-block">
-bpo-36475: Finalize PyEval_AcquireLock() and PyEval_AcquireThread() properly (GH-12667)
-
-PyEval_AcquireLock() and PyEval_AcquireThread() now
-terminate the current thread if called while the interpreter is
-finalizing, making them consistent with PyEval_RestoreThread(),
-Py_END_ALLOW_THREADS, and PyGILState_Ensure().
-</pre>
-<p>The fix adds <tt class="docutils literal">exit_thread_if_finalizing()</tt> function which exit the thread if
-Python is finalizing. This function is called after each <tt class="docutils literal">take_gil()</tt> call.</p>
-<p>The fix is very similar to <tt class="docutils literal">PyEval_RestoreThread()</tt> fix made in 2013 (<a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1">commit
-0d5e52d3</a>)
-to fix <a class="reference external" href="https://bugs.python.org/issue1856#msg60014">bpo-1856</a> (Python crash
-involving daemon threads during Python exit).</p>
-</div>
-<div class="section" id="fix-2-pyeval-restorethread-on-freed-tstate">
-<h2>Fix 2: PyEval_RestoreThread() on freed tstate</h2>
-<div class="section" id="concurrent-futures-crash-on-freebsd">
-<h3>concurrent.futures crash on FreeBSD</h3>
-<p>In December 2019, I reported <a class="reference external" href="https://bugs.python.org/issue39088">bpo-39088</a>:
-test_concurrent_futures <strong>crashed randomly</strong> with a coredump on AMD64 FreeBSD
-Shared 3.x buildbot. In March 2020, I succeeded to reproduce the bug on FreeBSD
-and I was able to debug the coredump in gdb:</p>
-<pre class="literal-block">
-(gdb) frame
-#0  0x00000000003b518c in PyEval_RestoreThread (tstate=0x801f23790) at Python/ceval.c:387
-387         _PyRuntimeState *runtime = tstate-&gt;interp-&gt;runtime;
-
-(gdb) p tstate-&gt;interp
-$3 = (PyInterpreterState *) 0xdddddddddddddddd
-</pre>
-<p>The Python thread state (<tt class="docutils literal">tstate</tt>) was freed. In debug mode, the &quot;free()&quot;
-function of the Python memory allocator fills the freed memory block with
-<tt class="docutils literal">0xDD</tt> byte pattern (<tt class="docutils literal">D</tt> stands for dead byte) to detect usage of freed
-memory.</p>
-<p>The problem is that Python finalization already freed the memory of all
-PyThreadState structures, when <tt class="docutils literal">PyEval_RestoreThread(tstate)</tt> is called by a
-daemon thread. <tt class="docutils literal">PyEval_RestoreThread()</tt> dereferences <tt class="docutils literal">tstate</tt>:</p>
-<pre class="literal-block">
-_PyRuntimeState *runtime = tstate-&gt;interp-&gt;runtime;
-</pre>
-<p>This bug is a regression caused by my change:
-<a class="reference external" href="https://github.com/python/cpython/commit/01b1cc12e7c6a3d6a3d27ba7c731687d57aae92a">Add PyInterpreterState.runtime field</a>
-of <a class="reference external" href="https://bugs.python.org/issue36710">bpo-36710</a>. I replaced:</p>
-<pre class="literal-block">
-void PyEval_RestoreThread(PyThreadState *tstate) {
-    _PyRuntimeState *runtime = &amp;_PyRuntime;
-    ...
-}
-</pre>
-<p>with:</p>
-<pre class="literal-block">
-void PyEval_RestoreThread(PyThreadState *tstate) {
-    _PyRuntimeState *runtime = tstate-&gt;interp-&gt;runtime;
-    ...
-}
-</pre>
-</div>
-<div class="section" id="fix-pyeval-restorethread-for-daemon-threads">
-<h3>Fix PyEval_RestoreThread() for daemon threads</h3>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue39877">bpo-39877</a> to investigate
-this bug. I managed to reproduce the crash on Linux with a script spawning
-daemon threads which sleep randomly between 0.0 and 1.0 second, and by adding
-<tt class="docutils literal">sleep(1);</tt> call at <tt class="docutils literal">Py_RunMain()</tt> exit.</p>
-<p>I wrote a <tt class="docutils literal">PyEval_RestoreThread()</tt> fix which access to
-<tt class="docutils literal">_PyRuntimeState.finalizing</tt> without the GIL.</p>
-<p><strong>Antoine Pitrou</strong> asked me to convert <tt class="docutils literal">_PyRuntimeState.finalizing</tt> to an
-atomic variable to avoid inconsistencies in case of parallel accesses. At March
-7, 2020, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/7b3c252dc7f44d4bdc4c7c82d225ebd09c78f520">commit 7b3c252d</a>:</p>
-<pre class="literal-block">
-bpo-39877: _PyRuntimeState.finalizing becomes atomic (GH-18816)
-
-Convert _PyRuntimeState.finalizing field to an atomic variable:
-
-* Rename it to _finalizing
-* Change its type to _Py_atomic_address
-* Add _PyRuntimeState_GetFinalizing() and _PyRuntimeState_SetFinalizing()
-  functions
-* Remove _Py_CURRENTLY_FINALIZING() function: replace it with testing
-  directly _PyRuntimeState_GetFinalizing() value
-
-Convert _PyRuntimeState_GetThreadState() to static inline function.
-</pre>
-<p>The day after, I pushed my fix, <a class="reference external" href="https://github.com/python/cpython/commit/eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e">commit eb4e2ae2</a>:</p>
-<pre class="literal-block">
-bpo-39877: Fix PyEval_RestoreThread() for daemon threads (GH-18811)
-
-* exit_thread_if_finalizing() does now access directly _PyRuntime
-  variable, rather than using tstate-&gt;interp-&gt;runtime since tstate
-  can be a dangling pointer after Py_Finalize() has been called.
-* exit_thread_if_finalizing() is now called *before* calling
-  take_gil(). _PyRuntime.finalizing is an atomic variable,
-  we don't need to hold the GIL to access it.
-</pre>
-<p><tt class="docutils literal">exit_thread_if_finalizing()</tt> is now called <strong>before</strong> <tt class="docutils literal">take_gil()</tt> to
-ensure that <tt class="docutils literal">take_gil()</tt> cannot be called with an invalid Python thread state
-(<tt class="docutils literal">tstate</tt>).</p>
-<p>I commented <em>naively</em>:</p>
-<blockquote>
-Ok, it should now be fixed.</blockquote>
-</div>
-</div>
-<div class="section" id="clear-python-thread-states-earlier-my-first-failed-attempt-in-2013">
-<h2>Clear Python thread states earlier: my first failed attempt in 2013</h2>
-<p>In 2013, I opened <a class="reference external" href="https://bugs.python.org/issue19466">bpo-19466</a> to clear
-earlier the Python thread state of threads during Python finalization. My
-intent was to display <tt class="docutils literal">ResourceWarning</tt> warnings of daemon threads as well.
-In November 2013, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/45956b9a33af634a2919ade64c1dd223ab2d5235">commit 45956b9a</a>:</p>
-<pre class="literal-block">
-Close #19466: Clear the frames of daemon threads earlier during the Python
-shutdown to call objects destructors. So &quot;unclosed file&quot; resource warnings
-are now correctly emitted for daemon threads.
-</pre>
-<p>Later, I discovered a crash in the the garbage collector while trying to
-reproduce a race condition in asyncio: I created <a class="reference external" href="https://bugs.python.org/issue20526">bpo-20526</a>. Sadly, this bug was trigger by my
-previous change. I decided that it's safer to revert my change.</p>
-<p>By the way, when I looked again at <a class="reference external" href="https://bugs.python.org/issue20526">bpo-20526</a>, I was able to reproduce again the
-garbage collector bug, likely because of recent changes. With the help of
-<strong>Pablo Galindo Salgado</strong>, Pablo and me <a class="reference external" href="https://bugs.python.org/issue20526#msg364851">understood the root issue</a>.  At March 24, 2020, I pushed
-a fix (<a class="reference external" href="https://github.com/python/cpython/commit/5804f878e779712e803be927ca8a6df389d82cdf">commit</a>)
-to finally fix this 6 years old bug! The fix removes the following line from
-<tt class="docutils literal">PyThreadState_Clear()</tt>:</p>
-<pre class="literal-block">
-Py_CLEAR(tstate-&gt;frame);
-</pre>
-</div>
-<div class="section" id="fix-3-exit-also-take-gil-at-exit-point-if-finalizing">
-<h2>Fix 3: Exit also take_gil() at exit point if finalizing</h2>
-<p>After fixing <tt class="docutils literal">PyEval_RestoreThread()</tt>, I decided to attempt again to fix
-<a class="reference external" href="https://bugs.python.org/issue19466">bpo-19466</a> (clear earlier Python thread
-states). Sadly, I discovered that my <tt class="docutils literal">PyEval_RestoreThread()</tt> fix
-<strong>introduced a race condition</strong>!</p>
-<p>While the main thread finalizes Python, daemon threads can be waiting for the
-GIL: they block in <tt class="docutils literal">take_gil()</tt>. When the main thread releases the GIL during
-finalization, a daemon thread take the GIL instead of exiting. Daemon threads
-only check if they must exit <strong>before</strong> trying to take the GIL.</p>
-<p>The solution is to call <tt class="docutils literal">exit_thread_if_finalizing()</tt> twice in
-<tt class="docutils literal">take_gil()</tt>: before <strong>and</strong> after taking the GIL.</p>
-<p>In March 2020, I pushed <a class="reference external" href="https://github.com/python/cpython/commit/9229eeee105f19705f72e553cf066751ac47c7b7">commit 9229eeee</a>:</p>
-<pre class="literal-block">
-bpo-39877: take_gil() checks tstate_must_exit() twice (GH-18890)
-
-take_gil() now also checks tstate_must_exit() after acquiring
-the GIL: exit the thread if Py_Finalize() has been called.
-</pre>
-<p>I commented:</p>
-<blockquote>
-<p>I ran multiple times <tt class="docutils literal">daemon_threads_exit.py</tt> with <tt class="docutils literal">slow_exit.patch</tt>:
-no crash.</p>
-<p>I also ran multiple times <tt class="docutils literal">stress.py</tt> + <tt class="docutils literal">sleep_at_exit.patch</tt> of
-bpo-37135: no crash.</p>
-<p>And I tested <tt class="docutils literal">asyncio_gc.py</tt> of bpo-19466: no crash neither.</p>
-<p><strong>Python finalization now looks reliable.</strong> I'm not sure if it's &quot;more&quot;
-reliable than previously, but at least, I cannot get a crash anymore, even
-after bpo-19466 has been fixed (clear Python thread states of daemon
-threads earlier).</p>
-</blockquote>
-<p>Funny fact, in June 2019, <strong>Eric Snow</strong> added a very similar bug in <a class="reference external" href="https://bugs.python.org/issue36818">bpo-36818</a> with <a class="reference external" href="https://github.com/python/cpython/commit/396e0a8d9dc65453cb9d53500d0a620602656cfe">commit 396e0a8d</a>:
-test_multiprocessing_spawn segfault on FreeBSD (<a class="reference external" href="https://bugs.python.org/issue37135">bpo-37135</a>). I reverted his change to fix the
-issue. At this time, I didn't have the bandwidth to investigate the root cause.
-I just reverted Eric's change.</p>
-</div>
-<div class="section" id="fix-4-exit-take-gil-while-waiting-for-the-gil-if-finalizing">
-<h2>Fix 4: Exit take_gil() while waiting for the GIL if finalizing</h2>
-<p>While I was working on moving pending calls from <tt class="docutils literal">_PyRuntime</tt> to
-<tt class="docutils literal">PyInterpreterState</tt>, <a class="reference external" href="https://bugs.python.org/issue39984">bpo-3998</a>, I had
-another bug.</p>
-<p>At March 18, 2020, I pushed a <tt class="docutils literal">take_gil()</tt> fix to avoid accessing <tt class="docutils literal">tstate</tt>
-if Python is finalizing, <a class="reference external" href="https://github.com/python/cpython/commit/29356e03d4f8800b04f799efe7a10e3ce8b16f61">commit 29356e03</a>:</p>
-<pre class="literal-block">
-bpo-39877: Fix take_gil() for daemon threads (GH-19054)
-
-bpo-39877, bpo-39984: If the thread must exit, don't access tstate to
-prevent a potential crash: tstate memory has been freed.
-</pre>
-<p>And while working on the inefficient signal handling in multithreaded
-applications (<a class="reference external" href="https://bugs.python.org/issue40010">bpo-40010</a>), I discovered
-that the previous fix was not enough!</p>
-<p>At March 19, 2020, I pushed a <tt class="docutils literal">take_gil()</tt> fix to exit while <tt class="docutils literal">take_gil()</tt>
-is waiting for the GIL if Python is finalizing, <a class="reference external" href="https://github.com/python/cpython/commit/a36adfa6bbf5e612a4d4639124502135690899b8">commit a36adfa6</a>:</p>
-<pre class="literal-block">
-bpo-39877: 4th take_gil() fix for daemon threads (GH-19080)
-
-bpo-39877, bpo-40010: Add a third tstate_must_exit() check in
-take_gil() to prevent using tstate which has been freed.
-</pre>
-<p>I can only hope that this fix is the last one to fix all corner cases with
-daemon threads in <tt class="docutils literal">take_gil()</tt> (<a class="reference external" href="https://bugs.python.org/issue39877">bpo-39877</a>)!</p>
-</div>
-<div class="section" id="summary-of-gil-bugfixes">
-<h2>Summary of GIL bugfixes</h2>
-<p>The GIL got 5 main bugfixes for daemon threads and Python finalization:</p>
-<ul class="simple">
-<li>May 2011, <strong>Antoine Pitrou</strong>,
-<a class="reference external" href="https://github.com/python/cpython/commit/0d5e52d3469a310001afe50689f77ddba6d554d1">commit 0d5e52d3</a>:
-<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>after</strong> taking the GIL (1 check)</li>
-<li>April 2019, <strong>Joannah Nanjekye</strong>,
-<a class="reference external" href="https://github.com/python/cpython/commit/f781d202a2382731b43bade845a58d28a02e9ea1">commit f781d202</a>:
-PyEval_AcquireLock() and PyEval_AcquireThread() also exit if Python is finalizing</li>
-<li>March 8, 2020, <strong>Victor Stinner</strong>,
-<a class="reference external" href="https://github.com/python/cpython/commit/eb4e2ae2b8486e8ee4249218b95d94a9f0cc513e">commit eb4e2ae2</a>:
-<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>before</strong> taking the GIL (1 check)</li>
-<li>March 9, 2020, <strong>Victor Stinner</strong>,
-<a class="reference external" href="https://github.com/python/cpython/commit/9229eeee105f19705f72e553cf066751ac47c7b7">commit 9229eeee</a>:
-<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>before and after</strong> taking the GIL (2 checks)</li>
-<li>March 19, 2020, <strong>Victor Stinner</strong>,
-<a class="reference external" href="https://github.com/python/cpython/commit/a36adfa6bbf5e612a4d4639124502135690899b8">commit a36adfa6</a>:
-<tt class="docutils literal">take_gil()</tt> exits if finalizing <strong>before, while, and after</strong> taking the GIL (3 checks)</li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+Python 3.9, between …</p>
+                <a class="readmore" href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -492,36 +565,11 @@ it to the caller. Examples …</p>
                 <a class="readmore" href="https://vstinner.github.io/sys-unraisablehook-python38.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="bookmark"
-                           title="Permalink to asyncio WSASend() memory leak">asyncio WSASend() memory leak</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-03-06T20:00:00+01:00">
-                Published: mer. 06 mars 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
-still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
-haunt me for 1 year in 2018...</p>
-<p><strong>Yet another example of a test failure which looks harmless but hides a
-critical bug.</strong> The bug is that sending a …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
-    Page 1 / 6
+    Page 1 / 7
         <a href="https://vstinner.github.io/author/victor-stinner2.html">&raquo;</a>
+        <a href="https://vstinner.github.io/author/victor-stinner7.html">&#8649;</a>
 </p>
                 </section><!-- /#content -->
         <section id="extras" class="body">
@@ -543,10 +591,10 @@ critical bug.</strong> The bug is that sending a …</p>
 
         <footer id="contentinfo" class="body">
                 <address id="about" class="vcard body">
-                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
                 </address><!-- /#about -->
 
-                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
         </footer><!-- /#contentinfo -->
 
 </body>

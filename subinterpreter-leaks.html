@@ -3,9 +3,10 @@
 <head>
         <meta charset="utf-8" />
         <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - cpython</title>
+        <title>Leaks discovered by subinterpreters</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+        <meta name="description" content="This article is about old reference leaks discovered or caused by the work on isolating subinterpreters: leaks in 6 different modules (gc,..." />
 </head>
 
 <body id="index" class="home">
@@ -13,15 +14,20 @@
                 <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
                 <nav><ul>
                     <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
                     <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
                     <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/subinterpreter-leaks.html" rel="bookmark"
+           title="Permalink to Leaks discovered by subinterpreters">Leaks discovered by subinterpreters</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/subinterpreter-leaks.html">Leaks discovered by subinterpreters</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-12-23T14:00:00+01:00">
                 Published: mer. 23 décembre 2020
@@ -32,7 +38,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>This article is about old reference leaks discovered or caused by the work on
+</footer><!-- /.post-info -->      <p>This article is about old reference leaks discovered or caused by the work on
 isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
 _signal, _ast and _thread).</p>
 <img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
@@ -314,258 +320,11 @@ converting extension modules to the multiphase initialization API (PEP 489) and
 by converting dozens of static types to heap types. We made huge progresses
 last months!</p>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="bookmark"
-                           title="Permalink to GIL bugfixes for daemon threads in Python 3.9">GIL bugfixes for daemon threads in Python 3.9</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-04-04T22:00:00+02:00">
-                Published: sam. 04 avril 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
-issues caused by daemon threads in the Python finalization and past changes to
-make them work.</p>
-<p>This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
-Python 3.9, between …</p>
-                <a class="readmore" href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="bookmark"
-                           title="Permalink to Threading shutdown race condition">Threading shutdown race condition</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-04-03T20:00:00+02:00">
-                Published: ven. 03 avril 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>This article is about a race condition in threading shutdown that I fixed in
-Python 3.9 in March 2019. I also forbid spawning daemon threads in
-subinterpreters to fix another related bug.</p>
-<a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"><img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /></a>
-<p>Drawing: <a class="reference external" href="https://twitter.com/neeljulien/status/1240292383369150464">#CoronaMaison by Julien Neel</a>.</p>
-<div class="section" id="race-condition-in-threading-shutdown">
-<h2>Race condition in threading shutdown</h2>
-<div class="section" id="random-test-failure-noticed-on-freebsd-buildbot">
-<h3>Random test failure noticed on FreeBSD buildbot …</h3></div></div>
-                <a class="readmore" href="https://vstinner.github.io/threading-shutdown-race-condition.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="bookmark"
-                           title="Permalink to Daemon threads and the Python finalization in Python 3.2 and 3.3">Daemon threads and the Python finalization in Python 3.2 and 3.3</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-03-26T22:00:00+01:00">
-                Published: jeu. 26 mars 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>At exit, the Python finalization calls Python objects finalizers (the
-<tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
-kind of threads which continue to run during and after the Python finalization.
-They are causing race conditions and tricky bugs in the Python finalization.</p>
-<p>This article covers bugs …</p>
-                <a class="readmore" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-dev-mode.html" rel="bookmark"
-                           title="Permalink to Python 3.7 Development Mode">Python 3.7 Development Mode</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-01-16T12:00:00+01:00">
-                Published: jeu. 16 janvier 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
-(-X dev)</a> that I <strong>added
-to Python 3.7</strong> and how it has been implemented.</p>
-<p>The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev …</tt></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-dev-mode.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/cpython-pass-tstate.html" rel="bookmark"
-                           title="Permalink to Pass the Python thread state explicitly">Pass the Python thread state explicitly</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-01-08T15:00:00+01:00">
-                Published: mer. 08 janvier 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="keeping-python-competitive">
-<h2>Keeping Python competitive</h2>
-<p>I'm trying to find ways to make Python more efficient for many years, see for
-example my discussion at the Language Summit during Pycon US 2017: <a class="reference external" href="https://lwn.net/Articles/723949/">Keeping
-Python competitive</a> (LWN article); <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf">slides</a>.
-At EuroPython 2019 (Basel), I gave the keynote &quot;Python Performance: Past,
-Present and Future&quot;: <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf">slides …</a></p></div>
-                <a class="readmore" href="https://vstinner.github.io/cpython-pass-tstate.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="bookmark"
-                           title="Permalink to Python 3.7 UTF-8 Mode">Python 3.7 UTF-8 Mode</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-27T20:00:00+02:00">
-                Published: mar. 27 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Since Python 3.0 was released in 2008, each time an user reported an encoding
-issue, someone showed up and asked why Python does not &quot;simply&quot; always use UTF-8.
-Well, it's not that easy. <strong>UTF-8 is the best encoding in most cases, but it is
-still not the best encoding …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-new-utf8-mode.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/posix-locale.html" rel="bookmark"
-                           title="Permalink to Python 3.7 and the POSIX locale">Python 3.7 and the POSIX locale</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-23T13:00:00+01:00">
-                Published: ven. 23 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>During the childhood of Python 3, encodings issues were common, even on well
-configured systems. Python used UTF-8 rather than the locale encoding, and so
-commonly produced <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>. For
-these reasons, when users complained about the Python behaviour with the POSIX
-locale, bug reports were closed with a message like …</p>
-                <a class="readmore" href="https://vstinner.github.io/posix-locale.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python36-utf8-windows.html" rel="bookmark"
-                           title="Permalink to Python 3.6 now uses UTF-8 on Windows">Python 3.6 now uses UTF-8 on Windows</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-22T17:00:00+01:00">
-                Published: jeu. 22 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>September 2016, a few days before the CPython core dev sprint, <strong>Steve Dower</strong>
-proposed two major backward incompatible changes for Python 3.6 on Windows:
-<a class="reference external" href="https://www.python.org/dev/peps/pep-0528/">PEP 528: Change Windows console encoding to UTF-8</a> and <a class="reference external" href="https://www.python.org/dev/peps/pep-0529/">PEP 529: Change Windows
-filesystem encoding to UTF-8</a>.
-At the first read, I was sure that …</p>
-                <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="bookmark"
-                           title="Permalink to Python 3.2 Painful History of the Filesystem Encoding">Python 3.2 Painful History of the Filesystem Encoding</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-15T23:00:00+01:00">
-                Published: jeu. 15 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
-filesystem encoding changed multiple times. <strong>It took 6 years to choose the best
-Python filesystem encoding on each platform.</strong></p>
-<p><strong>I have been officially promoted as a core developer</strong> in January 2010 by
-<strong>Martin von …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-<p class="paginator">
-    Page 1 / 4
-        <a href="https://vstinner.github.io/tag/cpython2.html">&raquo;</a>
-        <a href="https://vstinner.github.io/tag/cpython4.html">&#8649;</a>
-</p>
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>

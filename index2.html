@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
         <meta charset="utf-8" />
+        <meta name="generator" content="Pelican" />
         <title>Victor Stinner blog 3</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
@@ -9,7 +10,7 @@
 
 <body id="index" class="home">
         <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3 </a></h1>
+                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
                 <nav><ul>
                     <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
                     <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
@@ -20,6 +21,32 @@
 
                 <section id="content" class="body">
                     <ol id="posts-list" class="hfeed" start="9">
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="bookmark"
+                           title="Permalink to asyncio WSASend() memory leak">asyncio WSASend() memory leak</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2019-03-06T20:00:00+01:00">
+                Published: mer. 06 mars 2019
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
+</footer><!-- /.post-info -->                <p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
+still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
+haunt me for 1 year in 2018...</p>
+<p><strong>Yet another example of a test failure which looks harmless but hides a
+critical bug.</strong> The bug is that sending a …</p>
+                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
             <li><article class="hentry">
                 <header>
                     <h1><a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="bookmark"
@@ -257,38 +284,13 @@ Python filesystem encoding on each platform.</strong></p>
                 <a class="readmore" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/pep-383.html" rel="bookmark"
-                           title="Permalink to Python 3.1 surrogateescape error handler (PEP 383)">Python 3.1 surrogateescape error handler (PEP 383)</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-15T18:00:00+01:00">
-                Published: jeu. 15 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>In my previous article, I wrote that <tt class="docutils literal">os.listdir(str)</tt> ignored silently
-undecodable filenames in Python 3.0 and that lying on the real content of a
-directory looks like a very bad idea.</p>
-<p><strong>Martin v. Löwis</strong> found a very smart solution to this problem: the
-<tt class="docutils literal">surrogateescape</tt> error handler.</p>
-<p><strong>This …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/pep-383.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
                 </ol><!-- /#posts-list -->
 <p class="paginator">
+        <a href="https://vstinner.github.io/index.html">&#8647;</a>
         <a href="https://vstinner.github.io/index.html">&laquo;</a>
-    Page 2 / 6
+    Page 2 / 7
         <a href="https://vstinner.github.io/index3.html">&raquo;</a>
+        <a href="https://vstinner.github.io/index7.html">&#8649;</a>
 </p>
                 </section><!-- /#content -->
         <section id="extras" class="body">
@@ -310,10 +312,10 @@ directory looks like a very bad idea.</p>
 
         <footer id="contentinfo" class="body">
                 <address id="about" class="vcard body">
-                Proudly powered by <a href="http://getpelican.com/">Pelican</a>, which takes great advantage of <a href="http://python.org">Python</a>.
+                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
                 </address><!-- /#about -->
 
-                <p>The theme is by <a href="http://coding.smashingmagazine.com/2009/08/04/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
         </footer><!-- /#contentinfo -->
 
 </body>

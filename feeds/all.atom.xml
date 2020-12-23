@@ -1,5 +1,294 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-04-04T22:00:00+02:00</updated><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-23T14:00:00+01:00</updated><entry><title>Leaks discovered by subinterpreters</title><link href="https://vstinner.github.io/subinterpreter-leaks.html" rel="alternate"></link><published>2020-12-23T14:00:00+01:00</published><updated>2020-12-23T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-23:/subinterpreter-leaks.html</id><summary type="html">&lt;p&gt;This article is about old reference leaks discovered or caused by the work on
+isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
+_signal, _ast and _thread).&lt;/p&gt;
+&lt;img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" /&gt;
+&lt;div class="section" id="refleaks-buildbot-failures"&gt;
+&lt;h2&gt;Refleaks buildbot failures&lt;/h2&gt;
+&lt;p&gt;With my work on isolating subinterpreters, old bugs about Python objects leaked
+at Python exit are suddenly becoming blocker …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;This article is about old reference leaks discovered or caused by the work on
+isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
+_signal, _ast and _thread).&lt;/p&gt;
+&lt;img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" /&gt;
+&lt;div class="section" id="refleaks-buildbot-failures"&gt;
+&lt;h2&gt;Refleaks buildbot failures&lt;/h2&gt;
+&lt;p&gt;With my work on isolating subinterpreters, old bugs about Python objects leaked
+at Python exit are suddenly becoming blocker issues on buildbots.&lt;/p&gt;
+&lt;p&gt;When subinterpreters still share Python objects with the main interpreter, it
+is ok-ish to leak these objects at Python exit. Right now (current master
+branch), there are still more than 18 000 Python objects which are not
+destroyed at Python exit:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -X showrefcount -c pass
+[18411 refs, 6097 blocks]
+&lt;/pre&gt;
+&lt;p&gt;This issue is being solved in the &lt;a class="reference external" href="https://bugs.python.org/issue1635741"&gt;bpo-1635741: Py_Finalize() doesn't clear all
+Python objects at exit&lt;/a&gt; which was
+opened almost 14 years ago (2007).&lt;/p&gt;
+&lt;p&gt;When subinterpreters are better isolated, objects are no longer shared, and
+suddenly these leaks make subinterpreters tests failing on Refleak buildbots.
+For example, when an extension module is converted to the multiphase
+initialization API (PEP 489) or when static types are converted to heap types,
+these issues pop up.&lt;/p&gt;
+&lt;p&gt;It is a blocker issue for me, since I care of having only &amp;quot;green&amp;quot; buildbots (no
+test failure), otherwise more serious regressions can be easily missed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="per-interpreter-gc-state"&gt;
+&lt;h2&gt;Per-interpreter GC state&lt;/h2&gt;
+&lt;p&gt;In November 2019, I made the state of the GC module per-interpreter in
+&lt;a class="reference external" href="https://bugs.python.org/issue36854"&gt;bpo-36854&lt;/a&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700"&gt;commit&lt;/a&gt;)
+and test_atexit started to leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_atexit -m test.test_atexit.SubinterpreterTest.test_callbacks_leak
+test_atexit leaked [3988, 3986, 3988] references, sum=11962
+&lt;/pre&gt;
+&lt;p&gt;I fixed the usage of the &lt;tt class="docutils literal"&gt;PyModule_AddObject()&lt;/tt&gt; function in the &lt;tt class="docutils literal"&gt;_testcapi&lt;/tt&gt;
+module (&lt;a class="reference external" href="https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c"&gt;commit&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;I also pushed a &lt;strong&gt;workaround&lt;/strong&gt; in &lt;tt class="docutils literal"&gt;finalize_interp_clear()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
++    /* bpo-36854: Explicitly clear the codec registry
++       and trigger a GC collection */
++    PyInterpreterState *interp = tstate-&amp;gt;interp;
++    Py_CLEAR(interp-&amp;gt;codec_search_path);
++    Py_CLEAR(interp-&amp;gt;codec_search_cache);
++    Py_CLEAR(interp-&amp;gt;codec_error_registry);
++    _PyGC_CollectNoFail();
+&lt;/pre&gt;
+&lt;p&gt;I dislike having to push a &amp;quot;temporary&amp;quot; workaround, but the Python finalization
+is really complex and fragile. Fixing the root issues would require too much
+work, whereas I wanted to repair the Refleak buildbots as soon as possible.&lt;/p&gt;
+&lt;p&gt;In December 2019, the workaround was partially removed (&lt;a class="reference external" href="https://github.com/python/cpython/commit/ac0e1c2694bc199dbd073312145e3c09bee52cc4"&gt;commit&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+-    Py_CLEAR(interp-&amp;gt;codec_search_path);
+-    Py_CLEAR(interp-&amp;gt;codec_search_cache);
+-    Py_CLEAR(interp-&amp;gt;codec_error_registry);
+&lt;/pre&gt;
+&lt;p&gt;The year after (December 2020), the last GC collection was moved into
+&lt;tt class="docutils literal"&gt;PyInterpreterState_Clear()&lt;/tt&gt;, before finalizating the GC (&lt;a class="reference external" href="https://github.com/python/cpython/commit/eba5bf2f5672bf4861c626937597b85ac0c242b9"&gt;commit&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="port-weakref-to-multiphase-init"&gt;
+&lt;h2&gt;Port _weakref to multiphase init&lt;/h2&gt;
+&lt;p&gt;In March 2020, the &lt;tt class="docutils literal"&gt;_weakref&lt;/tt&gt; module was ported to the multiphase
+initialization API (PEP 489) in &lt;a class="reference external" href="https://bugs.python.org/issue40050"&gt;bpo-40050&lt;/a&gt; and test_importlib started to leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_importlib
+test_importlib leaked [6303, 6299, 6303] references, sum=18905
+&lt;/pre&gt;
+&lt;p&gt;The analysis was quite long and complicated. The importlib imported some
+extension modules twice and it has to inject frozen modules to &amp;quot;bootstrap&amp;quot; the
+code.&lt;/p&gt;
+&lt;p&gt;At the end, I fixed the issue by removing the now unused &lt;tt class="docutils literal"&gt;_weakref&lt;/tt&gt; import in
+&lt;tt class="docutils literal"&gt;importlib._bootstrap_external&lt;/tt&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/83d46e0622d2efdf5f3bf8bf8904d0dcb55fc322"&gt;commit&lt;/a&gt;).
+The fix also avoids importing an extension module twice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-abc-static-types-to-heap-types"&gt;
+&lt;h2&gt;Convert _abc static types to heap types&lt;/h2&gt;
+&lt;p&gt;In April 2020, the static types of the &lt;tt class="docutils literal"&gt;_abc&lt;/tt&gt; extension module were converted
+to heap types in &lt;a class="reference external" href="https://bugs.python.org/issue40077"&gt;bpo-40077&lt;/a&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/53e4c91725083975598350877e2ed8e2d0194114"&gt;commit&lt;/a&gt;) and
+test_threading started to leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_threading
+test_threading leaked [19, 19, 19] references, sum=57
+&lt;/pre&gt;
+&lt;p&gt;I created &lt;a class="reference external" href="https://bugs.python.org/issue40149"&gt;bpo-40149&lt;/a&gt; to track the leak.&lt;/p&gt;
+&lt;div class="section" id="objects-hold-a-reference-to-heap-types"&gt;
+&lt;h3&gt;Objects hold a reference to heap types&lt;/h3&gt;
+&lt;p&gt;In March 2019, the &lt;tt class="docutils literal"&gt;PyObject_Init()&lt;/tt&gt; function was modified in &lt;a class="reference external" href="https://bugs.python.org/issue35810"&gt;bpo-35810&lt;/a&gt; to keep a strong reference (&lt;tt class="docutils literal"&gt;INCREF&lt;/tt&gt;)
+to the type if the type is a heap type
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/364f0b0f19cc3f0d5e63f571ec9163cf41c62958"&gt;commit&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
++    if (PyType_GetFlags(tp) &amp;amp; Py_TPFLAGS_HEAPTYPE) {
++        Py_INCREF(tp);
++    }
+&lt;/pre&gt;
+&lt;p&gt;I opened &lt;a class="reference external" href="https://bugs.python.org/issue40217"&gt;bpo-40217: The garbage collector doesn't take in account that objects
+of heap allocated types hold a strong reference to their type&lt;/a&gt; to discuss the regression
+(the test_threading leak).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-workaround-not-merged-force-a-second-garbage-collection"&gt;
+&lt;h3&gt;First workaround (not merged): force a second garbage collection&lt;/h3&gt;
+&lt;p&gt;While analysing test_threading regression leak, I identified a first
+workaround: add a second &lt;tt class="docutils literal"&gt;_PyGC_CollectNoFail()&lt;/tt&gt; call in
+&lt;tt class="docutils literal"&gt;finalize_interp_clear()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;It was only a workaround which helped to understand the issue, it was not
+merged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-fix-merged-abc-data-traverse"&gt;
+&lt;h3&gt;First fix (merged): abc_data_traverse()&lt;/h3&gt;
+&lt;p&gt;I merged a first fix: add a traverse function to the &lt;tt class="docutils literal"&gt;_abc._abc_data&lt;/tt&gt; type
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/9cc3ebd7e04cb645ac7b2f372eaafa7464e16b9c"&gt;commit&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
++static int
++abc_data_traverse(_abc_data *self, visitproc visit, void *arg)
++{
++    Py_VISIT(self-&amp;gt;_abc_registry);
++    Py_VISIT(self-&amp;gt;_abc_cache);
++    Py_VISIT(self-&amp;gt;_abc_negative_cache);
++    return 0;
++}
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="second-workaround-not-merged-visit-the-type-in-abc-data-traverse"&gt;
+&lt;h3&gt;Second workaround (not merged): visit the type in abc_data_traverse()&lt;/h3&gt;
+&lt;p&gt;A second workaround was identified: add &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Py_VISIT(Py_TYPE(self));&lt;/span&gt;&lt;/tt&gt; to
+the new &lt;tt class="docutils literal"&gt;abc_data_traverse()&lt;/tt&gt; function.&lt;/p&gt;
+&lt;p&gt;Again, it was only a workaround which helped to understand the issue, but it
+was not merged.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="second-fix-merged-call-py-visit-py-type-self-automatically"&gt;
+&lt;h3&gt;Second fix (merged): call Py_VISIT(Py_TYPE(self)) automatically&lt;/h3&gt;
+&lt;p&gt;20 days after I opened &lt;a class="reference external" href="https://bugs.python.org/issue40217"&gt;bpo-40217&lt;/a&gt;,
+&lt;strong&gt;Pablo Galindo&lt;/strong&gt; modified &lt;tt class="docutils literal"&gt;PyType_FromSpec()&lt;/tt&gt; to add a wrapper around the
+traverse function of heap types to ensure that &lt;tt class="docutils literal"&gt;Py_VISIT(Py_TYPE(self))&lt;/tt&gt; is
+always called (&lt;a class="reference external" href="https://github.com/python/cpython/commit/0169d3003be3d072751dd14a5c84748ab63a249f"&gt;commit&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="last-fix-merged-fix-every-traverse-function"&gt;
+&lt;h3&gt;Last fix (merged): fix every traverse function&lt;/h3&gt;
+&lt;p&gt;In May 2020, &lt;strong&gt;Pablo Galindo&lt;/strong&gt; changed his mind. He reverted his
+&lt;tt class="docutils literal"&gt;PyType_FromSpec()&lt;/tt&gt; change and instead fixed traverse function of heap types
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/1cf15af9a6f28750f37b08c028ada31d38e818dd"&gt;commit&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;At the end, &lt;tt class="docutils literal"&gt;abc_data_traverse()&lt;/tt&gt; calls &lt;tt class="docutils literal"&gt;Py_VISIT(Py_TYPE(self))&lt;/tt&gt;. The
+second &amp;quot;workaround&amp;quot; was the correct fix!&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-signal-to-multiphase-init"&gt;
+&lt;h2&gt;Convert _signal to multiphase init&lt;/h2&gt;
+&lt;p&gt;In September 2020, &lt;strong&gt;Mohamed Koubaa&lt;/strong&gt; ported the &lt;tt class="docutils literal"&gt;_signal&lt;/tt&gt; module to the
+multiphase initialization API (PEP 489) in &lt;a class="reference external" href="https://bugs.python.org/issue1635741"&gt;bpo-1635741&lt;/a&gt; (&lt;a class="reference external" href="https://github.com/python/cpython/commit/71d1bd9569c8a497e279f2fea6fe47cd70a87ea3"&gt;commit 71d1bd95&lt;/a&gt;)
+and test_interpreters started to leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_interpreters
+test_interpreters leaked [237, 237, 237] references, sum=711
+&lt;/pre&gt;
+&lt;p&gt;I created &lt;a class="reference external" href="https://bugs.python.org/issue41713"&gt;bpo-41713&lt;/a&gt; to track the
+regression. Since I failed to find a simple fix, I started by reverting the
+change which caused Refleak buildbots to fail (&lt;a class="reference external" href="https://github.com/python/cpython/commit/4b8032e5a4994a7902076efa72fca1e2c85d8b7f"&gt;commit&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;I had to refactor the &lt;tt class="docutils literal"&gt;_signal&lt;/tt&gt; extension module code with multiple commits
+to fix all bugs.&lt;/p&gt;
+&lt;p&gt;The first fix was to remove the &lt;tt class="docutils literal"&gt;IntHandler&lt;/tt&gt; variable: there was no need to
+keep it alive, it was only needed once in &lt;tt class="docutils literal"&gt;signal_module_exec()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The second fix is to close the Windows event at exit:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
++ #ifdef MS_WINDOWS
++     if (sigint_event != NULL) {
++         CloseHandle(sigint_event);
++         sigint_event = NULL;
++     }
++ #endif
+&lt;/pre&gt;
+&lt;p&gt;The last fix, the most important, is to clear the strong reference to old
+Python signal handlers when &lt;tt class="docutils literal"&gt;signal_module_exec()&lt;/tt&gt; is called more than once:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+// If signal_module_exec() is called more than one, we must
+// clear the strong reference to the previous function.
+Py_XSETREF(Handlers[signum].func, Py_NewRef(func));
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;_signal&lt;/tt&gt; module is not well isolated for subinterpreters yet, but at
+least it no longer leaks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="per-interpreter-ast-state"&gt;
+&lt;h2&gt;Per-interpreter _ast state&lt;/h2&gt;
+&lt;p&gt;In September 2019, the &lt;tt class="docutils literal"&gt;_ast&lt;/tt&gt; extension module was converted to PEP 384
+(stable ABI) in &lt;a class="reference external" href="https://bugs.python.org/issue38113"&gt;bpo-38113&lt;/a&gt; (&lt;a class="reference external" href="https://github.com/python/cpython/commit/ac46eb4ad6662cf6d771b20d8963658b2186c48c"&gt;commit&lt;/a&gt;):
+the AST state moves into a module state.&lt;/p&gt;
+&lt;p&gt;This change caused 3 different bugs including crashes (&lt;a class="reference external" href="https://bugs.python.org/issue41194"&gt;bpo-41194&lt;/a&gt;, &lt;a class="reference external" href="https://bugs.python.org/issue41261"&gt;bpo-41261&lt;/a&gt;, &lt;a class="reference external" href="https://bugs.python.org/issue41631"&gt;bpo-41631&lt;/a&gt;). The issue is complex since there are
+public C APIs which require to access AST types, whereas it became possible to
+have multiple &lt;tt class="docutils literal"&gt;_ast&lt;/tt&gt; extension module instances.&lt;/p&gt;
+&lt;p&gt;In July 2020, I fixed the root issue in &lt;a class="reference external" href="https://bugs.python.org/issue41194"&gt;bpo-41194&lt;/a&gt; by replacing the module state with a
+global state (&lt;a class="reference external" href="https://github.com/python/cpython/commit/91e1bc18bd467a13bceb62e16fbc435b33381c82"&gt;commit&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static astmodulestate global_ast_state;
+&lt;/pre&gt;
+&lt;p&gt;A global state is bad for subinterpreters. In November 2020, I made the AST
+state per-interpreter in &lt;a class="reference external" href="https://bugs.python.org/issue41796"&gt;bpo-41796&lt;/a&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/5cf4782a2630629d0978bf4cf6b6340365f449b2"&gt;commit&lt;/a&gt;
+and test_ast started to leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_ast
+test_ast leaked [23640, 23636, 23640] references, sum=70916
+&lt;/pre&gt;
+&lt;p&gt;The fix is to call &lt;tt class="docutils literal"&gt;_PyAST_Fini()&lt;/tt&gt; earlier (&lt;a class="reference external" href="https://github.com/python/cpython/commit/fd957c124c44441d9c5eaf61f7af8cf266bafcb1"&gt;commit&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Python types contain a reference to themselves in in their
+&lt;tt class="docutils literal"&gt;PyTypeObject.tp_mro&lt;/tt&gt; member (the MRO tuple: Method Resolution Order).
+&lt;tt class="docutils literal"&gt;_PyAST_Fini()&lt;/tt&gt; must called before the last GC collection to destroy AST
+types.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_PyInterpreterState_Clear()&lt;/tt&gt; now calls &lt;tt class="docutils literal"&gt;_PyAST_Fini()&lt;/tt&gt;. It now also
+calls &lt;tt class="docutils literal"&gt;_PyWarnings_Fini()&lt;/tt&gt; on subinterpeters, not only on the main
+interpreter.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="thread-lock-traverse"&gt;
+&lt;h2&gt;_thread lock traverse&lt;/h2&gt;
+&lt;p&gt;In December 2020, while I tried to port the &lt;tt class="docutils literal"&gt;_thread&lt;/tt&gt; extesnion module to the multiphase initialization API
+(PEP 489), test_threading started to leak:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_threading
+test_threading leaked [56, 56, 56] references, sum=168
+&lt;/pre&gt;
+&lt;p&gt;As usual, the workaround was to force a second GC collection in &lt;tt class="docutils literal"&gt;interpreter_clear()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+     /* Last garbage collection on this interpreter */
+     _PyGC_CollectNoFail(tstate);
++    _PyGC_CollectNoFail(tstate);
+     _PyGC_Fini(tstate);
+&lt;/pre&gt;
+&lt;p&gt;It took me two days to full understand the problem. I drew reference cycles
+on paper to help me to understand the problem:&lt;/p&gt;
+&lt;img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" /&gt;
+&lt;p&gt;There are two cycles:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Cycle 1:&lt;ul&gt;
+&lt;li&gt;at fork function&lt;/li&gt;
+&lt;li&gt;-&amp;gt; __main__ module dict&lt;/li&gt;
+&lt;li&gt;-&amp;gt; at fork function&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Cycle 2:&lt;ul&gt;
+&lt;li&gt;_thread lock type&lt;/li&gt;
+&lt;li&gt;-&amp;gt; lock type methods&lt;/li&gt;
+&lt;li&gt;-&amp;gt; _thread module dict&lt;/li&gt;
+&lt;li&gt;-&amp;gt; _thread local type&lt;/li&gt;
+&lt;li&gt;-&amp;gt; _thread module&lt;/li&gt;
+&lt;li&gt;-&amp;gt; _thread module state&lt;/li&gt;
+&lt;li&gt;-&amp;gt; _thread lock type&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Moreover, there is a link between these two reference cycles: an instance of
+the lock type.&lt;/p&gt;
+&lt;p&gt;I fixed the issue by adding a traverse function to the lock type and add
+&lt;tt class="docutils literal"&gt;Py_TPFLAGS_HAVE_GC&lt;/tt&gt; flag to the type (&lt;a class="reference external" href="https://github.com/python/cpython/commit/6104013838e181e3c698cb07316f449a0c31ea96"&gt;commit&lt;/a&gt;):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
++static int
++lock_traverse(lockobject *self, visitproc visit, void *arg)
++{
++    Py_VISIT(Py_TYPE(self));
++    return 0;
++}
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="notes-on-weird-gc-bugs"&gt;
+&lt;h2&gt;Notes on weird GC bugs&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;gc.get_referents()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;gc.get_referrers()&lt;/tt&gt; can be used to check
+traverse functions.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;gc.is_tracked()&lt;/tt&gt; can be used to check if the GC tracks an object.&lt;/li&gt;
+&lt;li&gt;Using the &lt;tt class="docutils literal"&gt;gdb&lt;/tt&gt; debugger on &lt;tt class="docutils literal"&gt;gc_collect_main()&lt;/tt&gt; helps to see which
+objects are collected. See for example the &lt;tt class="docutils literal"&gt;finalize_garbage()&lt;/tt&gt; functions
+which calls finalizers on unreachable objects.&lt;/li&gt;
+&lt;li&gt;The solution is usually a missing traverse functions or a missing
+&lt;tt class="docutils literal"&gt;Py_VISIT()&lt;/tt&gt; in an existing traverse function.&lt;/li&gt;
+&lt;li&gt;GC bugs are hard to debug :-)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Thanks &lt;strong&gt;Pablo Galindo&lt;/strong&gt; for helping me to debug all these tricky GC bugs!&lt;/p&gt;
+&lt;p&gt;Thanks to everybody who are helping to better isolate subintrepreters by
+converting extension modules to the multiphase initialization API (PEP 489) and
+by converting dozens of static types to heap types. We made huge progresses
+last months!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
 &lt;p&gt;This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
