@@ -23,6 +23,34 @@
                     <ol id="posts-list" class="hfeed" start="9">
             <li><article class="hentry">
                 <header>
+                    <h1><a href="https://vstinner.github.io/new-python-c-api.html" rel="bookmark"
+                           title="Permalink to A New C API for CPython">A New C API for CPython</a></h1>
+                </header>
+
+                <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2017-09-07T18:00:00+02:00">
+                Published: jeu. 07 septembre 2017
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
+</footer><!-- /.post-info -->                <p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+of writing a new C API for CPython hiding implementation details and replacing
+macros with function calls.</p>
+<img alt="CPython sprint at Facebook, september 2017" src="https://vstinner.github.io/images/cpython_sprint_sept2017.jpg" />
+<p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
+<div class="section" id="c-api-prevents-further-optimizations">
+<h2>C API prevents further optimizations …</h2></div>
+                <a class="readmore" href="https://vstinner.github.io/new-python-c-api.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
+
+            <li><article class="hentry">
+                <header>
                     <h1><a href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html" rel="bookmark"
                            title="Permalink to My contributions to CPython during 2017 Q2 (part 3)">My contributions to CPython during 2017 Q2 (part 3)</a></h1>
                 </header>
@@ -285,37 +313,6 @@ them into a new Git repository: <a class="reference external" href="https://gith
 CPython developers to prove that an optimization is worth it. It's not uncommon
 that I abandon a …</p>
                 <a class="readmore" href="https://vstinner.github.io/fastcall-microbenchmarks.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/start-fastcall-project.html" rel="bookmark"
-                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-16T17:00:00+01:00">
-                Published: jeu. 16 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/fastcall.html">fastcall</a> <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="false-start">
-<h2>False start</h2>
-<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
-functions. Builtin functions were between 20 and 50% faster!</p>
-<p>Sadly, some benchmarks were randomy slower. It will take me four months to
-understand why!</p>
-</div>
-<div class="section" id="work-on-benchmarks">
-<h2>Work on benchmarks</h2>
-<p>During four months, I worked on making …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/start-fastcall-project.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

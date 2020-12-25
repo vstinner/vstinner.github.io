@@ -21,7 +21,173 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/hide-implementation-details-python-c-api.html">Hide implementation details in the Python C API</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-12-25T22:00:00+01:00">
+                Published: ven. 25 décembre 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
+</footer><!-- /.post-info --><p>This article is the history of Python C API discussions over the last 4 years,
+and the creation of C API projects: <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi website</a>, <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat.h header file</a> and <a class="reference external" href="https://hpy.readthedocs.io/">HPy (new clean C API)</a>. More and more people are aware of issues
+caused by the C API and are working on solutions.</p>
+<p>It took me a lot of iterations to find the right approach to evolve the C API
+without breaking too many third-party extension modules. My first ideas were
+based on two APIs with an opt-in option somehow. At the end, I decided to fix
+directly the default API, and helped maintainers of extension modules to update
+their projects for incompatible C API changes.</p>
+<p>I wrote a <tt class="docutils literal">pythoncapi_compat.h</tt> header file which adds C API functions of
+newer Python to old Python versions up to Python 2.7. I also wrote a
+<tt class="docutils literal">upgrade_pythoncapi.py</tt> script to add Python 3.10 support to an extension
+module without losing Python 2.7 support: the tool adds <tt class="docutils literal">#include
+&quot;pythoncapi_compat.h&quot;</tt>. For example, it replaces <tt class="docutils literal">Py_TYPE(obj) = type</tt>
+with <tt class="docutils literal">Py_SET_SIZE(obj, type)</tt>.</p>
+<p>My cat attacking the Python C API:</p>
+<img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" />
+<div class="section" id="year-2016">
+<h2>Year 2016</h2>
+<p>Between 2016 and 2017, Larry Hastings worked on removing the GIL in a CPython
+fork called &quot;The Gilectomy&quot;. He pushed the first commit in April 2016: <a class="reference external" href="https://github.com/larryhastings/gilectomy/commit/4a1a4ff49e34b9705608cad968f467af161dcf02">Removed
+the GIL. Don't merge this!</a>
+(&quot;Few programs work now&quot;). At EuroPython 2016, he gave the talk <a class="reference external" href="https://www.youtube.com/watch?v=fgWUwQVoLHo">Larry Hastings
+- The Gilectomy</a> where he
+explains that the current parallelism bottleneck is the CPython reference
+counting which doesn't scale with the number of threads.</p>
+<p>It was just another hint telling me that &quot;something&quot; should be done to make the
+C API more abstract, move away from implementation details like reference
+counting. PyPy also has performance issues with the C API for many years.</p>
+</div>
+<div class="section" id="year-2017">
+<h2>Year 2017</h2>
+<div class="section" id="may">
+<h3>May</h3>
+<p>In 2017, I discussed with Eric Snow who was working on subinterpreters. He had
+to modify public structures, especially the <tt class="docutils literal">PyInterpreterState</tt> structure.
+He created <tt class="docutils literal">Include/internal/</tt> subdirectory to create a new &quot;internal C API&quot;
+which should not be exported. (Later, he moved the <tt class="docutils literal">PyInterpreterState</tt>
+structure to the internal C API in Python 3.8.)</p>
+<p>I started the discuss C API changes during the Python Language Summit
+(PyCon US 2017): <a class="reference external" href="https://github.com/vstinner/conf/raw/master/2017-PyconUS/summit.pdf">&quot;Python performance&quot; slides (PDF)</a>:</p>
+<ul class="simple">
+<li>Split Include in sub-directories</li>
+<li>Move towards a stable ABI by default</li>
+</ul>
+<p>See also the LWN article: <a class="reference external" href="https://lwn.net/Articles/723752/#723949">Keeping Python competitive</a> by Jake Edge.</p>
+</div>
+<div class="section" id="july-first-pep-draft">
+<h3>July: first PEP draft</h3>
+<p>I proposed the first PEP draft to python-ideas:
+<a class="reference external" href="https://mail.python.org/archives/list/python-ideas&#64;python.org/thread/6XATDGWK4VBUQPRHCRLKQECTJIPBVNJQ/">PEP: Hide implementation details in the C API</a>.</p>
+<p>The idea is to add an opt-in option to distutils to build an extension module
+with a new C API, remove implementation details from the new C API, and maybe
+later switch to the new C API by default.</p>
+</div>
+<div class="section" id="september">
+<h3>September</h3>
+<p>I discussed my C API change ideas at the CPython core dev sprint (at Instagram,
+California).  The ideas were liked by most (if not all) core developers who are
+fine with a minor performance slowdown (caused by replacing macros with
+function calls). I wrote <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a> blog post about these
+discussions.</p>
+</div>
+<div class="section" id="november">
+<h3>November</h3>
+<p>I proposed <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150607.html">Make the stable API-ABI usable</a> on
+the python-dev list. The idea is to add <tt class="docutils literal">PyTuple_GET_ITEM()</tt> (for example) to
+the limited C API but declared as a function call. Later, if enough extension
+modules are compatible with the extended limited C API, make it the default.</p>
+</div>
+</div>
+<div class="section" id="year-2018">
+<h2>Year 2018</h2>
+<p>In July, I created the <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi website</a> to collect issues of the current C
+API, list things to avoid in new functions like borrowed references, and start
+to design a new better C API.</p>
+<p>In September, Antonio Cuni wrote <a class="reference external" href="https://morepypy.blogspot.com/2018/09/inside-cpyext-why-emulating-cpython-c.html">Inside cpyext: Why emulating CPython C API is
+so Hard</a>
+article.</p>
+</div>
+<div class="section" id="year-2019">
+<h2>Year 2019</h2>
+<p>In February, I sent <a class="reference external" href="https://mail.python.org/archives/list/capi-sig&#64;python.org/thread/WS6ATJWRUQZESGGYP3CCSVPF7OMPMNM6/">Update on CPython header files reorganization</a>
+to the capi-sig list.</p>
+<ul class="simple">
+<li><tt class="docutils literal">Include/</tt>: limited C API</li>
+<li><tt class="docutils literal">Include/cpython/</tt>: CPython C API</li>
+<li><tt class="docutils literal">Include/internal/</tt>: CPython internal C API</li>
+</ul>
+<p>In March, I modified the Python debug build to make its ABI compatible with the
+release build ABI:
+<a class="reference external" href="https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build">What’s New In Python 3.8: Debug build uses the same ABI as release build</a>.</p>
+<p>In May, I gave a lightning talk <a class="reference external" href="https://github.com/vstinner/conf/blob/master/2019-Pycon/status_stable_api_abi.pdf">Status of the stable API and ABI in Python 3.8</a>,
+at the Language Summit (during Pycon US 2019):</p>
+<ul class="simple">
+<li>Convert macros to static inline functions</li>
+<li>Install the internal C API</li>
+<li>Debug build now ABI compatible with the release build ABI</li>
+<li>Getting rid of global variables</li>
+</ul>
+<p>By the way, see my <a class="reference external" href="https://vstinner.github.io/split-include-directory-python38.html">Split Include/ directory in Python 3.8</a> article: I converted many macros in
+Python 3.8.</p>
+<p>In July, the <a class="reference external" href="https://hpy.readthedocs.io/">HPy project</a> was created during
+EuroPython at Basel. There was an informal meeting which included core
+developers of PyPy (Antonio, Armin and Ronan), CPython (Victor Stinner and Mark
+Shannon) and Cython (Stefan Behnel).</p>
+<p>In December, Antonio, Armin and Ronan had a small internal sprint to kick-off
+the development of HPy: <a class="reference external" href="https://morepypy.blogspot.com/2019/12/hpy-kick-off-sprint-report.html">HPy kick-off sprint report</a></p>
+</div>
+<div class="section" id="year-2020">
+<h2>Year 2020</h2>
+<div class="section" id="april">
+<h3>April</h3>
+<p>I proposed <a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/#TKHNENOXP6H34E73XGFOL2KKXSM4Z6T2">PEP: Modify the C API to hide implementation details</a>
+on the python-dev list. The main idea is to provide a new optimized Python
+runtime which is backward incompatible on purpose, and continue to ship the
+regular runtime which is fully backward compatible.</p>
+</div>
+<div class="section" id="june">
+<h3>June</h3>
+<p>I wrote <a class="reference external" href="https://www.python.org/dev/peps/pep-0620/">PEP 620 -- Hide implementation details from the C API</a> and <a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/">proposed the PEP to
+python-dev</a>.
+This PEP is my 3rd attempt to fix the C API: I rewrote it from scratch. Python
+now distributes a new <tt class="docutils literal">pythoncapi_compat.h</tt> header and a process is defined
+to reduce the number of broken C extensions when introducing C API incompatible
+changes listed in this PEP.</p>
+<p>I created the <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat project</a>: header file providing new
+C API functions to old Python versions using static inline functions.</p>
+</div>
+<div class="section" id="december">
+<h3>December</h3>
+<p>I wrote a new <tt class="docutils literal">upgrade_pythoncapi.py</tt> script to add Python 3.10
+support to an extension module without losing support with Python 2.7.  I sent
+<a class="reference external" href="https://mail.python.org/archives/list/capi-sig&#64;python.org/thread/LFLXFMKMZ77UCDUFD5EQCONSAFFWJWOZ/">New script: add Python 3.10 support to your C extensions without losing Python
+3.6 support</a>
+to the capi-sig list.</p>
+<p>The pythoncapi_compat project got its first users (bitarray, immutables,
+python-zstandard)! It proves that the project is useful and needed.</p>
+<p>I collaborated with the HPy project to create a manifesto explaining how the C
+API prevents to optimize CPython and makes the CPython C API inefficient on
+PyPy. It is still a draft.</p>
+</div>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/new-python-c-api.html" rel="bookmark"
+                           title="Permalink to A New C API for CPython">A New C API for CPython</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2017-09-07T18:00:00+02:00">
                 Published: jeu. 07 septembre 2017
@@ -31,218 +197,17 @@
                 By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
 <p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
+</footer><!-- /.post-info -->                <p>I am currently at a CPython sprint 2017 at Facebook. We are discussing my idea
 of writing a new C API for CPython hiding implementation details and replacing
 macros with function calls.</p>
 <img alt="CPython sprint at Facebook, september 2017" src="https://vstinner.github.io/images/cpython_sprint_sept2017.jpg" />
 <p>This article tries to explain why the CPython C API needs to <strong>evolve</strong>.</p>
 <div class="section" id="c-api-prevents-further-optimizations">
-<h2>C API prevents further optimizations</h2>
-<p>The CPython <tt class="docutils literal">PyListObject</tt> type uses an array of <tt class="docutils literal">PyObject*</tt> objects. PyPy
-is able to use a C array of integers if the list only contains small integers.
-CPython cannot because PyList_GET_ITEM(list, index) is implemented as a macro:</p>
-<pre class="literal-block">
-#define PyList_GET_ITEM(op, i) ((PyListObject *)op)-&gt;ob_item[i]
-</pre>
-<p>The macro relies on the <tt class="docutils literal">PyListObject</tt> structure:</p>
-<pre class="literal-block">
-typedef struct {
-    PyVarObject ob_base;
-    PyObject **ob_item;   // &lt;-- pointer to real data
-    Py_ssize_t allocated;
-} PyListObject;
-
-typedef struct {
-    PyObject ob_base;
-    Py_ssize_t ob_size; /* Number of items in variable part */
-} PyVarObject;
-
-typedef struct _object {
-    Py_ssize_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
-</pre>
-</div>
-<div class="section" id="api-and-abi">
-<h2>API and ABI</h2>
-<p>Compiling C extension code using <tt class="docutils literal">PyList_GET_ITEM()</tt> produces machine code
-accessing <tt class="docutils literal">PyListObject</tt> members. Something like (C pseudo code):</p>
-<pre class="literal-block">
-PyObject **items;
-PyObject *item;
-items = (PyObject **)(((char*)list) + 24);
-item = items[i];
-</pre>
-<p>The offset 24 is hardcoded in the C extension object file: the <strong>API</strong>
-(<strong>programming</strong> interface) becomes the <strong>ABI</strong> (<strong>binary</strong> interface).</p>
-<p>But debug builds use a different memory layout:</p>
-<pre class="literal-block">
-typedef struct _object {
-    struct _object *_ob_next;   // &lt;--- two new fields are added
-    struct _object *_ob_prev;   // &lt;--- for debug purpose
-    Py_ssize_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
-</pre>
-<p>The machine code becomes something like:</p>
-<pre class="literal-block">
-items = (PyObject **)(((char*)op) + 40);
-item = items[i];
-</pre>
-<p>The offset changes from 24 to 40 (+16, two pointers of 8 bytes).</p>
-<p>C extensions have to be recompiled to work on Python compiled in debug mode.</p>
-<p>Another example is Python 2.7 which uses a different ABI for UTF-16 and UCS-4
-Unicode string: the <tt class="docutils literal"><span class="pre">--with-wide-unicode</span></tt> configure option.</p>
-</div>
-<div class="section" id="stable-abi">
-<h2>Stable ABI</h2>
-<p>If the machine code doesn't use the offset, it would be able to only compile C
-extensions once.</p>
-<p>A solution is to replace PyList_GET_ITEM() <strong>macro</strong> with a <strong>function</strong>:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index);
-</pre>
-<p>defined as:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
-{
-    return ((PyListObject *)list)-&gt;ob_item[i];
-}
-</pre>
-<p>The machine code becomes a <strong>function call</strong>:</p>
-<pre class="literal-block">
-PyObject *item;
-item = PyList_GET_ITEM(list, index);
-</pre>
-</div>
-<div class="section" id="specialized-list-for-small-integers">
-<h2>Specialized list for small integers</h2>
-<p>If C extension objects don't access structure members anymore, it becomes
-possible to modify the memory layout.</p>
-<p>For example, it's possible to design a specialized implementation of
-<tt class="docutils literal">PyListObject</tt> for small integers:</p>
-<pre class="literal-block">
-typedef struct {
-    PyVarObject ob_base;
-    int use_small_int;
-    PyObject **pyobject_array;
-    int32_t *small_int_array;   // &lt;-- new compact C array for integers
-    Py_ssize_t allocated;
-} PyListObject;
-
-PyObject* PyList_GET_ITEM(PyObject *op, Py_ssize_t index)
-{
-    PyListObject *list = (PyListObject *)op;
-    if (list-&gt;use_small_int) {
-        int32_t item = list-&gt;small_int_array[index];
-        /* create a new object at each call */
-        return PyLong_FromLong(item);
-    }
-    else {
-        return list-&gt;pyobject_array[index];
-    }
-}
-</pre>
-<p>It's just an example to show that it becomes possible to modify PyObject
-structures. I'm not sure that it's useful in practice.</p>
-</div>
-<div class="section" id="multiple-python-runtimes">
-<h2>Multiple Python &quot;runtimes&quot;</h2>
-<p>Assuming that all used C extensions use the new stable ABI, we can now imagine
-multiple specialized Python runtimes installed in parallel, instead of a single
-runtime:</p>
-<ul class="simple">
-<li>python3.7: regular/legacy CPython, backward compatible</li>
-<li>python3.7-dbg: runtime checks to ease debug</li>
-<li>fasterpython3.7: use specialized list</li>
-<li>etc.</li>
-</ul>
-<p>The <tt class="docutils literal">python3</tt> runtime would remain <strong>fully</strong> compatible since it would use
-the old C API with macros and full structures. So by default, everything will
-continue to work.</p>
-<p>But the other runtimes require that all imported C extensions were compiled
-with the new C API.</p>
-<p><tt class="docutils literal"><span class="pre">python3.7-dbg</span></tt> adds more checks tested at runtime. Example:</p>
-<pre class="literal-block">
-PyObject* PyList_GET_ITEM(PyObject *list, Py_ssize_t index)
-{
-    assert(PyList_Check(list));
-    assert(0 &lt;= index &amp;&amp; index &lt; Py_SIZE(list));
-    return ((PyListObject *)list)-&gt;ob_item[i];
-}
-</pre>
-<p>Currently, some Linux distributions provide a <tt class="docutils literal"><span class="pre">python3-dbg</span></tt> binary, but may
-not provide <tt class="docutils literal"><span class="pre">-dbg</span></tt> binary packages of all C extensions. So all C extensions
-have to be recompiled manually which is quite painful (need to install build
-dependencies, wait until everthing is recompiled, etc.).</p>
-</div>
-<div class="section" id="experiment-optimizations">
-<h2>Experiment optimizations</h2>
-<p>With the new C API, it becomes possible to implement a new class of
-optimizations.</p>
-<div class="section" id="tagged-pointer">
-<h3>Tagged pointer</h3>
-<p>Store small integers directly into the pointer value. Reduce the memory usage,
-avoid expensive unboxing-boxing.</p>
-<p>See <a class="reference external" href="https://en.wikipedia.org/wiki/Tagged_pointer">Wikipedia: Tagged pointer</a>.</p>
-</div>
-<div class="section" id="no-garbage-collector-gc-at-all">
-<h3>No garbage collector (GC) at all</h3>
-<p>Python runtime without GC at all. Remove the following header from objects
-tracked by the GC:</p>
-<pre class="literal-block">
-struct {
-    union _gc_head *gc_next;
-    union _gc_head *gc_prev;
-    Py_ssize_t gc_refs;
-} PyGC_Head;
-</pre>
-<p>It would remove 24 bytes per object tracked by the GC.</p>
-<p>For comparison, the smallest Python object is &quot;object()&quot; which only takes 16
-bytes.</p>
-</div>
-<div class="section" id="tracing-garbage-collector-without-reference-counting">
-<h3>Tracing garbage collector without reference counting</h3>
-<p>This idea is really the most complex and most experimental idea, but IMHO it's
-required to &quot;unlock&quot; Python performances.</p>
-<ul class="simple">
-<li>Write a new API to keep track of pointers:<ul>
-<li>Declare a variable storing a <tt class="docutils literal">PyObject*</tt> object</li>
-<li>Set a pointer</li>
-<li>Maybe also read a pointer?</li>
-</ul>
-</li>
-<li>Modify C extensions to use this new API</li>
-<li>Implement a tracing garbage collector which can move objects in memory
-to compact memory</li>
-<li>Remove reference counting</li>
-</ul>
-<p>It even seems possible to implement a tracing garbage collector <strong>and</strong> use
-reference counting. But I'm not an expert in this area, need to dig the topic.</p>
-<p>Questions:</p>
-<ul class="simple">
-<li>Is it possible to fix all C extensions to use the new API? Should be an
-opt-in option in a first stage.</li>
-<li>Is it possible to emulate Py_INCREF/DECREF API, for backward compatibility,
-using an hash table which maintains a reference counter outside <tt class="docutils literal">PyObject</tt>?</li>
-<li>Do we need to fix all C extensions?</li>
-</ul>
-<p>Read also <a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection">Wikipedia: Tracing garbage collection</a>.</p>
-</div>
-<div class="section" id="gilectomy">
-<h3>Gilectomy</h3>
-<p>Abstracting the ABI allows to customize the runtime for Gilectomy needs, to be
-able to reemove the GIL.</p>
-<p>Removing reference counting would make Gilectomy much simpler.</p>
-</div>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+<h2>C API prevents further optimizations …</h2></div>
+                <a class="readmore" href="https://vstinner.github.io/new-python-c-api.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -443,29 +408,6 @@ Feb 29, 2016 …</p>
 </footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 2 (deadcode)</p>
 
                 <a class="readmore" href="https://vstinner.github.io/journey-to-stable-benchmark-deadcode.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/journey-to-stable-benchmark-system.html" rel="bookmark"
-                           title="Permalink to My journey to stable benchmark, part 1 (system)">My journey to stable benchmark, part 1 (system)</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-05-21T16:50:00+02:00">
-                Published: sam. 21 mai 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">My journey to stable benchmark, part 1</p>
-
-                <a class="readmore" href="https://vstinner.github.io/journey-to-stable-benchmark-system.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

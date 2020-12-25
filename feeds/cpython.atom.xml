@@ -1,5 +1,149 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-23T14:00:00+01:00</updated><entry><title>Leaks discovered by subinterpreters</title><link href="https://vstinner.github.io/subinterpreter-leaks.html" rel="alternate"></link><published>2020-12-23T14:00:00+01:00</published><updated>2020-12-23T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-23:/subinterpreter-leaks.html</id><summary type="html">&lt;p&gt;This article is about old reference leaks discovered or caused by the work on
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-25T22:00:00+01:00</updated><entry><title>Hide implementation details in the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"></link><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
+and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
+caused by the C API and are working …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
+and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
+caused by the C API and are working on solutions.&lt;/p&gt;
+&lt;p&gt;It took me a lot of iterations to find the right approach to evolve the C API
+without breaking too many third-party extension modules. My first ideas were
+based on two APIs with an opt-in option somehow. At the end, I decided to fix
+directly the default API, and helped maintainers of extension modules to update
+their projects for incompatible C API changes.&lt;/p&gt;
+&lt;p&gt;I wrote a &lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt; header file which adds C API functions of
+newer Python to old Python versions up to Python 2.7. I also wrote a
+&lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt; script to add Python 3.10 support to an extension
+module without losing Python 2.7 support: the tool adds &lt;tt class="docutils literal"&gt;#include
+&amp;quot;pythoncapi_compat.h&amp;quot;&lt;/tt&gt;. For example, it replaces &lt;tt class="docutils literal"&gt;Py_TYPE(obj) = type&lt;/tt&gt;
+with &lt;tt class="docutils literal"&gt;Py_SET_SIZE(obj, type)&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;My cat attacking the Python C API:&lt;/p&gt;
+&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
+&lt;div class="section" id="year-2016"&gt;
+&lt;h2&gt;Year 2016&lt;/h2&gt;
+&lt;p&gt;Between 2016 and 2017, Larry Hastings worked on removing the GIL in a CPython
+fork called &amp;quot;The Gilectomy&amp;quot;. He pushed the first commit in April 2016: &lt;a class="reference external" href="https://github.com/larryhastings/gilectomy/commit/4a1a4ff49e34b9705608cad968f467af161dcf02"&gt;Removed
+the GIL. Don't merge this!&lt;/a&gt;
+(&amp;quot;Few programs work now&amp;quot;). At EuroPython 2016, he gave the talk &lt;a class="reference external" href="https://www.youtube.com/watch?v=fgWUwQVoLHo"&gt;Larry Hastings
+- The Gilectomy&lt;/a&gt; where he
+explains that the current parallelism bottleneck is the CPython reference
+counting which doesn't scale with the number of threads.&lt;/p&gt;
+&lt;p&gt;It was just another hint telling me that &amp;quot;something&amp;quot; should be done to make the
+C API more abstract, move away from implementation details like reference
+counting. PyPy also has performance issues with the C API for many years.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="year-2017"&gt;
+&lt;h2&gt;Year 2017&lt;/h2&gt;
+&lt;div class="section" id="may"&gt;
+&lt;h3&gt;May&lt;/h3&gt;
+&lt;p&gt;In 2017, I discussed with Eric Snow who was working on subinterpreters. He had
+to modify public structures, especially the &lt;tt class="docutils literal"&gt;PyInterpreterState&lt;/tt&gt; structure.
+He created &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; subdirectory to create a new &amp;quot;internal C API&amp;quot;
+which should not be exported. (Later, he moved the &lt;tt class="docutils literal"&gt;PyInterpreterState&lt;/tt&gt;
+structure to the internal C API in Python 3.8.)&lt;/p&gt;
+&lt;p&gt;I started the discuss C API changes during the Python Language Summit
+(PyCon US 2017): &lt;a class="reference external" href="https://github.com/vstinner/conf/raw/master/2017-PyconUS/summit.pdf"&gt;&amp;quot;Python performance&amp;quot; slides (PDF)&lt;/a&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Split Include in sub-directories&lt;/li&gt;
+&lt;li&gt;Move towards a stable ABI by default&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See also the LWN article: &lt;a class="reference external" href="https://lwn.net/Articles/723752/#723949"&gt;Keeping Python competitive&lt;/a&gt; by Jake Edge.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="july-first-pep-draft"&gt;
+&lt;h3&gt;July: first PEP draft&lt;/h3&gt;
+&lt;p&gt;I proposed the first PEP draft to python-ideas:
+&lt;a class="reference external" href="https://mail.python.org/archives/list/python-ideas&amp;#64;python.org/thread/6XATDGWK4VBUQPRHCRLKQECTJIPBVNJQ/"&gt;PEP: Hide implementation details in the C API&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The idea is to add an opt-in option to distutils to build an extension module
+with a new C API, remove implementation details from the new C API, and maybe
+later switch to the new C API by default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="september"&gt;
+&lt;h3&gt;September&lt;/h3&gt;
+&lt;p&gt;I discussed my C API change ideas at the CPython core dev sprint (at Instagram,
+California).  The ideas were liked by most (if not all) core developers who are
+fine with a minor performance slowdown (caused by replacing macros with
+function calls). I wrote &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt; blog post about these
+discussions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="november"&gt;
+&lt;h3&gt;November&lt;/h3&gt;
+&lt;p&gt;I proposed &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150607.html"&gt;Make the stable API-ABI usable&lt;/a&gt; on
+the python-dev list. The idea is to add &lt;tt class="docutils literal"&gt;PyTuple_GET_ITEM()&lt;/tt&gt; (for example) to
+the limited C API but declared as a function call. Later, if enough extension
+modules are compatible with the extended limited C API, make it the default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="year-2018"&gt;
+&lt;h2&gt;Year 2018&lt;/h2&gt;
+&lt;p&gt;In July, I created the &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt; to collect issues of the current C
+API, list things to avoid in new functions like borrowed references, and start
+to design a new better C API.&lt;/p&gt;
+&lt;p&gt;In September, Antonio Cuni wrote &lt;a class="reference external" href="https://morepypy.blogspot.com/2018/09/inside-cpyext-why-emulating-cpython-c.html"&gt;Inside cpyext: Why emulating CPython C API is
+so Hard&lt;/a&gt;
+article.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="year-2019"&gt;
+&lt;h2&gt;Year 2019&lt;/h2&gt;
+&lt;p&gt;In February, I sent &lt;a class="reference external" href="https://mail.python.org/archives/list/capi-sig&amp;#64;python.org/thread/WS6ATJWRUQZESGGYP3CCSVPF7OMPMNM6/"&gt;Update on CPython header files reorganization&lt;/a&gt;
+to the capi-sig list.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/&lt;/tt&gt;: limited C API&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt;: CPython C API&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt;: CPython internal C API&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In March, I modified the Python debug build to make its ABI compatible with the
+release build ABI:
+&lt;a class="reference external" href="https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build"&gt;What’s New In Python 3.8: Debug build uses the same ABI as release build&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In May, I gave a lightning talk &lt;a class="reference external" href="https://github.com/vstinner/conf/blob/master/2019-Pycon/status_stable_api_abi.pdf"&gt;Status of the stable API and ABI in Python 3.8&lt;/a&gt;,
+at the Language Summit (during Pycon US 2019):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Convert macros to static inline functions&lt;/li&gt;
+&lt;li&gt;Install the internal C API&lt;/li&gt;
+&lt;li&gt;Debug build now ABI compatible with the release build ABI&lt;/li&gt;
+&lt;li&gt;Getting rid of global variables&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;By the way, see my &lt;a class="reference external" href="https://vstinner.github.io/split-include-directory-python38.html"&gt;Split Include/ directory in Python 3.8&lt;/a&gt; article: I converted many macros in
+Python 3.8.&lt;/p&gt;
+&lt;p&gt;In July, the &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy project&lt;/a&gt; was created during
+EuroPython at Basel. There was an informal meeting which included core
+developers of PyPy (Antonio, Armin and Ronan), CPython (Victor Stinner and Mark
+Shannon) and Cython (Stefan Behnel).&lt;/p&gt;
+&lt;p&gt;In December, Antonio, Armin and Ronan had a small internal sprint to kick-off
+the development of HPy: &lt;a class="reference external" href="https://morepypy.blogspot.com/2019/12/hpy-kick-off-sprint-report.html"&gt;HPy kick-off sprint report&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="year-2020"&gt;
+&lt;h2&gt;Year 2020&lt;/h2&gt;
+&lt;div class="section" id="april"&gt;
+&lt;h3&gt;April&lt;/h3&gt;
+&lt;p&gt;I proposed &lt;a class="reference external" href="https://mail.python.org/archives/list/python-dev&amp;#64;python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/#TKHNENOXP6H34E73XGFOL2KKXSM4Z6T2"&gt;PEP: Modify the C API to hide implementation details&lt;/a&gt;
+on the python-dev list. The main idea is to provide a new optimized Python
+runtime which is backward incompatible on purpose, and continue to ship the
+regular runtime which is fully backward compatible.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="june"&gt;
+&lt;h3&gt;June&lt;/h3&gt;
+&lt;p&gt;I wrote &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 -- Hide implementation details from the C API&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/archives/list/python-dev&amp;#64;python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/"&gt;proposed the PEP to
+python-dev&lt;/a&gt;.
+This PEP is my 3rd attempt to fix the C API: I rewrote it from scratch. Python
+now distributes a new &lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt; header and a process is defined
+to reduce the number of broken C extensions when introducing C API incompatible
+changes listed in this PEP.&lt;/p&gt;
+&lt;p&gt;I created the &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat project&lt;/a&gt;: header file providing new
+C API functions to old Python versions using static inline functions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="december"&gt;
+&lt;h3&gt;December&lt;/h3&gt;
+&lt;p&gt;I wrote a new &lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt; script to add Python 3.10
+support to an extension module without losing support with Python 2.7.  I sent
+&lt;a class="reference external" href="https://mail.python.org/archives/list/capi-sig&amp;#64;python.org/thread/LFLXFMKMZ77UCDUFD5EQCONSAFFWJWOZ/"&gt;New script: add Python 3.10 support to your C extensions without losing Python
+3.6 support&lt;/a&gt;
+to the capi-sig list.&lt;/p&gt;
+&lt;p&gt;The pythoncapi_compat project got its first users (bitarray, immutables,
+python-zstandard)! It proves that the project is useful and needed.&lt;/p&gt;
+&lt;p&gt;I collaborated with the HPy project to create a manifesto explaining how the C
+API prevents to optimize CPython and makes the CPython C API inefficient on
+PyPy. It is still a draft.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="optimization"></category><category term="cpython"></category><category term="c-api"></category></entry><entry><title>Leaks discovered by subinterpreters</title><link href="https://vstinner.github.io/subinterpreter-leaks.html" rel="alternate"></link><published>2020-12-23T14:00:00+01:00</published><updated>2020-12-23T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-23:/subinterpreter-leaks.html</id><summary type="html">&lt;p&gt;This article is about old reference leaks discovered or caused by the work on
 isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
 _signal, _ast and _thread).&lt;/p&gt;
 &lt;img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" /&gt;
@@ -288,7 +432,7 @@ converting extension modules to the multiphase initialization API (PEP 489) and
 by converting dozens of static types to heap types. We made huge progresses
 last months!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
 &lt;p&gt;This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
@@ -528,7 +672,7 @@ PyEval_AcquireLock() and PyEval_AcquireThread() also exit if Python is finalizin
 &lt;tt class="docutils literal"&gt;take_gil()&lt;/tt&gt; exits if finalizing &lt;strong&gt;before, while, and after&lt;/strong&gt; taking the GIL (3 checks)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"></link><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"></link><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;&lt;img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /&gt;&lt;/a&gt;
@@ -697,7 +841,7 @@ non-daemon threads is deleted.&lt;/p&gt;
 &lt;p&gt;I also modified &lt;tt class="docutils literal"&gt;Thread.start()&lt;/tt&gt; to forbid spawning daemon threads in Python
 subinterpreters to fix a related issue.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
 &lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
@@ -848,7 +992,7 @@ daemon threads. The Python finalization became more reliable.&lt;/p&gt;
 &lt;p&gt;Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
 caused a regression which required to revert the bugfix in Python 2.7.9.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a

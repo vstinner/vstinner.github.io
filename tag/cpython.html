@@ -21,7 +21,173 @@
 
             <aside id="featured" class="body">
                 <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/subinterpreter-leaks.html">Leaks discovered by subinterpreters</a></h1>
+                    <h1 class="entry-title"><a href="https://vstinner.github.io/hide-implementation-details-python-c-api.html">Hide implementation details in the Python C API</a></h1>
+<footer class="post-info">
+        <abbr class="published" title="2020-12-25T22:00:00+01:00">
+                Published: ven. 25 décembre 2020
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
+        </address>
+<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
+<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
+</footer><!-- /.post-info --><p>This article is the history of Python C API discussions over the last 4 years,
+and the creation of C API projects: <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi website</a>, <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat.h header file</a> and <a class="reference external" href="https://hpy.readthedocs.io/">HPy (new clean C API)</a>. More and more people are aware of issues
+caused by the C API and are working on solutions.</p>
+<p>It took me a lot of iterations to find the right approach to evolve the C API
+without breaking too many third-party extension modules. My first ideas were
+based on two APIs with an opt-in option somehow. At the end, I decided to fix
+directly the default API, and helped maintainers of extension modules to update
+their projects for incompatible C API changes.</p>
+<p>I wrote a <tt class="docutils literal">pythoncapi_compat.h</tt> header file which adds C API functions of
+newer Python to old Python versions up to Python 2.7. I also wrote a
+<tt class="docutils literal">upgrade_pythoncapi.py</tt> script to add Python 3.10 support to an extension
+module without losing Python 2.7 support: the tool adds <tt class="docutils literal">#include
+&quot;pythoncapi_compat.h&quot;</tt>. For example, it replaces <tt class="docutils literal">Py_TYPE(obj) = type</tt>
+with <tt class="docutils literal">Py_SET_SIZE(obj, type)</tt>.</p>
+<p>My cat attacking the Python C API:</p>
+<img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" />
+<div class="section" id="year-2016">
+<h2>Year 2016</h2>
+<p>Between 2016 and 2017, Larry Hastings worked on removing the GIL in a CPython
+fork called &quot;The Gilectomy&quot;. He pushed the first commit in April 2016: <a class="reference external" href="https://github.com/larryhastings/gilectomy/commit/4a1a4ff49e34b9705608cad968f467af161dcf02">Removed
+the GIL. Don't merge this!</a>
+(&quot;Few programs work now&quot;). At EuroPython 2016, he gave the talk <a class="reference external" href="https://www.youtube.com/watch?v=fgWUwQVoLHo">Larry Hastings
+- The Gilectomy</a> where he
+explains that the current parallelism bottleneck is the CPython reference
+counting which doesn't scale with the number of threads.</p>
+<p>It was just another hint telling me that &quot;something&quot; should be done to make the
+C API more abstract, move away from implementation details like reference
+counting. PyPy also has performance issues with the C API for many years.</p>
+</div>
+<div class="section" id="year-2017">
+<h2>Year 2017</h2>
+<div class="section" id="may">
+<h3>May</h3>
+<p>In 2017, I discussed with Eric Snow who was working on subinterpreters. He had
+to modify public structures, especially the <tt class="docutils literal">PyInterpreterState</tt> structure.
+He created <tt class="docutils literal">Include/internal/</tt> subdirectory to create a new &quot;internal C API&quot;
+which should not be exported. (Later, he moved the <tt class="docutils literal">PyInterpreterState</tt>
+structure to the internal C API in Python 3.8.)</p>
+<p>I started the discuss C API changes during the Python Language Summit
+(PyCon US 2017): <a class="reference external" href="https://github.com/vstinner/conf/raw/master/2017-PyconUS/summit.pdf">&quot;Python performance&quot; slides (PDF)</a>:</p>
+<ul class="simple">
+<li>Split Include in sub-directories</li>
+<li>Move towards a stable ABI by default</li>
+</ul>
+<p>See also the LWN article: <a class="reference external" href="https://lwn.net/Articles/723752/#723949">Keeping Python competitive</a> by Jake Edge.</p>
+</div>
+<div class="section" id="july-first-pep-draft">
+<h3>July: first PEP draft</h3>
+<p>I proposed the first PEP draft to python-ideas:
+<a class="reference external" href="https://mail.python.org/archives/list/python-ideas&#64;python.org/thread/6XATDGWK4VBUQPRHCRLKQECTJIPBVNJQ/">PEP: Hide implementation details in the C API</a>.</p>
+<p>The idea is to add an opt-in option to distutils to build an extension module
+with a new C API, remove implementation details from the new C API, and maybe
+later switch to the new C API by default.</p>
+</div>
+<div class="section" id="september">
+<h3>September</h3>
+<p>I discussed my C API change ideas at the CPython core dev sprint (at Instagram,
+California).  The ideas were liked by most (if not all) core developers who are
+fine with a minor performance slowdown (caused by replacing macros with
+function calls). I wrote <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a> blog post about these
+discussions.</p>
+</div>
+<div class="section" id="november">
+<h3>November</h3>
+<p>I proposed <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-November/150607.html">Make the stable API-ABI usable</a> on
+the python-dev list. The idea is to add <tt class="docutils literal">PyTuple_GET_ITEM()</tt> (for example) to
+the limited C API but declared as a function call. Later, if enough extension
+modules are compatible with the extended limited C API, make it the default.</p>
+</div>
+</div>
+<div class="section" id="year-2018">
+<h2>Year 2018</h2>
+<p>In July, I created the <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi website</a> to collect issues of the current C
+API, list things to avoid in new functions like borrowed references, and start
+to design a new better C API.</p>
+<p>In September, Antonio Cuni wrote <a class="reference external" href="https://morepypy.blogspot.com/2018/09/inside-cpyext-why-emulating-cpython-c.html">Inside cpyext: Why emulating CPython C API is
+so Hard</a>
+article.</p>
+</div>
+<div class="section" id="year-2019">
+<h2>Year 2019</h2>
+<p>In February, I sent <a class="reference external" href="https://mail.python.org/archives/list/capi-sig&#64;python.org/thread/WS6ATJWRUQZESGGYP3CCSVPF7OMPMNM6/">Update on CPython header files reorganization</a>
+to the capi-sig list.</p>
+<ul class="simple">
+<li><tt class="docutils literal">Include/</tt>: limited C API</li>
+<li><tt class="docutils literal">Include/cpython/</tt>: CPython C API</li>
+<li><tt class="docutils literal">Include/internal/</tt>: CPython internal C API</li>
+</ul>
+<p>In March, I modified the Python debug build to make its ABI compatible with the
+release build ABI:
+<a class="reference external" href="https://docs.python.org/dev/whatsnew/3.8.html#debug-build-uses-the-same-abi-as-release-build">What’s New In Python 3.8: Debug build uses the same ABI as release build</a>.</p>
+<p>In May, I gave a lightning talk <a class="reference external" href="https://github.com/vstinner/conf/blob/master/2019-Pycon/status_stable_api_abi.pdf">Status of the stable API and ABI in Python 3.8</a>,
+at the Language Summit (during Pycon US 2019):</p>
+<ul class="simple">
+<li>Convert macros to static inline functions</li>
+<li>Install the internal C API</li>
+<li>Debug build now ABI compatible with the release build ABI</li>
+<li>Getting rid of global variables</li>
+</ul>
+<p>By the way, see my <a class="reference external" href="https://vstinner.github.io/split-include-directory-python38.html">Split Include/ directory in Python 3.8</a> article: I converted many macros in
+Python 3.8.</p>
+<p>In July, the <a class="reference external" href="https://hpy.readthedocs.io/">HPy project</a> was created during
+EuroPython at Basel. There was an informal meeting which included core
+developers of PyPy (Antonio, Armin and Ronan), CPython (Victor Stinner and Mark
+Shannon) and Cython (Stefan Behnel).</p>
+<p>In December, Antonio, Armin and Ronan had a small internal sprint to kick-off
+the development of HPy: <a class="reference external" href="https://morepypy.blogspot.com/2019/12/hpy-kick-off-sprint-report.html">HPy kick-off sprint report</a></p>
+</div>
+<div class="section" id="year-2020">
+<h2>Year 2020</h2>
+<div class="section" id="april">
+<h3>April</h3>
+<p>I proposed <a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/#TKHNENOXP6H34E73XGFOL2KKXSM4Z6T2">PEP: Modify the C API to hide implementation details</a>
+on the python-dev list. The main idea is to provide a new optimized Python
+runtime which is backward incompatible on purpose, and continue to ship the
+regular runtime which is fully backward compatible.</p>
+</div>
+<div class="section" id="june">
+<h3>June</h3>
+<p>I wrote <a class="reference external" href="https://www.python.org/dev/peps/pep-0620/">PEP 620 -- Hide implementation details from the C API</a> and <a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/">proposed the PEP to
+python-dev</a>.
+This PEP is my 3rd attempt to fix the C API: I rewrote it from scratch. Python
+now distributes a new <tt class="docutils literal">pythoncapi_compat.h</tt> header and a process is defined
+to reduce the number of broken C extensions when introducing C API incompatible
+changes listed in this PEP.</p>
+<p>I created the <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat project</a>: header file providing new
+C API functions to old Python versions using static inline functions.</p>
+</div>
+<div class="section" id="december">
+<h3>December</h3>
+<p>I wrote a new <tt class="docutils literal">upgrade_pythoncapi.py</tt> script to add Python 3.10
+support to an extension module without losing support with Python 2.7.  I sent
+<a class="reference external" href="https://mail.python.org/archives/list/capi-sig&#64;python.org/thread/LFLXFMKMZ77UCDUFD5EQCONSAFFWJWOZ/">New script: add Python 3.10 support to your C extensions without losing Python
+3.6 support</a>
+to the capi-sig list.</p>
+<p>The pythoncapi_compat project got its first users (bitarray, immutables,
+python-zstandard)! It proves that the project is useful and needed.</p>
+<p>I collaborated with the HPy project to create a manifesto explaining how the C
+API prevents to optimize CPython and makes the CPython C API inefficient on
+PyPy. It is still a draft.</p>
+</div>
+</div>
+                </article>
+            </aside><!-- /#featured -->
+                <section id="content" class="body">
+                    <h1>Other articles</h1>
+                    <hr />
+                    <ol id="posts-list" class="hfeed">
+
+            <li><article class="hentry">
+                <header>
+                    <h1><a href="https://vstinner.github.io/subinterpreter-leaks.html" rel="bookmark"
+                           title="Permalink to Leaks discovered by subinterpreters">Leaks discovered by subinterpreters</a></h1>
+                </header>
+
+                <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-12-23T14:00:00+01:00">
                 Published: mer. 23 décembre 2020
@@ -31,295 +197,18 @@
                 By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>This article is about old reference leaks discovered or caused by the work on
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
+</footer><!-- /.post-info -->                <p>This article is about old reference leaks discovered or caused by the work on
 isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
 _signal, _ast and _thread).</p>
 <img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
 <div class="section" id="refleaks-buildbot-failures">
 <h2>Refleaks buildbot failures</h2>
 <p>With my work on isolating subinterpreters, old bugs about Python objects leaked
-at Python exit are suddenly becoming blocker issues on buildbots.</p>
-<p>When subinterpreters still share Python objects with the main interpreter, it
-is ok-ish to leak these objects at Python exit. Right now (current master
-branch), there are still more than 18 000 Python objects which are not
-destroyed at Python exit:</p>
-<pre class="literal-block">
-$ ./python -X showrefcount -c pass
-[18411 refs, 6097 blocks]
-</pre>
-<p>This issue is being solved in the <a class="reference external" href="https://bugs.python.org/issue1635741">bpo-1635741: Py_Finalize() doesn't clear all
-Python objects at exit</a> which was
-opened almost 14 years ago (2007).</p>
-<p>When subinterpreters are better isolated, objects are no longer shared, and
-suddenly these leaks make subinterpreters tests failing on Refleak buildbots.
-For example, when an extension module is converted to the multiphase
-initialization API (PEP 489) or when static types are converted to heap types,
-these issues pop up.</p>
-<p>It is a blocker issue for me, since I care of having only &quot;green&quot; buildbots (no
-test failure), otherwise more serious regressions can be easily missed.</p>
-</div>
-<div class="section" id="per-interpreter-gc-state">
-<h2>Per-interpreter GC state</h2>
-<p>In November 2019, I made the state of the GC module per-interpreter in
-<a class="reference external" href="https://bugs.python.org/issue36854">bpo-36854</a>
-(<a class="reference external" href="https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700">commit</a>)
-and test_atexit started to leak:</p>
-<pre class="literal-block">
-$ ./python -m test -R 3:3 test_atexit -m test.test_atexit.SubinterpreterTest.test_callbacks_leak
-test_atexit leaked [3988, 3986, 3988] references, sum=11962
-</pre>
-<p>I fixed the usage of the <tt class="docutils literal">PyModule_AddObject()</tt> function in the <tt class="docutils literal">_testcapi</tt>
-module (<a class="reference external" href="https://github.com/python/cpython/commit/310e2d25170a88ef03f6fd31efcc899fe062da2c">commit</a>).</p>
-<p>I also pushed a <strong>workaround</strong> in <tt class="docutils literal">finalize_interp_clear()</tt>:</p>
-<pre class="literal-block">
-+    /* bpo-36854: Explicitly clear the codec registry
-+       and trigger a GC collection */
-+    PyInterpreterState *interp = tstate-&gt;interp;
-+    Py_CLEAR(interp-&gt;codec_search_path);
-+    Py_CLEAR(interp-&gt;codec_search_cache);
-+    Py_CLEAR(interp-&gt;codec_error_registry);
-+    _PyGC_CollectNoFail();
-</pre>
-<p>I dislike having to push a &quot;temporary&quot; workaround, but the Python finalization
-is really complex and fragile. Fixing the root issues would require too much
-work, whereas I wanted to repair the Refleak buildbots as soon as possible.</p>
-<p>In December 2019, the workaround was partially removed (<a class="reference external" href="https://github.com/python/cpython/commit/ac0e1c2694bc199dbd073312145e3c09bee52cc4">commit</a>):</p>
-<pre class="literal-block">
--    Py_CLEAR(interp-&gt;codec_search_path);
--    Py_CLEAR(interp-&gt;codec_search_cache);
--    Py_CLEAR(interp-&gt;codec_error_registry);
-</pre>
-<p>The year after (December 2020), the last GC collection was moved into
-<tt class="docutils literal">PyInterpreterState_Clear()</tt>, before finalizating the GC (<a class="reference external" href="https://github.com/python/cpython/commit/eba5bf2f5672bf4861c626937597b85ac0c242b9">commit</a>).</p>
-</div>
-<div class="section" id="port-weakref-to-multiphase-init">
-<h2>Port _weakref to multiphase init</h2>
-<p>In March 2020, the <tt class="docutils literal">_weakref</tt> module was ported to the multiphase
-initialization API (PEP 489) in <a class="reference external" href="https://bugs.python.org/issue40050">bpo-40050</a> and test_importlib started to leak:</p>
-<pre class="literal-block">
-$ ./python -m test -R 3:3 test_importlib
-test_importlib leaked [6303, 6299, 6303] references, sum=18905
-</pre>
-<p>The analysis was quite long and complicated. The importlib imported some
-extension modules twice and it has to inject frozen modules to &quot;bootstrap&quot; the
-code.</p>
-<p>At the end, I fixed the issue by removing the now unused <tt class="docutils literal">_weakref</tt> import in
-<tt class="docutils literal">importlib._bootstrap_external</tt>
-(<a class="reference external" href="https://github.com/python/cpython/commit/83d46e0622d2efdf5f3bf8bf8904d0dcb55fc322">commit</a>).
-The fix also avoids importing an extension module twice.</p>
-</div>
-<div class="section" id="convert-abc-static-types-to-heap-types">
-<h2>Convert _abc static types to heap types</h2>
-<p>In April 2020, the static types of the <tt class="docutils literal">_abc</tt> extension module were converted
-to heap types in <a class="reference external" href="https://bugs.python.org/issue40077">bpo-40077</a>
-(<a class="reference external" href="https://github.com/python/cpython/commit/53e4c91725083975598350877e2ed8e2d0194114">commit</a>) and
-test_threading started to leak:</p>
-<pre class="literal-block">
-$ ./python -m test -R 3:3 test_threading
-test_threading leaked [19, 19, 19] references, sum=57
-</pre>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue40149">bpo-40149</a> to track the leak.</p>
-<div class="section" id="objects-hold-a-reference-to-heap-types">
-<h3>Objects hold a reference to heap types</h3>
-<p>In March 2019, the <tt class="docutils literal">PyObject_Init()</tt> function was modified in <a class="reference external" href="https://bugs.python.org/issue35810">bpo-35810</a> to keep a strong reference (<tt class="docutils literal">INCREF</tt>)
-to the type if the type is a heap type
-(<a class="reference external" href="https://github.com/python/cpython/commit/364f0b0f19cc3f0d5e63f571ec9163cf41c62958">commit</a>):</p>
-<pre class="literal-block">
-+    if (PyType_GetFlags(tp) &amp; Py_TPFLAGS_HEAPTYPE) {
-+        Py_INCREF(tp);
-+    }
-</pre>
-<p>I opened <a class="reference external" href="https://bugs.python.org/issue40217">bpo-40217: The garbage collector doesn't take in account that objects
-of heap allocated types hold a strong reference to their type</a> to discuss the regression
-(the test_threading leak).</p>
-</div>
-<div class="section" id="first-workaround-not-merged-force-a-second-garbage-collection">
-<h3>First workaround (not merged): force a second garbage collection</h3>
-<p>While analysing test_threading regression leak, I identified a first
-workaround: add a second <tt class="docutils literal">_PyGC_CollectNoFail()</tt> call in
-<tt class="docutils literal">finalize_interp_clear()</tt>.</p>
-<p>It was only a workaround which helped to understand the issue, it was not
-merged.</p>
-</div>
-<div class="section" id="first-fix-merged-abc-data-traverse">
-<h3>First fix (merged): abc_data_traverse()</h3>
-<p>I merged a first fix: add a traverse function to the <tt class="docutils literal">_abc._abc_data</tt> type
-(<a class="reference external" href="https://github.com/python/cpython/commit/9cc3ebd7e04cb645ac7b2f372eaafa7464e16b9c">commit</a>):</p>
-<pre class="literal-block">
-+static int
-+abc_data_traverse(_abc_data *self, visitproc visit, void *arg)
-+{
-+    Py_VISIT(self-&gt;_abc_registry);
-+    Py_VISIT(self-&gt;_abc_cache);
-+    Py_VISIT(self-&gt;_abc_negative_cache);
-+    return 0;
-+}
-</pre>
-</div>
-<div class="section" id="second-workaround-not-merged-visit-the-type-in-abc-data-traverse">
-<h3>Second workaround (not merged): visit the type in abc_data_traverse()</h3>
-<p>A second workaround was identified: add <tt class="docutils literal"><span class="pre">Py_VISIT(Py_TYPE(self));</span></tt> to
-the new <tt class="docutils literal">abc_data_traverse()</tt> function.</p>
-<p>Again, it was only a workaround which helped to understand the issue, but it
-was not merged.</p>
-</div>
-<div class="section" id="second-fix-merged-call-py-visit-py-type-self-automatically">
-<h3>Second fix (merged): call Py_VISIT(Py_TYPE(self)) automatically</h3>
-<p>20 days after I opened <a class="reference external" href="https://bugs.python.org/issue40217">bpo-40217</a>,
-<strong>Pablo Galindo</strong> modified <tt class="docutils literal">PyType_FromSpec()</tt> to add a wrapper around the
-traverse function of heap types to ensure that <tt class="docutils literal">Py_VISIT(Py_TYPE(self))</tt> is
-always called (<a class="reference external" href="https://github.com/python/cpython/commit/0169d3003be3d072751dd14a5c84748ab63a249f">commit</a>).</p>
-</div>
-<div class="section" id="last-fix-merged-fix-every-traverse-function">
-<h3>Last fix (merged): fix every traverse function</h3>
-<p>In May 2020, <strong>Pablo Galindo</strong> changed his mind. He reverted his
-<tt class="docutils literal">PyType_FromSpec()</tt> change and instead fixed traverse function of heap types
-(<a class="reference external" href="https://github.com/python/cpython/commit/1cf15af9a6f28750f37b08c028ada31d38e818dd">commit</a>).</p>
-<p>At the end, <tt class="docutils literal">abc_data_traverse()</tt> calls <tt class="docutils literal">Py_VISIT(Py_TYPE(self))</tt>. The
-second &quot;workaround&quot; was the correct fix!</p>
-</div>
-</div>
-<div class="section" id="convert-signal-to-multiphase-init">
-<h2>Convert _signal to multiphase init</h2>
-<p>In September 2020, <strong>Mohamed Koubaa</strong> ported the <tt class="docutils literal">_signal</tt> module to the
-multiphase initialization API (PEP 489) in <a class="reference external" href="https://bugs.python.org/issue1635741">bpo-1635741</a> (<a class="reference external" href="https://github.com/python/cpython/commit/71d1bd9569c8a497e279f2fea6fe47cd70a87ea3">commit 71d1bd95</a>)
-and test_interpreters started to leak:</p>
-<pre class="literal-block">
-$ ./python -m test -R 3:3 test_interpreters
-test_interpreters leaked [237, 237, 237] references, sum=711
-</pre>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue41713">bpo-41713</a> to track the
-regression. Since I failed to find a simple fix, I started by reverting the
-change which caused Refleak buildbots to fail (<a class="reference external" href="https://github.com/python/cpython/commit/4b8032e5a4994a7902076efa72fca1e2c85d8b7f">commit</a>).</p>
-<p>I had to refactor the <tt class="docutils literal">_signal</tt> extension module code with multiple commits
-to fix all bugs.</p>
-<p>The first fix was to remove the <tt class="docutils literal">IntHandler</tt> variable: there was no need to
-keep it alive, it was only needed once in <tt class="docutils literal">signal_module_exec()</tt>.</p>
-<p>The second fix is to close the Windows event at exit:</p>
-<pre class="literal-block">
-+ #ifdef MS_WINDOWS
-+     if (sigint_event != NULL) {
-+         CloseHandle(sigint_event);
-+         sigint_event = NULL;
-+     }
-+ #endif
-</pre>
-<p>The last fix, the most important, is to clear the strong reference to old
-Python signal handlers when <tt class="docutils literal">signal_module_exec()</tt> is called more than once:</p>
-<pre class="literal-block">
-// If signal_module_exec() is called more than one, we must
-// clear the strong reference to the previous function.
-Py_XSETREF(Handlers[signum].func, Py_NewRef(func));
-</pre>
-<p>The <tt class="docutils literal">_signal</tt> module is not well isolated for subinterpreters yet, but at
-least it no longer leaks.</p>
-</div>
-<div class="section" id="per-interpreter-ast-state">
-<h2>Per-interpreter _ast state</h2>
-<p>In September 2019, the <tt class="docutils literal">_ast</tt> extension module was converted to PEP 384
-(stable ABI) in <a class="reference external" href="https://bugs.python.org/issue38113">bpo-38113</a> (<a class="reference external" href="https://github.com/python/cpython/commit/ac46eb4ad6662cf6d771b20d8963658b2186c48c">commit</a>):
-the AST state moves into a module state.</p>
-<p>This change caused 3 different bugs including crashes (<a class="reference external" href="https://bugs.python.org/issue41194">bpo-41194</a>, <a class="reference external" href="https://bugs.python.org/issue41261">bpo-41261</a>, <a class="reference external" href="https://bugs.python.org/issue41631">bpo-41631</a>). The issue is complex since there are
-public C APIs which require to access AST types, whereas it became possible to
-have multiple <tt class="docutils literal">_ast</tt> extension module instances.</p>
-<p>In July 2020, I fixed the root issue in <a class="reference external" href="https://bugs.python.org/issue41194">bpo-41194</a> by replacing the module state with a
-global state (<a class="reference external" href="https://github.com/python/cpython/commit/91e1bc18bd467a13bceb62e16fbc435b33381c82">commit</a>):</p>
-<pre class="literal-block">
-static astmodulestate global_ast_state;
-</pre>
-<p>A global state is bad for subinterpreters. In November 2020, I made the AST
-state per-interpreter in <a class="reference external" href="https://bugs.python.org/issue41796">bpo-41796</a>
-(<a class="reference external" href="https://github.com/python/cpython/commit/5cf4782a2630629d0978bf4cf6b6340365f449b2">commit</a>
-and test_ast started to leak:</p>
-<pre class="literal-block">
-$ ./python -m test -R 3:3 test_ast
-test_ast leaked [23640, 23636, 23640] references, sum=70916
-</pre>
-<p>The fix is to call <tt class="docutils literal">_PyAST_Fini()</tt> earlier (<a class="reference external" href="https://github.com/python/cpython/commit/fd957c124c44441d9c5eaf61f7af8cf266bafcb1">commit</a>).</p>
-<p>Python types contain a reference to themselves in in their
-<tt class="docutils literal">PyTypeObject.tp_mro</tt> member (the MRO tuple: Method Resolution Order).
-<tt class="docutils literal">_PyAST_Fini()</tt> must called before the last GC collection to destroy AST
-types.</p>
-<p><tt class="docutils literal">_PyInterpreterState_Clear()</tt> now calls <tt class="docutils literal">_PyAST_Fini()</tt>. It now also
-calls <tt class="docutils literal">_PyWarnings_Fini()</tt> on subinterpeters, not only on the main
-interpreter.</p>
-</div>
-<div class="section" id="thread-lock-traverse">
-<h2>_thread lock traverse</h2>
-<p>In December 2020, while I tried to port the <tt class="docutils literal">_thread</tt> extesnion module to the multiphase initialization API
-(PEP 489), test_threading started to leak:</p>
-<pre class="literal-block">
-$ ./python -m test -R 3:3 test_threading
-test_threading leaked [56, 56, 56] references, sum=168
-</pre>
-<p>As usual, the workaround was to force a second GC collection in <tt class="docutils literal">interpreter_clear()</tt>:</p>
-<pre class="literal-block">
-     /* Last garbage collection on this interpreter */
-     _PyGC_CollectNoFail(tstate);
-+    _PyGC_CollectNoFail(tstate);
-     _PyGC_Fini(tstate);
-</pre>
-<p>It took me two days to full understand the problem. I drew reference cycles
-on paper to help me to understand the problem:</p>
-<img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
-<p>There are two cycles:</p>
-<ul class="simple">
-<li>Cycle 1:<ul>
-<li>at fork function</li>
-<li>-&gt; __main__ module dict</li>
-<li>-&gt; at fork function</li>
-</ul>
-</li>
-<li>Cycle 2:<ul>
-<li>_thread lock type</li>
-<li>-&gt; lock type methods</li>
-<li>-&gt; _thread module dict</li>
-<li>-&gt; _thread local type</li>
-<li>-&gt; _thread module</li>
-<li>-&gt; _thread module state</li>
-<li>-&gt; _thread lock type</li>
-</ul>
-</li>
-</ul>
-<p>Moreover, there is a link between these two reference cycles: an instance of
-the lock type.</p>
-<p>I fixed the issue by adding a traverse function to the lock type and add
-<tt class="docutils literal">Py_TPFLAGS_HAVE_GC</tt> flag to the type (<a class="reference external" href="https://github.com/python/cpython/commit/6104013838e181e3c698cb07316f449a0c31ea96">commit</a>):</p>
-<pre class="literal-block">
-+static int
-+lock_traverse(lockobject *self, visitproc visit, void *arg)
-+{
-+    Py_VISIT(Py_TYPE(self));
-+    return 0;
-+}
-</pre>
-</div>
-<div class="section" id="notes-on-weird-gc-bugs">
-<h2>Notes on weird GC bugs</h2>
-<ul class="simple">
-<li><tt class="docutils literal">gc.get_referents()</tt> and <tt class="docutils literal">gc.get_referrers()</tt> can be used to check
-traverse functions.</li>
-<li><tt class="docutils literal">gc.is_tracked()</tt> can be used to check if the GC tracks an object.</li>
-<li>Using the <tt class="docutils literal">gdb</tt> debugger on <tt class="docutils literal">gc_collect_main()</tt> helps to see which
-objects are collected. See for example the <tt class="docutils literal">finalize_garbage()</tt> functions
-which calls finalizers on unreachable objects.</li>
-<li>The solution is usually a missing traverse functions or a missing
-<tt class="docutils literal">Py_VISIT()</tt> in an existing traverse function.</li>
-<li>GC bugs are hard to debug :-)</li>
-</ul>
-<p>Thanks <strong>Pablo Galindo</strong> for helping me to debug all these tricky GC bugs!</p>
-<p>Thanks to everybody who are helping to better isolate subintrepreters by
-converting extension modules to the multiphase initialization API (PEP 489) and
-by converting dozens of static types to heap types. We made huge progresses
-last months!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
+at Python exit are suddenly becoming blocker …</p></div>
+                <a class="readmore" href="https://vstinner.github.io/subinterpreter-leaks.html">read more</a>
+                </div><!-- /.entry-content -->
+            </article></li>
 
             <li><article class="hentry">
                 <header>
@@ -337,7 +226,7 @@ last months!</p>
                 By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
 </footer><!-- /.post-info -->                <p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.</p>
@@ -363,7 +252,7 @@ Python 3.9, between …</p>
                 By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
 </footer><!-- /.post-info -->                <p>This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.</p>
@@ -393,7 +282,7 @@ subinterpreters to fix another related bug.</p>
                 By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
+<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
 </footer><!-- /.post-info -->                <p>At exit, the Python finalization calls Python objects finalizers (the
 <tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
@@ -531,32 +420,6 @@ proposed two major backward incompatible changes for Python 3.6 on Windows:
 filesystem encoding to UTF-8</a>.
 At the first read, I was sure that …</p>
                 <a class="readmore" href="https://vstinner.github.io/python36-utf8-windows.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="bookmark"
-                           title="Permalink to Python 3.2 Painful History of the Filesystem Encoding">Python 3.2 Painful History of the Filesystem Encoding</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2018-03-15T23:00:00+01:00">
-                Published: jeu. 15 mars 2018
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
-filesystem encoding changed multiple times. <strong>It took 6 years to choose the best
-Python filesystem encoding on each platform.</strong></p>
-<p><strong>I have been officially promoted as a core developer</strong> in January 2010 by
-<strong>Martin von …</strong></p>
-                <a class="readmore" href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html">read more</a>
                 </div><!-- /.entry-content -->
             </article></li>
                 </ol><!-- /#posts-list -->

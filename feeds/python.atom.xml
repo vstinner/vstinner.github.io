@@ -4444,7 +4444,7 @@ able to reemove the GIL.&lt;/p&gt;
 &lt;p&gt;Removing reference counting would make Gilectomy much simpler.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="optimization"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><updated>2017-07-13T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
+</content><category term="python"></category><category term="optimization"></category><category term="cpython"></category><category term="c-api"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 3)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html" rel="alternate"></link><published>2017-07-13T17:00:00+02:00</published><updated>2017-07-13T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part3.html</id><summary type="html">&lt;p&gt;This is the third part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Security&lt;/li&gt;
 &lt;li&gt;Trick bug: Clang 4.0, dtoa and strict aliasing&lt;/li&gt;
