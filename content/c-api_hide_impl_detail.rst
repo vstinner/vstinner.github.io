@@ -1,6 +1,6 @@
-+++++++++++++++++++++++++++++++++++++++++++++++
-Hide implementation details in the Python C API
-+++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++
+Hide implementation details from the Python C API
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2020-12-25 22:00
 :tags: optimization, cpython, c-api
