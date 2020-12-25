@@ -2,16 +2,36 @@
 Hide implementation details in the Python C API
 +++++++++++++++++++++++++++++++++++++++++++++++
 
-:date: 2020-12-23 16:00
+:date: 2020-12-25 22:00
 :tags: optimization, cpython, c-api
 :category: cpython
 :slug: hide-implementation-details-python-c-api
 :authors: Victor Stinner
 
-This article is the history Python C API discussions over the last 4 years, and
-the creation of C API projects: pythoncapi website, pythoncapi_compat.h header
-and HPy. More and more people are aware of issues caused by the C API and are
-working on solutions.
+This article is the history of Python C API discussions over the last 4 years,
+and the creation of C API projects: `pythoncapi website
+<https://pythoncapi.readthedocs.io/>`_, `pythoncapi_compat.h header file
+<https://github.com/pythoncapi/pythoncapi_compat>`_ and `HPy (new clean C API)
+<https://hpy.readthedocs.io/>`_. More and more people are aware of issues
+caused by the C API and are working on solutions.
+
+It took me a lot of iterations to find the right approach to evolve the C API
+without breaking too many third-party extension modules. My first ideas were
+based on two APIs with an opt-in option somehow. At the end, I decided to fix
+directly the default API, and helped maintainers of extension modules to update
+their projects for incompatible C API changes.
+
+I wrote a ``pythoncapi_compat.h`` header file which adds C API functions of
+newer Python to old Python versions up to Python 2.7. I also wrote a
+``upgrade_pythoncapi.py`` script to add Python 3.10 support to an extension
+module without losing Python 2.7 support: the tool adds ``#include
+"pythoncapi_compat.h"``. For example, it replaces ``Py_TYPE(obj) = type``
+with ``Py_SET_SIZE(obj, type)``.
+
+My cat attacking the Python C API:
+
+.. image:: {static}/images/pepsie.jpg
+   :alt: My cat attacking the Python C API
 
 Year 2016
 =========
@@ -20,16 +40,14 @@ Between 2016 and 2017, Larry Hastings worked on removing the GIL in a CPython
 fork called "The Gilectomy". He pushed the first commit in April 2016: `Removed
 the GIL. Don't merge this!
 <https://github.com/larryhastings/gilectomy/commit/4a1a4ff49e34b9705608cad968f467af161dcf02>`_
-("Few programs work now").
-
-At EuroPython 2016, he gave the talk `Larry Hastings - The Gilectomy
-<https://www.youtube.com/watch?v=fgWUwQVoLHo>`_ where he explained that the
-current parallelism bottleneck is the CPython reference counting which doesn't
-scale with the number of threads.
+("Few programs work now"). At EuroPython 2016, he gave the talk `Larry Hastings
+- The Gilectomy <https://www.youtube.com/watch?v=fgWUwQVoLHo>`_ where he
+explains that the current parallelism bottleneck is the CPython reference
+counting which doesn't scale with the number of threads.
 
 It was just another hint telling me that "something" should be done to make the
 C API more abstract, move away from implementation details like reference
-counting.
+counting. PyPy also has performance issues with the C API for many years.
 
 
 Year 2017
@@ -41,7 +59,8 @@ May
 In 2017, I discussed with Eric Snow who was working on subinterpreters. He had
 to modify public structures, especially the ``PyInterpreterState`` structure.
 He created ``Include/internal/`` subdirectory to create a new "internal C API"
-which should not be exported.
+which should not be exported. (Later, he moved the ``PyInterpreterState``
+structure to the internal C API in Python 3.8.)
 
 I started the discuss C API changes during the Python Language Summit
 (PyCon US 2017): `"Python performance" slides (PDF)
@@ -70,9 +89,7 @@ September
 I discussed my C API change ideas at the CPython core dev sprint (at Instagram,
 California).  The ideas were liked by most (if not all) core developers who are
 fine with a minor performance slowdown (caused by replacing macros with
-function calls).
-
-I wrote `A New C API for CPython
+function calls). I wrote `A New C API for CPython
 <https://vstinner.github.io/new-python-c-api.html>`_ blog post about these
 discussions.
 
@@ -81,17 +98,15 @@ November
 
 I proposed `Make the stable API-ABI usable
 <https://mail.python.org/pipermail/python-dev/2017-November/150607.html>`_ on
-the python-dev list.
-
-The idea is to add ``PyTuple_GET_ITEM()`` (for example) to the limited C API
-but declared as a function call. Later, if enough extension modules are
-compatible with the extended limited C API, make it the default.
+the python-dev list. The idea is to add ``PyTuple_GET_ITEM()`` (for example) to
+the limited C API but declared as a function call. Later, if enough extension
+modules are compatible with the extended limited C API, make it the default.
 
 Year 2018
 =========
 
-In July, I created the `pythoncapi project
-<https://github.com/vstinner/pythoncapi>`_ to collect issues of the current C
+In July, I created the `pythoncapi website
+<https://pythoncapi.readthedocs.io/>`_ to collect issues of the current C
 API, list things to avoid in new functions like borrowed references, and start
 to design a new better C API.
 
