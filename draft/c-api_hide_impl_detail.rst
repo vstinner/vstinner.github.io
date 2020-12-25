@@ -8,10 +8,10 @@ Hide implementation details in the Python C API
 :slug: hide-implementation-details-python-c-api
 :authors: Victor Stinner
 
-This article is about discussions around the C API between 2016 and 2020, and
-the creation of C API projects: pythoncapi, HPy and pythoncapi_compat. More and
-more people are aware of issues caused by the C API and are working on
-solutions.
+This article is the history Python C API discussions over the last 4 years, and
+the creation of C API projects: pythoncapi website, pythoncapi_compat.h header
+and HPy. More and more people are aware of issues caused by the C API and are
+working on solutions.
 
 Year 2016
 =========
@@ -27,6 +27,10 @@ At EuroPython 2016, he gave the talk `Larry Hastings - The Gilectomy
 current parallelism bottleneck is the CPython reference counting which doesn't
 scale with the number of threads.
 
+It was just another hint telling me that "something" should be done to make the
+C API more abstract, move away from implementation details like reference
+counting.
+
 
 Year 2017
 =========
@@ -41,8 +45,12 @@ which should not be exported.
 
 I started the discuss C API changes during the Python Language Summit
 (PyCon US 2017): `"Python performance" slides (PDF)
-<https://github.com/vstinner/conf/raw/master/2017-PyconUS/summit.pdf>`_.  See
-also the LWN article: `Keeping Python competitive
+<https://github.com/vstinner/conf/raw/master/2017-PyconUS/summit.pdf>`_:
+
+* Split Include in sub-directories
+* Move towards a stable ABI by default
+
+See also the LWN article: `Keeping Python competitive
 <https://lwn.net/Articles/723752/#723949>`_ by Jake Edge.
 
 July: first PEP draft
@@ -52,31 +60,17 @@ I proposed the first PEP draft to python-ideas:
 `PEP: Hide implementation details in the C API
 <https://mail.python.org/archives/list/python-ideas@python.org/thread/6XATDGWK4VBUQPRHCRLKQECTJIPBVNJQ/>`__.
 
-Abstract:
-
-    Modify the C API to remove implementation details. Add an opt-in option
-    to compile C extensions to get the old full API with implementation
-    details.
-
-    (...)
-
-    Reference counting may be emulated in a future implementation for
-    backward compatibility.
-
-The plan is made of multiple small steps:
-
-* Step 1: Split ``Include/`` into subdirectories
-* Step 2: Add an opt-in API option to tools building packages
-* Step 3: First pass of implementation detail removal
-* Step 4: Switch the default API to the new restricted python API.
-* Step 5: Continue Step 3: remove even more implementation details.
+The idea is to add an opt-in option to distutils to build an extension module
+with a new C API, remove implementation details from the new C API, and maybe
+later switch to the new C API by default.
 
 September
 ---------
 
-I discussed my idea at the CPython core dev sprint (at Instagram, California).
-The idea was liked by most (if not all) core developers who are fine with a
-minor performance slowdown (caused by replacing macros with function calls).
+I discussed my C API change ideas at the CPython core dev sprint (at Instagram,
+California).  The ideas were liked by most (if not all) core developers who are
+fine with a minor performance slowdown (caused by replacing macros with
+function calls).
 
 I wrote `A New C API for CPython
 <https://vstinner.github.io/new-python-c-api.html>`_ blog post about these
@@ -89,6 +83,10 @@ I proposed `Make the stable API-ABI usable
 <https://mail.python.org/pipermail/python-dev/2017-November/150607.html>`_ on
 the python-dev list.
 
+The idea is to add ``PyTuple_GET_ITEM()`` (for example) to the limited C API
+but declared as a function call. Later, if enough extension modules are
+compatible with the extended limited C API, make it the default.
+
 Year 2018
 =========
 
@@ -97,12 +95,21 @@ In July, I created the `pythoncapi project
 API, list things to avoid in new functions like borrowed references, and start
 to design a new better C API.
 
+In September, Antonio Cuni wrote `Inside cpyext: Why emulating CPython C API is
+so Hard
+<https://morepypy.blogspot.com/2018/09/inside-cpyext-why-emulating-cpython-c.html>`_
+article.
+
 Year 2019
 =========
 
 In February, I sent `Update on CPython header files reorganization
 <https://mail.python.org/archives/list/capi-sig@python.org/thread/WS6ATJWRUQZESGGYP3CCSVPF7OMPMNM6/>`_
 to the capi-sig list.
+
+* ``Include/``: limited C API
+* ``Include/cpython/``: CPython C API
+* ``Include/internal/``: CPython internal C API
 
 In March, I modified the Python debug build to make its ABI compatible with the
 release build ABI:
@@ -111,14 +118,29 @@ release build ABI:
 
 In May, I gave a lightning talk `Status of the stable API and ABI in Python 3.8
 <https://github.com/vstinner/conf/blob/master/2019-Pycon/status_stable_api_abi.pdf>`_,
-at the Language Summit (during Pycon US 2019).
+at the Language Summit (during Pycon US 2019):
+
+* Convert macros to static inline functions
+* Install the internal C API
+* Debug build now ABI compatible with the release build ABI
+* Getting rid of global variables
+
+By the way, see my `Split Include/ directory in Python 3.8
+<{filename}/split_include_python38.rst>`_ article: I converted many macros in
+Python 3.8.
 
 In July, the `HPy project <https://hpy.readthedocs.io/>`_ was created during
-EuroPython at Basel.
+EuroPython at Basel. There was an informal meeting which included core
+developers of PyPy (Antonio, Armin and Ronan), CPython (Victor Stinner and Mark
+Shannon) and Cython (Stefan Behnel).
+
+In December, Antonio, Armin and Ronan had a small internal sprint to kick-off
+the development of HPy: `HPy kick-off sprint report
+<https://morepypy.blogspot.com/2019/12/hpy-kick-off-sprint-report.html>`_
 
 
-Years 2020
-==========
+Year 2020
+=========
 
 April
 -----
@@ -129,27 +151,6 @@ on the python-dev list. The main idea is to provide a new optimized Python
 runtime which is backward incompatible on purpose, and continue to ship the
 regular runtime which is fully backward compatible.
 
-Abstract:
-
-* Hide implementation details from the C API to be able to optimize CPython and
-  make PyPy more efficient.
-* The expectation is that most C extensions don't rely directly on CPython
-  internals and so will remain compatible.
-* Continue to support old unmodified C extensions by continuing to provide the
-  fully compatible "regular" CPython runtime.
-* Provide a new optimized CPython runtime using the same CPython code base:
-  faster but can only import C extensions which don't use implementation
-  details.  Since both CPython runtimes share the same code base, features
-  implemented in CPython will be available in both runtimes.
-* Stable ABI: Only build a C extension once and use it on multiple Python
-  runtimes and different versions of the same runtime.
-* Better advertise alternative Python runtimes and better communicate on the
-  differences between the Python language and the Python implementation
-  (especially CPython).
-
-Note: Cython and cffi should be preferred to write new C extensions. This PEP
-is about existing C extensions which cannot be rewritten with Cython.
-
 June
 ----
 
@@ -157,10 +158,10 @@ I wrote `PEP 620 -- Hide implementation details from the C API
 <https://www.python.org/dev/peps/pep-0620/>`_ and `proposed the PEP to
 python-dev
 <https://mail.python.org/archives/list/python-dev@python.org/thread/HKM774XKU7DPJNLUTYHUB5U6VR6EQMJF/>`_.
-This PEP was rewritten from scratch. Python now distributes a new
-``pythoncapi_compat.h`` header and a process is defined to reduce the number of
-broken C extensions when introducing C API incompatible changes listed in this
-PEP.
+This PEP is my 3rd attempt to fix the C API: I rewrote it from scratch. Python
+now distributes a new ``pythoncapi_compat.h`` header and a process is defined
+to reduce the number of broken C extensions when introducing C API incompatible
+changes listed in this PEP.
 
 I created the `pythoncapi_compat project
 <https://github.com/pythoncapi/pythoncapi_compat>`_: header file providing new
@@ -176,9 +177,9 @@ support to an extension module without losing support with Python 2.7.  I sent
 <https://mail.python.org/archives/list/capi-sig@python.org/thread/LFLXFMKMZ77UCDUFD5EQCONSAFFWJWOZ/>`_
 to the capi-sig list.
 
-The pythoncapi_compat project got its first two users (bitarray and immutables
-projects).
+The pythoncapi_compat project got its first users (bitarray, immutables,
+python-zstandard)! It proves that the project is useful and needed.
 
 I collaborated with the HPy project to create a manifesto explaining how the C
 API prevents to optimize CPython and makes the CPython C API inefficient on
-PyPy.
+PyPy. It is still a draft.
