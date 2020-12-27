@@ -3,9 +3,10 @@
 <head>
         <meta charset="utf-8" />
         <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3</title>
+        <title>Isolated Python Subinterpreters</title>
         <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
         <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+        <meta name="description" content="This article is about the work done in Python in 2019 and 2020 to better isolate subinterpreters. Static types are converted to heap types,..." />
 </head>
 
 <body id="index" class="home">
@@ -13,15 +14,20 @@
                 <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
                 <nav><ul>
                     <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
+                    <li class="active"><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
                     <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
                     <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
                 </ul></nav>
         </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="https://vstinner.github.io/isolate-subinterpreters.html" rel="bookmark"
+           title="Permalink to Isolated Python Subinterpreters">Isolated Python Subinterpreters</a></h1>
+    </header>
 
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/isolate-subinterpreters.html">Isolated Python Subinterpreters</a></h1>
+    <div class="entry-content">
 <footer class="post-info">
         <abbr class="published" title="2020-12-27T22:00:00+01:00">
                 Published: dim. 27 décembre 2020
@@ -32,7 +38,7 @@
         </address>
 <p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
 <p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
-</footer><!-- /.post-info --><p>This article is about the work done in Python in 2019 and 2020 to better
+</footer><!-- /.post-info -->      <p>This article is about the work done in Python in 2019 and 2020 to better
 isolate subinterpreters. Static types are converted to heap types, extension
 modules are converted to use the new multiphase initialization API (PEP 489),
 caches, states, singletons and free lists are made per-interpreter, many bugs
@@ -373,264 +379,11 @@ to the multiphase initialization API (<a class="reference external" href="https:
 <p>I'm tracking the work in my <a class="reference external" href="https://pythondev.readthedocs.io/subinterpreters.html">Python Subinterpreters</a> page
 and in the <a class="reference external" href="https://bugs.python.org/issue40512">bpo-40512: Meta issue: per-interpreter GIL</a>.</p>
 </div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
 
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="bookmark"
-                           title="Permalink to Hide implementation details from the Python C API">Hide implementation details from the Python C API</a></h1>
-                </header>
+    </div><!-- /.entry-content -->
 
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-12-25T22:00:00+01:00">
-                Published: ven. 25 décembre 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
-</footer><!-- /.post-info -->                <p>This article is the history of Python C API discussions over the last 4 years,
-and the creation of C API projects: <a class="reference external" href="https://pythoncapi.readthedocs.io/">pythoncapi website</a>, <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat.h header file</a> and <a class="reference external" href="https://hpy.readthedocs.io/">HPy (new clean C API)</a>. More and more people are aware of issues
-caused by the C API and are working …</p>
-                <a class="readmore" href="https://vstinner.github.io/hide-implementation-details-python-c-api.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/subinterpreter-leaks.html" rel="bookmark"
-                           title="Permalink to Leaks discovered by subinterpreters">Leaks discovered by subinterpreters</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-12-23T14:00:00+01:00">
-                Published: mer. 23 décembre 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
-</footer><!-- /.post-info -->                <p>This article is about old reference leaks discovered or caused by the work on
-isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
-_signal, _ast and _thread).</p>
-<img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
-<div class="section" id="refleaks-buildbot-failures">
-<h2>Refleaks buildbot failures</h2>
-<p>With my work on isolating subinterpreters, old bugs about Python objects leaked
-at Python exit are suddenly becoming blocker …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/subinterpreter-leaks.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="bookmark"
-                           title="Permalink to GIL bugfixes for daemon threads in Python 3.9">GIL bugfixes for daemon threads in Python 3.9</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-04-04T22:00:00+02:00">
-                Published: sam. 04 avril 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
-</footer><!-- /.post-info -->                <p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
-issues caused by daemon threads in the Python finalization and past changes to
-make them work.</p>
-<p>This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
-Python 3.9, between …</p>
-                <a class="readmore" href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="bookmark"
-                           title="Permalink to Threading shutdown race condition">Threading shutdown race condition</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-04-03T20:00:00+02:00">
-                Published: ven. 03 avril 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
-</footer><!-- /.post-info -->                <p>This article is about a race condition in threading shutdown that I fixed in
-Python 3.9 in March 2019. I also forbid spawning daemon threads in
-subinterpreters to fix another related bug.</p>
-<a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"><img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /></a>
-<p>Drawing: <a class="reference external" href="https://twitter.com/neeljulien/status/1240292383369150464">#CoronaMaison by Julien Neel</a>.</p>
-<div class="section" id="race-condition-in-threading-shutdown">
-<h2>Race condition in threading shutdown</h2>
-<div class="section" id="random-test-failure-noticed-on-freebsd-buildbot">
-<h3>Random test failure noticed on FreeBSD buildbot …</h3></div></div>
-                <a class="readmore" href="https://vstinner.github.io/threading-shutdown-race-condition.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="bookmark"
-                           title="Permalink to Daemon threads and the Python finalization in Python 3.2 and 3.3">Daemon threads and the Python finalization in Python 3.2 and 3.3</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-03-26T22:00:00+01:00">
-                Published: jeu. 26 mars 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
-</footer><!-- /.post-info -->                <p>At exit, the Python finalization calls Python objects finalizers (the
-<tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
-kind of threads which continue to run during and after the Python finalization.
-They are causing race conditions and tricky bugs in the Python finalization.</p>
-<p>This article covers bugs …</p>
-                <a class="readmore" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python37-dev-mode.html" rel="bookmark"
-                           title="Permalink to Python 3.7 Development Mode">Python 3.7 Development Mode</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-01-16T12:00:00+01:00">
-                Published: jeu. 16 janvier 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
-(-X dev)</a> that I <strong>added
-to Python 3.7</strong> and how it has been implemented.</p>
-<p>The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev …</tt></p>
-                <a class="readmore" href="https://vstinner.github.io/python37-dev-mode.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/cpython-pass-tstate.html" rel="bookmark"
-                           title="Permalink to Pass the Python thread state explicitly">Pass the Python thread state explicitly</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-01-08T15:00:00+01:00">
-                Published: mer. 08 janvier 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="keeping-python-competitive">
-<h2>Keeping Python competitive</h2>
-<p>I'm trying to find ways to make Python more efficient for many years, see for
-example my discussion at the Language Summit during Pycon US 2017: <a class="reference external" href="https://lwn.net/Articles/723949/">Keeping
-Python competitive</a> (LWN article); <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf">slides</a>.
-At EuroPython 2019 (Basel), I gave the keynote &quot;Python Performance: Past,
-Present and Future&quot;: <a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf">slides …</a></p></div>
-                <a class="readmore" href="https://vstinner.github.io/cpython-pass-tstate.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/graphics-bugs-firefox-gnome.html" rel="bookmark"
-                           title="Permalink to Graphics bugs in Firefox and GNOME">Graphics bugs in Firefox and GNOME</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-10-10T17:00:00+02:00">
-                Published: jeu. 10 octobre 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/linux.html">linux</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/linux.html">linux</a> </p>
-</footer><!-- /.post-info -->                <p>After explaining how to <a class="reference external" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">Debug Hybrid Graphics issues on Linux</a>, here is the story of four graphics bugs
-that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
-2019: bugs in gnome-shell, Gtk, Firefox and mutter.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/34298393&#64;N06/14488759356/"><img alt="Glitch" src="https://vstinner.github.io/images/glitch.jpg" /></a>
-<div class="section" id="gnome-shell-freezes">
-<h2>gnome-shell freezes</h2>
-<p>In May 2018, six months after …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/graphics-bugs-firefox-gnome.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html" rel="bookmark"
-                           title="Permalink to Debug Hybrid Graphics issues on Linux">Debug Hybrid Graphics issues on Linux</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-09-11T15:50:00+02:00">
-                Published: mer. 11 septembre 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/linux.html">linux</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/linux.html">linux</a> </p>
-</footer><!-- /.post-info -->                <p><a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics">Hybrid Graphics</a> is a
-complex hardware and software solution to achieve longer laptop battery life:
-an <strong>integrated</strong> graphics device is used by default, and a <strong>discrete</strong>
-graphics device with higher graphics performances is enabled on demand.</p>
-<a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"><img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /></a>
-<p>If it is designed and implemented carefully, users should not notice that a
-laptop …</p>
-                <a class="readmore" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-<p class="paginator">
-    Page 1 / 7
-        <a href="https://vstinner.github.io/index2.html">&raquo;</a>
-        <a href="https://vstinner.github.io/index7.html">&#8649;</a>
-</p>
-                </section><!-- /#content -->
+  </article>
+</section>
         <section id="extras" class="body">
                 <div class="blogroll">
                         <h2>links</h2>

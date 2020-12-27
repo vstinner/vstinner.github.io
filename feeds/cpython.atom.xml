@@ -1,5 +1,350 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-25T22:00:00+01:00</updated><entry><title>Hide implementation details from the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"></link><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-27T22:00:00+01:00</updated><entry><title>Isolated Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"></link><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
+isolate subinterpreters. Static types are converted to heap types, extension
+modules are converted to use the new multiphase initialization API (PEP 489),
+caches, states, singletons and free lists are made per-interpreter, many bugs
+have been …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
+isolate subinterpreters. Static types are converted to heap types, extension
+modules are converted to use the new multiphase initialization API (PEP 489),
+caches, states, singletons and free lists are made per-interpreter, many bugs
+have been fixed, etc.&lt;/p&gt;
+&lt;p&gt;Running multiple interpreters in parallel with one &amp;quot;GIL&amp;quot; per interpreter cannot
+be done yet, but a lot of complex technical challenges have been solved.&lt;/p&gt;
+&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
+&lt;div class="section" id="why-isolating-subinterpreters"&gt;
+&lt;h2&gt;Why isolating subinterpreters?&lt;/h2&gt;
+&lt;p&gt;The final goal is to be able run multiple interpreters in parallel in the same
+process, like one interpreter per CPU, each interpreter would run in its own
+thread. The principle is the same than the multiprocessing module and has the
+same limitations: no Python object can be shared directly between two
+interpreters. Later, we can imagine helpers to share Python mutable objects
+using proxies which would prevent race conditions.&lt;/p&gt;
+&lt;p&gt;The work on subinterpreter requires to modify many functions and extension
+modules. It will benefit to Python in different ways.&lt;/p&gt;
+&lt;p&gt;Converting static types to heap types and convert extension modules to the
+multiphase initialization API (PEP 489) makes extension modules implemented in
+C to behave closer to modules implemented in Python, which is good for the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0399/"&gt;PEP
+399 -- Pure Python/C Accelerator Module Compatibility Requirements&lt;/a&gt;. So &lt;strong&gt;this work also helps
+Python implementations other than CPython, like PyPy&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;These changes also destroy more Python objects and release more memory at
+Python exit which matters &lt;strong&gt;when Python is embedded in an application&lt;/strong&gt;. Python
+should be &amp;quot;state less&amp;quot;, especially release all memory at exit. This work slowly
+fix the &lt;a class="reference external" href="https://bugs.python.org/issue1635741"&gt;bpo-163574: Py_Finalize() doesn't clear all Python objects at exit&lt;/a&gt;. Python leaks less and less Python
+objects at exit.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="proof-of-concept-in-may-2020"&gt;
+&lt;h2&gt;Proof-of-concept in May 2020&lt;/h2&gt;
+&lt;p&gt;In May 2020, I wrote a proof-of-concept to prove the feasability of the project
+and to prove that it is faster than sequential execution: &lt;a class="reference external" href="https://mail.python.org/archives/list/python-dev&amp;#64;python.org/thread/S5GZZCEREZLA2PEMTVFBCDM52H4JSENR/#RIK75U3ROEHWZL4VENQSQECB4F4GDELV"&gt;PoC: Subinterpreters
+4x faster than sequential execution or threads on CPU-bound workaround&lt;/a&gt;.
+Benchmark on 4 CPUs:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Sequential: 1.99 sec +- 0.01 sec&lt;/li&gt;
+&lt;li&gt;Threads: 3.15 sec +- 0.97 sec (1.5x &lt;strong&gt;slower&lt;/strong&gt;)&lt;/li&gt;
+&lt;li&gt;Multiprocessing: 560 ms +- 12 ms (3.6x &lt;strong&gt;faster&lt;/strong&gt;)&lt;/li&gt;
+&lt;li&gt;Subinterpreters: 583 ms +- 7 ms (3.4x &lt;strong&gt;faster&lt;/strong&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The performance of subintepreters is basically the same speed than
+multiprocessing on this benchmark which is promising.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="experimental-isolated-subintepreters"&gt;
+&lt;h2&gt;Experimental isolated subintepreters&lt;/h2&gt;
+&lt;p&gt;To write this PoC, I added a &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;--with-experimental-isolated-subinterpreters&lt;/span&gt;&lt;/tt&gt;
+option to &lt;tt class="docutils literal"&gt;./configure&lt;/tt&gt; in &lt;a class="reference external" href="https://bugs.python.org/issue40514"&gt;bpo-40514&lt;/a&gt;
+which defines the &lt;tt class="docutils literal"&gt;EXPERIMENTAL_ISOLATED_SUBINTERPRETERS&lt;/tt&gt; macro. Effects of
+this special build:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Make the GIL per-interpreter.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_xxsubinterpreters.run_string()&lt;/tt&gt; releases the GIL when running the
+subinterpreter.&lt;/li&gt;
+&lt;li&gt;Add a thread local storage for the Python thread state (&amp;quot;tstate&amp;quot;).&lt;/li&gt;
+&lt;li&gt;Disable the garbage collector in subinterpreters.&lt;/li&gt;
+&lt;li&gt;Disable the type attribute lookup cache.&lt;/li&gt;
+&lt;li&gt;Disable free lists: frame, list, tuple, type attribute lookup cache.&lt;/li&gt;
+&lt;li&gt;Disable singletons: latin1 characters.&lt;/li&gt;
+&lt;li&gt;Disable interned strings.&lt;/li&gt;
+&lt;li&gt;Disable the fast pymalloc memory allocator (force libc malloc memory
+allocator).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Features are disabled because their implementation is currently not compatible
+with multiple interpreters running in parallel.&lt;/p&gt;
+&lt;p&gt;This special build is designed to be temporary. It should ease the development
+of isolated subinterpreters. It will be removed once subinterpreters will be
+fully isolated (once each interpreter will have its own GIL).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-static-types-to-heap-types"&gt;
+&lt;h2&gt;Convert static types to heap types&lt;/h2&gt;
+&lt;p&gt;Types declared in Python (&lt;tt class="docutils literal"&gt;class MyType: ...&lt;/tt&gt;) are always &amp;quot;heap types&amp;quot;:
+types dynamically allocated on the heap memory. Historically, all types
+declared in C were declared as &amp;quot;static types&amp;quot;: defined statically at build
+time.&lt;/p&gt;
+&lt;p&gt;In C, static types are referenced directly using the using &lt;tt class="docutils literal"&gt;&amp;amp;&lt;/tt&gt; operator to
+get their address, they are not copied. For example, the Python &lt;tt class="docutils literal"&gt;str&lt;/tt&gt; type is
+referenced as &lt;tt class="docutils literal"&gt;&amp;amp;PyUnicode_Type&lt;/tt&gt; in C.&lt;/p&gt;
+&lt;p&gt;Types are also regular objects (&lt;tt class="docutils literal"&gt;PyTypeObject&lt;/tt&gt; inherits from &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt;)
+and have a reference count, whereas the &lt;tt class="docutils literal"&gt;PyObject.ob_refcnt&lt;/tt&gt; member is not
+atomic and so must not be modified in parallel. Problem: all interpreters share
+the same static types.  Static types have other problems:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;A type &lt;tt class="docutils literal"&gt;__mro__&lt;/tt&gt; tuple (&lt;tt class="docutils literal"&gt;PyTypeObject.tp_mro&lt;/tt&gt; member) has the same
+problem of non-atomic reference count.&lt;/li&gt;
+&lt;li&gt;When a subtype is created, it is stored in the &lt;tt class="docutils literal"&gt;PyTypeObject.tp_subclasses&lt;/tt&gt;
+dictionary member (accessible in Python with the &lt;tt class="docutils literal"&gt;__subclasses__()&lt;/tt&gt;
+method), whereas Python dictionaries are not thread-safe.&lt;/li&gt;
+&lt;li&gt;Static types behave differently than regular Python types. For example,
+usually it is not possible to add an arbitrary attribute or override
+an attribute. It goes against the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0399/"&gt;PEP 399 -- Pure Python/C Accelerator
+Module Compatibility Requirements&lt;/a&gt; principles.&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Right now, &lt;strong&gt;43% (89/206)&lt;/strong&gt; of types are declared as heap types on a total of
+206 types. For comparison, in Python 3.8, only 9% (15/172) of types were
+declared as heap types: &lt;strong&gt;74 types&lt;/strong&gt; have been converted in the meanwhile.&lt;/p&gt;
+&lt;p&gt;TODO: convert the remaining 117 static types: see &lt;a class="reference external" href="https://bugs.python.org/issue40077"&gt;bpo-40077&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="multiphase-initialization-api"&gt;
+&lt;h2&gt;Multiphase initialization API&lt;/h2&gt;
+&lt;p&gt;Historically, extension modules are declared with the &lt;tt class="docutils literal"&gt;PyModule_Create()&lt;/tt&gt;
+function. Usually, such extension can be instanciated exactly once. It is
+stored in an internal &lt;tt class="docutils literal"&gt;PyInterpreterState.modules_by_index&lt;/tt&gt; list; an unique
+index is assigned to the module and stored in &lt;tt class="docutils literal"&gt;PyModuleDef.m_base.m_index&lt;/tt&gt;.
+Usually, such extension use static global variables.&lt;/p&gt;
+&lt;p&gt;Such &amp;quot;static&amp;quot; extension has multiple issues:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The extension cannot be unloaded: its memory is not released at Python exit.
+It is an issue when Python is embedded in an application.&lt;/li&gt;
+&lt;li&gt;The extension behaves differently than modules defined in Python. When an
+extension is reimported, its namespace (&lt;tt class="docutils literal"&gt;module.__dict__&lt;/tt&gt;) is duplicated,
+but mutable objects and static global variables are still shared. It goes
+against the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0399/"&gt;PEP 399 -- Pure Python/C Accelerator Module Compatibility
+Requirements&lt;/a&gt; principles.&lt;/li&gt;
+&lt;li&gt;etc.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In 2013, &lt;strong&gt;Petr Viktorin&lt;/strong&gt;, &lt;strong&gt;Stefan Behnel&lt;/strong&gt; and &lt;strong&gt;Nick Coghlan&lt;/strong&gt; wrote the
+&lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0489/"&gt;PEP 489 -- Multi-phase extension module initialization&lt;/a&gt; which has been approved and
+implemented in Python 3.5. For example, the &lt;tt class="docutils literal"&gt;_abc&lt;/tt&gt; module initialization
+function is now just a call to the new &lt;tt class="docutils literal"&gt;PyModuleDef_Init()&lt;/tt&gt; function:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyMODINIT_FUNC
+PyInit__abc(void)
+{
+    return PyModuleDef_Init(&amp;amp;_abcmodule);
+}
+&lt;/pre&gt;
+&lt;p&gt;An extension module can have a module state, if &lt;tt class="docutils literal"&gt;PyModuleDef.m_size&lt;/tt&gt; is
+greater than zero. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+typedef struct {
+    PyTypeObject *_abc_data_type;
+    unsigned long long abc_invalidation_counter;
+} _abcmodule_state;
+
+static struct PyModuleDef _abcmodule = {
+    ...
+    .m_size = sizeof(_abcmodule_state),  // &amp;lt;=== HERE ===
+};
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PyModule_GetState()&lt;/tt&gt; can be used to retrieve the module state. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline _abcmodule_state*
+get_abc_state(PyObject *module)
+{
+    void *state = PyModule_GetState(module);
+    assert(state != NULL);
+    return (_abcmodule_state *)state;
+}
+
+static PyObject *
+_abc__abc_init(PyObject *module, PyObject *self)
+{
+    _abcmodule_state *state = get_abc_state(module);
+    ...
+    data = abc_data_new(state-&amp;gt;_abc_data_type, NULL, NULL);
+    ...
+}
+&lt;/pre&gt;
+&lt;p&gt;Right now, &lt;strong&gt;77% (102/132)&lt;/strong&gt; of extension modules use the new multiphase
+initialization API (PEP 489) on a total of 132 extension modules.  For
+comparison, in Python 3.8, only 23% (27/118) of extensions used the new
+multiphase initialization API: &lt;strong&gt;75 extensions&lt;/strong&gt; have been converted in the
+meanwhile.&lt;/p&gt;
+&lt;p&gt;TODO: convert the remaining 30 extension modules (&lt;a class="reference external" href="https://bugs.python.org/issue1635741"&gt;bpo-163574&lt;/a&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="module-states"&gt;
+&lt;h2&gt;Module states&lt;/h2&gt;
+&lt;p&gt;Some modules have a state which should be stored in the interpreter to share
+its state between multiple instances of the module, and also to give access to
+the state in functions of the public C API (ex: &lt;tt class="docutils literal"&gt;PyAST_Check()&lt;/tt&gt;).&lt;/p&gt;
+&lt;p&gt;States made per-interpreter:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2019-05-10: &lt;strong&gt;warnings&lt;/strong&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue36737"&gt;bpo-36737&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/86ea58149c3e83f402cecd17e6a536865fb06ce1"&gt;commit&lt;/a&gt; by &lt;strong&gt;Eric Snow&lt;/strong&gt;)&lt;/li&gt;
+&lt;li&gt;2019-11-07: &lt;strong&gt;parser&lt;/strong&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue36876"&gt;bpo-36876&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/9def81aa52adc3cc89554156e40742cf17312825"&gt;commit&lt;/a&gt; by &lt;strong&gt;Vinay Sajip&lt;/strong&gt;)&lt;/li&gt;
+&lt;li&gt;2019-11-20: &lt;strong&gt;gc&lt;/strong&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue36854"&gt;bpo-36854&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/7247407c35330f3f6292f1d40606b7ba6afd5700"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-11-02: &lt;strong&gt;ast&lt;/strong&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue41796"&gt;bpo-41796&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/5cf4782a2630629d0978bf4cf6b6340365f449b2"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="singletons"&gt;
+&lt;h2&gt;Singletons&lt;/h2&gt;
+&lt;p&gt;Singletons must not be shared between interpreters.&lt;/p&gt;
+&lt;p&gt;Singletons made per-interpreter.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue38858"&gt;bpo-38858&lt;/a&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2019-12-17: small &lt;strong&gt;integer&lt;/strong&gt;, the [-5; 256] range
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/630c8df5cf126594f8c1c4579c1888ca80a29d59"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue40521"&gt;bpo-40521&lt;/a&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2020-06-04: empty &lt;strong&gt;tuple&lt;/strong&gt; singleton
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/69ac6e58fd98de339c013fe64cd1cf763e4f9bca"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-23: empty &lt;strong&gt;bytes&lt;/strong&gt; string singleton and single byte character
+(&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;b'\x00'&lt;/span&gt;&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;b'\xFF'&lt;/span&gt;&lt;/tt&gt;) singletons
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/c41eed1a874e2f22bde45c3c89418414b7a37f46"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-23: empty &lt;strong&gt;Unicode&lt;/strong&gt; string singleton
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/f363d0a6e9cfa50677a6de203735fbc0d06c2f49"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-23: empty &lt;strong&gt;frozenset&lt;/strong&gt; singleton
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/261cfedf7657a515e04428bba58eba2a9bb88208"&gt;commit&lt;/a&gt; by me);
+later removed.&lt;/li&gt;
+&lt;li&gt;2020-06-24: single &lt;strong&gt;Unicode&lt;/strong&gt; character (U+0000-U+00FF range)
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/2f9ada96e0d420fed0d09a032b37197f08ef167a"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I also micro-optimized the code: most singletons are now always created at
+startup, it's no longer needed to check if it is created at each function call.
+Moreover, an assertion now ensures that singletons are no longer used after
+they are deleted.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="free-lists"&gt;
+&lt;h2&gt;Free lists&lt;/h2&gt;
+&lt;p&gt;A free list is a micro-optimization on memory allocations. The memory of
+recently destroyed objects is not freed to be able to reuse it for new objects.
+Free lists must not be shared between interpreters.&lt;/p&gt;
+&lt;p&gt;Free lists made per-interpreter (&lt;a class="reference external" href="https://bugs.python.org/issue40521"&gt;bpo-40521&lt;/a&gt;):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2020-06-04: &lt;strong&gt;slice&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/7daba6f221e713f7f60c613b246459b07d179f91"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-04: &lt;strong&gt;tuple&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/69ac6e58fd98de339c013fe64cd1cf763e4f9bca"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-04: &lt;strong&gt;float&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/2ba59370c3dda2ac229c14510e53a05074b133d1"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-04: &lt;strong&gt;frame&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/3744ed2c9c0b3905947602fc375de49533790cb9"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-05: &lt;strong&gt;async generator&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/78a02c2568714562e23e885b6dc5730601f35226"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-05: &lt;strong&gt;context&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/e005ead49b1ee2b1507ceea94e6f89c28ecf1f81"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-05: &lt;strong&gt;list&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/88ec9190105c9b03f49aaef601ce02b242a75273"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-23: &lt;strong&gt;dict&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/b4e85cadfbc2b1b24ec5f3159e351dbacedaa5e0"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-06-23: &lt;strong&gt;MemoryError&lt;/strong&gt;
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/281cce1106568ef9fec17e3c72d289416fac02a5"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="caches"&gt;
+&lt;h2&gt;Caches&lt;/h2&gt;
+&lt;p&gt;Caches made per interpreter:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2020-06-04: &lt;strong&gt;slice&lt;/strong&gt; cache
+(&lt;a class="reference external" href="https://bugs.python.org/issue40521"&gt;bpo-40521&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/7daba6f221e713f7f60c613b246459b07d179f91"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-12-26: &lt;strong&gt;type&lt;/strong&gt; attribute lookup cache
+(&lt;a class="reference external" href="https://bugs.python.org/issue42745"&gt;bpo-42745&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/41010184880151d6ae02a226dbacc796e5c90d11"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="interned-strings-and-identifiers"&gt;
+&lt;h2&gt;Interned strings and identifiers&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2020-12-25: Per-interpreter identifiers: &lt;tt class="docutils literal"&gt;_PyUnicode_FromId()&lt;/tt&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue39465"&gt;bpo-39465&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/ba3d67c2fb04a7842741b1b6da5d67f22c579f33"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-12-26: Per-interpreter interned strings: &lt;tt class="docutils literal"&gt;PyUnicode_InternInPlace()&lt;/tt&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue40521"&gt;bpo-40521&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/ea251806b8dffff11b30d2182af1e589caf88acf"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For &lt;tt class="docutils literal"&gt;_PyUnicode_FromId()&lt;/tt&gt;, I added the &lt;tt class="docutils literal"&gt;pycore_atomic_funcs.h&lt;/tt&gt; header file
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/52a327c1cbb86c7f2f5c460645889b23615261bf"&gt;commit&lt;/a&gt;)
+which adds functions for atomic memory accesses (to variables of type
+&lt;tt class="docutils literal"&gt;Py_ssize_t&lt;/tt&gt;). It uses &lt;tt class="docutils literal"&gt;__atomic_load_n()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;__atomic_store_n()&lt;/tt&gt; on GCC
+and clang, or &lt;tt class="docutils literal"&gt;_InterlockedCompareExchange64()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;_InterlockedExchange64()&lt;/tt&gt; on MSC (Windows).&lt;/p&gt;
+&lt;p&gt;First, I tried to use the &lt;tt class="docutils literal"&gt;_Py_hashtable&lt;/tt&gt; type: &lt;a class="reference external" href="https://github.com/python/cpython/pull/20048"&gt;PR 20048&lt;/a&gt;. Using &lt;tt class="docutils literal"&gt;_Py_hashtable&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;_PyUnicode_FromId()&lt;/tt&gt; took 15.5 ns +- 0.1 ns.  I optimized &lt;tt class="docutils literal"&gt;_Py_hashtable&lt;/tt&gt;:
+&lt;tt class="docutils literal"&gt;_PyUnicode_FromId()&lt;/tt&gt; took 6.65 ns +- 0.09 ns. But it was still slower than
+the reference code: 2.38 ns +- 0.00 ns.&lt;/p&gt;
+&lt;p&gt;The merged implementation uses an array. An unique index is assigned, index in
+this array. The array is made larger on demand. The final change adds 1 ns
+per function call:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+[ref] 2.42 ns +- 0.00 ns -&amp;gt; [atomic] 3.39 ns +- 0.00 ns: 1.40x slower
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="misc"&gt;
+&lt;h2&gt;Misc&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;2020-03-19: Per-interpreter pending calls
+(&lt;a class="reference external" href="https://bugs.python.org/issue39984"&gt;bpo-39984&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/50e6e991781db761c496561a995541ca8d83ff87"&gt;commit&lt;/a&gt; by me).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bugfixes"&gt;
+&lt;h2&gt;Bugfixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html"&gt;GIL bugfixes for daemon threads in Python 3.9&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Fix many &lt;a class="reference external" href="https://vstinner.github.io/subinterpreter-leaks.html"&gt;leaks discovered by subinterpreters&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Fix pickling heap types implemented in C with protocols 0 and 1
+(&lt;a class="reference external" href="https://bugs.python.org/issue41052"&gt;bpo-41052&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="thanks"&gt;
+&lt;h2&gt;Thanks&lt;/h2&gt;
+&lt;p&gt;The work on subintepreters, multiphase init and heap types is a collaborative
+work on-going for 2 years. I would like to thank the following developers for
+helping on this large task:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;strong&gt;Christian Heimes&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Dong-hee Na&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Eric Snow&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Erlend Egeberg Aasland&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Hai Shi&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Mohamed Koubaa&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Nick Coghlan&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Paulo Henrique Silva&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Vinay Sajip&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Note: Since the work is scattered in many issues and pull requests, it's hard
+to track who helped: sorry if I forgot someone! (Please contact me and I
+will complete the list.)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="what-s-next"&gt;
+&lt;h2&gt;What's Next?&lt;/h2&gt;
+&lt;p&gt;There are still multiple interesting technical challenges:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue39511"&gt;bpo-39511: Per-interpreter singletons (None, True, False, etc.)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue40601"&gt;bpo-40601: Hide static types from the C API&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Make pymalloc allocator compatible with subinterpreters.&lt;/li&gt;
+&lt;li&gt;Make the GIL per interpreter. Maybe even give the choice to share or not
+the GIL when a subinterpreter is created.&lt;/li&gt;
+&lt;li&gt;Make the &lt;tt class="docutils literal"&gt;_PyArg_Parser&lt;/tt&gt; (&lt;tt class="docutils literal"&gt;parser_init()&lt;/tt&gt;) function compatible with
+subinterpreters. Maybe use a per-interpreter array, similar solution than
+&lt;tt class="docutils literal"&gt;_PyUnicode_FromId()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue15751"&gt;bpo-15751: Make the PyGILState API compatible with subinterpreters&lt;/a&gt; (issue created in 2012!)&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue40522"&gt;bpo-40522: Get the current Python interpreter state from Thread Local
+Storage (autoTSSkey)&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Also, there are still many static types to convert to heap types (&lt;a class="reference external" href="https://bugs.python.org/issue40077"&gt;bpo-40077&lt;/a&gt;) and many extension modules to convert
+to the multiphase initialization API (&lt;a class="reference external" href="https://bugs.python.org/issue1635741"&gt;bpo-163574&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;I'm tracking the work in my &lt;a class="reference external" href="https://pythondev.readthedocs.io/subinterpreters.html"&gt;Python Subinterpreters&lt;/a&gt; page
+and in the &lt;a class="reference external" href="https://bugs.python.org/issue40512"&gt;bpo-40512: Meta issue: per-interpreter GIL&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Hide implementation details from the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"></link><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
 and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
 caused by the C API and are working …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
 and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
