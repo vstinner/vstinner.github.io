@@ -1,6 +1,6 @@
-+++++++++++++++++++++++++++++++
-Isolated Python Subinterpreters
-+++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++
+Isolate Python Subinterpreters
+++++++++++++++++++++++++++++++
 
 :date: 2020-12-27 22:00
 :tags: cpython, subinterpreters
