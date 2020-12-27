@@ -47,7 +47,7 @@ def main():
         content = fp.read()
 
     old_content = content
-    content = re.sub(r'(?<!    )(?<!`)bpo-([0-9]{2,6})', replace_bpo, content)
+    content = re.sub(r'(?<!    )(?<!`)bpo-([0-9]{2,8})', replace_bpo, content)
     content = re.sub(r'(?<!  )commit ([0-9a-f]{40})', replace_commit, content)
     #content = re.sub(r'(?<!`)PEP ([0-9]{1,4})', replace_pep, content)
 
