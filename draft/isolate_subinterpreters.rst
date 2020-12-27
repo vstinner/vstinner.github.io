@@ -8,8 +8,14 @@ Python Subinterpreters
 :slug: isolate-subinterpreters
 :authors: Victor Stinner
 
-This article is about the work done in 2019 and 2020 in Python to better
-isolate subinterpreters. The final goal is to
+This article is about the work done in Python in 2019 and 2020 to better
+isolate subinterpreters. The final goal is to be able run multiple interpreters
+in parallel, like one interpreter per CPU, each interpreter would run in its
+own thread of the same process. The principle is the same than the
+multiprocessing module and has the same limitations: no Python object can be
+shared directly between two interpreters. Later, we can imagine helpers to
+share Python mutable objects using proxies which would prevent race conditions.
+
 
 Why isolating subinterpreters?
 ==============================
@@ -30,6 +36,27 @@ release all memory at exit. This work slowly fix the `bpo-163574: Py_Finalize()
 doesn't clear all Python objects at exit
 <https://bugs.python.org/issue1635741>`__. Python leaks less and less Python
 objects at exit.
+
+
+Proof-of-concept in May 2020
+============================
+
+In May 2020, I wrote a proof-of-concept to prove the feasability of the project
+and to prove that it is faster than sequential execution: `PoC: Subinterpreters
+4x faster than sequential execution or threads on CPU-bound workaround
+<https://mail.python.org/archives/list/python-dev@python.org/thread/S5GZZCEREZLA2PEMTVFBCDM52H4JSENR/#RIK75U3ROEHWZL4VENQSQECB4F4GDELV>`_.
+The performance of subintepreters is basically the same than multiprocessing.
+
+After this PoC, I added a ``--with-experimental-isolated-subinterpreters``
+option to ``./configure`` in `bpo-40514 <https://bugs.python.org/issue40514>`_
+which defines the ``EXPERIMENTAL_ISOLATED_SUBINTERPRETERS`` macro, and I
+disabled some code if the macro is enabled:
+
+* Make the GIL per-interpreter.
+* Add a TSS for tstate.
+* Disable GC in subinterpreters since some objects are still shared.
+* Disable the type attribute lookup cache (shared by all interpreters).
+* Disable the fast pymalloc memory allocator (shared by all interpreters).
 
 
 Convert static types to heap types
@@ -218,15 +245,15 @@ The work on subintepreters, multiphase init and heap type is a collaborative
 work on-going since 2019. I would like to thank the following developers for
 helping on this large task:
 
-* ``Christian Heimes``
-* ``Dong-hee Na``
-* ``Eric Snow``
-* ``Erlend Egeberg Aasland``
-* ``Hai Shi``
-* ``Mohamed Koubaa``
-* ``Nick Coghlan``
-* ``Paulo Henrique Silva``
-* ``Vinay Sajip``
+* **Christian Heimes**
+* **Dong-hee Na**
+* **Eric Snow**
+* **Erlend Egeberg Aasland**
+* **Hai Shi**
+* **Mohamed Koubaa**
+* **Nick Coghlan**
+* **Paulo Henrique Silva**
+* **Vinay Sajip**
 
 Since the work is scattered in multiple issues and pull requests, it's hard to
 track who helped: sorry if I forget someone :-( (contact me and I will complete
@@ -235,4 +262,7 @@ the list)
 What's Next?
 ============
 
-* https://pythondev.readthedocs.io/subinterpreters.html
+* `bpo-40512: [subinterpreters] Meta issue: per-interpreter GIL
+  <https://bugs.python.org/issue40512>`_
+* `Python Subinterpreters
+  <https://pythondev.readthedocs.io/subinterpreters.html>`_
