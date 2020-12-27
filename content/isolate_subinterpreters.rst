@@ -227,6 +227,10 @@ States made per-interpreter:
 * 2020-11-02: **ast**
   (`bpo-41796 <https://bugs.python.org/issue41796>`__,
   `commit <https://github.com/python/cpython/commit/5cf4782a2630629d0978bf4cf6b6340365f449b2>`__ by me)
+* 2020-12-15: **atexit**
+  (`bpo-42639 <https://bugs.python.org/issue42639>`__,
+  `commit <https://github.com/python/cpython/commit/b8fa135908d294b350cdad04e2f512327a538dee>`_ by me)
+
 
 Singletons
 ==========
