@@ -189,6 +189,9 @@ the state in functions of the public C API (ex: &lt;tt class="docutils literal"&
 &lt;li&gt;2020-11-02: &lt;strong&gt;ast&lt;/strong&gt;
 (&lt;a class="reference external" href="https://bugs.python.org/issue41796"&gt;bpo-41796&lt;/a&gt;,
 &lt;a class="reference external" href="https://github.com/python/cpython/commit/5cf4782a2630629d0978bf4cf6b6340365f449b2"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
+&lt;li&gt;2020-12-15: &lt;strong&gt;atexit&lt;/strong&gt;
+(&lt;a class="reference external" href="https://bugs.python.org/issue42639"&gt;bpo-42639&lt;/a&gt;,
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/b8fa135908d294b350cdad04e2f512327a538dee"&gt;commit&lt;/a&gt; by me)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 &lt;div class="section" id="singletons"&gt;
