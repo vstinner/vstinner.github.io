@@ -8,6 +8,9 @@ Asyncio: Proactor Cancellation From Hell
 :slug: asyncio-proactor-cancellation-from-hell
 :authors: Victor Stinner
 
+.. image:: {static}/images/south_park_hell.jpg
+   :alt: South Park Hell
+
 Between 2014 and 2015, I was working on the new shiny ``asyncio`` module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
@@ -27,9 +30,6 @@ was well hidden for various reasons that we will see below.
 
 Next article: `Asyncio: Proactor ConnectPipe() Race Condition
 <{filename}/proactor-connect-pipe-race-condition.rst>`__.
-
-.. image:: {static}/images/south_park_hell.jpg
-   :alt: South Park Hell
 
 Fix cancel() when called twice
 ==============================

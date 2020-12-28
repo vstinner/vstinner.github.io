@@ -8,6 +8,10 @@ Asyncio: Proactor ConnectPipe() Race Condition
 :slug: asyncio-proactor-connect-pipe-race-condition
 :authors: Victor Stinner
 
+.. image:: {static}/images/pipes.jpg
+   :alt: Pipes
+   :target: https://www.flickr.com/photos/phrawr/7612947262/
+
 Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (`Proactor Cancellation From Hell
 <{filename}/proactor-cancellation-hell.rst>`__), I fixed more race conditions
@@ -35,10 +39,6 @@ ConnectPipe special case: `asyncio issue #204: Investigate
 IocpProactor.accept_pipe() special case (don't register overlapped)
 <https://github.com/python/asyncio/issues/204>`__ (issue created at 25 Aug
 2014).
-
-.. image:: {static}/images/pipes.jpg
-   :alt: Pipes
-   :target: https://www.flickr.com/photos/phrawr/7612947262/
 
 At January 21, 2015, I opened `bpo-23293: race condition related to
 IocpProactor.connect_pipe() <https://bugs.python.org/issue23293>`_.

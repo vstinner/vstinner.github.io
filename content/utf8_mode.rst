@@ -8,6 +8,10 @@ Python 3.7 UTF-8 Mode
 :slug: python37-new-utf8-mode
 :authors: Victor Stinner
 
+.. image:: {static}/images/sunrise.jpg
+   :alt: Sunrise
+   :target: https://www.flickr.com/photos/99444752@N06/9368903367/
+
 Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not "simply" always use UTF-8.
 Well, it's not that easy. **UTF-8 is the best encoding in most cases, but it is
@@ -40,10 +44,6 @@ history and rationale of the Python 3 Unicode model for the operating system:**
 * 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
 * 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
 * 6. `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_
-
-.. image:: {static}/images/sunrise.jpg
-   :alt: Sunrise
-   :target: https://www.flickr.com/photos/99444752@N06/9368903367/
 
 Fallback to UTF-8 if getting the locale encoding fails?
 =======================================================

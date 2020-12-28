@@ -8,6 +8,10 @@ Python 3.8 sys.unraisablehook
 :slug: sys-unraisablehook-python38
 :authors: Victor Stinner
 
+.. image:: {static}/images/hidden_kitten.jpg
+   :alt: Hidden kitten
+   :target: https://www.flickr.com/photos/dawnmanser/8046201692/
+
 I added a new `sys.unraisablehook
 <https://docs.python.org/dev/library/sys.html#sys.unraisablehook>`_ function to
 allow to set a custom hook to control how "unraisable exceptions" are handled.
@@ -22,11 +26,7 @@ reference callback failure, error during a GC collection. At the C level, the
 
 Design the new hook was tricky, as its implementation.
 
-.. image:: {static}/images/hidden_kitten.jpg
-   :alt: Hidden kitten
-   :target: https://www.flickr.com/photos/dawnmanser/8046201692/
-
-*Exception awaiting to catch you*
+The photo shows an exception awaiting to catch you ;-)
 
 
 Kill Python at the first unraisable exception

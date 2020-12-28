@@ -8,6 +8,10 @@ asyncio WSASend() memory leak
 :slug: asyncio-proactor-wsasend-memory-leak
 :authors: Victor Stinner
 
+.. image:: {static}/images/leaking_tap.jpg
+   :alt: Leaking tap
+   :target: https://www.flickr.com/photos/jronaldlee/5996590138/
+
 I fixed multiple bugs in asyncio ``ProactorEventLoop`` previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in ``test_asyncio`` which will
 haunt me for 1 year in 2018...
@@ -37,10 +41,6 @@ elaborate the Conclusion.
 Previous article:
 `asyncio: WSARecv() cancellation causing data loss
 <{filename}/proactor-wsarecv-cancellation.rst>`__.
-
-.. image:: {static}/images/leaking_tap.jpg
-   :alt: Leaking tap
-   :target: https://www.flickr.com/photos/jronaldlee/5996590138/
 
 Yet another random buildbot failure
 ===================================

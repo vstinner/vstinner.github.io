@@ -8,15 +8,15 @@ Python 3, locales and encodings
 :slug: python3-locales-encodings
 :authors: Victor Stinner
 
+.. image:: {static}/images/i-square-unicode.jpg
+   :alt: I □ Unicode
+
 Recently, I worked on a change which looked simple: move the code to initialize
 the ``sys.stdout`` encoding before ``Py_Initialize()``. While I was on it,
 I also decided to move the code which selects the Python "filesystem encoding".
 I didn't expect that I would spend 2 weeks on these issues... This article
 tells me about my recent journey in locales and encodings on AIX, HP-UX,
 Windows, Linux, macOS, Solaris and FreeBSD.
-
-.. image:: {static}/images/i-square-unicode.jpg
-   :alt: I □ Unicode
 
 Table of Contents:
 

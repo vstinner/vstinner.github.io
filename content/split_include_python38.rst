@@ -8,6 +8,10 @@ Split Include/ directory in Python 3.8
 :slug: split-include-directory-python38
 :authors: Victor Stinner
 
+.. image:: {static}/images/private_way.jpg
+   :alt: Private way. Trespassers and those disposing rubbish will be prosecuted.
+   :target: https://www.flickr.com/photos/mortengade/2747989334/
+
 In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create `A New C API for CPython <{filename}/new_python_c_api.rst>`_.
 I'm still working on the Python C API at: `pythoncapi.readthedocs.io
@@ -28,10 +32,6 @@ inline functions to have well defined parameter and return type, and to avoid
 macro pitfals.
 
 Finally, I removed 3 functions from the C API.
-
-.. image:: {static}/images/private_way.jpg
-   :alt: Private way. Trespassers and those disposing rubbish will be prosecuted.
-   :target: https://www.flickr.com/photos/mortengade/2747989334/
 
 
 Include/internal/

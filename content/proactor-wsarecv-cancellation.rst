@@ -8,6 +8,10 @@ asyncio: WSARecv() cancellation causing data loss
 :slug: asyncio-proactor-wsarecv-cancellation-data-loss
 :authors: Victor Stinner
 
+.. image:: {static}/images/lock.jpg
+   :alt: Unlocked lock
+   :target: https://www.flickr.com/photos/joybot/6026542856/
+
 In December 2017, **Yury Selivanov** pushed the long awaited ``start_tls()``
 function.
 
@@ -27,10 +31,6 @@ Previous article: `Asyncio: Proactor ConnectPipe() Race Condition
 <{filename}/proactor-connect-pipe-race-condition.rst>`__.
 Next article: `asyncio: WSASend() memory leak
 <{filename}/proactor-wsasend-memory-leak.rst>`__.
-
-.. image:: {static}/images/lock.jpg
-   :alt: Unlocked lock
-   :target: https://www.flickr.com/photos/joybot/6026542856/
 
 
 New start_tls() function

@@ -8,6 +8,10 @@ Python 3.7 and the POSIX locale
 :slug: posix-locale
 :authors: Victor Stinner
 
+.. image:: {static}/images/bee.jpg
+   :alt: Bee
+   :target: https://www.flickr.com/photos/rj65/15010849568/
+
 During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced `mojibake <https://en.wikipedia.org/wiki/Mojibake>`_. For
@@ -32,10 +36,6 @@ rationale of the Python 3 Unicode model for the operating system:**
 * 4. `Python 3.6 now uses UTF-8 on Windows <{filename}/windows_utf8.rst>`_
 * 5. `Python 3.7 and the POSIX locale <{filename}/posix_locale.rst>`_
 * 6. `Python 3.7 UTF-8 Mode <{filename}/utf8_mode.rst>`_
-
-.. image:: {static}/images/bee.jpg
-   :alt: Bee
-   :target: https://www.flickr.com/photos/rj65/15010849568/
 
 First rejected attempt, 2011
 ============================
