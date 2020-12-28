@@ -8,6 +8,9 @@ Hide implementation details from the Python C API
 :slug: hide-implementation-details-python-c-api
 :authors: Victor Stinner
 
+.. image:: {static}/images/pepsie.jpg
+   :alt: My cat attacking the Python C API
+
 This article is the history of Python C API discussions over the last 4 years,
 and the creation of C API projects: `pythoncapi website
 <https://pythoncapi.readthedocs.io/>`_, `pythoncapi_compat.h header file
@@ -28,10 +31,7 @@ module without losing Python 2.7 support: the tool adds ``#include
 "pythoncapi_compat.h"``. For example, it replaces ``Py_TYPE(obj) = type``
 with ``Py_SET_SIZE(obj, type)``.
 
-My cat attacking the Python C API:
-
-.. image:: {static}/images/pepsie.jpg
-   :alt: My cat attacking the Python C API
+The photo: my cat attacking the Python C API.
 
 Year 2016
 =========

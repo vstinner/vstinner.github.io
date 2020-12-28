@@ -8,6 +8,10 @@ Daemon threads and the Python finalization in Python 3.2 and 3.3
 :slug: daemon-threads-python-finalization-python32
 :authors: Victor Stinner
 
+.. image:: {static}/images/coronamaison_luppi.jpg
+   :alt: #CoronaMaison by Luppi
+   :target: https://twitter.com/LuppiChan/status/1240346448606171136
+
 At exit, the Python finalization calls Python objects finalizers (the
 ``__del__()`` method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
@@ -15,10 +19,6 @@ They are causing race conditions and tricky bugs in the Python finalization.
 
 This article covers bugs fixed in the Python finalization in Python 3.2 and
 Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).
-
-.. image:: {static}/images/coronamaison_luppi.jpg
-   :alt: #CoronaMaison by Luppi
-   :target: https://twitter.com/LuppiChan/status/1240346448606171136
 
 Drawing: `#CoronaMaison by Luppi
 <https://twitter.com/LuppiChan/status/1240346448606171136>`_.

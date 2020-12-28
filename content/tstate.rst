@@ -8,6 +8,9 @@ Pass the Python thread state explicitly
 :slug: cpython-pass-tstate
 :authors: Victor Stinner
 
+.. image:: {static}/images/capi.jpg
+   :alt: Python C API
+
 Keeping Python competitive
 ==========================
 
@@ -28,9 +31,6 @@ Python that I consider as realistic:
 * better C API: see `HPy (new C API) <https://github.com/pyhandle/hpy>`_
   and `pythoncapi.readthedocs.io <https://pythoncapi.readthedocs.io/>`_
 * tracing garbage collector for CPython
-
-.. image:: {static}/images/capi.jpg
-   :alt: Python C API
 
 This article is about **subinterpreters**.
 

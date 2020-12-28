@@ -8,6 +8,9 @@ Isolate Python Subinterpreters
 :slug: isolate-subinterpreters
 :authors: Victor Stinner
 
+.. image:: {static}/images/christmas-gift.jpg
+   :alt: Christmas gift.
+
 This article is about the work done in Python in 2019 and 2020 to better
 isolate subinterpreters. Static types are converted to heap types, extension
 modules are converted to use the new multiphase initialization API (PEP 489),
@@ -16,9 +19,6 @@ have been fixed, etc.
 
 Running multiple interpreters in parallel with one "GIL" per interpreter cannot
 be done yet, but a lot of complex technical challenges have been solved.
-
-.. image:: {static}/images/christmas-gift.jpg
-   :alt: Christmas gift.
 
 
 Why isolating subinterpreters?

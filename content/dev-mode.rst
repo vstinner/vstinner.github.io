@@ -8,6 +8,10 @@ Python 3.7 Development Mode
 :slug: python37-dev-mode
 :authors: Victor Stinner
 
+.. image:: {static}/images/ready_to_race.jpg
+   :alt: Ready to race
+   :target: https://twitter.com/guinoir/status/1217146968029331456
+
 This article describes the discussion on the design of the `development mode
 (-X dev) <https://docs.python.org/dev/using/cmdline.html#id5>`_ that I **added
 to Python 3.7** and how it has been implemented.
@@ -17,11 +21,7 @@ enabled by default. It can be enabled by ``python3 -X dev`` command line option
 or by ``PYTHONDEVMODE=1`` environment variable.  It helps developers to spot
 bugs in their code and helps them to be prepared for future Python changes.
 
-.. image:: {static}/images/ready_to_race.jpg
-   :alt: Ready to race
-   :target: https://twitter.com/guinoir/status/1217146968029331456
-
-*Ready to race, by Guillaume Singelin.*
+Drawing: *Ready to race, by Guillaume Singelin.*
 
 
 Email sent to python-ideas

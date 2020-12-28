@@ -8,6 +8,10 @@ GIL bugfixes for daemon threads in Python 3.9
 :slug: gil-bugfixes-daemon-threads-python39
 :authors: Victor Stinner
 
+.. image:: {static}/images/coronamaison_boulet.jpg
+   :alt: `#CoronaMaison by Boulet
+   :target: https://twitter.com/Bouletcorp/status/1241018332112998401
+
 My previous article `Daemon threads and the Python finalization in Python 3.2 and 3.3
 <{filename}/daemon-threads-python-finalization-python32.rst>`_ introduces
 issues caused by daemon threads in the Python finalization and past changes to
@@ -17,10 +21,6 @@ This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
 Python 3.9, between March 2019 and March 2020, for daemon threads during Python
 finalization. Some bugs were old: up to 6 years old. Some bugs were triggered
 by the on-going work on isolating subinterpreters in Python 3.9.
-
-.. image:: {static}/images/coronamaison_boulet.jpg
-   :alt: `#CoronaMaison by Boulet
-   :target: https://twitter.com/Bouletcorp/status/1241018332112998401
 
 Drawing: `#CoronaMaison by Boulet
 <https://twitter.com/Bouletcorp/status/1241018332112998401>`_.
