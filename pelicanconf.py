@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*- #
-from __future__ import unicode_literals
-
 AUTHOR = 'Victor Stinner'
 SITENAME = 'Victor Stinner blog 3'
 SITEURL = ''
