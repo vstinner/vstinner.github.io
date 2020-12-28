@@ -28,3 +28,6 @@ DEFAULT_PAGINATION = 10
 
 # Uncomment following line if you want document-relative URLs when developing
 RELATIVE_URLS = True
+
+# https://github.com/getpelican/pelican-themes/tree/master/aboutwilson
+THEME = "pelican-themes/aboutwilson"
