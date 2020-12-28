@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-27T22:00:00+01:00</updated><entry><title>Isolate Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"></link><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-27T22:00:00+01:00</updated><entry><title>Isolate Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"></link><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
+&lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
 isolate subinterpreters. Static types are converted to heap types, extension
 modules are converted to use the new multiphase initialization API (PEP 489),
 caches, states, singletons and free lists are made per-interpreter, many bugs
-have been …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
+have been …&lt;/p&gt;</summary><content type="html">&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
+&lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
 isolate subinterpreters. Static types are converted to heap types, extension
 modules are converted to use the new multiphase initialization API (PEP 489),
 caches, states, singletons and free lists are made per-interpreter, many bugs
 have been fixed, etc.&lt;/p&gt;
 &lt;p&gt;Running multiple interpreters in parallel with one &amp;quot;GIL&amp;quot; per interpreter cannot
 be done yet, but a lot of complex technical challenges have been solved.&lt;/p&gt;
-&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
 &lt;div class="section" id="why-isolating-subinterpreters"&gt;
 &lt;h2&gt;Why isolating subinterpreters?&lt;/h2&gt;
 &lt;p&gt;The final goal is to be able run multiple interpreters in parallel in the same
@@ -347,9 +348,11 @@ to the multiphase initialization API (&lt;a class="reference external" href="htt
 &lt;p&gt;I'm tracking the work in my &lt;a class="reference external" href="https://pythondev.readthedocs.io/subinterpreters.html"&gt;Python Subinterpreters&lt;/a&gt; page
 and in the &lt;a class="reference external" href="https://bugs.python.org/issue40512"&gt;bpo-40512: Meta issue: per-interpreter GIL&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Hide implementation details from the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"></link><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Hide implementation details from the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"></link><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
+&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
 and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
-caused by the C API and are working …&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
+caused by the C API and are working …&lt;/p&gt;</summary><content type="html">&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
+&lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
 and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
 caused by the C API and are working on solutions.&lt;/p&gt;
 &lt;p&gt;It took me a lot of iterations to find the right approach to evolve the C API
@@ -363,8 +366,7 @@ newer Python to old Python versions up to Python 2.7. I also wrote a
 module without losing Python 2.7 support: the tool adds &lt;tt class="docutils literal"&gt;#include
 &amp;quot;pythoncapi_compat.h&amp;quot;&lt;/tt&gt;. For example, it replaces &lt;tt class="docutils literal"&gt;Py_TYPE(obj) = type&lt;/tt&gt;
 with &lt;tt class="docutils literal"&gt;Py_SET_SIZE(obj, type)&lt;/tt&gt;.&lt;/p&gt;
-&lt;p&gt;My cat attacking the Python C API:&lt;/p&gt;
-&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
+&lt;p&gt;The photo: my cat attacking the Python C API.&lt;/p&gt;
 &lt;div class="section" id="year-2016"&gt;
 &lt;h2&gt;Year 2016&lt;/h2&gt;
 &lt;p&gt;Between 2016 and 2017, Larry Hastings worked on removing the GIL in a CPython
@@ -780,18 +782,19 @@ converting extension modules to the multiphase initialization API (PEP 489) and
 by converting dozens of static types to heap types. We made huge progresses
 last months!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
 &lt;p&gt;This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
-Python 3.9, between …&lt;/p&gt;</summary><content type="html">&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
+Python 3.9, between …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
 &lt;p&gt;This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
 Python 3.9, between March 2019 and March 2020, for daemon threads during Python
 finalization. Some bugs were old: up to 6 years old. Some bugs were triggered
 by the on-going work on isolating subinterpreters in Python 3.9.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;#CoronaMaison by Boulet&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="fix-1-exit-pyeval-acquirethread-if-finalizing"&gt;
 &lt;h2&gt;Fix 1: Exit PyEval_AcquireThread() if finalizing&lt;/h2&gt;
@@ -1189,17 +1192,18 @@ non-daemon threads is deleted.&lt;/p&gt;
 &lt;p&gt;I also modified &lt;tt class="docutils literal"&gt;Thread.start()&lt;/tt&gt; to forbid spawning daemon threads in Python
 subinterpreters to fix a related issue.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
 &lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
-&lt;p&gt;This article covers bugs …&lt;/p&gt;</summary><content type="html">&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
+&lt;p&gt;This article covers bugs …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
 &lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
 &lt;p&gt;This article covers bugs fixed in the Python finalization in Python 3.2 and
 Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;#CoronaMaison by Luppi&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="daemon-threads"&gt;
 &lt;h2&gt;Daemon threads&lt;/h2&gt;
@@ -1340,19 +1344,20 @@ daemon threads. The Python finalization became more reliable.&lt;/p&gt;
 &lt;p&gt;Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
 caused a regression which required to revert the bugfix in Python 2.7.9.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
 (-X dev)&lt;/a&gt; that I &lt;strong&gt;added
 to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
 &lt;p&gt;The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
+enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
 (-X dev)&lt;/a&gt; that I &lt;strong&gt;added
 to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
 &lt;p&gt;The development mode enables runtime checks which are too expensive to be
 enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev&lt;/tt&gt; command line option
 or by &lt;tt class="docutils literal"&gt;PYTHONDEVMODE=1&lt;/tt&gt; environment variable.  It helps developers to spot
 bugs in their code and helps them to be prepared for future Python changes.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
-&lt;p&gt;&lt;em&gt;Ready to race, by Guillaume Singelin.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Drawing: &lt;em&gt;Ready to race, by Guillaume Singelin.&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="email-sent-to-python-ideas"&gt;
 &lt;h2&gt;Email sent to python-ideas&lt;/h2&gt;
 &lt;p&gt;In March 2016, I proposed &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2016-March/039314.html"&gt;Add a developer mode to Python: -X dev command line
@@ -1619,13 +1624,15 @@ override most options. For example,
 &lt;tt class="docutils literal"&gt;PYTHONMALLOC=default python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev ...&lt;/tt&gt; command enables the development
 mode without installing debug hooks on memory allocators.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
+&lt;div class="section" id="keeping-python-competitive"&gt;
 &lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
 &lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
 example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
 Python competitive&lt;/a&gt; (LWN article); &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf"&gt;slides&lt;/a&gt;.
 At EuroPython 2019 (Basel), I gave the keynote &amp;quot;Python Performance: Past,
-Present and Future&amp;quot;: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf"&gt;slides …&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+Present and Future&amp;quot;: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf"&gt;slides …&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
+&lt;div class="section" id="keeping-python-competitive"&gt;
 &lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
 &lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
 example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
@@ -1641,7 +1648,6 @@ Python that I consider as realistic:&lt;/p&gt;
 and &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;tracing garbage collector for CPython&lt;/li&gt;
 &lt;/ul&gt;
-&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
 &lt;p&gt;This article is about &lt;strong&gt;subinterpreters&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="subinterpreters"&gt;

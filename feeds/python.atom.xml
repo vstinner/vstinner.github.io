@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-16T12:00:00+01:00</updated><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-16T12:00:00+01:00</updated><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
 (-X dev)&lt;/a&gt; that I &lt;strong&gt;added
 to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
 &lt;p&gt;The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
+enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
 (-X dev)&lt;/a&gt; that I &lt;strong&gt;added
 to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
 &lt;p&gt;The development mode enables runtime checks which are too expensive to be
 enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev&lt;/tt&gt; command line option
 or by &lt;tt class="docutils literal"&gt;PYTHONDEVMODE=1&lt;/tt&gt; environment variable.  It helps developers to spot
 bugs in their code and helps them to be prepared for future Python changes.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
-&lt;p&gt;&lt;em&gt;Ready to race, by Guillaume Singelin.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;Drawing: &lt;em&gt;Ready to race, by Guillaume Singelin.&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="email-sent-to-python-ideas"&gt;
 &lt;h2&gt;Email sent to python-ideas&lt;/h2&gt;
 &lt;p&gt;In March 2016, I proposed &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2016-March/039314.html"&gt;Add a developer mode to Python: -X dev command line
@@ -278,13 +279,15 @@ override most options. For example,
 &lt;tt class="docutils literal"&gt;PYTHONMALLOC=default python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev ...&lt;/tt&gt; command enables the development
 mode without installing debug hooks on memory allocators.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Pass the Python thread state explicitly</title><link href="https://vstinner.github.io/cpython-pass-tstate.html" rel="alternate"></link><published>2020-01-08T15:00:00+01:00</published><updated>2020-01-08T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-08:/cpython-pass-tstate.html</id><summary type="html">&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
+&lt;div class="section" id="keeping-python-competitive"&gt;
 &lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
 &lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
 example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
 Python competitive&lt;/a&gt; (LWN article); &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2017-PyconUS/summit.pdf"&gt;slides&lt;/a&gt;.
 At EuroPython 2019 (Basel), I gave the keynote &amp;quot;Python Performance: Past,
-Present and Future&amp;quot;: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf"&gt;slides …&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="keeping-python-competitive"&gt;
+Present and Future&amp;quot;: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/master/2019-EuroPython/python_performance.pdf"&gt;slides …&lt;/a&gt;&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
+&lt;div class="section" id="keeping-python-competitive"&gt;
 &lt;h2&gt;Keeping Python competitive&lt;/h2&gt;
 &lt;p&gt;I'm trying to find ways to make Python more efficient for many years, see for
 example my discussion at the Language Summit during Pycon US 2017: &lt;a class="reference external" href="https://lwn.net/Articles/723949/"&gt;Keeping
@@ -300,7 +303,6 @@ Python that I consider as realistic:&lt;/p&gt;
 and &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;tracing garbage collector for CPython&lt;/li&gt;
 &lt;/ul&gt;
-&lt;img alt="Python C API" src="https://vstinner.github.io/images/capi.jpg" /&gt;
 &lt;p&gt;This article is about &lt;strong&gt;subinterpreters&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="subinterpreters"&gt;

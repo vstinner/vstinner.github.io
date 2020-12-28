@@ -1,270 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - cpu</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>cpu — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag cpu">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/intel-cpus-part2.html">Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2016-09-23T23:00:00+02:00">
-                Published: ven. 23 septembre 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> <a href="https://vstinner.github.io/tag/cpu.html">cpu</a> </p>
-</footer><!-- /.post-info --><p>My first article <a class="reference external" href="https://vstinner.github.io/intel-cpus.html">Intel CPUs</a> is a general
-introduction on modern CPU technologies having an impact on benchmarks.</p>
-<p>This second article is much more concrete with numbers and a concrete bug
-having a major impact on benchmarks: a benchmark suddenly becomes 2x faster!</p>
-<p>I will tell you how I first noticed the bug, which tests I ran to analyze the
-issue, how I found commands to reproduce the bug, and finally how I identified
-the bug.</p>
-<div class="section" id="glitch-in-benchmarks">
-<h2>&quot;Glitch&quot; in benchmarks</h2>
-<p>Last week I ran a benchmark to check if enabling Profile Guided Optimization
-(PGO) when compiling Python makes benchmark results less stable. I recompiled
-Python 5 times, and after each compilation I ran a benchmark. I tested
-different commands and options to compile Python. Everything was fine until
-the last benchmark of the last compilation. <strong>The benchmark suddenly became 2
-times faster.</strong></p>
-<p>Hopefully, my perf module collects a lot of metadata. I was able to analyze
-in depth what happened.</p>
-<p>The &quot;glitch&quot; occurred in a benchmark having 400 runs (benchmark run in 400
-different processes), between the run 105 (20.3 ms) and the run 106
-(11.0 ms).</p>
-<p>I noticed that the CPU temperature was between 69°C and 72°C until the run 105,
-and then decreased to from 69°C to 58°C.</p>
-<p>The system load slowly increased from 1.25 up to 1.62 around the run 108 and
-then slowly decreased to 1.00.</p>
-<p>The system was not idle while the benchmark was running. I was working on the
-PC too! But according to timestamps, it seems like the glitch was close to when
-I stopped working. When I stopped working, I closed all applications (except of
-the benchmark running in background) and turned of my two monitors.</p>
-<p>Well, at this point, it's hard to correlate for sure an event with the major
-performance change.</p>
-<p>So I started to analyze different factors affecting CPUs and benchmarks: Turbo
-Boost, CPU temperature and CPU frequency.</p>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>cpu</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>23 sept. 2016</td>
+        <td><a href='https://vstinner.github.io/intel-cpus-part2.html'>Intel CPUs (part 2): Turbo Boost, temperature, frequency and Pstate C0 bug</a></td>
+        </tr>
+        <tr>
+        <td>15 juil. 2016</td>
+        <td><a href='https://vstinner.github.io/intel-cpus.html'>Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="impact-of-turbo-boost-on-benchmarks">
-<h2>Impact of Turbo Boost on benchmarks</h2>
-<p>Without Turbo Boost, the maximum frequency of the &quot;Intel(R) Core(TM) i7-3520M
-CPU &#64; 2.90GHz&quot; of my laptop is 2.9 GHz. With Turbo Boost, the maximum
-frequency is 3.6 GHz if only one core is active, or 3.4 GHz otherwise:</p>
-<pre class="literal-block">
-$ sudo cpupower frequency-info
-  ...
-  boost state support:
-    Supported: yes
-    Active: yes
-    3400 MHz max turbo 4 active cores
-    3400 MHz max turbo 3 active cores
-    3400 MHz max turbo 2 active cores
-    3600 MHz max turbo 1 active cores
-</pre>
-<p>I ran the bm_call_simple.py microbenchmark (CPU-bound) of performance 0.2.2.</p>
-<p>Turbo Boost disabled:</p>
-<ul class="simple">
-<li>1 physical CPU active: 2.9 GHz, Median +- std dev: 14.6 ms +- 0.3 ms</li>
-<li>2 physical CPU active: 2.9 GHz, Median +- std dev: 14.7 ms +- 0.5 ms</li>
-</ul>
-<p>Turbo Boost enabled:</p>
-<ul class="simple">
-<li>1 physical CPU active: 3.6 GHz, Median +- std dev: 11.8 ms +- 0.3 ms</li>
-<li>2 physical CPU active: 3.4 GHz, Median +- std dev: 12.4 ms +- 0.1 ms</li>
-</ul>
-<p><strong>The maximum performance boost is 19% faster</strong> (14.6 ms =&gt; 11.8 ms), the
-minimum boost if 15% faster (14.6 ms =&gt; 12.4 ms).</p>
-<p>Hum, I don't think that Turbo Boost can explain the bug.</p>
-</div>
-<div class="section" id="impact-of-the-cpu-temperature-on-benchmarks">
-<h2>Impact of the CPU temperature on benchmarks</h2>
-<p>The CPU temperature is mentionned in Intel Turbo Boost documentation as a
-factor used to decide which P-state will be used. I always wanted to check how
-the CPU temperature impacts its performance.</p>
-<div class="section" id="burn-the-cpu-of-my-desktop-pc">
-<h3>Burn the CPU of my desktop PC</h3>
-<p>CPU of my desktop PC: &quot;Intel(R) Core(TM) i7-2600 CPU &#64; 3.40GHz&quot;.</p>
-<p>I used my <a class="reference external" href="https://github.com/vstinner/misc/blob/master/bin/system_load.py">system_load.py script</a> to generate a
-system load higher than 10.</p>
-<p>When the fan is cooling correctly the CPU, all CPU run at 3.4 GHz (Turbo Boost
-was disabled) and the CPU temperature is 66°C.</p>
-<p>I used a simple sheet of paper to block the fan of my CPU. Yeah, I really
-wanted to <a class="reference external" href="https://www.youtube.com/watch?v=Xf0VuRG7MN4">burn my CPU</a>! More
-seriously, I checked the CPU temperature every second using the <tt class="docutils literal">sensors</tt>
-command and was prepared to unblock the fan if sometimes gone wrong.</p>
-<img alt="Sheet of paper blocking the CPU fan" src="https://vstinner.github.io/images/paper_blocks_cpu_fan.jpg" />
-<p>After one minute, the CPU reached 97°C. I expected a system crash, smoke or
-something worse, but I was disappointed. <strong>At 97°C, I was still able to use my
-computer as everything was fine. The CPU was slowly down automatically to the
-minimum CPU frequency: 1533 MHz</strong> according to turbostat (the minimum frequency
-of this CPU is 1.6 GHz).</p>
-<p>When I unblocked the fan, the temperature decreased quickly to go back to its
-previous state (62°C) and the CPU frequency quickly increased to 3.4 GHz as
-well.</p>
-<p>My Intel CPU is really impressive! I didn't expect such very efficient
-protection against overheating!</p>
-</div>
-<div class="section" id="burn-my-laptop-cpu">
-<h3>Burn my laptop CPU</h3>
-<p>I used my system_load.py script to get a system load over 200. I also opened 4
-tabs in Firefox playing Youtube videos to stress also the GPU which is
-integrated into the CPU (IGP) on such laptop.</p>
-<img alt="Stress test playing Youtube videos in Firefox, CPU at 102°" src="https://vstinner.github.io/images/burn_cpu_firefox.jpg" />
-<p>With such crazy stress test, the CPU temperature was &quot;only&quot; 83°C.</p>
-<p>Using a simple tissue, I closed the air hole used by the CPU fan. <strong>When the
-CPU temperature increased from 100°C to 101°C, the CPU frequency started slowly
-to decrease from 3391 MHz to 3077 MHz</strong> (with steps between 10 MHz and 50 MHz
-every second, or something like that).</p>
-<p>When pushing hard the tissue and waiting longer than 5 minutes, the CPU
-temperature increased up to 102°C, but the CPU frequency was only decreased
-from 3.4 GHz (Turbo Mode with 4 active logical CPUs) to 3.1 GHz.</p>
-<p>The maximum frequency is 2.9 GHz. Frequencies higher than 2.9 GHz means that
-the Turbo Mode was enabled! It means that <strong>even with overheating, the CPU is
-still fine and able to &quot;overclock&quot; itself!</strong></p>
-<p>Again, I was disapointed. With a CPU at 102°C, my laptop was still super fast
-and reactive.  It seems like mobile CPUs handle even better overheating than
-desktop CPUs (which is not something suprising at all).</p>
-</div>
-</div>
-<div class="section" id="impact-of-the-cpu-frequency-on-benchmarks">
-<h2>Impact of the CPU frequency on benchmarks</h2>
-<p>I ran the bm_call_simple.py microbenchmark (CPU-bound) of performance 0.2.2
-on my desktop PC.</p>
-<p>Command to set the frequency of CPU 0 to the minimum frequency (1.6 GHz):</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq|sudo tee  /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
-1600000
-</pre>
-<p>Command to set the frequency of CPU 0 to the maximum frequency (3.4 GHz):</p>
-<pre class="literal-block">
-$ cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq|sudo tee  /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
-3400000
-</pre>
-<ul class="simple">
-<li>CPU running at 1.6 GHz (min freq): Median +- std dev: 27.7 ms +- 0.7 ms</li>
-<li>CPU running at 3.4 GHz (min freq): Median +- std dev: 12.9 ms +- 0.2 ms</li>
-</ul>
-<p>The impact of the CPU frequency is quite obvious: <strong>when the CPU frequency is
-doubled, the performance is also doubled</strong>. The benchmark is 53% faster (27.7
-ms =&gt; 12.9 ms).</p>
-</div>
-<div class="section" id="bug-reproduced-and-then-identified-in-the-linux-cpu-driver">
-<h2>Bug reproduced and then identified in the Linux CPU driver</h2>
-<p>Two days ago, I ran a very simple &quot;timeit&quot; microbenchmark to try to bisect a
-performance regression in Python 3.6 on <tt class="docutils literal">functools.partial</tt>. Again, suddenly,
-the microbenchmark became 2x faster!</p>
-<p>But this time, I found something: I noticed that running or stopping <tt class="docutils literal">cpupower
-monitor</tt> and/or <tt class="docutils literal">turbostat</tt> can &quot;enable&quot; or &quot;disable&quot; the bug.</p>
-<p>After a lot of tests, I understood that running the benchmark with turbostat
-&quot;disables&quot; the bug, whereas running &quot;cpupower monitor&quot; while running a
-benchmark enables the bug.</p>
-<p>I reported the bug in the Fedora bug tracker, on the component kernel:
-<a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1378529">intel_pstate C0 bug on isolated CPUs with the performance governor and
-NOHZ_FULL</a>.</p>
-<p>It seems like the bug is related to CPU isolation and NOHZ_FULL. The NOHZ_FULL
-option is able to fully disable the scheduler clock interruption  on isolated
-CPUs. I understood the the <tt class="docutils literal">intel_pstate</tt> driver uses a callback on the
-scheduler to update the Pstate of the CPU. According to an Intel engineer, the
-<tt class="docutils literal">intel_pstate</tt> driver was never tested with CPU isolation.</p>
-<p>The issue is not fully analyzed yet, but at least I succeeded to write a list
-of commands to reproduce it with a success rate of 100% :-) Moreover, the Intel
-engineer suggested to add an extra parameter to the Linux kernel command
-(<tt class="docutils literal">rcu_nocbs=3,7</tt>) line which works around the issue.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>This article describes how I found and then identified a bug in the Linux
-driver of my CPU.</p>
-<p>Summary:</p>
-<ul class="simple">
-<li>The maximum speedup of Turbo Boost is 20%</li>
-<li>Overheating on a dekstop PC can decrease the CPU frequency to its minimum
-(half of the maximum in my case) which imply a slowdown of 50%</li>
-<li>A bug in the Linux CPU driver changes suddenly the CPU frequency from its
-minimum to maximum (or the opposite) which means a speedup of 50%
-(or slowdown of 50%)</li>
-</ul>
-<p><strong>To get stable benchmarks, the safest fix for all these issues is probably to
-set the CPU frequency of the CPUs used by benchmarks to the minimum.</strong>
-It seems like nothing can reduce the frequency of a CPU below its minimum.</p>
-<p><strong>When running benchmarks, raw timings and CPU performance don't matter. Only
-comparisons between benchmark results and stable performances matter.</strong></p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/intel-cpus.html" rel="bookmark"
-                           title="Permalink to Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.">Intel CPUs: P-state, C-state, Turbo Boost, CPU frequency, etc.</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2016-07-15T12:00:00+02:00">
-                Published: ven. 15 juillet 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/benchmark.html">benchmark</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/benchmark.html">benchmark</a> <a href="https://vstinner.github.io/tag/cpu.html">cpu</a> </p>
-</footer><!-- /.post-info -->                <p class="first last">Intel CPUs: Hyper-threading, Turbo Boost, CPU frequency, etc.</p>
-
-                <a class="readmore" href="https://vstinner.github.io/intel-cpus.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

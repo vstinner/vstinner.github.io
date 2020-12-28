@@ -1,291 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - python</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>python — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag python">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/split-include-directory-python38.html">Split Include/ directory in Python 3.8</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2019-06-19T12:00:00+02:00">
-                Published: mer. 19 juin 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> <a href="https://vstinner.github.io/tag/c-api.html">c-api</a> </p>
-</footer><!-- /.post-info --><p>In September 2017, during the CPython sprint at Facebook, I proposed my
-idea to create <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a>.
-I'm still working on the Python C API at: <a class="reference external" href="http://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a>.</p>
-<p>My analysis is that the C API leaks too many implementation details which
-prevent to optimize Python and make the implementation of PyPy (cpyext) more
-painful.</p>
-<p>In Python 3.8, I created <tt class="docutils literal">Include/cpython/</tt> sub-directory to stop adding new
-APIs to the stable API by mistake.</p>
-<p>I moved more private functions into the internal C API: <tt class="docutils literal">Include/internal/</tt>
-directory.</p>
-<p>I also converted some macros like <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> to static
-inline functions to have well defined parameter and return type, and to avoid
-macro pitfals.</p>
-<p>Finally, I removed 3 functions from the C API.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
-<div class="section" id="include-internal">
-<h2>Include/internal/</h2>
-<p>In Python 3.7, <strong>Eric Snow</strong> created <tt class="docutils literal">Include/internal/</tt> sub-directory for
-the CPython &quot;internal C API&quot;: API which should not be used outside CPython code
-base. In Python 3.6, these APIs were surrounded by:</p>
-<pre class="literal-block">
-#ifdef Py_BUILD_CORE
-...
-#endif
-</pre>
-<p>In Python 3.8, I continued this work by moving more private functions into
-this directory: see <a class="reference external" href="https://bugs.python.org/issue35081">bpo-35081</a>.</p>
-<p>I started a thread on python-dev: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2018-October/155587.html">[Python-Dev] Rename Include/internal/ to
-Include/pycore/</a>. But
-it was decided to keep <tt class="docutils literal">Include/internal/</tt> name. It was decided that internal
-header files must not be included implicitly by the generic <tt class="docutils literal">#include
-&lt;Python.h&gt;</tt>, but included explicitly. For example, when I moved
-<tt class="docutils literal">_PyObject_GC_TRACK()</tt> and <tt class="docutils literal">_PyObject_GC_UNTRACK()</tt> to the internal C API,
-I had to add <tt class="docutils literal">#include &quot;pycore_object.h&quot;</tt> to 32 C files!</p>
-<p><a class="reference external" href="https://bugs.python.org/issue35296">I also modified make install</a> to install
-this internal C API, so it can be used for specific needs like debuggers or
-profilers which have to access CPython internals (access structure fields) but
-cannot call functions. For example, <strong>Eric Snow</strong> moved the <tt class="docutils literal">PyInterpreterState</tt>
-structure to the internal C API.</p>
-<p>Installing the internal C API ease the migration of APIs to internal: if an API
-is still needed after it's moved, it's now possible to opt-in to use it.</p>
-<p>Using the internal C API requires to define <tt class="docutils literal">Py_BUILD_CORE_MODULE</tt> macro and
-use a different include, like <tt class="docutils literal">#include &quot;internal/pycore_pystate.h&quot;</tt>. It's
-more complicated on purpose: ensure that it's not used by mistake.</p>
-<p>Python 3.8 now provides 21 internal header files:</p>
-<pre class="literal-block">
-pycore_accu.h       pycore_getopt.h      pycore_pyhash.h
-pycore_atomic.h     pycore_gil.h         pycore_pylifecycle.h
-pycore_ceval.h      pycore_hamt.h        pycore_pymem.h
-pycore_code.h       pycore_initconfig.h  pycore_pystate.h
-pycore_condvar.h    pycore_object.h      pycore_traceback.h
-pycore_context.h    pycore_pathconfig.h  pycore_tupleobject.h
-pycore_fileutils.h  pycore_pyerrors.h    pycore_warnings.h
-</pre>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>python</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>19 juin 2019</td>
+        <td><a href='https://vstinner.github.io/split-include-directory-python38.html'>Split Include/ directory in Python 3.8</a></td>
+        </tr>
+        <tr>
+        <td>15 juin 2019</td>
+        <td><a href='https://vstinner.github.io/sys-unraisablehook-python38.html'>Python 3.8 sys.unraisablehook</a></td>
+        </tr>
+        <tr>
+        <td>15 sept. 2017</td>
+        <td><a href='https://vstinner.github.io/python-security.html'>Python Security</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="include-cpython">
-<h2>Include/cpython/</h2>
-<p>The <a class="reference external" href="https://www.python.org/dev/peps/pep-0384/">PEP 384 &quot;Defining a Stable ABI&quot;</a> introduced <tt class="docutils literal">Py_LIMITED_API</tt>
-macro to exclude functions from the Python C API. The problem is when a new API
-is added, it has to explicitly be excluded using <tt class="docutils literal">#ifndef Py_LIMITED_API</tt>.
-If the author forgets it, the function is added to be stable API by mistake.</p>
-<p>I proposed to move the API which should be excluded from the stable ABI to a
-new subdirectory. I created a <a class="reference external" href="https://discuss.python.org/t/poll-what-is-your-favorite-name-for-the-new-include-subdirectory/477">poll on the sub-directory name</a>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">Include/cpython/</tt></li>
-<li><tt class="docutils literal">Include/board/</tt></li>
-<li><tt class="docutils literal">Include/impl/</tt></li>
-<li><tt class="docutils literal">Include/pycapi/</tt> (the name that I proposed initially)</li>
-<li><tt class="docutils literal">Include/unstable/</tt></li>
-<li>other (add comment)</li>
-</ul>
-<p>The <tt class="docutils literal">Include/cpython/</tt> name won with 100% of the 3 votes (and a few more
-supports in the python-dev discussion and in the bug tracker) :-)</p>
-<p>I created <a class="reference external" href="https://bugs.python.org/issue35134">bpo-35134: Add a new Include/cpython/ subdirectory for the &quot;CPython
-API&quot; with implementation details</a>.</p>
-<p>My initial description of the directory content:</p>
-<blockquote>
-The new subdirectory will contain <tt class="docutils literal">#ifndef Py_LIMITED_API</tt> code, not the
-“Stable ABI” of <a class="reference external" href="https://www.python.org/dev/peps/pep-0384/">PEP 384</a>, but
-more “implementation details” of CPython.</blockquote>
-<p>The change is backward compatible: <tt class="docutils literal">#include &lt;Python.h&gt;</tt> will still provide
-exactly the same API. For example, <tt class="docutils literal">object.h</tt> automatically includes
-<tt class="docutils literal">cpython/object.h</tt>. But <tt class="docutils literal">Include/cpython/</tt> headers must not be included
-directly (it would fail with a compilation error).</p>
-<p>For example, <tt class="docutils literal">Include/object.h</tt> now ends with:</p>
-<pre class="literal-block">
-#ifndef Py_LIMITED_API
-#  define Py_CPYTHON_OBJECT_H
-#  include  &quot;cpython/object.h&quot;
-#  undef Py_CPYTHON_OBJECT_H
-#endif
-</pre>
-<p><tt class="docutils literal">Include/cpython/object.h</tt> structure (content replaced with <tt class="docutils literal">...</tt>):</p>
-<pre class="literal-block">
-#ifndef Py_CPYTHON_OBJECT_H
-#  error &quot;this header file must not be included directly&quot;
-#endif
-
-#ifdef __cplusplus
-extern &quot;C&quot; {
-#endif
-
-...
-
-#ifdef __cplusplus
-}
-#endif
-</pre>
-<p>In Python 3.8, the work is not complete. I tried to double- or even
-triple-check my changes to ensure that I don't remove an API by mistake. This
-work is still on-going in Python 3.9.</p>
-</div>
-<div class="section" id="summary-of-include-directories">
-<h2>Summary of Include/ directories</h2>
-<p>The header files have been reorganized to better separate the different kinds
-of APIs:</p>
-<ul class="simple">
-<li><tt class="docutils literal"><span class="pre">Include/*.h</span></tt> should be the portable public stable C API.</li>
-<li><tt class="docutils literal"><span class="pre">Include/cpython/*.h</span></tt> should be the unstable C API specific to CPython;
-public API, with some private API prefixed by <tt class="docutils literal">_Py</tt> or <tt class="docutils literal">_PY</tt>.</li>
-<li><tt class="docutils literal"><span class="pre">Include/internal/*.h</span></tt> is the private internal C API very specific to
-CPython. This API comes with no backward compatibility warranty and should
-not be used outside CPython. It is only exposed for very specific needs
-like debuggers and profiles which has to access to CPython internals
-without calling functions. This API is now installed by <tt class="docutils literal">make install</tt>.</li>
-</ul>
-</div>
-<div class="section" id="convert-macros-to-static-inline-functions">
-<h2>Convert macros to static inline functions</h2>
-<p>In <a class="reference external" href="https://bugs.python.org/issue35059">bpo-35059</a>, I converted some macros
-to static inline functions:</p>
-<ul class="simple">
-<li><tt class="docutils literal">Py_INCREF()</tt>, <tt class="docutils literal">Py_DECREF()</tt></li>
-<li><tt class="docutils literal">Py_XINCREF()</tt>, <tt class="docutils literal">Py_XDECREF()</tt></li>
-<li><tt class="docutils literal">PyObject_INIT()</tt>, <tt class="docutils literal">PyObject_INIT_VAR()</tt></li>
-<li>Private functions: <tt class="docutils literal">_PyObject_GC_TRACK()</tt>, <tt class="docutils literal">_PyObject_GC_UNTRACK()</tt>,
-<tt class="docutils literal">_Py_Dealloc()</tt></li>
-</ul>
-<p>Compared to macros, static inline functions have multiple advantages:</p>
-<ul class="simple">
-<li>Parameter types and return type are well defined;</li>
-<li>They don't have issues specific to macros: see <a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html">GCC Macro Pitfals</a>;</li>
-<li>Variables have a well defined local scope.</li>
-</ul>
-<p>Python 3.7 uses ugly macros with comma and semicolon. Example:</p>
-<pre class="literal-block">
-#define _Py_REF_DEBUG_COMMA ,
-#define _Py_CHECK_REFCNT(OP) /* a semicolon */;
-
-#define _Py_NewReference(op) (                          \
-    _Py_INC_TPALLOCS(op) _Py_COUNT_ALLOCS_COMMA         \
-    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA               \
-    Py_REFCNT(op) = 1)
-</pre>
-<p><a class="reference external" href="https://www.python.org/dev/peps/pep-0007/#c-dialect">Python 3.6 requires C99 standard of the C dialect</a>. It was time to start
-to use it :-)</p>
-</div>
-<div class="section" id="removed-functions">
-<h2>Removed functions</h2>
-<p><a class="reference external" href="https://bugs.python.org/issue35713">bpo-35713</a>: I removed
-<tt class="docutils literal">PyByteArray_Init()</tt> and <tt class="docutils literal">PyByteArray_Fini()</tt> functions. They did nothing
-since Python 2.7.4 and Python 3.2.0, were excluded from the limited API (stable
-ABI), and were not documented.</p>
-<p><a class="reference external" href="https://bugs.python.org/issue36728">bpo-36728</a>: I also removed
-<tt class="docutils literal">PyEval_ReInitThreads()</tt> function. It should not be called explicitly: use
-<tt class="docutils literal">PyOS_AfterFork_Child()</tt> instead.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="bookmark"
-                           title="Permalink to Python 3.8 sys.unraisablehook">Python 3.8 sys.unraisablehook</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-06-15T01:00:00+02:00">
-                Published: sam. 15 juin 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info -->                <p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
-allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
-It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
-released last week!</p>
-<p>An &quot;unraisable exception&quot; is an error which happens when Python cannot report
-it to the caller. Examples …</p>
-                <a class="readmore" href="https://vstinner.github.io/sys-unraisablehook-python38.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/python-security.html" rel="bookmark"
-                           title="Permalink to Python Security">Python Security</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-09-15T22:00:00+02:00">
-                Published: ven. 15 septembre 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/security.html">security</a> <a href="https://vstinner.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info -->                <p>I am working on the Python security for years, but I never wrote anything about
-that. Let's fix this!</p>
-<div class="section" id="psrt">
-<h2>PSRT</h2>
-<p>I am part of the Python Security Response Team (PSRT): I get emails sent to
-<a class="reference external" href="mailto:security&#64;python.org">security&#64;python.org</a>. I try to analyze each report to validate that the bug
-is …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/python-security.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

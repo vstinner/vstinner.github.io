@@ -1,175 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - openstack</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>openstack — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag openstack">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/openstack_mitaka_python3.html">Status of Python 3 in OpenStack Mitaka</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2016-03-02T14:00:00+01:00">
-                Published: mer. 02 mars 2016
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/openstack.html">openstack</a> <a href="https://vstinner.github.io/tag/python3.html">python3</a> </p>
-</footer><!-- /.post-info --><p>Now that most OpenStack services have reached feature freeze for the Mitaka
-cycle (November 2015-April 2016), it's time to look back on the progress made
-for Python 3 support.</p>
-<p>Previous status update: <a class="reference external" href="http://techs.enovance.com/7807/python-3-status-openstack-liberty">Python 3 Status in OpenStack Liberty</a>
-(September 2015).</p>
-<div class="section" id="services-ported-to-python-3">
-<h2>Services ported to Python 3</h2>
-<p>13 services were ported to Python 3 during the Mitaka cycle:</p>
-<ul class="simple">
-<li>Cinder</li>
-<li>Congress</li>
-<li>Designate</li>
-<li>Glance</li>
-<li>Heat</li>
-<li>Horizon</li>
-<li>Manila</li>
-<li>Mistral</li>
-<li>Octavia</li>
-<li>Searchlight</li>
-<li>Solum</li>
-<li>Watcher</li>
-<li>Zaqar</li>
-</ul>
-<p>Red Hat contributed to the Cinder, Designate, Glance and Horizon service
-porting efforts.</p>
-<p>&quot;Ported to Python 3&quot; means that all unit tests pass on Python 3.4 which is
-verified by a voting gate job. It is not enough to run applications in
-production with Python 3. Integration and functional tests are not run on
-Python 3 yet. See the section dedicated to these tests below.</p>
-<p>See the <a class="reference external" href="https://wiki.openstack.org/wiki/Python3">Python 3 wiki page</a> for the
-current status of the OpenStack port to Python 3; especially the list of
-services ported to Python 3.</p>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>openstack</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>02 mars 2016</td>
+        <td><a href='https://vstinner.github.io/openstack_mitaka_python3.html'>Status of Python 3 in OpenStack Mitaka</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="services-not-ported-yet">
-<h2>Services not ported yet</h2>
-<p>It's become easier to list services which are not compatible with Python 3 than
-listing services already ported to Python 3!</p>
-<p>9 services still need to be ported:</p>
-<ul class="simple">
-<li>Work-in-progress:<ul>
-<li>Magnum: 83% (959 unit tests/1,161)</li>
-<li>Cue: 81% (208 unit tests/257)</li>
-<li>Nova: 74% (10,859 unit tests/14,726)</li>
-<li>Barbican: 34% (392 unit tests/1168)</li>
-<li>Murano: 29% (133 unit tests/455)</li>
-<li>Keystone: 27% (1200 unit tests/4455)</li>
-<li>Swift: 0% (3 unit tests/4,435)</li>
-<li>Neutron-LBaaS: 0% (1 unit test/806)</li>
-</ul>
-</li>
-<li>Port not started yet:<ul>
-<li>Trove: no python34 gate</li>
-</ul>
-</li>
-</ul>
-<p>Red Hat contributed Python 3 patches to Cue, Neutron-LBaaS, Swift and Trove
-during the Mitaka cycle.</p>
-<p>Trove developers are ready to start the port at the beginning of the next cycle
-(Newton). The py34 test environment was blocked by the MySQL-Python dependency (it
-was not possible to build the test environment), but this dependency is now
-skipped on Python 3. Later, it will be <a class="reference external" href="https://review.openstack.org/#/c/225915/">replaced with PyMySQL</a> on Python 2 and Python 3.</p>
-</div>
-<div class="section" id="python-3-issues-in-eventlet">
-<h2>Python 3 issues in Eventlet</h2>
-<p>Four Python 3 issues were fixed in Eventlet:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://github.com/eventlet/eventlet/issues/295">Issue #295: Python 3: wsgi doesn't handle correctly partial write of
-socket send() when using writelines()</a></li>
-<li>PR #275: <a class="reference external" href="https://github.com/eventlet/eventlet/pull/275">Issue #274: Fix GreenSocket.recv_into()</a>.
-Issue: <a class="reference external" href="https://github.com/eventlet/eventlet/issues/274">On Python 3, sock.makefile('rb').readline() doesn't handle blocking
-errors correctly</a></li>
-<li>PR #257: <a class="reference external" href="https://github.com/eventlet/eventlet/pull/257">Fix GreenFileIO.readall() for regular file</a></li>
-<li><a class="reference external" href="https://github.com/eventlet/eventlet/issues/248">Issue #248: eventlet.monkey_patch() on Python 3.4 makes stdout
-non-blocking</a>: pull
-request <a class="reference external" href="https://github.com/eventlet/eventlet/pull/250">Fix GreenFileIO.write()</a></li>
-</ul>
-</div>
-<div class="section" id="next-milestone-functional-and-integration-tests">
-<h2>Next Milestone: Functional and integration tests</h2>
-<p>The next major milestone will be to run functional and integration tests on
-Python 3.</p>
-<ul class="simple">
-<li>functional tests are restricted to one component (ex: only Glance)</li>
-<li>integration tests, like Tempest, test the integration of multiple components</li>
-</ul>
-<p>It is now possible to install some packages on Python 3 in DevStack using
-<tt class="docutils literal">USE_PYTHON3</tt> and <tt class="docutils literal">PYTHON3_VERSION</tt> variables: <a class="reference external" href="https://review.openstack.org/#/c/181165/">Enable optional Python 3
-support</a>. It means that it is
-possible to run tests with some services running on Python 3, and the remaining
-services on Python 2.</p>
-<p>The port to Python 3 of Glance, Heat and Neutron functional and integration
-tests have already started.</p>
-<p>For Glance, 159 functional tests already pass on Python 3.4.</p>
-<p>Heat:</p>
-<ul class="simple">
-<li>project-config: <a class="reference external" href="https://review.openstack.org/#/c/228194/">Add python34 integration test job for Heat</a> (WIP)</li>
-<li>heat: <a class="reference external" href="https://review.openstack.org/#/c/188033/">py34: integration tests</a>
-(WIP)</li>
-</ul>
-<p>Neutron: the <a class="reference external" href="https://review.openstack.org/#/c/231897/">Add the functional-py34 and dsvm-functional-py34 targets to
-tox.ini</a> change was merged, but a
-gate job hasn't been added for it yet.</p>
-<p>Another pending project is to fix issues specific to Python 3.5, but the gate
-doesn’t use Python 3.5 yet. There are some minor issues, probably easy to fix.</p>
-</div>
-<div class="section" id="how-to-port-remaining-code">
-<h2>How to port remaining code?</h2>
-<p>The <a class="reference external" href="https://wiki.openstack.org/wiki/Python3">Python 3 wiki page</a> contains
-a lot of information about adding Python 3 support to Python 2 code.</p>
-<p>Join us in the <tt class="docutils literal"><span class="pre">#openstack-python3</span></tt> IRC channel on Freenode to discuss
-Python 3!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

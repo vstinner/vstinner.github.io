@@ -1,202 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - security</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>security — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag security">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python-security.html">Python Security</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2017-09-15T22:00:00+02:00">
-                Published: ven. 15 septembre 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/security.html">security</a> <a href="https://vstinner.github.io/tag/python.html">python</a> </p>
-</footer><!-- /.post-info --><p>I am working on the Python security for years, but I never wrote anything about
-that. Let's fix this!</p>
-<div class="section" id="psrt">
-<h2>PSRT</h2>
-<p>I am part of the Python Security Response Team (PSRT): I get emails sent to
-<a class="reference external" href="mailto:security&#64;python.org">security&#64;python.org</a>. I try to analyze each report to validate that the bug
-is reproductible, find impacted Python versions and start to discuss how to fix
-the vulnerability. In some cases, the reported issue is not a security
-vulnerability, is not related to CPython, or sometimes is already fixed.  We
-also get reports about CPython, but also the web sites and other projects
-related to Python.</p>
-<p>Warning: I don't represent the PSRT, I speak for my own!</p>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>security</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>15 sept. 2017</td>
+        <td><a href='https://vstinner.github.io/python-security.html'>Python Security</a></td>
+        </tr>
+        <tr>
+        <td>14 févr. 2017</td>
+        <td><a href='https://vstinner.github.io/pep-524-os-urandom-blocking.html'>PEP 524: os.urandom() now blocks on Linux in Python 3.6</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="vulnerabilities-sent-to-psrt">
-<h2>Vulnerabilities sent to PSRT</h2>
-<p>In this article, I will focus on vulnerabilities impacting CPython: the C and
-Python code of CPython core and the standard library.</p>
-<p>When vulnerabilities are obvious bugs, they are quickly fixed. Done.</p>
-<p>But it's not uncommon that fixing a vulnerability impacts the backward
-compatibility which is a major concern of CPython core developers. There is
-also a risk of rejecting legit input data because the added checks are too
-strict. We have to be very careful and so fixing vulnerabilities can take
-weeks, if not months in the worst case.</p>
-<p>While CPython has few active core developers, the PSRT has even lesser active
-members to handle incoming reports. We are volunteers, so please be kind and
-patient...</p>
-</div>
-<div class="section" id="example-of-a-complex-fix">
-<h2>Example of a complex fix</h2>
-<p>The <a class="reference external" href="https://python-security.readthedocs.io/vuln/urllib_ftp_protocol_stream_injection.html">urllib FTP protocol stream injection</a>
-vulnerability was reported to the PSRT at 2016-01-15. The fix was only merged
-at 2017-07-26.</p>
-<p>First, it was not obvious how the vulnerability can be exploited, nor if it
-should be fixed.</p>
-<p>Then it was not obvious if the vulnerability should be fixed in the urllib
-module or in the ftplib module.</p>
-<p>Even if the bug was public, it didn't get much attention. Since I don't know
-well how the urllib module, I wrote an email to the python-dev mailing
-list: <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2017-July/148699.html">Need help to fix urllib(.parse) vulnerabilities</a>.</p>
-<p>I proposed a fix for the urllib module: <a class="reference external" href="https://bugs.python.org/issue30713">Reject newline character (U+000A) in
-URLs in urllib.parse</a>. But it was
-rejected, since it was the wrong approach and my checks were too strict in many
-cases (rejected legit requests).</p>
-<p>The final fix rejects <tt class="docutils literal">\b</tt> and <tt class="docutils literal">\r</tt> newline characters in the putline()
-method of the ftplib module.</p>
-</div>
-<div class="section" id="track-known-and-fixed-cpython-vulnerabilities">
-<h2>Track known and fixed CPython vulnerabilities</h2>
-<p>Currently, not least that six branches still get security fixes!</p>
-<ul class="simple">
-<li>Python 2.7</li>
-<li>Python 3.3</li>
-<li>Python 3.4</li>
-<li>Python 3.5</li>
-<li>Python 3.6</li>
-<li>master: the development branch</li>
-</ul>
-<p>Last year, I added a table to the Python developer guide to help me to track
-the status of each branch: see the <a class="reference external" href="https://devguide.python.org/#status-of-python-branches">Status of Python branches</a>.</p>
-<p>This year, I created a tool to help me to track known CPython vulnerabilities:
-<a class="reference external" href="https://github.com/vstinner/python-security">python-security project</a> (hosted
-at GitHub). The <a class="reference external" href="https://github.com/vstinner/python-security/blob/master/vulnerabilities.yaml">vulnerabilities.yaml file</a>
-is a YAML file with one section per vulnerability. Each vulnerability has
-a title, link to the Python bug, disclosure date, reported date, commits, etc.</p>
-<p>The tool gets the date of commits and the Git tags which contains the commit
-to infer the first Python versions of each branch which contain the fix. It
-also build a timeline to help to understand how the vulnerability was handled.</p>
-<p>I also wanted to be more transparent on how we handle vulnerabilities and our
-velocity to fix them.</p>
-<p>Honestly, I was disappointed that it took so long to fix some vulnerabilities
-in the past. Hopefully, it seems like we are more reactive nowadays!</p>
-</div>
-<div class="section" id="example-of-a-fixed-vulnerability">
-<h2>Example of a fixed vulnerability</h2>
-<p>Example: <a class="reference external" href="https://python-security.readthedocs.io/vuln/cve-2016-5699_http_header_injection.html">CVE-2016-5699: HTTP header injection</a>.</p>
-<p>Right now, Python 3.3 is still vulnerable (my fix was commited, I am now
-waiting Python 3.3.7 which is coming at the end of september).</p>
-<p>Since the vulnerability was reported, it took 108 days to merge the fix, 72
-more days (total 180 days) for the first release including the fix (Python
-2.7.10).</p>
-<p>Sadly, the PSRT doesn't compute a severity of vulnerabilities yet.</p>
-<p>Hopefully, for this vulnerability, web frameworks were able to workaround the
-vulnerability by input sanitization.</p>
-</div>
-<div class="section" id="backport-all-fixes">
-<h2>Backport all fixes</h2>
-<p>Last months, I backported fixes to the six branches which still accept security
-fixes, to respect the contract with our users: we are doing our best to protect
-you!</p>
-<p>The good news is that with Python 2.7.14 and Python 3.3.7 releases scheduled
-this month, all major security vulnerabilities will be fixed in all maintained
-Python branches!</p>
-<p>Some fixes were not backported on purpose. For example, the <a class="reference external" href="https://python-security.readthedocs.io/vuln/cve-2013-7040_hash_not_properly_randomized.html#cve-2013-7040-hash-not-properly-randomized">CVE-2013-7040:
-Hash not properly randomized</a>
-vulnerability requires to change the hash algorithm and we decided to not touch
-Python 2.7 and 3.3 for backward compatibility reasons (don't break code relying
-on the exact hash function). The issue was fixed in Python 3.4 by using the
-SipHash hash algorithm which uses a hash secret (generated randomly by Python
-at startup).</p>
-</div>
-<div class="section" id="python-security-documentation">
-<h2>Python security documentation</h2>
-<p>Last months, I also started to collect random notes about the Python security.</p>
-<p>Explore my <a class="reference external" href="https://python-security.readthedocs.io/">python-security.readthedocs.io</a> documentation and send me feedback!</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/pep-524-os-urandom-blocking.html" rel="bookmark"
-                           title="Permalink to PEP 524: os.urandom() now blocks on Linux in Python 3.6">PEP 524: os.urandom() now blocks on Linux in Python 3.6</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-14T12:00:00+01:00">
-                Published: mar. 14 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/security.html">security</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="getrandom-avoids-file-descriptors">
-<h2>getrandom() avoids file descriptors</h2>
-<p>Last years, I'm making sometimes enhancements in the Python code used to
-generate random numbers, the C implementation of <tt class="docutils literal">os.urandom()</tt>. My main two
-changes were to use the new <tt class="docutils literal">getentropy()</tt> and <tt class="docutils literal">getrandom()</tt> functions when
-available on Linux, Solaris, OpenBSD, etc.</p>
-<p>In 2013, <tt class="docutils literal">os.urandom()</tt> opened …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/pep-524-os-urandom-blocking.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

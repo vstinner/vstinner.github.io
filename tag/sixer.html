@@ -1,210 +1,102 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - sixer</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>sixer — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag sixer">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/python3-sixer.html">Port your Python 2 applications to Python 3 with sixer</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2015-06-16T15:00:00+02:00">
-                Published: mar. 16 juin 2015
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/python3.html">python3</a> <a href="https://vstinner.github.io/tag/sixer.html">sixer</a> </p>
-</footer><!-- /.post-info --><div class="section" id="from-2to3-to-2to6">
-<h2>From 2to3 to 2to6</h2>
-<p>When Python 3.0 was released, the official statement was to port your
-application using <a class="reference external" href="https://docs.python.org/3.5/library/2to3.html">2to3</a> and
-drop Python 2 support. It didn't work because you had to port all libraries
-first. If a library drops Python 2 support, existing applications running on
-Python 2 cannot use this library anymore.</p>
-<p>This chicken-and-egg issue was solved by the creation of the <a class="reference external" href="https://pythonhosted.org/six/">six module</a> by <a class="reference external" href="https://benjamin.pe/">Benjamin Peterson</a>. Thank you so much Benjamin! Using the six module, it
-is possible to write a single code base working on Python 2 and Python 3.</p>
-<p>2to3 was hacked to create the <a class="reference external" href="http://python-modernize.readthedocs.org/">modernize</a> and <a class="reference external" href="https://github.com/limodou/2to6">2to6</a> projects to <em>add Python 3 support</em> without
-loosing Python 2 support. Problem solved!</p>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>sixer</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>16 juin 2015</td>
+        <td><a href='https://vstinner.github.io/python3-sixer.html'>Port your Python 2 applications to Python 3 with sixer</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="creation-of-the-sixer-tool">
-<h2>Creation of the sixer tool</h2>
-<p>Problem solved? Well, not for my specific use case. I'm porting the huge
-OpenStack project to Python 3. modernize and 2to6 modify a lot of things at
-once, add unwanted changes (ex: add <tt class="docutils literal">from __future__ import absolute_import</tt>
-at the top of each file), and don't respect the OpenStack coding style
-(especially the <a class="reference external" href="http://docs.openstack.org/developer/hacking/#imports">complex rules to sort and group Python imports</a>).</p>
-<p>I wrote the <a class="reference external" href="https://pypi.python.org/pypi/sixer">sixer</a> project to
-<em>generate</em> patches for OpenStack. The problem is that OpenStack code changes
-very quickly, so it's common to have to fix conflicts the day after submiting
-a change. At the beginning, it took at least one week to get Python 3 changes
-merged, whereas many changes are merged every day, so being able to regenerate
-patches helped a lot.</p>
-<p>I created the <a class="reference external" href="https://pypi.python.org/pypi/sixer">sixer</a> tool using a list
-of regular expressions to replace a pattern with another. For example, it
-replaces <tt class="docutils literal">dict.itervalues()</tt> with <tt class="docutils literal">six.itervalues(dict)</tt>. The code was
-very simple.  The most difficult part was to respect the OpenStack coding
-style for Python imports.</p>
-<p>sixer is a success since its creationg, it helped me to fix the all obvious
-Python 3 issues: replace <tt class="docutils literal">unicode(x)</tt> with <tt class="docutils literal">six.text_type(x)</tt>, replace
-<tt class="docutils literal">dict.itervalues()</tt> with <tt class="docutils literal">six.itervalues(dict)</tt>, etc. These changes are
-simple, but it's boring to have to modify manually many files. The OpenStack
-Nova project has almost 1500 Python files for example.</p>
-<p>The development version of sixer supports the following operations:</p>
-<ul class="simple">
-<li>all</li>
-<li>basestring</li>
-<li>dict0</li>
-<li>dict_add</li>
-<li>iteritems</li>
-<li>iterkeys</li>
-<li>itertools</li>
-<li>itervalues</li>
-<li>long</li>
-<li>next</li>
-<li>raise</li>
-<li>six_moves</li>
-<li>stringio</li>
-<li>unicode</li>
-<li>urllib</li>
-<li>xrange</li>
-</ul>
-</div>
-<div class="section" id="creation-of-the-sixer-test-suite">
-<h2>Creation of the Sixer Test Suite</h2>
-<p>Slowly, I added more and more patterns to sixer. The code became too complex
-to be able to check regressions manually, so I also started to write unit
-tests. Now each operation has at least one unit test. Some complex operations
-have four tests or more.</p>
-<p>At the beginning, tests called directly the Python function. It is fast and
-convenient, but it failed to catch regressions on the command line program.
-So I added tests running sixer has a blackbox: pass an input file and check
-the output file. Then I added specific tests on the code parsing command line
-options.</p>
-</div>
-<div class="section" id="the-new-all-operation">
-<h2>The new &quot;all&quot; operation</h2>
-<p>At the beginning, I used sixer to generate a patch for a single pattern. For
-example, replace <tt class="docutils literal">unicode()</tt> in a whole project.</p>
-<p>Later, I started to use it differently: I fixed all Python 3 issues at once,
-but only in some selected files. I did that when we reached a minimum set of
-tests which pass on Python 3 to have a green py34 check on Jenkins. Then we
-ported tests one by one. It's better to write short patches, they are easier
-and faster to review. And the review process is the bottlebeck of the
-OpenStack development process.</p>
-<p>To fix all Python 3 at once, I added an <tt class="docutils literal">all</tt> operation which simply applies
-sequentially each operation. So <tt class="docutils literal">sixer</tt> can now be used as <tt class="docutils literal">modernize</tt> and
-<tt class="docutils literal">2to6</tt> to fix all Python 3 issues at once in a whole project.</p>
-<p>I also added the ability to pass filenames instead of having to pass a
-directory to modify all files in all subdirectories.</p>
-</div>
-<div class="section" id="new-urllib-six-moves-and-stringio-operations">
-<h2>New urllib, six_moves and stringio operations</h2>
-<div class="section" id="urllib">
-<h3>urllib</h3>
-<p>I tried to keep the sixer code simple. But some changes are boring to write,
-like replacing <tt class="docutils literal">urllib</tt> imports <tt class="docutils literal">six.moves.urllib</tt> imports. Python 2 has 3
-modules (<tt class="docutils literal">urllib</tt>, <tt class="docutils literal">urllib2</tt>, <tt class="docutils literal">urlparse</tt>), whereas Pytohn 3 uses a
-single <tt class="docutils literal">urllib</tt> namespace with submodules (<tt class="docutils literal">urllib.request</tt>,
-<tt class="docutils literal">urllib.parse</tt>, <tt class="docutils literal">urllib.error</tt>). Some Python 2 functions moved to one
-submodule, whereas others moved to another submodules. It required to know
-well the old and new layout.</p>
-<p>After loosing many hours to write manually patches for <tt class="docutils literal">urllib</tt>, I decided
-to add a <tt class="docutils literal">urllib</tt> operation. In fact, it was so not long to implement it,
-compared to the time taken to write patches manually.</p>
-</div>
-<div class="section" id="stringio">
-<h3>stringio</h3>
-<p>Handling StringIO is also a little bit tricky because String.StringIO and
-String.cStringIO don't have the same performance on Python 2. Producing
-patches without killing performances require to pick the right module or
-symbol from six: <tt class="docutils literal">six.StringIO()</tt> or <tt class="docutils literal">six.moves.cStringIO.StringIO</tt> for
-example.</p>
-</div>
-<div class="section" id="six-moves">
-<h3>six_moves</h3>
-<p>The generic <tt class="docutils literal">six_moves</tt> operation replaces various Python 2 imports with
-imports from <tt class="docutils literal">six.moves</tt>:</p>
-<ul class="simple">
-<li>BaseHTTPServer</li>
-<li>ConfigParser</li>
-<li>Cookie</li>
-<li>HTMLParser</li>
-<li>Queue</li>
-<li>SimpleHTTPServer</li>
-<li>SimpleXMLRPCServer</li>
-<li>__builtin__</li>
-<li>cPickle</li>
-<li>cookielib</li>
-<li>htmlentitydefs</li>
-<li>httplib</li>
-<li>repr</li>
-<li>xmlrpclib</li>
-</ul>
-</div>
-</div>
-<div class="section" id="kiss-emit-warnings-instead-of-complex-implementation">
-<h2>KISS: emit warnings instead of complex implementation</h2>
-<p>As I wrote, I tried to keep sixer simple (KISS principle: Keep It Simple,
-Stupid). I'm also lazy, I didn't try to write a perfect tool. I don't want to
-spend hours on the sixer project.</p>
-<p>When it was too tricky to make a decision or to implement a pattern, sixer
-emits &quot;warnings&quot; instead. For example, a warning is emitted on
-<tt class="docutils literal">def next(self):</tt> to remind that a <tt class="docutils literal">__next__ = next</tt> alias is probably
-needed on this class for Python 3.</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>The sixer tool is incomplete and generates invalid changes. For example, it
-replaces patterns in comments, docstrings and strings, whereas usually these
-changes don't make sense. But I'm happy because the tool helped me a lot
-for to port OpenStack, it saved me hours.</p>
-<p>I hope that the tool will now be useful to others! Don't hesitate to give me
-feedback.</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

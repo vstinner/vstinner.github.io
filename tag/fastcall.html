@@ -1,198 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - fastcall</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>fastcall — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag fastcall">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/fastcall-issues.html">FASTCALL issues</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2017-02-25T00:00:00+01:00">
-                Published: sam. 25 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/fastcall.html">fastcall</a> <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info --><p>Here is the raw list of the 46 CPython issues I opended between 2016-04-21 and
-2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
-are already part of Python 3.6.0, some are already merged into the future
-Python 3.7, the few remaining issues are still open.</p>
-<div class="section" id="id1">
-<h2>27 FASTCALL issues</h2>
-<ul class="simple">
-<li>2016-04-21: <a class="reference external" href="http://bugs.python.org/issue26814">[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments</a></li>
-<li>2016-05-26: <a class="reference external" href="http://bugs.python.org/issue27128">Add _PyObject_FastCall()</a></li>
-<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27809">Add _PyFunction_FastCallDict(): fast call with keyword arguments as a dict</a></li>
-<li>2016-08-20: <a class="reference external" href="http://bugs.python.org/issue27810">Add METH_FASTCALL: new calling convention for C functions</a></li>
-<li>2016-08-22: <a class="reference external" href="http://bugs.python.org/issue27830">Add _PyObject_FastCallKeywords(): avoid the creation of a temporary dictionary for keyword arguments</a></li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27840">functools.partial: don't copy keywoard arguments in partial_call()?</a> [<strong>REJECTED</strong>]</li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27841">Use fast call in method_call() and slot_tp_new()</a></li>
-<li>2016-08-23: <a class="reference external" href="http://bugs.python.org/issue27845">Optimize update_keyword_args() function</a></li>
-<li>2016-11-22: <a class="reference external" href="http://bugs.python.org/issue28770">Update python-gdb.py for fastcalls</a></li>
-<li>2016-11-30: <a class="reference external" href="http://bugs.python.org/issue28839">_PyFunction_FastCallDict(): replace PyTuple_New() with PyMem_Malloc()</a> [<strong>REJECTED</strong>]</li>
-<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28855">Compiler warnings in _PyObject_CallArg1()</a></li>
-<li>2016-12-02: <a class="reference external" href="http://bugs.python.org/issue28858">Fastcall uses more C stack</a></li>
-<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28915">Modify PyObject_CallFunction() to use fast call internally</a></li>
-<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29227">Reduce C stack consumption in function calls</a></li>
-<li>2017-01-10: <a class="reference external" href="http://bugs.python.org/issue29233">call_method(): call _PyObject_FastCall() rather than _PyObject_VaCallFunctionObjArgs()</a></li>
-<li>2017-01-11: <a class="reference external" href="http://bugs.python.org/issue29234">Disable inlining of _PyStack_AsTuple() to reduce the stack consumption</a></li>
-<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29259">Add tp_fastcall to PyTypeObject: support FASTCALL calling convention for all callable objects</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-13: <a class="reference external" href="http://bugs.python.org/issue29263">Implement LOAD_METHOD/CALL_METHOD for C functions</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29306">Check usage of Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() in new FASTCALL functions</a></li>
-<li>2017-01-19: <a class="reference external" href="http://bugs.python.org/issue29318">Optimize _PyFunction_FastCallDict() for **kwargs</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29358">Add tp_fastnew and tp_fastinit to PyTypeObject, 15-20% faster object instanciation</a> [<strong>REJECTED</strong>]</li>
-<li>2017-01-24: <a class="reference external" href="http://bugs.python.org/issue29360">_PyStack_AsDict(): Don't check if all keys are strings nor if keys are unique</a></li>
-<li>2017-01-25: <a class="reference external" href="http://bugs.python.org/issue29367">python-gdb: display wrapper_call()</a></li>
-<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29451">Use _PyArg_Parser for _PyArg_ParseStack(): support positional only arguments</a></li>
-<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29465">Modify _PyObject_FastCall() to reduce stack consumption</a></li>
-<li>2017-02-09: <a class="reference external" href="http://bugs.python.org/issue29507">Use FASTCALL in call_method() to avoid temporary tuple</a></li>
-<li>2017-02-10: <a class="reference external" href="http://bugs.python.org/issue29524">Move functions to call objects into a new Objects/call.c file</a></li>
-</ul>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>fastcall</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>25 févr. 2017</td>
+        <td><a href='https://vstinner.github.io/fastcall-issues.html'>FASTCALL issues</a></td>
+        </tr>
+        <tr>
+        <td>24 févr. 2017</td>
+        <td><a href='https://vstinner.github.io/fastcall-microbenchmarks.html'>FASTCALL microbenchmarks</a></td>
+        </tr>
+        <tr>
+        <td>16 févr. 2017</td>
+        <td><a href='https://vstinner.github.io/start-fastcall-project.html'>The start of the FASTCALL project</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="issues-converting-functions-to-fastcall">
-<h2>3 issues converting functions to FASTCALL</h2>
-<ul class="simple">
-<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29286">Use METH_FASTCALL in str methods</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29312">Use FASTCALL in dict.update()</a> [<strong>REJECTED</strong>]</li>
-<li>2017-02-05: <a class="reference external" href="http://bugs.python.org/issue29452">Use FASTCALL for collections.deque methods: index, insert, rotate</a></li>
-</ul>
-</div>
-<div class="section" id="argument-clinic-issues">
-<h2>6 Argument Clinic issues</h2>
-<p>Converting code to Argument Clinic converts METH_VARARGS methods to
-METH_FASTCALL.</p>
-<ul class="simple">
-<li>2017-01-16: <a class="reference external" href="http://bugs.python.org/issue29289">Convert OrderedDict methods to Argument Clinic</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29299">Argument Clinic: Fix signature of optional positional-only arguments</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29300">Modify the _struct module to use FASTCALL and Argument Clinic</a></li>
-<li>2017-01-17: <a class="reference external" href="http://bugs.python.org/issue29301">decimal: Use FASTCALL and/or Argument Clinic</a></li>
-<li>2017-01-18: <a class="reference external" href="http://bugs.python.org/issue29311">Argument Clinic: convert dict methods</a></li>
-<li>2017-02-02: <a class="reference external" href="http://bugs.python.org/issue29419">Argument Clinic: inline PyArg_UnpackTuple and PyArg_ParseStack(AndKeyword)?</a></li>
-</ul>
-</div>
-<div class="section" id="other-optimization-issues">
-<h2>10 other optimization issues</h2>
-<ul class="simple">
-<li>2016-08-24: <a class="reference external" href="http://bugs.python.org/issue27848">C function calls: use Py_ssize_t rather than C int for number of arguments</a></li>
-<li>2016-09-07: <a class="reference external" href="http://bugs.python.org/issue28004">Optimize bytes.join(sequence)</a> [<strong>REJECTED</strong>]</li>
-<li>2016-11-05: <a class="reference external" href="http://bugs.python.org/issue28618">Decorate hot functions using __attribute__((hot)) to optimize Python</a></li>
-<li>2016-11-07: <a class="reference external" href="http://bugs.python.org/issue28637">Python startup performance regression</a></li>
-<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28800">Add RETURN_NONE bytecode instruction</a> [<strong>REJECTED</strong>]</li>
-<li>2016-11-25: <a class="reference external" href="http://bugs.python.org/issue28799">Drop CALL_PROFILE special build?</a></li>
-<li>2016-12-09: <a class="reference external" href="http://bugs.python.org/issue28924">Inline PyEval_EvalFrameEx() in callers</a> [<strong>REJECTED</strong>]</li>
-<li>2016-12-15: <a class="reference external" href="http://bugs.python.org/issue28977">Document PyObject_CallFunction() special case more explicitly</a></li>
-<li>2017-02-06: <a class="reference external" href="http://bugs.python.org/issue29461">Experiment usage of likely/unlikely in CPython core</a></li>
-<li>2017-02-08: <a class="reference external" href="http://bugs.python.org/issue29502">Should PyObject_Call() call the profiler on C functions, use C_TRACE() macro?</a></li>
-</ul>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/fastcall-microbenchmarks.html" rel="bookmark"
-                           title="Permalink to FASTCALL microbenchmarks">FASTCALL microbenchmarks</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-24T22:00:00+01:00">
-                Published: ven. 24 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/fastcall.html">fastcall</a> <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <p>For my FASTCALL project (CPython optimization avoiding temporary tuples and
-dictionaries to pass arguments), I wrote many short microbenchmarks. I grouped
-them into a new Git repository: <a class="reference external" href="https://github.com/vstinner/pymicrobench">pymicrobench</a>.  Benchmark results are required by
-CPython developers to prove that an optimization is worth it. It's not uncommon
-that I abandon a …</p>
-                <a class="readmore" href="https://vstinner.github.io/fastcall-microbenchmarks.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/start-fastcall-project.html" rel="bookmark"
-                           title="Permalink to The start of the FASTCALL project">The start of the FASTCALL project</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2017-02-16T17:00:00+01:00">
-                Published: jeu. 16 février 2017
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/python.html">python</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/fastcall.html">fastcall</a> <a href="https://vstinner.github.io/tag/optimization.html">optimization</a> <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> </p>
-</footer><!-- /.post-info -->                <div class="section" id="false-start">
-<h2>False start</h2>
-<p>In April 2016, I experimented a Python change to avoid temporary tuple to call
-functions. Builtin functions were between 20 and 50% faster!</p>
-<p>Sadly, some benchmarks were randomy slower. It will take me four months to
-understand why!</p>
-</div>
-<div class="section" id="work-on-benchmarks">
-<h2>Work on benchmarks</h2>
-<p>During four months, I worked on making …</p></div>
-                <a class="readmore" href="https://vstinner.github.io/start-fastcall-project.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

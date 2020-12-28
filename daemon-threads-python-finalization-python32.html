@@ -1,50 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
-        <meta name="description" content="At exit, the Python finalization calls Python objects finalizers (the __del__() method) and deallocates memory. The daemon threads are a special..." />
+	<meta charset="utf-8">
+	<title>Daemon threads and the Python finalization in Python 3.2 and 3.3 — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Daemon threads and the Python finalization in Python 3.2 and 3.3; Date: 2020-03-26; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li class="active"><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-<section id="content" class="body">
-  <article>
-    <header>
-      <h1 class="entry-title">
-        <a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="bookmark"
-           title="Permalink to Daemon threads and the Python finalization in Python 3.2 and 3.3">Daemon threads and the Python finalization in Python 3.2 and 3.3</a></h1>
-    </header>
-
-    <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2020-03-26T22:00:00+01:00">
-                Published: jeu. 26 mars 2020
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/cpython.html">cpython</a> <a href="https://vstinner.github.io/tag/subinterpreters.html">subinterpreters</a> </p>
-</footer><!-- /.post-info -->      <p>At exit, the Python finalization calls Python objects finalizers (the
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Daemon threads and the Python finalization in Python 3.2 and 3.3</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2020-03-26T22:00:00+01:00" itemprop="datePublished">jeu. 26 mars 2020</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/subinterpreters.html" rel="tag">subinterpreters</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"><img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /></a>
+<p>At exit, the Python finalization calls Python objects finalizers (the
 <tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.</p>
 <p>This article covers bugs fixed in the Python finalization in Python 3.2 and
 Python 3.3 (2009 to 2011), and a backport in Python 2.7.8 (2014).</p>
-<a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"><img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /></a>
 <p>Drawing: <a class="reference external" href="https://twitter.com/LuppiChan/status/1240346448606171136">#CoronaMaison by Luppi</a>.</p>
 <div class="section" id="daemon-threads">
 <h2>Daemon threads</h2>
@@ -185,35 +195,74 @@ daemon threads. The Python finalization became more reliable.</p>
 <p>Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
 caused a regression which required to revert the bugfix in Python 2.7.9.</p>
 </div>
-
-    </div><!-- /.entry-content -->
-
-  </article>
-</section>
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>

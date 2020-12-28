@@ -1,489 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <meta charset="utf-8" />
-        <meta name="generator" content="Pelican" />
-        <title>Victor Stinner blog 3 - asyncio</title>
-        <link rel="stylesheet" href="https://vstinner.github.io/theme/css/main.css" />
-        <link href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate" title="Victor Stinner blog 3 Atom Feed" />
+	<meta charset="utf-8">
+	<title>asyncio — Victor Stinner blog 3</title>
+	<meta name="description" content="All posts which refer to tag asyncio">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
 </head>
-
-<body id="index" class="home">
-        <header id="banner" class="body">
-                <h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a></h1>
-                <nav><ul>
-                    <li><a href="https://vstinner.github.io/category/benchmark.html">benchmark</a></li>
-                    <li><a href="https://vstinner.github.io/category/cpython.html">cpython</a></li>
-                    <li><a href="https://vstinner.github.io/category/linux.html">linux</a></li>
-                    <li><a href="https://vstinner.github.io/category/python.html">python</a></li>
-                </ul></nav>
-        </header><!-- /#banner -->
-
-            <aside id="featured" class="body">
-                <article>
-                    <h1 class="entry-title"><a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio WSASend() memory leak</a></h1>
-<footer class="post-info">
-        <abbr class="published" title="2019-03-06T20:00:00+01:00">
-                Published: mer. 06 mars 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info --><p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
-still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
-haunt me for 1 year in 2018...</p>
-<p><strong>Yet another example of a test failure which looks harmless but hides a
-critical bug.</strong> The bug is that sending a network packet on Windows using
-asyncio <tt class="docutils literal">ProactorEventLoop</tt> can leak the packet. With such bug, it is easy to
-imagine a very quick increase of the memory footprint of a network server...</p>
-<p>I'm curious why nobody noticed it before me? For me, the only explanation is
-that nobody was running a server using <tt class="docutils literal">ProactorEventLoop</tt>. Before Python
-3.8, <tt class="docutils literal">SelectorEventLoop</tt> was the default asyncio event loop on Windows.
-<a class="reference external" href="https://bugs.python.org/issue34687">bpo-34687</a>: Andrew Svetlov, Yury
-Selivanov and me agreed to make <tt class="docutils literal">ProactorEventLoop</tt> the default in Python
-3.8! <tt class="docutils literal">Lib/asyncio/windows_events.py</tt> change of my <a class="reference external" href="https://github.com/python/cpython/commit/6ea29c5e90dde6c240bd8e0815614b52ac307ea1">commit 6ea29c5e</a>:</p>
-<pre class="literal-block">
--DefaultEventLoopPolicy = WindowsSelectorEventLoopPolicy
-+DefaultEventLoopPolicy = WindowsProactorEventLoopPolicy
-</pre>
-<p>The bug wasn't a regression. It was only discovered 5 years after the code has
-been written thanks to new tests.</p>
-<p><strong>UPDATE:</strong> I updated the article to add the &quot;Regression? Nope&quot; section and
-elaborate the Conclusion.</p>
-<p>Previous article:
-<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
-<div class="section" id="yet-another-random-buildbot-failure">
-<h2>Yet another random buildbot failure</h2>
-<p>One day at the end of January 2018, I noticed a new failure on the AMD64
-Windows8.1 Refleaks 3.x&quot; buildbot worker. I reported <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710</a>:</p>
-<blockquote>
-<p>AMD64 Windows8.1 Refleaks 3.x:
-<a class="reference external" href="http://buildbot.python.org/all/#/builders/80/builds/118">http://buildbot.python.org/all/#/builders/80/builds/118</a></p>
-<p>test_asyncio leaked [4, 4, 3] memory blocks, sum=11</p>
-<p>I reproduced the issue. I'm running test.bisect to try to isolate this bug.</p>
-</blockquote>
-<p>Only 15 minutes later thanks to my <tt class="docutils literal">test.bisect</tt> tool, I identified the
-leaking test, <strong>test_sendfile_close_peer_in_middle_of_receiving()</strong>:</p>
-<pre class="literal-block">
-It seems to be related to sendfile():
-
-C:\vstinner\python\master&gt;python -m test -R 3:3 test_asyncio \
-    -m test.test_asyncio.test_events.ProactorEventLoopTests.test_sendfile_close_peer_in_middle_of_receiving
-...
-test_asyncio leaked [1, 2, 1] memory blocks, sum=4
-</pre>
-<p>The test is identified, so it should take a few hours, maximum, to fix the bug,
-no? We will see...</p>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<h1>Tag <small>asyncio</small></h1>
+<table class="table">
+    <tbody>
+        <tr>
+        <td>06 mars 2019</td>
+        <td><a href='https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html'>asyncio WSASend() memory leak</a></td>
+        </tr>
+        <tr>
+        <td>31 janv. 2019</td>
+        <td><a href='https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html'>asyncio: WSARecv() cancellation causing data loss</a></td>
+        </tr>
+        <tr>
+        <td>30 janv. 2019</td>
+        <td><a href='https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html'>Asyncio: Proactor ConnectPipe() Race Condition</a></td>
+        </tr>
+        <tr>
+        <td>28 janv. 2019</td>
+        <td><a href='https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html'>Asyncio: Proactor Cancellation From Hell</a></td>
+        </tr>
+    </tbody>
+</table>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
 </div>
-<div class="section" id="april">
-<h2>April</h2>
-<p>3 months later, I asked:</p>
-<blockquote>
-The test is still leaking memory blocks. Any progress on investigating the
-issue?</blockquote>
-<p>Nobody replied.</p>
-<p>At that time, I was busy to fix a bunch of various other bugs reported by
-buildbots which were easier to fix and I was kind of exhausted by asyncio, I
-didn't want to touch it.</p>
-</div>
-<div class="section" id="june">
-<h2>June</h2>
-<p>Oh, I found again this bug while working on my <a class="reference external" href="https://github.com/python/cpython/pull/7827">PR 7827</a> (detect handle leaks on Windows
-in regrtest).</p>
-<p>In 2018, I was very busy with fixing dozens of multiprocessing bugs (fix tests
-but also fix some bugs in multiprocessing).</p>
-<p>For example, I noticed another memory leak on AMD64 Windows8.1 Refleaks
-3.7, <a class="reference external" href="https://bugs.python.org/issue33735#msg318425">bpo-33735</a>:</p>
-<blockquote>
-<p><a class="reference external" href="http://buildbot.python.org/all/#/builders/132/builds/154">http://buildbot.python.org/all/#/builders/132/builds/154</a></p>
-<p>test_multiprocessing_spawn leaked [1, 2, 1] memory blocks, sum=4</p>
-</blockquote>
-<p>This test_multiprocessing_spawn leak and the test_asyncio leak on Windows
-Refleaks haunted me in 2018...</p>
-<p>In fact, it wasn't a real leak. After a few runs, <a class="reference external" href="https://bugs.python.org/issue33735#msg320948">the test stopped to leak</a>:</p>
-<pre class="literal-block">
-$ ./python -m test test_multiprocessing_spawn \
-    -m test.test_multiprocessing_spawn.WithProcessesTestPool.test_imap_unordered \
-    -R 1:30
-...
-test_multiprocessing_spawn leaked [4, 5, 1, 5, 1, 2, 0, 0, 0, ..., 0, 0, 0] memory blocks, sum=18
-test_multiprocessing_spawn failed in 42 sec 470 ms
-</pre>
-<p>I fixed the test with <a class="reference external" href="https://github.com/python/cpython/commit/23401fb960bb94e6ea62d2999527968d53d3fc65">commit
-23401fb9</a>.</p>
-<p>I fixed other multiprocessing bugs like <a class="reference external" href="https://bugs.python.org/issue33929">bpo-33929</a>.</p>
-<p>These multiprocessing bugs kept me busy.</p>
-</div>
-<div class="section" id="july-december">
-<h2>July-December</h2>
-<p>Nothing. Nobody looked at the issue.</p>
-<p>Again, I was busy fixing various test failures reported by buildbots.</p>
-</div>
-<div class="section" id="update-in-january-2019">
-<h2>Update in January 2019</h2>
-<p>In January 2019, after months of hard work on fixing every single buildbot
-failure, I realized <strong>suddenly</strong> that the <tt class="docutils literal">test_asyncio</tt> leak, <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710</a>, was one of the last unfixed known test
-failure! So I decided to have a new look at it.</p>
-<p>Update on <tt class="docutils literal">test_asyncio.test_sendfile.ProactorEventLoopTests</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">test_sendfile_close_peer_in_the_middle_of_receiving()</tt> leaks 1 reference per
-run: this leak was the obvious bug <a class="reference external" href="https://bugs.python.org/issue35682">bpo-35682</a>, I already fixed it with <a class="reference external" href="https://github.com/python/cpython/commit/80fda712c83f5dd9560d42bf2aa65a72b18b7759">commit
-80fda712</a>.</li>
-<li><tt class="docutils literal">test_sendfile_fallback_close_peer_in_the_middle_of_receiving()</tt> leaks 1
-reference per run: <strong>I don't understand why</strong>.</li>
-</ul>
-<p>Note: I had to copy/paste these test names a lot of times. Pleeease, for my
-comfort, use shorter test names! :-) (I had to copy/paste them, I don't think
-that a regular human is able to type these very long names!)</p>
-<p>I spent a lot of time to investigate
-<tt class="docutils literal">test_sendfile_fallback_close_peer_in_the_middle_of_receiving()</tt> leak and I don't
-understand the issue.</p>
-<p>The main loop is <tt class="docutils literal">BaseEventLoop._sendfile_fallback()</tt>. For
-the specific case of this test, the loop can be simplified to:</p>
-<pre class="literal-block">
-proto = _SendfileFallbackProtocol(transp)
-try:
-    while True:
-        data = b'x' * (1024 * 64)
-        await proto.drain()
-        transp.write(data)
-finally:
-    await proto.restore()
-</pre>
-<p>The server closes the connection after it gets 1024 bytes. The client socket
-gets a <tt class="docutils literal">ConnectionAbortedError</tt> exception in
-<tt class="docutils literal">_ProactorBaseWritePipeTransport._loop_writing()</tt> which calls <tt class="docutils literal">_fatal_error()</tt>:</p>
-<pre class="literal-block">
-except OSError as exc:
-    self._fatal_error(exc, 'Fatal write error on pipe transport')
-</pre>
-<p><tt class="docutils literal">_fatal_error()</tt> calls <tt class="docutils literal">_force_close()</tt> which sets <tt class="docutils literal">_closing</tt> to
-<tt class="docutils literal">True</tt>, and calls <tt class="docutils literal">protocol.connection_lost()</tt>. In the meanwhile,
-<tt class="docutils literal">drain()</tt> raises <tt class="docutils literal">ConnectionError</tt> because <tt class="docutils literal">is_closing()</tt> is true:</p>
-<pre class="literal-block">
-async def drain(self):
-    if self._transport.is_closing():
-        raise ConnectionError(&quot;Connection closed by peer&quot;)
-    ...
-</pre>
-<p>Said differently: <strong>everything works as expected</strong>.</p>
-</div>
-<div class="section" id="regression-caused-by-my-previous-proactor-fix">
-<h2>Regression caused by my previous proactor fix?</h2>
-<p>I suspected my own <a class="reference external" href="https://github.com/python/cpython/commit/79790bc35fe722a49977b52647f9b5fe1deda2b7">commit 79790bc3</a>
-pushed 7 months ago to fix a race condition in WSARecv() causing data loss
-(that's my previous article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>).</p>
-<p>Hint: nah, it's unrelated. Moreover, this change has been pushed in May,
-whereas I reported <a class="reference external" href="https://bugs.python.org/issue32710">bpo-32710 leak</a> in
-January.</p>
-</div>
-<div class="section" id="short-script-reproducing-the-leak">
-<h2>Short script reproducing the leak</h2>
-<p><strong>Identifying a leak of a single reference is really hard</strong> since the test uses
-hundreds of Python objects! My blocker issue was to repeat the test enough
-times to trigger the leak N times rather than getting a leak of exactly a
-single Python reference. The problem was that the test failed when ran more
-than once.</p>
-<p>All my previous attempts to identify the bug failed:</p>
-<ul class="simple">
-<li>Use <tt class="docutils literal">gc.get_referrers()</tt> to track references between Python objects.</li>
-<li>Use <tt class="docutils literal">tracemalloc</tt> to track memory usage: the leak is too small, it's lost
-in the results &quot;noise&quot;.</li>
-</ul>
-<p>I decided to do what I should have done first: <strong>remove as much code as
-possible</strong> to reduce the code that I have to audit. I removed most Python
-imports, I inlined manually function calls, I removed a lot of code which was
-unused in the test, etc.</p>
-<p>After a few hours, I managed to reduce the giant pile of code used by the test
-into a very short script of only 159 lines of Python code: <a class="reference external" href="https://bugs.python.org/file48030/test_aiosend.py">test_aiosend.py</a>. The script doesn't call
-the asyncio <tt class="docutils literal">sendfile()</tt> implementation, but uses its own copy of the code,
-simplified to do exactly what the test needs:</p>
-<pre class="literal-block">
-async def sendfile(transp):
-    proto = _SendfileFallbackProtocol(transp)
-    try:
-        data = b'x' * (1024 * 24)
-        while True:
-            await proto.drain()
-            transp.write(data)
-    finally:
-        await proto.restore()
-</pre>
-<p>with a local copy of the code of <tt class="docutils literal">_SendfileFallbackProtocol</tt> class.</p>
-<p>Having all code involved in the bug in a single file is way more efficient to
-follow the control flow and understands what happens.</p>
-<p>The original code is waaaaay more complex, scattered across multiple Python
-files in <tt class="docutils literal">Lib/asyncio</tt> and <tt class="docutils literal">Lib/test/test_asyncio/</tt> directories.</p>
-</div>
-<div class="section" id="root-bug-identified-wsasend">
-<h2>Root bug identified: WSASend()</h2>
-<p><strong>It took me 1 year, a few sleepless nights, multiple attempts to understand
-the leak, but I eventually found it!</strong> WSASend() doesn't release the memory if
-it fails immediately. I expected something way more complex, but it's that
-simple...</p>
-<p>Using the <tt class="docutils literal">test_aiosend.py</tt> script that I created, I was finally able to
-repeat the test in a loop. Thanks to that, it became obvious using
-<tt class="docutils literal">tracemalloc</tt> that the leaked memory was the memory passed to <tt class="docutils literal">WSASend()</tt>.</p>
-<p>I pushed <a class="reference external" href="https://github.com/python/cpython/commit/a234e148394c2c7419372ab65b773d53a57f3625">commit a234e148</a>
-to fix <tt class="docutils literal">WSASend()</tt>:</p>
-<pre class="literal-block">
-commit a234e148394c2c7419372ab65b773d53a57f3625
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Tue Jan 8 14:23:09 2019 +0100
-
-    bpo-32710: Fix leak in Overlapped_WSASend() (GH-11469)
-
-    Fix a memory leak in asyncio in the ProactorEventLoop when ReadFile()
-    or WSASend() overlapped operation fail immediately: release the
-    internal buffer.
-</pre>
-<p>I was very disappointed by the simplicity of the fix, <strong>it only adds a single
-line</strong>:</p>
-<pre class="literal-block">
-diff --git a/Modules/overlapped.c b/Modules/overlapped.c
-index 69875a7f37da..bbaa4fb3008f 100644
---- a/Modules/overlapped.c
-+++ b/Modules/overlapped.c
-&#64;&#64; -1011,6 +1012,7 &#64;&#64; Overlapped_WSASend(OverlappedObject *self, PyObject *args)
-         case ERROR_IO_PENDING:
-             Py_RETURN_NONE;
-         default:
-+            PyBuffer_Release(&amp;self-&gt;user_buffer);
-             self-&gt;type = TYPE_NOT_STARTED;
-             return SetFromWindowsErr(err);
-     }
-</pre>
-<p>So what? One year to add a single line? That's unfair!</p>
-<p>My commit contains a very similar fix for <tt class="docutils literal">do_ReadFile()</tt> used by
-<tt class="docutils literal">Overlapped_ReadFile()</tt> and <tt class="docutils literal">Overlapped_ReadFileInto()</tt>.</p>
-</div>
-<div class="section" id="fixing-more-memory-leaks">
-<h2>Fixing more memory leaks</h2>
-<p>By the way, the <tt class="docutils literal">_overlapped.Overlapped</tt> type has no traverse function: it may
-help the garbage collector to add one. Asyncio is famous for building reference
-cycles by design in <tt class="docutils literal">Future.set_exception()</tt>.</p>
-<p>I wrote <a class="reference external" href="https://github.com/python/cpython/pull/11489">PR 11489</a> to implement
-<tt class="docutils literal">tp_traverse</tt> for the <tt class="docutils literal">_overlapped.Overlapped</tt> type. <a class="reference external" href="https://github.com/python/cpython/pull/11489#pullrequestreview-191093765">Serhiy Storchaka
-added</a>:</p>
-<blockquote>
-I suspect that there are leaks when self-&gt;type is set to TYPE_NOT_STARTED.</blockquote>
-<p>And he was right! I modified my PR to fix all memory leaks. After my PR has
-been reviewed, I merged it, <a class="reference external" href="https://github.com/python/cpython/commit/5485085b324a45307c1ff4ec7d85b5998d7d5e0d">commit 5485085b</a>:</p>
-<pre class="literal-block">
-commit 5485085b324a45307c1ff4ec7d85b5998d7d5e0d
-Author: Victor Stinner &lt;vstinner&#64;redhat.com&gt;
-Date:   Fri Jan 11 14:35:14 2019 +0100
-
-    bpo-32710: Fix _overlapped.Overlapped memory leaks (GH-11489)
-
-    Fix memory leaks in asyncio ProactorEventLoop on overlapped operation
-    failures.
-
-    Changes:
-
-    * Implement the tp_traverse slot in the _overlapped.Overlapped type
-      to help to break reference cycles and identify referrers in the
-      garbage collector.
-    * Always clear overlapped on failure: not only set type to
-      TYPE_NOT_STARTED, but release also resources.
-</pre>
-</div>
-<div class="section" id="regression-nope">
-<h2>Regression? Nope</h2>
-<p>Was the memory leak a regression? Nope. The bug existed since the creation of
-the <tt class="docutils literal">overlapped.c</tt> file in the &quot;Tulip&quot; project in 2013, <a class="reference external" href="https://github.com/python/asyncio/commit/27c403531670f52cad8388aaa2a13a658f753fd5">commit 27c40353</a>:</p>
-<pre class="literal-block">
-commit 27c403531670f52cad8388aaa2a13a658f753fd5
-Author: Richard Oudkerk &lt;shibturn&#64;gmail.com&gt;
-Date:   Mon Jan 21 20:34:38 2013 +0000
-
-    New experimental iocp branch.
-</pre>
-<p>Tulip was the old name of the asyncio project, when it was still an external
-project on <tt class="docutils literal">code.google.com</tt>. In the meanwhile, <tt class="docutils literal">code.google.com</tt> has been
-closed and the project moved to <a class="reference external" href="https://github.com/python/asyncio/">https://github.com/python/asyncio/</a> (now
-read-only).</p>
-<p><a class="reference external" href="https://github.com/python/asyncio/blob/27c403531670f52cad8388aaa2a13a658f753fd5/overlapped.c#L632-L658">Extract of the original Overlapped_WSASend() implementation</a>,
-I added a comment to show the location of the bug:</p>
-<pre class="literal-block">
-if (!PyArg_Parse(bufobj, &quot;y*&quot;, &amp;self-&gt;write_buffer))
-    return NULL;
-
-#if SIZEOF_SIZE_T &gt; SIZEOF_LONG
-if (self-&gt;write_buffer.len &gt; (Py_ssize_t)PY_ULONG_MAX) {
-    PyBuffer_Release(&amp;self-&gt;write_buffer);
-    PyErr_SetString(PyExc_ValueError, &quot;buffer to large&quot;);
-    return NULL;
-}
-#endif
-...
-self-&gt;error = err = (ret &lt; 0 ? WSAGetLastError() : ERROR_SUCCESS);
-switch (err) {
-    case ERROR_SUCCESS:
-    case ERROR_MORE_DATA:
-    case ERROR_IO_PENDING:
-        /********* !!! BUG HERE, BUFFER NOT RELEASED !!! ***********/
-        Py_RETURN_NONE;
-    ...
-}
-</pre>
-<p><strong>I fixed the memory leak 6 years after the code has been written!</strong></p>
-<p>So... why was this bug only discovered in 2018? Multiple very asyncio old bugs
-were discovered only recently thanks to more realistic and more advanced
-<strong>functional tests</strong>. First tests of asyncio were mostly tiny unit tests
-mocking most part of the code. It made sense in the early days of asyncio, when
-the code was not mature.</p>
-<p>By the way, the <a class="reference external" href="https://github.com/python/cpython/blob/1f58f4fa6a0e3c60cee8df4a35c8dcf3903acde8/Lib/test/test_asyncio/test_sendfile.py#L446-L457">code of the test</a>
-which helped to discovered the bug is:</p>
-<pre class="literal-block">
-def test_sendfile_close_peer_in_the_middle_of_receiving(self):
-    srv_proto, cli_proto = self.prepare_sendfile(close_after=1024)
-    with self.assertRaises(ConnectionError):
-        self.run_loop(
-            self.loop.sendfile(cli_proto.transport, self.file))
-    self.run_loop(srv_proto.done)
-
-    self.assertTrue(1024 &lt;= srv_proto.nbytes &lt; len(self.DATA),
-                    srv_proto.nbytes)
-    self.assertTrue(1024 &lt;= self.file.tell() &lt; len(self.DATA),
-                    self.file.tell())
-    self.assertTrue(cli_proto.transport.is_closing())
-</pre>
-<p>Note: The test name has been made even longer in the meanwhile (add &quot;the&quot;) :-)</p>
-</div>
-<div class="section" id="conclusion">
-<h2>Conclusion</h2>
-<p>For such complex bugs, <strong>a reliable debugging method is to remove as much code as
-possible</strong> to reduce the number of lines of code that should be read.
-<tt class="docutils literal">tracemalloc</tt> remains efficient to identify a memory leak when a test can be
-run in a loop to make the leak more obvious (I was blocked at the beginning
-because the test failed when run a second time in a loop).</p>
-<p>Lessons learned? You should try to <strong>investigate every single failure of your
-CI</strong>.  It is important to have a test suite with functional tests. &quot;Mock tests&quot;
-are fine to quickly write reliable tests, but there are not enough: functional
-tests make the difference.</p>
-<p>Thanks <strong>Richard Oudkerk</strong> for your great code to use Windows native APIs in
-<strong>asyncio</strong> and <strong>multiprocessing</strong>! I like <a class="reference external" href="https://en.wikipedia.org/wiki/Input/output_completion_port">Windows IOCP</a>, even if the
-asyncio implementation is quite complex :-)</p>
-<p>Ok, <tt class="docutils literal">_overlapped.Overlapped</tt> should now have a few less memory leaks :-)</p>
-</div>
-                </article>
-            </aside><!-- /#featured -->
-                <section id="content" class="body">
-                    <h1>Other articles</h1>
-                    <hr />
-                    <ol id="posts-list" class="hfeed">
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="bookmark"
-                           title="Permalink to asyncio: WSARecv() cancellation causing data loss">asyncio: WSARecv() cancellation causing data loss</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-31T15:20:00+01:00">
-                Published: jeu. 31 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
-function.</p>
-<p>A newly added test failed on Windows. Later, the test started to fail
-randomly on Linux as well. In fact, it was a well hidden race condition in the
-asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which will take 5 months of …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor ConnectPipe() Race Condition">Asyncio: Proactor ConnectPipe() Race Condition</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-30T18:00:00+01:00">
-                Published: mer. 30 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
-of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
-and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
-<ul class="simple">
-<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
-<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
-<li>Close the transport on failure: ResourceWarning</li>
-<li>Cleanup code …</li></ul>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-
-            <li><article class="hentry">
-                <header>
-                    <h1><a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="bookmark"
-                           title="Permalink to Asyncio: Proactor Cancellation From Hell">Asyncio: Proactor Cancellation From Hell</a></h1>
-                </header>
-
-                <div class="entry-content">
-<footer class="post-info">
-        <abbr class="published" title="2019-01-28T20:20:00+01:00">
-                Published: lun. 28 janvier 2019
-        </abbr>
-
-        <address class="vcard author">
-                By                         <a class="url fn" href="https://vstinner.github.io/author/victor-stinner.html">Victor Stinner</a>
-        </address>
-<p>In <a href="https://vstinner.github.io/category/cpython.html">cpython</a>.</p>
-<p>tags: <a href="https://vstinner.github.io/tag/asyncio.html">asyncio</a> </p>
-</footer><!-- /.post-info -->                <p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
-(module added to Python 3.4 released in March 2014). I helped to stabilize the
-Windows implementation because... well, nobody else was paying attention to it,
-and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
-<p>One …</p>
-                <a class="readmore" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">read more</a>
-                </div><!-- /.entry-content -->
-            </article></li>
-                </ol><!-- /#posts-list -->
-                </section><!-- /#content -->
-        <section id="extras" class="body">
-                <div class="blogroll">
-                        <h2>links</h2>
-                        <ul>
-                            <li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
-                        </ul>
-                </div><!-- /.blogroll -->
-                <div class="social">
-                        <h2>social</h2>
-                        <ul>
-                            <li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml" rel="alternate">atom feed</a></li>
-
-                            <li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
-                        </ul>
-                </div><!-- /.social -->
-        </section><!-- /#extras -->
-
-        <footer id="contentinfo" class="body">
-                <address id="about" class="vcard body">
-                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
-                </address><!-- /#about -->
-
-                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
-        </footer><!-- /#contentinfo -->
-
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
 </body>
 </html>
