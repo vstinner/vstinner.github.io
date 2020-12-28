@@ -45,7 +45,8 @@
 			<a href="https://vstinner.github.io/tag/python.html" rel="tag">python</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"><img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /></a>
+<p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
 allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
 It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
 released last week!</p>
@@ -54,8 +55,7 @@ it to the caller. Examples: object finalizer error (<tt class="docutils literal"
 reference callback failure, error during a GC collection. At the C level, the
 <tt class="docutils literal">PyErr_WriteUnraisable()</tt> function is called to handle such exception.</p>
 <p>Design the new hook was tricky, as its implementation.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"><img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /></a>
-<p><em>Exception awaiting to catch you</em></p>
+<p>The photo shows an exception awaiting to catch you ;-)</p>
 <div class="section" id="kill-python-at-the-first-unraisable-exception">
 <h2>Kill Python at the first unraisable exception</h2>
 <p>One month ago, <strong>Thomas Grainger</strong> opened <a class="reference external" href="https://bugs.python.org/issue36829">bpo-36829</a>: &quot;CLI option to make

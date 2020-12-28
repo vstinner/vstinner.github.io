@@ -45,7 +45,8 @@
 			<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>Between December 2014 and January 2015, once I succeeded to fix the root issue
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"><img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /></a>
+<p>Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
 and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
 <ul class="simple">
@@ -63,7 +64,6 @@ and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
 ConnectPipe special case: <a class="reference external" href="https://github.com/python/asyncio/issues/204">asyncio issue #204: Investigate
 IocpProactor.accept_pipe() special case (don't register overlapped)</a> (issue created at 25 Aug
 2014).</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"><img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /></a>
 <p>At January 21, 2015, I opened <a class="reference external" href="https://bugs.python.org/issue23293">bpo-23293: race condition related to
 IocpProactor.connect_pipe()</a>.</p>
 <p>While fixing <a class="reference external" href="https://bugs.python.org/issue23095">bpo-23095 (race condition when cancelling a _WaitHandleFuture)</a>, I saw that

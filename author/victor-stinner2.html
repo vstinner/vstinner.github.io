@@ -35,7 +35,8 @@
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>In September 2017, during the CPython sprint at Facebook, I proposed my
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
+<p>In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a>.
 I'm still working on the Python C API at: <a class="reference external" href="http://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a>.</p>
 <p>My analysis is that the C API leaks too many implementation details which
@@ -64,7 +65,8 @@ prevent to optimize Python …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"><img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /></a>
+<p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
 allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
 It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
 released last week!</p>
@@ -91,7 +93,8 @@ it to the caller. Examples …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
+<p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
 haunt me for 1 year in 2018...</p>
 <p><strong>Yet another example of a test failure which looks harmless but hides a
@@ -117,7 +120,8 @@ critical bug.</strong> The bug is that sending a …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
+<p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
 function.</p>
 <p>A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
@@ -143,7 +147,8 @@ asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which wi
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>Between December 2014 and January 2015, once I succeeded to fix the root issue
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"><img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /></a>
+<p>Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
 and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
 <ul class="simple">
@@ -172,7 +177,8 @@ and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
+	<div class="summary"><img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" />
+<p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
 and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
@@ -198,7 +204,8 @@ and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>This article describes a few locales bugs that I fixed in Python 3 between 2012
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"><img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /></a>
+<p>This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):</p>
 <ul class="simple">
 <li>Support non-ASCII decimal point and thousands separator</li>
@@ -230,7 +237,8 @@ and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>Recently, I worked on a change which looked simple: move the code to initialize
+	<div class="summary"><img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" />
+<p>Recently, I worked on a change which looked simple: move the code to initialize
 the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
 I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
 I didn't expect that I would spend 2 weeks on these issues …</p></div>
@@ -258,7 +266,8 @@ I didn't expect that I would spend 2 weeks on these issues …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>Since Python 3.0 was released in 2008, each time an user reported an encoding
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&#64;N06/9368903367/"><img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /></a>
+<p>Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &quot;simply&quot; always use UTF-8.
 Well, it's not that easy. <strong>UTF-8 is the best encoding in most cases, but it is
 still not the best encoding …</strong></p></div>
@@ -283,7 +292,8 @@ still not the best encoding …</strong></p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>During the childhood of Python 3, encodings issues were common, even on well
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"><img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /></a>
+<p>During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced <a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake">mojibake</a>. For
 these reasons, when users complained about the Python behaviour with the POSIX

@@ -2189,11 +2189,13 @@ active
 &lt;li&gt;&lt;a class="reference external" href="https://nouveau.freedesktop.org/wiki/Optimus"&gt;https://nouveau.freedesktop.org/wiki/Optimus&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="linux"></category><category term="linux"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+</content><category term="linux"></category><category term="linux"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
-prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
@@ -2207,7 +2209,6 @@ directory.&lt;/p&gt;
 inline functions to have well defined parameter and return type, and to avoid
 macro pitfals.&lt;/p&gt;
 &lt;p&gt;Finally, I removed 3 functions from the C API.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="include-internal"&gt;
 &lt;h2&gt;Include/internal/&lt;/h2&gt;
 &lt;p&gt;In Python 3.7, &lt;strong&gt;Eric Snow&lt;/strong&gt; created &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; sub-directory for
@@ -2360,12 +2361,14 @@ ABI), and were not documented.&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;PyEval_ReInitThreads()&lt;/tt&gt; function. It should not be called explicitly: use
 &lt;tt class="docutils literal"&gt;PyOS_AfterFork_Child()&lt;/tt&gt; instead.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
 &lt;p&gt;An &amp;quot;unraisable exception&amp;quot; is an error which happens when Python cannot report
-it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
@@ -2374,8 +2377,7 @@ it to the caller. Examples: object finalizer error (&lt;tt class="docutils liter
 reference callback failure, error during a GC collection. At the C level, the
 &lt;tt class="docutils literal"&gt;PyErr_WriteUnraisable()&lt;/tt&gt; function is called to handle such exception.&lt;/p&gt;
 &lt;p&gt;Design the new hook was tricky, as its implementation.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
-&lt;p&gt;&lt;em&gt;Exception awaiting to catch you&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;The photo shows an exception awaiting to catch you ;-)&lt;/p&gt;
 &lt;div class="section" id="kill-python-at-the-first-unraisable-exception"&gt;
 &lt;h2&gt;Kill Python at the first unraisable exception&lt;/h2&gt;
 &lt;p&gt;One month ago, &lt;strong&gt;Thomas Grainger&lt;/strong&gt; opened &lt;a class="reference external" href="https://bugs.python.org/issue36829"&gt;bpo-36829&lt;/a&gt;: &amp;quot;CLI option to make
@@ -2779,11 +2781,13 @@ old issue &lt;a class="reference external" href="https://bugs.python.org/issue12
 add &lt;a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook"&gt;threading.excepthook()&lt;/a&gt;,
 but that's a different story!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="python"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+</content><category term="python"></category><category term="python"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
-critical bug.&lt;/strong&gt; The bug is that sending a …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
+critical bug.&lt;/strong&gt; The bug is that sending a …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
@@ -2806,7 +2810,6 @@ been written thanks to new tests.&lt;/p&gt;
 elaborate the Conclusion.&lt;/p&gt;
 &lt;p&gt;Previous article:
 &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html"&gt;asyncio: WSARecv() cancellation causing data loss&lt;/a&gt;.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="yet-another-random-buildbot-failure"&gt;
 &lt;h2&gt;Yet another random buildbot failure&lt;/h2&gt;
 &lt;p&gt;One day at the end of January 2018, I noticed a new failure on the AMD64
@@ -3122,11 +3125,13 @@ tests make the difference.&lt;/p&gt;
 asyncio implementation is quite complex :-)&lt;/p&gt;
 &lt;p&gt;Ok, &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; should now have a few less memory leaks :-)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
 function.&lt;/p&gt;
 &lt;p&gt;A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
-asynchronous handshake of &lt;tt class="docutils literal"&gt;SSLProtocol&lt;/tt&gt; which will take 5 months of …&lt;/p&gt;</summary><content type="html">&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
+asynchronous handshake of &lt;tt class="docutils literal"&gt;SSLProtocol&lt;/tt&gt; which will take 5 months of …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
 function.&lt;/p&gt;
 &lt;p&gt;A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
@@ -3140,7 +3145,6 @@ it was a very well hidden bug which likely existing since the early days of the
 &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; implementation.&lt;/p&gt;
 &lt;p&gt;Previous article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html"&gt;Asyncio: Proactor ConnectPipe() Race Condition&lt;/a&gt;.
 Next article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html"&gt;asyncio: WSASend() memory leak&lt;/a&gt;.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="new-start-tls-function"&gt;
 &lt;h2&gt;New start_tls() function&lt;/h2&gt;
 &lt;p&gt;The &amp;quot;starttls&amp;quot; feature have been requested since creation of asyncio. At
@@ -3513,14 +3517,16 @@ Date:   Fri Jun 8 00:25:52 2018 +0200
 failure can hide a very severe bug.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
 and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;ConnectPipe()&lt;/tt&gt; Race Condition&lt;/li&gt;
 &lt;li&gt;Race Condition in &lt;tt class="docutils literal"&gt;BaseSubprocessTransport._try_finish()&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;Close the transport on failure: ResourceWarning&lt;/li&gt;
-&lt;li&gt;Cleanup code …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
+&lt;li&gt;Cleanup code …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
 and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -3538,7 +3544,6 @@ and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;
 ConnectPipe special case: &lt;a class="reference external" href="https://github.com/python/asyncio/issues/204"&gt;asyncio issue #204: Investigate
 IocpProactor.accept_pipe() special case (don't register overlapped)&lt;/a&gt; (issue created at 25 Aug
 2014).&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;At January 21, 2015, I opened &lt;a class="reference external" href="https://bugs.python.org/issue23293"&gt;bpo-23293: race condition related to
 IocpProactor.connect_pipe()&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;While fixing &lt;a class="reference external" href="https://bugs.python.org/issue23095"&gt;bpo-23095 (race condition when cancelling a _WaitHandleFuture)&lt;/a&gt;, I saw that
@@ -3724,11 +3729,13 @@ Date:   Mon Jan 26 22:30:49 2015 +0100
     has the same behaviour than ReadFile().
 &lt;/pre&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
+&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
 and I was worried that test_asyncio &lt;strong&gt;randomly crashed&lt;/strong&gt; on Windows.&lt;/p&gt;
-&lt;p&gt;One …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
+&lt;p&gt;One …&lt;/p&gt;</summary><content type="html">&lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
+&lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
 and I was worried that test_asyncio &lt;strong&gt;randomly crashed&lt;/strong&gt; on Windows.&lt;/p&gt;
@@ -3742,7 +3749,6 @@ the Windows source code&lt;/strong&gt; to understand the bug...&lt;/p&gt;
 documented and it took me months of debug to understand it. Moreover, the bug
 was well hidden for various reasons that we will see below.&lt;/p&gt;
 &lt;p&gt;Next article: &lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html"&gt;Asyncio: Proactor ConnectPipe() Race Condition&lt;/a&gt;.&lt;/p&gt;
-&lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
 &lt;div class="section" id="fix-cancel-when-called-twice"&gt;
 &lt;h2&gt;Fix cancel() when called twice&lt;/h2&gt;
 &lt;p&gt;July 2014, &lt;a class="reference external" href="https://github.com/python/asyncio/issues/195"&gt;asyncio issue #195&lt;/a&gt;: while working on a
@@ -4090,14 +4096,16 @@ into the overlapped memory.&lt;/li&gt;
 &lt;li&gt;The overlapped is destroyed: &lt;strong&gt;free&lt;/strong&gt; overlapped memory.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Support non-ASCII decimal point and thousands separator&lt;/li&gt;
 &lt;li&gt;Crash with non-ASCII decimal point&lt;/li&gt;
 &lt;li&gt;LC_NUMERIC encoding different than LC_CTYPE encoding&lt;/li&gt;
 &lt;li&gt;LC_MONETARY encoding different than LC_CTYPE encoding&lt;/li&gt;
-&lt;li&gt;Tests non-ASCII locales …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
+&lt;li&gt;Tests non-ASCII locales …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Support non-ASCII decimal point and thousands separator&lt;/li&gt;
@@ -4107,7 +4115,6 @@ into the overlapped memory.&lt;/li&gt;
 &lt;li&gt;Tests non-ASCII locales&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;See also my previous locale bugfixes: &lt;a class="reference external" href="https://vstinner.github.io/python3-locales-encodings.html"&gt;Python 3, locales and encodings&lt;/a&gt;&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="introduction"&gt;
 &lt;h2&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Each language and each country has different ways to represent dates, monetary
@@ -4421,16 +4428,17 @@ def test_zh_TW_Big5(self):
 but it's not portable nor future-proof, since most constants are hardcoded and
 depends on the operating sytem and the libc version.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
+</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" /&gt;
+&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
 the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
 I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
-I didn't expect that I would spend 2 weeks on these issues …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
+I didn't expect that I would spend 2 weeks on these issues …&lt;/p&gt;</summary><content type="html">&lt;img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" /&gt;
+&lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
 the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
 I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
 I didn't expect that I would spend 2 weeks on these issues... This article
 tells me about my recent journey in locales and encodings on AIX, HP-UX,
 Windows, Linux, macOS, Solaris and FreeBSD.&lt;/p&gt;
-&lt;img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" /&gt;
 &lt;p&gt;Table of Contents:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Lying HP-UX&lt;/li&gt;
@@ -4925,10 +4933,12 @@ Honestly, I would not bet that Python 3.8 will behave properly in all possible
 cases. At least, I tried to fix all issues that I spotted! Moreover, I added
 many tests which should help to detect bugs and prevent regressions.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
-still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
 still not the best encoding in all cases&lt;/strong&gt;, even in 2018. The locale encoding
@@ -4974,7 +4984,6 @@ history and rationale of the Python 3 Unicode model for the operating system:&lt
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="fallback-to-utf-8-if-getting-the-locale-encoding-fails"&gt;
 &lt;h2&gt;Fallback to UTF-8 if getting the locale encoding fails?&lt;/h2&gt;
 &lt;p&gt;May 2010, I reported &lt;a class="reference external" href="https://bugs.python.org/issue8610"&gt;bpo-8610&lt;/a&gt;:
@@ -5424,11 +5433,13 @@ variable to control UTF-8 Mode.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
-locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
@@ -5468,7 +5479,6 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="first-rejected-attempt-2011"&gt;
 &lt;h2&gt;First rejected attempt, 2011&lt;/h2&gt;
 &lt;p&gt;December 2011, &lt;strong&gt;Martin Packman&lt;/strong&gt;, a Bazaar developer, reported &lt;a class="reference external" href="https://bugs.python.org/issue13643"&gt;bpo-13643&lt;/a&gt; to propose to use UTF-8 in Python if the

@@ -48,7 +48,8 @@
 			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>In September 2017, during the CPython sprint at Facebook, I proposed my
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
+<p>In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a>.
 I'm still working on the Python C API at: <a class="reference external" href="http://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a>.</p>
 <p>My analysis is that the C API leaks too many implementation details which
@@ -62,7 +63,6 @@ directory.</p>
 inline functions to have well defined parameter and return type, and to avoid
 macro pitfals.</p>
 <p>Finally, I removed 3 functions from the C API.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
 <div class="section" id="include-internal">
 <h2>Include/internal/</h2>
 <p>In Python 3.7, <strong>Eric Snow</strong> created <tt class="docutils literal">Include/internal/</tt> sub-directory for

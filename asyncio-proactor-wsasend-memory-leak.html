@@ -45,7 +45,8 @@
 			<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
+<p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
 haunt me for 1 year in 2018...</p>
 <p><strong>Yet another example of a test failure which looks harmless but hides a
@@ -68,7 +69,6 @@ been written thanks to new tests.</p>
 elaborate the Conclusion.</p>
 <p>Previous article:
 <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">asyncio: WSARecv() cancellation causing data loss</a>.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
 <div class="section" id="yet-another-random-buildbot-failure">
 <h2>Yet another random buildbot failure</h2>
 <p>One day at the end of January 2018, I noticed a new failure on the AMD64

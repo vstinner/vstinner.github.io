@@ -48,13 +48,13 @@
 			<a href="https://vstinner.github.io/tag/locales.html" rel="tag">locales</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>Recently, I worked on a change which looked simple: move the code to initialize
+	<div itemprop="articleBody" class="article-body"><img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" />
+<p>Recently, I worked on a change which looked simple: move the code to initialize
 the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
 I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
 I didn't expect that I would spend 2 weeks on these issues... This article
 tells me about my recent journey in locales and encodings on AIX, HP-UX,
 Windows, Linux, macOS, Solaris and FreeBSD.</p>
-<img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" />
 <p>Table of Contents:</p>
 <ul class="simple">
 <li>Lying HP-UX</li>

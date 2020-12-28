@@ -45,7 +45,8 @@
 			<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
+	<div itemprop="articleBody" class="article-body"><img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" />
+<p>Between 2014 and 2015, I was working on the new shiny <tt class="docutils literal">asyncio</tt> module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
 and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows.</p>
@@ -59,7 +60,6 @@ the Windows source code</strong> to understand the bug...</p>
 documented and it took me months of debug to understand it. Moreover, the bug
 was well hidden for various reasons that we will see below.</p>
 <p>Next article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">Asyncio: Proactor ConnectPipe() Race Condition</a>.</p>
-<img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" />
 <div class="section" id="fix-cancel-when-called-twice">
 <h2>Fix cancel() when called twice</h2>
 <p>July 2014, <a class="reference external" href="https://github.com/python/asyncio/issues/195">asyncio issue #195</a>: while working on a

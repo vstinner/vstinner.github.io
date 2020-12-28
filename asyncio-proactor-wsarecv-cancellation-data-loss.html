@@ -45,7 +45,8 @@
 			<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
+<p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
 function.</p>
 <p>A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
@@ -59,7 +60,6 @@ it was a very well hidden bug which likely existing since the early days of the
 <tt class="docutils literal">ProactorEventLoop</tt> implementation.</p>
 <p>Previous article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">Asyncio: Proactor ConnectPipe() Race Condition</a>.
 Next article: <a class="reference external" href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">asyncio: WSASend() memory leak</a>.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
 <div class="section" id="new-start-tls-function">
 <h2>New start_tls() function</h2>
 <p>The &quot;starttls&quot; feature have been requested since creation of asyncio. At

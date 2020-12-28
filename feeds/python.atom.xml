@@ -412,11 +412,13 @@ and Py_Finalize() (create and finalize the &lt;strong&gt;main&lt;/strong&gt; int
 &lt;a class="reference external" href="https://bugs.python.org/issue38858"&gt;new_interpreter() should reuse more Py_InitializeFromConfig() code&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;They are still many issues to be fixed: &lt;strong&gt;it's moving slowly but steadily!&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
-prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
+prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
@@ -430,7 +432,6 @@ directory.&lt;/p&gt;
 inline functions to have well defined parameter and return type, and to avoid
 macro pitfals.&lt;/p&gt;
 &lt;p&gt;Finally, I removed 3 functions from the C API.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="include-internal"&gt;
 &lt;h2&gt;Include/internal/&lt;/h2&gt;
 &lt;p&gt;In Python 3.7, &lt;strong&gt;Eric Snow&lt;/strong&gt; created &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; sub-directory for
@@ -583,12 +584,14 @@ ABI), and were not documented.&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;PyEval_ReInitThreads()&lt;/tt&gt; function. It should not be called explicitly: use
 &lt;tt class="docutils literal"&gt;PyOS_AfterFork_Child()&lt;/tt&gt; instead.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
 &lt;p&gt;An &amp;quot;unraisable exception&amp;quot; is an error which happens when Python cannot report
-it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
+it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
@@ -597,8 +600,7 @@ it to the caller. Examples: object finalizer error (&lt;tt class="docutils liter
 reference callback failure, error during a GC collection. At the C level, the
 &lt;tt class="docutils literal"&gt;PyErr_WriteUnraisable()&lt;/tt&gt; function is called to handle such exception.&lt;/p&gt;
 &lt;p&gt;Design the new hook was tricky, as its implementation.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
-&lt;p&gt;&lt;em&gt;Exception awaiting to catch you&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;The photo shows an exception awaiting to catch you ;-)&lt;/p&gt;
 &lt;div class="section" id="kill-python-at-the-first-unraisable-exception"&gt;
 &lt;h2&gt;Kill Python at the first unraisable exception&lt;/h2&gt;
 &lt;p&gt;One month ago, &lt;strong&gt;Thomas Grainger&lt;/strong&gt; opened &lt;a class="reference external" href="https://bugs.python.org/issue36829"&gt;bpo-36829&lt;/a&gt;: &amp;quot;CLI option to make
@@ -1002,10 +1004,12 @@ old issue &lt;a class="reference external" href="https://bugs.python.org/issue12
 add &lt;a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook"&gt;threading.excepthook()&lt;/a&gt;,
 but that's a different story!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="python"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+</content><category term="python"></category><category term="python"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
-still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
+still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
 still not the best encoding in all cases&lt;/strong&gt;, even in 2018. The locale encoding
@@ -1051,7 +1055,6 @@ history and rationale of the Python 3 Unicode model for the operating system:&lt
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="fallback-to-utf-8-if-getting-the-locale-encoding-fails"&gt;
 &lt;h2&gt;Fallback to UTF-8 if getting the locale encoding fails?&lt;/h2&gt;
 &lt;p&gt;May 2010, I reported &lt;a class="reference external" href="https://bugs.python.org/issue8610"&gt;bpo-8610&lt;/a&gt;:
@@ -1501,11 +1504,13 @@ variable to control UTF-8 Mode.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
-locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
+locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
@@ -1545,7 +1550,6 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="first-rejected-attempt-2011"&gt;
 &lt;h2&gt;First rejected attempt, 2011&lt;/h2&gt;
 &lt;p&gt;December 2011, &lt;strong&gt;Martin Packman&lt;/strong&gt;, a Bazaar developer, reported &lt;a class="reference external" href="https://bugs.python.org/issue13643"&gt;bpo-13643&lt;/a&gt; to propose to use UTF-8 in Python if the
