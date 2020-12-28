@@ -1,3 +1,6 @@
 # Generated files/directories
 __pycache__/
 output/
+
+# Git checkout
+pelican-themes/
