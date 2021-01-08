@@ -23,6 +23,7 @@ Publish
 
 Command to publish the HTML output::
 
+    (cd pelican-themes/; git fetch && git merge --ff)
     make github
 
 
@@ -37,5 +38,5 @@ Requirements:
 
 Command::
 
-    python3 -m pip install --user -U pelican ghp-import
+    python3 -m pip install --user --upgrade pelican ghp-import
     git clone https://github.com/getpelican/pelican-themes
