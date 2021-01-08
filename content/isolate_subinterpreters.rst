@@ -356,6 +356,16 @@ Bugfixes
   (`bpo-41052 <https://bugs.python.org/issue41052>`__)
 
 
+PEP 630: Isolating Extension Modules
+====================================
+
+In August 2020, **Petr Viktorin** wrote `PEP 630 -- Isolating Extension Modules
+<https://www.python.org/dev/peps/pep-0630/>`__ which gives practical advices on
+how to update an extension module to make it stateless using previous PEPs
+(heap types, multi-phase init, etc.). Once a module is stateless, it becomes
+safe to use it subinterpreters running in parallel.
+
+
 Thanks
 ======
 
@@ -371,6 +381,7 @@ helping on this large task:
 * **Mohamed Koubaa**
 * **Nick Coghlan**
 * **Paulo Henrique Silva**
+* **Petr Viktorin**
 * **Vinay Sajip**
 
 Note: Since the work is scattered in many issues and pull requests, it's hard
