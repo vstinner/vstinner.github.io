@@ -351,6 +351,13 @@ per function call:</p>
 (<a class="reference external" href="https://bugs.python.org/issue41052">bpo-41052</a>)</li>
 </ul>
 </div>
+<div class="section" id="pep-630-isolating-extension-modules">
+<h2>PEP 630: Isolating Extension Modules</h2>
+<p>In August 2020, <strong>Petr Viktorin</strong> wrote <a class="reference external" href="https://www.python.org/dev/peps/pep-0630/">PEP 630 -- Isolating Extension Modules</a> which gives practical advices on
+how to update an extension module to make it stateless using previous PEPs
+(heap types, multi-phase init, etc.). Once a module is stateless, it becomes
+safe to use it subinterpreters running in parallel.</p>
+</div>
 <div class="section" id="thanks">
 <h2>Thanks</h2>
 <p>The work on subintepreters, multiphase init and heap types is a collaborative
@@ -365,6 +372,7 @@ helping on this large task:</p>
 <li><strong>Mohamed Koubaa</strong></li>
 <li><strong>Nick Coghlan</strong></li>
 <li><strong>Paulo Henrique Silva</strong></li>
+<li><strong>Petr Viktorin</strong></li>
 <li><strong>Vinay Sajip</strong></li>
 </ul>
 <p>Note: Since the work is scattered in many issues and pull requests, it's hard
