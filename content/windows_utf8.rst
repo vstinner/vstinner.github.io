@@ -3,7 +3,7 @@ Python 3.6 now uses UTF-8 on Windows
 ++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-22 17:00
-:tags: cpython
+:tags: cpython, unicode
 :category: python
 :slug: python36-utf8-windows
 :authors: Victor Stinner

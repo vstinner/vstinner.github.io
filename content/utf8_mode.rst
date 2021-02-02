@@ -3,7 +3,7 @@ Python 3.7 UTF-8 Mode
 +++++++++++++++++++++
 
 :date: 2018-03-27 20:00
-:tags: cpython
+:tags: cpython, unicode
 :category: python
 :slug: python37-new-utf8-mode
 :authors: Victor Stinner

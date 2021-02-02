@@ -3,7 +3,7 @@ Python 3.2 Painful History of the Filesystem Encoding
 +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-15 23:00
-:tags: cpython
+:tags: cpython, unicode
 :category: python
 :slug: painful-history-python-filesystem-encoding
 :authors: Victor Stinner

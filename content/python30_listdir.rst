@@ -3,7 +3,7 @@ Python 3.0 listdir() Bug on Undecodable Filenames
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2018-03-09 13:00
-:tags: cpython
+:tags: cpython, unicode
 :category: python
 :slug: python30-listdir-undecodable-filenames
 :authors: Victor Stinner

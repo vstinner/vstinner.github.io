@@ -3,7 +3,7 @@ Python 3.7 and the POSIX locale
 +++++++++++++++++++++++++++++++
 
 :date: 2018-03-23 13:00
-:tags: cpython
+:tags: cpython, unicode
 :category: python
 :slug: posix-locale
 :authors: Victor Stinner
