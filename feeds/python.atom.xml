@@ -1504,7 +1504,7 @@ variable to control UTF-8 Mode.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
@@ -1773,7 +1773,7 @@ images.  In 2017, Nick Coghlan wrote the PEP 538 &amp;quot;Coercing the legacy C
 to a UTF-8 based locale&amp;quot; which has been approved by INADA Naoki and implemented
 in Python 3.7.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
 proposed two major backward incompatible changes for Python 3.6 on Windows:
 &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
 filesystem encoding to UTF-8&lt;/a&gt;.
@@ -1941,7 +1941,7 @@ Windows is a success!&lt;/p&gt;
 &lt;p&gt;Python 3.6 now has a better Unicode support thanks on Windows to the PEP 528
 and PEP 529!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
 filesystem encoding changed multiple times. &lt;strong&gt;It took 6 years to choose the best
 Python filesystem encoding on each platform.&lt;/strong&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;I have been officially promoted as a core developer&lt;/strong&gt; in January 2010 by
@@ -2372,7 +2372,7 @@ locale encoding as the filesystem encoding&lt;/strong&gt;. This change fixed man
 &lt;p&gt;December 2012, I forced the filesystem encoding to ASCII on FreeBSD and Solaris
 when the announced locale encoding is wrong.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
 undecodable filenames in Python 3.0 and that lying on the real content of a
 directory looks like a very bad idea.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
@@ -2507,7 +2507,7 @@ bytes unchanged.&lt;/p&gt;
 Unicode issues on Unix. It is still widely used in Python 3.6 to &lt;strong&gt;not annoy
 users with Unicode errors&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
 &lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 $ python3.0
@@ -2816,7 +2816,7 @@ of bugs will keep me busy the next 10 years&lt;/strong&gt; (2008-2018)...&lt;/p&
 &lt;p&gt;&lt;strong&gt;This article is the first in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system.&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
 Interpreter Lock), one of the most critical part of Python. I had to dig the
 Git history to find a &lt;strong&gt;change made 26 years ago&lt;/strong&gt; by &lt;strong&gt;Guido van Rossum&lt;/strong&gt;: at
 this time, &lt;em&gt;threads were …&lt;/em&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Make structures opaque in the Python C API — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Make structures opaque in the Python C API; Date: 2021-03-26; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Make structures opaque in the Python C API</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2021-03-26T12:00:00+01:00" itemprop="datePublished">ven. 26 mars 2021</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><p>This article is about changes that I made, with the help other developers, in
+the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
+members: prepare the C API to <a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type">make structures opaque</a>. These changes are related
+to my <a class="reference external" href="https://www.python.org/dev/peps/pep-0620/">PEP 620 &quot;Hide implementation details from the C API&quot;</a>.</p>
+<p>One change had <strong>negative impact on performance</strong> and had to be
+reverted. Making Python slower just to make structures opaque would first
+require to get the PEP 620 accepted.</p>
+<p>While compatible changes merged in Python 3.8 and Python 3.9 went fine, one
+Python 3.10 <strong>incompatible change caused more troubles</strong> and had to be
+reverted.</p>
+<a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"><img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /></a>
+<p>Photo: OVHcloud data center fire in Strasbourg.</p>
+<div class="section" id="rationale">
+<h2>Rationale</h2>
+<p>The C API currently exposes most object structures, C extensions indirectly
+access structures members through the API, but can also access them directly.
+It causes different issues:</p>
+<ul class="simple">
+<li>Modifying a structure can break an unknown number of C extensions. To prevent
+any risk, CPython core developers avoid modifying structures. Once most
+structures will be opaque, it will be possible to experiment <strong>optimizations</strong>
+which require deep structures changes without breaking C extensions. The
+irony is that we first have to break the backward compatibility and C
+extensions for that.</li>
+<li>Any structure change breaks the ABI. The <strong>stable ABI</strong> solved this issue by
+not exposing structures into its limited C API. The idea is to bend the
+default C API towards the limited C API to provide a stable ABI for everyone
+in the long term.</li>
+</ul>
+</div>
+<div class="section" id="issues">
+<h2>Issues</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://bugs.python.org/issue39573">PyObject: bpo-39573</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue40170">PyTypeObject: bpo-40170</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue39947">PyThreadState: bpo-39947</a></li>
+<li><a class="reference external" href="https://bugs.python.org/issue40421">PyFrameObject: bpo-40421</a></li>
+</ul>
+</div>
+<div class="section" id="opaque-structures">
+<h2>Opaque structures</h2>
+<ul class="simple">
+<li>Python 3.8 made the PyInterpreterState structure opaque.</li>
+<li>Python 3.9 made the PyGC_Head structure opaque.</li>
+</ul>
+</div>
+<div class="section" id="add-getter-functions-to-python-3-9">
+<h2>Add getter functions to Python 3.9</h2>
+<ul class="simple">
+<li>PyObject, PyVarObject:<ul>
+<li>Py_SET_REFCNT()</li>
+<li>Py_SET_TYPE()</li>
+<li>Py_SET_SIZE()</li>
+<li>Py_IS_TYPE()</li>
+</ul>
+</li>
+<li>PyFrameObject:<ul>
+<li>PyFrame_GetCode()</li>
+<li>PyFrame_GetBack()</li>
+</ul>
+</li>
+<li>PyThreadState:<ul>
+<li>PyThreadState_GetInterpreter()</li>
+<li>PyThreadState_GetFrame()</li>
+<li>PyThreadState_GetID()</li>
+</ul>
+</li>
+<li>PyInterpreterState:<ul>
+<li>PyInterpreterState_Get()</li>
+</ul>
+</li>
+</ul>
+<p>PyInterpreterState_Get() can be used to replace <tt class="docutils literal"><span class="pre">PyThreadState_Get()-&gt;interp</span></tt>
+and <tt class="docutils literal"><span class="pre">PyThreadState_GetInterpreter(PyThreadState_Get())</span></tt>.</p>
+</div>
+<div class="section" id="convert-macros-to-static-inline-functions-in-python-3-8">
+<h2>Convert macros to static inline functions in Python 3.8</h2>
+<div class="section" id="macro-pitfalls">
+<h3>Macro pitfalls</h3>
+<p>Macros are convenient but have <a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html">multiple pitfalls</a>. Some macros
+can be abused in surprising ways. For example, the following code is valid with
+Python 3.9:</p>
+<pre class="literal-block">
+if (obj == NULL || PyList_SET_ITEM (l, i, obj) &lt; 0) { ... }
+</pre>
+<p>In Python 3.9, PyList_SET_ITEM() returns <em>obj</em> in this case, <em>obj</em> is a
+pointer, and so the test checks if a pointer is negative which makes no sense
+(but is accepted by C compilers by default). This code is likely a confusion
+with PyList_SetItem() which returns a int, negative in case of an error.</p>
+<p>Zackery Spytz and me modified <a class="reference external" href="https://github.com/python/cpython/commit/556d97f473fa538cef780f84bd29239ecf57d9c5">PyList_SET_ITEM()</a>
+and <a class="reference external" href="https://github.com/python/cpython/commit/0ef96c2b2a291c9d2d9c0ba42bbc1900a21e65f3">PyCell_SET()</a>
+macros in Python 3.10 to return void.</p>
+<p>This change broke alsa-python: I proposed a <a class="reference external" href="https://github.com/alsa-project/alsa-python/commit/5ea2f8709b4d091700750661231f8a3ddce0fc7c">fix which was merged</a>.</p>
+<p>One nice side effect of converting macros to static inline functions is that
+debuggers and profilers are able to retrieve the name of the function.</p>
+</div>
+<div class="section" id="converted-macros">
+<h3>Converted macros</h3>
+<ul class="simple">
+<li>Py_INCREF(), Py_XINCREF()</li>
+<li>Py_DECREF(), Py_XDECREF()</li>
+<li>PyObject_INIT(), PyObject_INIT_VAR()</li>
+<li>_PyObject_GC_TRACK(), _PyObject_GC_UNTRACK(), _Py_Dealloc()</li>
+</ul>
+</div>
+<div class="section" id="performance">
+<h3>Performance</h3>
+<p>Since <tt class="docutils literal">Py_INCREF()</tt> is criticial for general Python performance, the impact
+of the change was analyzed in depth before <a class="reference external" href="https://github.com/python/cpython/commit/2aaf0c12041bcaadd7f2cc5a54450eefd7a6ff12">being merged</a>
+in <a class="reference external" href="https://bugs.python.org/issue35059">bpo-35059</a>. The usage of
+<tt class="docutils literal"><span class="pre">__attribute__((always_inline))</span></tt> and <tt class="docutils literal">__forceinline</tt> to force inlining was
+rejected.</p>
+</div>
+<div class="section" id="cast-to-pyobject">
+<h3>Cast to PyObject*</h3>
+<p>Old Py_INCREF() implementation in Python 3.7:</p>
+<pre class="literal-block">
+#define Py_INCREF(op) (                   \
+    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA \
+    ((PyObject *)(op))-&gt;ob_refcnt++)
+</pre>
+<p>where <tt class="docutils literal">_Py_INC_REFTOTAL _Py_REF_DEBUG_COMMA</tt> becomes <tt class="docutils literal"><span class="pre">_Py_RefTotal++,</span></tt> if
+the <tt class="docutils literal">Py_REF_DEBUG</tt> macro is defined, or nothing otherwise. Current
+Py_INCREF() implementation in Python 3.10:</p>
+<pre class="literal-block">
+static inline void _Py_INCREF(PyObject *op)
+{
+#ifdef Py_REF_DEBUG
+    _Py_RefTotal++;
+#endif
+    op-&gt;ob_refcnt++;
+}
+#define Py_INCREF(op) _Py_INCREF(_PyObject_CAST(op))
+</pre>
+<p>Most static inline functions go through a macro to cast their argument to
+<tt class="docutils literal">PyObject*</tt> using the macro:</p>
+<pre class="literal-block">
+#define _PyObject_CAST(op) ((PyObject*)(op))
+</pre>
+</div>
+</div>
+<div class="section" id="convert-macros-to-regular-functions-in-python-3-9">
+<h2>Convert macros to regular functions in Python 3.9</h2>
+<div class="section" id="id1">
+<h3>Converted macros</h3>
+<ul class="simple">
+<li>PyIndex_Check()</li>
+<li>PyObject_CheckBuffer()</li>
+<li>PyObject_GET_WEAKREFS_LISTPTR()</li>
+<li>PyObject_IS_GC()</li>
+<li>PyObject_NEW(): alias to PyObject_New()</li>
+<li>PyObject_NEW_VAR(): alias to PyObjectVar_New()</li>
+</ul>
+</div>
+<div class="section" id="id2">
+<h3>Performance</h3>
+<p>PyType_HasFeature() was modified to always call PyType_GetFlags() function,
+rather than accessing directly <tt class="docutils literal">PyTypeObject.tp_flags</tt>. The problem is that
+on macOS, Python is built without LTO, the PyType_GetFlags() call is not
+inlined, making functions like tuplegetter_descr_get() <strong>slower</strong>: see
+<a class="reference external" href="https://bugs.python.org/issue39542#msg372962">bpo-39542</a>. I <strong>reverted the
+PyType_HasFeature() change</strong> until the PEP 620 is accepted. macOS does not
+use LTO to keep support support for macOS 10.6 (Snow Leopard): see <a class="reference external" href="https://bugs.python.org/issue41181">bpo-41181</a>.</p>
+</div>
+<div class="section" id="fast-static-inline-functions">
+<h3>Fast static inline functions</h3>
+<p>To keep best performances on Python built without LTO, fast private variants
+were added as static inline functions to the internal C API:</p>
+<ul class="simple">
+<li>_PyIndex_Check()</li>
+<li>_PyObject_IS_GC()</li>
+<li>_PyType_HasFeature()</li>
+<li>_PyType_IS_GC()</li>
+</ul>
+<p>For example, PyObject_IS_GC() is defined as a function, whereas
+_PyObject_IS_GC() is defined as an internal static inline function. Header
+file:</p>
+<pre class="literal-block">
+/* Test if an object implements the garbage collector protocol */
+PyAPI_FUNC(int) PyObject_IS_GC(PyObject *obj);
+
+// Fast inlined version of PyObject_IS_GC()
+static inline int _PyObject_IS_GC(PyObject *obj)
+{
+    return (PyType_IS_GC(Py_TYPE(obj))
+            &amp;&amp; (Py_TYPE(obj)-&gt;tp_is_gc == NULL
+                || Py_TYPE(obj)-&gt;tp_is_gc(obj)));
+}
+</pre>
+<p>C code:</p>
+<pre class="literal-block">
+int
+PyObject_IS_GC(PyObject *obj)
+{
+    return _PyObject_IS_GC(obj);
+}
+</pre>
+</div>
+</div>
+<div class="section" id="python-3-10-incompatible-c-api-change">
+<h2>Python 3.10 incompatible C API change</h2>
+<p>The <tt class="docutils literal">Py_REFCNT()</tt> macro was converted to a static inline function:
+<tt class="docutils literal">Py_REFCNT(obj) = refcnt;</tt> now fails with a compiler error. It must be
+replaced with <tt class="docutils literal">Py_SET_REFCNT(obj, refcnt)</tt>: Py_SET_REFCNT() was added to
+Python 3.9.</p>
+</div>
+<div class="section" id="the-complex-case-of-py-type-and-py-size-macros">
+<h2>The complex case of Py_TYPE() and Py_SIZE() macros</h2>
+<div class="section" id="macros-converted-and-then-reverted">
+<h3>Macros converted and then reverted</h3>
+<p>The <tt class="docutils literal">Py_TYPE()</tt> and <tt class="docutils literal">Py_SIZE()</tt> macros were also converted to static inline
+functions in Python 3.10, but the change <a class="reference external" href="https://bugs.python.org/issue39573#msg370303">broke 17 C extensions</a>.</p>
+<p>Since the change broke too many C extensions, I reverted the change: I
+<a class="reference external" href="https://github.com/python/cpython/commit/0e2ac21dd4960574e89561243763eabba685296a">converted Py_TYPE() and Py_SIZE() back to macros</a>
+to have more time to fix fix C extensions.</p>
+</div>
+<div class="section" id="i-fixed-6-extensions">
+<h3>I fixed 6 extensions</h3>
+<ul class="simple">
+<li>Cython: <a class="reference external" href="https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd">my fix adding __Pyx_SET_SIZE() and __Pyx_SET_REFCNT()</a></li>
+<li>immutables: <a class="reference external" href="https://github.com/MagicStack/immutables/commit/45105ecd8b56a4d88dbcb380fcb8ff4b9cc7b19c">my fix adding pythoncapi_compat.h for Py_SET_SIZE()</a></li>
+<li>breezy: <a class="reference external" href="https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647">my fix adding Py_SET_REFCNT() macro</a></li>
+<li>bitarray: <a class="reference external" href="https://github.com/ilanschnell/bitarray/commit/a0cca9f2986ec796df74ca8f42aff56c4c7103ba">my fix adding pythoncapi_compat.h</a></li>
+<li>python-zstandard: <a class="reference external" href="https://github.com/indygreg/python-zstandard/commit/e5a3baf61b65f3075f250f504ddad9f8612bfedf">my fix adding pythoncapi_compat.h</a>
+followed by <a class="reference external" href="https://github.com/indygreg/python-zstandard/commit/477776e6019478ca1c0b5777b073afbec70975f5">a pythoncapi_compat.h update for Python 2.7</a></li>
+<li>mercurial: <a class="reference external" href="https://www.mercurial-scm.org/repo/hg/rev/e92ca942ddca">my fix adding pythoncapi_compat.h</a>
+followed by a <a class="reference external" href="https://www.mercurial-scm.org/repo/hg/rev/38b9a63d3a13">fix for Python 2.7</a>
+(then <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat/commit/3e0bde93954ea8df328d36900c7060a3f3433eb0">fixed into upstream pythoncapi_compat.h</a>)</li>
+</ul>
+</div>
+<div class="section" id="extensions-fixed-by-others">
+<h3>Extensions fixed by others</h3>
+<ul class="simple">
+<li>numpy: <a class="reference external" href="https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa">fix defining Py_SET_TYPE() and Py_SET_SIZE()</a>,
+followed by a <a class="reference external" href="https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa">cleanup commit</a></li>
+<li>pycurl: <a class="reference external" href="https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042">fix defining Py_SET_TYPE()</a></li>
+<li>boost: <a class="reference external" href="https://github.com/boostorg/python/commit/500194edb7833d0627ce7a2595fec49d0aae2484#diff-b06ac66c98951b48056826c904be75263cdf56ec9b79d3274ea493e7d27cbac4">fix adding Py_SET_TYPE() and Py_SET_SIZE() macros</a></li>
+<li>duplicity:
+<a class="reference external" href="https://git.launchpad.net/duplicity/commit/?id=9c63dcb83e922e0afac206188203891e203b4e66">fix 1</a>,
+<a class="reference external" href="https://git.launchpad.net/duplicity/commit/?id=bbaae91b5ac6ef7e295968e508522884609fbf84">fix 2</a></li>
+<li>pylibacl: <a class="reference external" href="https://github.com/iustin/pylibacl/commit/26712b8fd92f1146102248cac1c92cb344620eff">fixed</a></li>
+<li>gobject-introspection: <a class="reference external" href="https://gitlab.gnome.org/GNOME/gobject-introspection/-/commit/c4d7d21a2ad838077c6310532fdf7505321f0ae7">fix adding Py_SET_TYPE() macro</a></li>
+</ul>
+</div>
+<div class="section" id="extensions-still-not-fixed">
+<h3>Extensions still not fixed</h3>
+<ul class="simple">
+<li>pyside2:<ul>
+<li>My patch is not merged upstream yet</li>
+<li><a class="reference external" href="https://bugreports.qt.io/browse/PYSIDE-1436">https://bugreports.qt.io/browse/PYSIDE-1436</a></li>
+<li><a class="reference external" href="https://src.fedoraproject.org/rpms/python-pyside2/pull-request/7">https://src.fedoraproject.org/rpms/python-pyside2/pull-request/7</a></li>
+<li><a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1898974">https://bugzilla.redhat.com/show_bug.cgi?id=1898974</a></li>
+<li><a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1902618">https://bugzilla.redhat.com/show_bug.cgi?id=1902618</a></li>
+</ul>
+</li>
+<li>pybluez: <a class="reference external" href="https://github.com/pybluez/pybluez/pull/371">closed PR (not merged)</a></li>
+<li>PyPAM</li>
+<li>pygobject3</li>
+<li>rdiff-backup</li>
+</ul>
+</div>
+</div>
+<div class="section" id="what-s-next">
+<h2>What's Next?</h2>
+<ul class="simple">
+<li>Convert again Py_TYPE() and Py_SIZE() macros to static inline functions.</li>
+<li>Add &quot;%T&quot; formatter for <tt class="docutils literal"><span class="pre">Py_TYPE(obj)-&gt;tp_name</span></tt>:
+see <a class="reference external" href="https://bugs.python.org/issue34595">rejected bpo-34595</a>.</li>
+<li>Modify Cython to use getter functions.</li>
+<li>Attempt to make some structures opaque, like PyThreadState.</li>
+</ul>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (13)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>

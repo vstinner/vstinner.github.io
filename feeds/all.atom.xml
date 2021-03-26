@@ -1,5 +1,280 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-12-27T22:00:00+01:00</updated><entry><title>Isolate Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"></link><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-03-26T12:00:00+01:00</updated><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;p&gt;This article is about changes that I made, with the help other developers, in
+the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
+members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related
+to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is about changes that I made, with the help other developers, in
+the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
+members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related
+to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation details from the C API&amp;quot;&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;One change had &lt;strong&gt;negative impact on performance&lt;/strong&gt; and had to be
+reverted. Making Python slower just to make structures opaque would first
+require to get the PEP 620 accepted.&lt;/p&gt;
+&lt;p&gt;While compatible changes merged in Python 3.8 and Python 3.9 went fine, one
+Python 3.10 &lt;strong&gt;incompatible change caused more troubles&lt;/strong&gt; and had to be
+reverted.&lt;/p&gt;
+&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Photo: OVHcloud data center fire in Strasbourg.&lt;/p&gt;
+&lt;div class="section" id="rationale"&gt;
+&lt;h2&gt;Rationale&lt;/h2&gt;
+&lt;p&gt;The C API currently exposes most object structures, C extensions indirectly
+access structures members through the API, but can also access them directly.
+It causes different issues:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Modifying a structure can break an unknown number of C extensions. To prevent
+any risk, CPython core developers avoid modifying structures. Once most
+structures will be opaque, it will be possible to experiment &lt;strong&gt;optimizations&lt;/strong&gt;
+which require deep structures changes without breaking C extensions. The
+irony is that we first have to break the backward compatibility and C
+extensions for that.&lt;/li&gt;
+&lt;li&gt;Any structure change breaks the ABI. The &lt;strong&gt;stable ABI&lt;/strong&gt; solved this issue by
+not exposing structures into its limited C API. The idea is to bend the
+default C API towards the limited C API to provide a stable ABI for everyone
+in the long term.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="issues"&gt;
+&lt;h2&gt;Issues&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue39573"&gt;PyObject: bpo-39573&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue40170"&gt;PyTypeObject: bpo-40170&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue39947"&gt;PyThreadState: bpo-39947&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugs.python.org/issue40421"&gt;PyFrameObject: bpo-40421&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="opaque-structures"&gt;
+&lt;h2&gt;Opaque structures&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Python 3.8 made the PyInterpreterState structure opaque.&lt;/li&gt;
+&lt;li&gt;Python 3.9 made the PyGC_Head structure opaque.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-getter-functions-to-python-3-9"&gt;
+&lt;h2&gt;Add getter functions to Python 3.9&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;PyObject, PyVarObject:&lt;ul&gt;
+&lt;li&gt;Py_SET_REFCNT()&lt;/li&gt;
+&lt;li&gt;Py_SET_TYPE()&lt;/li&gt;
+&lt;li&gt;Py_SET_SIZE()&lt;/li&gt;
+&lt;li&gt;Py_IS_TYPE()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;PyFrameObject:&lt;ul&gt;
+&lt;li&gt;PyFrame_GetCode()&lt;/li&gt;
+&lt;li&gt;PyFrame_GetBack()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;PyThreadState:&lt;ul&gt;
+&lt;li&gt;PyThreadState_GetInterpreter()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetFrame()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetID()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;PyInterpreterState:&lt;ul&gt;
+&lt;li&gt;PyInterpreterState_Get()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;PyInterpreterState_Get() can be used to replace &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;PyThreadState_Get()-&amp;gt;interp&lt;/span&gt;&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;PyThreadState_GetInterpreter(PyThreadState_Get())&lt;/span&gt;&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-macros-to-static-inline-functions-in-python-3-8"&gt;
+&lt;h2&gt;Convert macros to static inline functions in Python 3.8&lt;/h2&gt;
+&lt;div class="section" id="macro-pitfalls"&gt;
+&lt;h3&gt;Macro pitfalls&lt;/h3&gt;
+&lt;p&gt;Macros are convenient but have &lt;a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html"&gt;multiple pitfalls&lt;/a&gt;. Some macros
+can be abused in surprising ways. For example, the following code is valid with
+Python 3.9:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if (obj == NULL || PyList_SET_ITEM (l, i, obj) &amp;lt; 0) { ... }
+&lt;/pre&gt;
+&lt;p&gt;In Python 3.9, PyList_SET_ITEM() returns &lt;em&gt;obj&lt;/em&gt; in this case, &lt;em&gt;obj&lt;/em&gt; is a
+pointer, and so the test checks if a pointer is negative which makes no sense
+(but is accepted by C compilers by default). This code is likely a confusion
+with PyList_SetItem() which returns a int, negative in case of an error.&lt;/p&gt;
+&lt;p&gt;Zackery Spytz and me modified &lt;a class="reference external" href="https://github.com/python/cpython/commit/556d97f473fa538cef780f84bd29239ecf57d9c5"&gt;PyList_SET_ITEM()&lt;/a&gt;
+and &lt;a class="reference external" href="https://github.com/python/cpython/commit/0ef96c2b2a291c9d2d9c0ba42bbc1900a21e65f3"&gt;PyCell_SET()&lt;/a&gt;
+macros in Python 3.10 to return void.&lt;/p&gt;
+&lt;p&gt;This change broke alsa-python: I proposed a &lt;a class="reference external" href="https://github.com/alsa-project/alsa-python/commit/5ea2f8709b4d091700750661231f8a3ddce0fc7c"&gt;fix which was merged&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;One nice side effect of converting macros to static inline functions is that
+debuggers and profilers are able to retrieve the name of the function.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="converted-macros"&gt;
+&lt;h3&gt;Converted macros&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Py_INCREF(), Py_XINCREF()&lt;/li&gt;
+&lt;li&gt;Py_DECREF(), Py_XDECREF()&lt;/li&gt;
+&lt;li&gt;PyObject_INIT(), PyObject_INIT_VAR()&lt;/li&gt;
+&lt;li&gt;_PyObject_GC_TRACK(), _PyObject_GC_UNTRACK(), _Py_Dealloc()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="performance"&gt;
+&lt;h3&gt;Performance&lt;/h3&gt;
+&lt;p&gt;Since &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; is criticial for general Python performance, the impact
+of the change was analyzed in depth before &lt;a class="reference external" href="https://github.com/python/cpython/commit/2aaf0c12041bcaadd7f2cc5a54450eefd7a6ff12"&gt;being merged&lt;/a&gt;
+in &lt;a class="reference external" href="https://bugs.python.org/issue35059"&gt;bpo-35059&lt;/a&gt;. The usage of
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;__attribute__((always_inline))&lt;/span&gt;&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;__forceinline&lt;/tt&gt; to force inlining was
+rejected.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cast-to-pyobject"&gt;
+&lt;h3&gt;Cast to PyObject*&lt;/h3&gt;
+&lt;p&gt;Old Py_INCREF() implementation in Python 3.7:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#define Py_INCREF(op) (                   \
+    _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA \
+    ((PyObject *)(op))-&amp;gt;ob_refcnt++)
+&lt;/pre&gt;
+&lt;p&gt;where &lt;tt class="docutils literal"&gt;_Py_INC_REFTOTAL _Py_REF_DEBUG_COMMA&lt;/tt&gt; becomes &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;_Py_RefTotal++,&lt;/span&gt;&lt;/tt&gt; if
+the &lt;tt class="docutils literal"&gt;Py_REF_DEBUG&lt;/tt&gt; macro is defined, or nothing otherwise. Current
+Py_INCREF() implementation in Python 3.10:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline void _Py_INCREF(PyObject *op)
+{
+#ifdef Py_REF_DEBUG
+    _Py_RefTotal++;
+#endif
+    op-&amp;gt;ob_refcnt++;
+}
+#define Py_INCREF(op) _Py_INCREF(_PyObject_CAST(op))
+&lt;/pre&gt;
+&lt;p&gt;Most static inline functions go through a macro to cast their argument to
+&lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; using the macro:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#define _PyObject_CAST(op) ((PyObject*)(op))
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-macros-to-regular-functions-in-python-3-9"&gt;
+&lt;h2&gt;Convert macros to regular functions in Python 3.9&lt;/h2&gt;
+&lt;div class="section" id="id1"&gt;
+&lt;h3&gt;Converted macros&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;PyIndex_Check()&lt;/li&gt;
+&lt;li&gt;PyObject_CheckBuffer()&lt;/li&gt;
+&lt;li&gt;PyObject_GET_WEAKREFS_LISTPTR()&lt;/li&gt;
+&lt;li&gt;PyObject_IS_GC()&lt;/li&gt;
+&lt;li&gt;PyObject_NEW(): alias to PyObject_New()&lt;/li&gt;
+&lt;li&gt;PyObject_NEW_VAR(): alias to PyObjectVar_New()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="id2"&gt;
+&lt;h3&gt;Performance&lt;/h3&gt;
+&lt;p&gt;PyType_HasFeature() was modified to always call PyType_GetFlags() function,
+rather than accessing directly &lt;tt class="docutils literal"&gt;PyTypeObject.tp_flags&lt;/tt&gt;. The problem is that
+on macOS, Python is built without LTO, the PyType_GetFlags() call is not
+inlined, making functions like tuplegetter_descr_get() &lt;strong&gt;slower&lt;/strong&gt;: see
+&lt;a class="reference external" href="https://bugs.python.org/issue39542#msg372962"&gt;bpo-39542&lt;/a&gt;. I &lt;strong&gt;reverted the
+PyType_HasFeature() change&lt;/strong&gt; until the PEP 620 is accepted. macOS does not
+use LTO to keep support support for macOS 10.6 (Snow Leopard): see &lt;a class="reference external" href="https://bugs.python.org/issue41181"&gt;bpo-41181&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fast-static-inline-functions"&gt;
+&lt;h3&gt;Fast static inline functions&lt;/h3&gt;
+&lt;p&gt;To keep best performances on Python built without LTO, fast private variants
+were added as static inline functions to the internal C API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;_PyIndex_Check()&lt;/li&gt;
+&lt;li&gt;_PyObject_IS_GC()&lt;/li&gt;
+&lt;li&gt;_PyType_HasFeature()&lt;/li&gt;
+&lt;li&gt;_PyType_IS_GC()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For example, PyObject_IS_GC() is defined as a function, whereas
+_PyObject_IS_GC() is defined as an internal static inline function. Header
+file:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* Test if an object implements the garbage collector protocol */
+PyAPI_FUNC(int) PyObject_IS_GC(PyObject *obj);
+
+// Fast inlined version of PyObject_IS_GC()
+static inline int _PyObject_IS_GC(PyObject *obj)
+{
+    return (PyType_IS_GC(Py_TYPE(obj))
+            &amp;amp;&amp;amp; (Py_TYPE(obj)-&amp;gt;tp_is_gc == NULL
+                || Py_TYPE(obj)-&amp;gt;tp_is_gc(obj)));
+}
+&lt;/pre&gt;
+&lt;p&gt;C code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int
+PyObject_IS_GC(PyObject *obj)
+{
+    return _PyObject_IS_GC(obj);
+}
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-10-incompatible-c-api-change"&gt;
+&lt;h2&gt;Python 3.10 incompatible C API change&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;Py_REFCNT()&lt;/tt&gt; macro was converted to a static inline function:
+&lt;tt class="docutils literal"&gt;Py_REFCNT(obj) = refcnt;&lt;/tt&gt; now fails with a compiler error. It must be
+replaced with &lt;tt class="docutils literal"&gt;Py_SET_REFCNT(obj, refcnt)&lt;/tt&gt;: Py_SET_REFCNT() was added to
+Python 3.9.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="the-complex-case-of-py-type-and-py-size-macros"&gt;
+&lt;h2&gt;The complex case of Py_TYPE() and Py_SIZE() macros&lt;/h2&gt;
+&lt;div class="section" id="macros-converted-and-then-reverted"&gt;
+&lt;h3&gt;Macros converted and then reverted&lt;/h3&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;Py_TYPE()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_SIZE()&lt;/tt&gt; macros were also converted to static inline
+functions in Python 3.10, but the change &lt;a class="reference external" href="https://bugs.python.org/issue39573#msg370303"&gt;broke 17 C extensions&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Since the change broke too many C extensions, I reverted the change: I
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/0e2ac21dd4960574e89561243763eabba685296a"&gt;converted Py_TYPE() and Py_SIZE() back to macros&lt;/a&gt;
+to have more time to fix fix C extensions.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="i-fixed-6-extensions"&gt;
+&lt;h3&gt;I fixed 6 extensions&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Cython: &lt;a class="reference external" href="https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd"&gt;my fix adding __Pyx_SET_SIZE() and __Pyx_SET_REFCNT()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;immutables: &lt;a class="reference external" href="https://github.com/MagicStack/immutables/commit/45105ecd8b56a4d88dbcb380fcb8ff4b9cc7b19c"&gt;my fix adding pythoncapi_compat.h for Py_SET_SIZE()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;breezy: &lt;a class="reference external" href="https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647"&gt;my fix adding Py_SET_REFCNT() macro&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;bitarray: &lt;a class="reference external" href="https://github.com/ilanschnell/bitarray/commit/a0cca9f2986ec796df74ca8f42aff56c4c7103ba"&gt;my fix adding pythoncapi_compat.h&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;python-zstandard: &lt;a class="reference external" href="https://github.com/indygreg/python-zstandard/commit/e5a3baf61b65f3075f250f504ddad9f8612bfedf"&gt;my fix adding pythoncapi_compat.h&lt;/a&gt;
+followed by &lt;a class="reference external" href="https://github.com/indygreg/python-zstandard/commit/477776e6019478ca1c0b5777b073afbec70975f5"&gt;a pythoncapi_compat.h update for Python 2.7&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;mercurial: &lt;a class="reference external" href="https://www.mercurial-scm.org/repo/hg/rev/e92ca942ddca"&gt;my fix adding pythoncapi_compat.h&lt;/a&gt;
+followed by a &lt;a class="reference external" href="https://www.mercurial-scm.org/repo/hg/rev/38b9a63d3a13"&gt;fix for Python 2.7&lt;/a&gt;
+(then &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat/commit/3e0bde93954ea8df328d36900c7060a3f3433eb0"&gt;fixed into upstream pythoncapi_compat.h&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="extensions-fixed-by-others"&gt;
+&lt;h3&gt;Extensions fixed by others&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;numpy: &lt;a class="reference external" href="https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa"&gt;fix defining Py_SET_TYPE() and Py_SET_SIZE()&lt;/a&gt;,
+followed by a &lt;a class="reference external" href="https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa"&gt;cleanup commit&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;pycurl: &lt;a class="reference external" href="https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042"&gt;fix defining Py_SET_TYPE()&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;boost: &lt;a class="reference external" href="https://github.com/boostorg/python/commit/500194edb7833d0627ce7a2595fec49d0aae2484#diff-b06ac66c98951b48056826c904be75263cdf56ec9b79d3274ea493e7d27cbac4"&gt;fix adding Py_SET_TYPE() and Py_SET_SIZE() macros&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;duplicity:
+&lt;a class="reference external" href="https://git.launchpad.net/duplicity/commit/?id=9c63dcb83e922e0afac206188203891e203b4e66"&gt;fix 1&lt;/a&gt;,
+&lt;a class="reference external" href="https://git.launchpad.net/duplicity/commit/?id=bbaae91b5ac6ef7e295968e508522884609fbf84"&gt;fix 2&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;pylibacl: &lt;a class="reference external" href="https://github.com/iustin/pylibacl/commit/26712b8fd92f1146102248cac1c92cb344620eff"&gt;fixed&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;gobject-introspection: &lt;a class="reference external" href="https://gitlab.gnome.org/GNOME/gobject-introspection/-/commit/c4d7d21a2ad838077c6310532fdf7505321f0ae7"&gt;fix adding Py_SET_TYPE() macro&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="extensions-still-not-fixed"&gt;
+&lt;h3&gt;Extensions still not fixed&lt;/h3&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;pyside2:&lt;ul&gt;
+&lt;li&gt;My patch is not merged upstream yet&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugreports.qt.io/browse/PYSIDE-1436"&gt;https://bugreports.qt.io/browse/PYSIDE-1436&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://src.fedoraproject.org/rpms/python-pyside2/pull-request/7"&gt;https://src.fedoraproject.org/rpms/python-pyside2/pull-request/7&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1898974"&gt;https://bugzilla.redhat.com/show_bug.cgi?id=1898974&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=1902618"&gt;https://bugzilla.redhat.com/show_bug.cgi?id=1902618&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;pybluez: &lt;a class="reference external" href="https://github.com/pybluez/pybluez/pull/371"&gt;closed PR (not merged)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;PyPAM&lt;/li&gt;
+&lt;li&gt;pygobject3&lt;/li&gt;
+&lt;li&gt;rdiff-backup&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="what-s-next"&gt;
+&lt;h2&gt;What's Next?&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Convert again Py_TYPE() and Py_SIZE() macros to static inline functions.&lt;/li&gt;
+&lt;li&gt;Add &amp;quot;%T&amp;quot; formatter for &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;Py_TYPE(obj)-&amp;gt;tp_name&lt;/span&gt;&lt;/tt&gt;:
+see &lt;a class="reference external" href="https://bugs.python.org/issue34595"&gt;rejected bpo-34595&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Modify Cython to use getter functions.&lt;/li&gt;
+&lt;li&gt;Attempt to make some structures opaque, like PyThreadState.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Isolate Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"></link><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
 &lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
 isolate subinterpreters. Static types are converted to heap types, extension
 modules are converted to use the new multiphase initialization API (PEP 489),
@@ -5441,7 +5716,7 @@ variable to control UTF-8 Mode.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
@@ -5710,7 +5985,7 @@ images.  In 2017, Nick Coghlan wrote the PEP 538 &amp;quot;Coercing the legacy C
 to a UTF-8 based locale&amp;quot; which has been approved by INADA Naoki and implemented
 in Python 3.7.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.6 now uses UTF-8 on Windows</title><link href="https://vstinner.github.io/python36-utf8-windows.html" rel="alternate"></link><published>2018-03-22T17:00:00+01:00</published><updated>2018-03-22T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-22:/python36-utf8-windows.html</id><summary type="html">&lt;p&gt;September 2016, a few days before the CPython core dev sprint, &lt;strong&gt;Steve Dower&lt;/strong&gt;
 proposed two major backward incompatible changes for Python 3.6 on Windows:
 &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0528/"&gt;PEP 528: Change Windows console encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529: Change Windows
 filesystem encoding to UTF-8&lt;/a&gt;.
@@ -5878,7 +6153,7 @@ Windows is a success!&lt;/p&gt;
 &lt;p&gt;Python 3.6 now has a better Unicode support thanks on Windows to the PEP 528
 and PEP 529!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.2 Painful History of the Filesystem Encoding</title><link href="https://vstinner.github.io/painful-history-python-filesystem-encoding.html" rel="alternate"></link><published>2018-03-15T23:00:00+01:00</published><updated>2018-03-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/painful-history-python-filesystem-encoding.html</id><summary type="html">&lt;p&gt;Between Python 3.0 released in 2008 and Python 3.4 released in 2014, the Python
 filesystem encoding changed multiple times. &lt;strong&gt;It took 6 years to choose the best
 Python filesystem encoding on each platform.&lt;/strong&gt;&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;I have been officially promoted as a core developer&lt;/strong&gt; in January 2010 by
@@ -6309,7 +6584,7 @@ locale encoding as the filesystem encoding&lt;/strong&gt;. This change fixed man
 &lt;p&gt;December 2012, I forced the filesystem encoding to ASCII on FreeBSD and Solaris
 when the announced locale encoding is wrong.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.1 surrogateescape error handler (PEP 383)</title><link href="https://vstinner.github.io/pep-383.html" rel="alternate"></link><published>2018-03-15T18:00:00+01:00</published><updated>2018-03-15T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-15:/pep-383.html</id><summary type="html">&lt;p&gt;In my previous article, I wrote that &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; ignored silently
 undecodable filenames in Python 3.0 and that lying on the real content of a
 directory looks like a very bad idea.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Martin v. Löwis&lt;/strong&gt; found a very smart solution to this problem: the
@@ -6444,7 +6719,7 @@ bytes unchanged.&lt;/p&gt;
 Unicode issues on Unix. It is still widely used in Python 3.6 to &lt;strong&gt;not annoy
 users with Unicode errors&lt;/strong&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.0 listdir() Bug on Undecodable Filenames</title><link href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html" rel="alternate"></link><published>2018-03-09T13:00:00+01:00</published><updated>2018-03-09T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-09:/python30-listdir-undecodable-filenames.html</id><summary type="html">&lt;p&gt;Ten years ago, when Python 3.0 final was released, &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt;
 &lt;strong&gt;ignored silently undecodable filenames&lt;/strong&gt;:&lt;/p&gt;
 &lt;pre class="literal-block"&gt;
 $ python3.0
@@ -6753,7 +7028,7 @@ of bugs will keep me busy the next 10 years&lt;/strong&gt; (2008-2018)...&lt;/p&
 &lt;p&gt;&lt;strong&gt;This article is the first in a series of articles telling the history and
 rationale of the Python 3 Unicode model for the operating system.&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>How I fixed a very old GIL race condition in Python 3.7</title><link href="https://vstinner.github.io/python37-gil-change.html" rel="alternate"></link><published>2018-03-08T10:00:00+01:00</published><updated>2018-03-08T10:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-08:/python37-gil-change.html</id><summary type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global
 Interpreter Lock), one of the most critical part of Python. I had to dig the
 Git history to find a &lt;strong&gt;change made 26 years ago&lt;/strong&gt; by &lt;strong&gt;Guido van Rossum&lt;/strong&gt;: at
 this time, &lt;em&gt;threads were …&lt;/em&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;&lt;strong&gt;It took me 4 years to fix a nasty bug in the famous Python GIL&lt;/strong&gt; (Global

@@ -27,6 +27,34 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/c-api-opaque-structures.html">
+		<h2 itemprop="name headline">Make structures opaque in the Python C API</h2>
+	</a>
+	<time datetime="2021-03-26T12:00:00+01:00" itemprop="datePublished">ven. 26 mars 2021</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><p>This article is about changes that I made, with the help other developers, in
+the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
+members: prepare the C API to <a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type">make structures opaque</a>. These changes are related
+to my <a class="reference external" href="https://www.python.org/dev/peps/pep-0620/">PEP 620 &quot;Hide implementation …</a></p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/isolate-subinterpreters.html">
 		<h2 itemprop="name headline">Isolate Python Subinterpreters</h2>
 	</a>
@@ -295,34 +323,6 @@ that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">
-		<h2 itemprop="name headline">Debug Hybrid Graphics issues on Linux</h2>
-	</a>
-	<time datetime="2019-09-11T15:50:00+02:00" itemprop="datePublished">mer. 11 septembre 2019</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><p><a class="reference external" href="https://wiki.archlinux.org/index.php/Hybrid_graphics">Hybrid Graphics</a> is a
-complex hardware and software solution to achieve longer laptop battery life:
-an <strong>integrated</strong> graphics device is used by default, and a <strong>discrete</strong>
-graphics device with higher graphics performances is enabled on demand.</p>
-<a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"><img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /></a>
-<p>If it is designed and implemented carefully, users should not notice that a
-laptop …</p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/linux.html" rel="category">linux</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/linux.html" rel="tag">linux</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev disabled"><a href="#">&larr; Previous</a></li>
@@ -363,7 +363,7 @@ laptop …</p></div>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (12)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (13)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>
