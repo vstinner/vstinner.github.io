@@ -1,14 +1,15 @@
-+++++++++++++++++++++++
-Update the Python C API
-+++++++++++++++++++++++
++++++++++++++++++++++++++
+Python 3.10 C API Changes
++++++++++++++++++++++++++
 
-Big tasks:
+:date: 2021-03-26 12:00
+:tags: c-api, cpython
+:category: cpython
+:slug: python310-c-api-changes
+:authors: Victor Stinner
 
-* Reorganize header files
-* Don't access structure members
-* Process to introduce incompatible C API changes
-* Make the C API smaller
-* Guidelines to prevent flaws in new C APIs
+This article is about changes on the Python C API between Python 3.6
+and Python 3.10.
 
 Hide implementation details
 ===========================
@@ -134,33 +135,59 @@ Static inline functions
   * PyObject_CheckBuffer() and PyIndex_Check() become regular functions
 
 Reorganize the C API
+====================
 
-* Started in Python 3.7: PyInterpreterState moves to the internal C API
-* Python 3.8:
+Statistics
+----------
+
+Number of C API line numbers per Python version:
+
+=======  =============  ===========  ============  =======
+Version  Public         CPython      Internal      Total
+=======  =============  ===========  ============  =======
+2.7      12686 (100%)   0            0             12686
+3.6      16011 (100%)   0            0             16011
+3.7      16517 (96%)    0            705 (4%)      17222
+3.8      13160 (70%)    3417 (18%)   2230 (12%)    18807
+3.9      12264 (62%)    4343 (22%)   3066 (16%)    19673
+3.10     10305 (52%)    4513 (23%)   5092 (26%)    19910
+=======  =============  ===========  ============  =======
+
+Python 3.7
+----------
+
+Creation on the ``Internal/internal/`` directory.
+
+Python 3.8
+----------
 
   * PyInterpreterState becomes internal
 
-* Python 3.9: Move to the internal C API
+Python 3.9
+----------
 
-  * PyGC_Head
-  * _PyDebug_PrintTotalRefs()
-  * _Py_AddToAllObjects()
-  * _Py_PrintReferenceAddresses()
-  * _Py_PrintReferences()
-  * _Py_tracemalloc_config
+Move to the internal C API:
 
-* Python 3.10
+* PyGC_Head
+* _PyDebug_PrintTotalRefs()
+* _Py_AddToAllObjects()
+* _Py_PrintReferenceAddresses()
+* _Py_PrintReferences()
+* _Py_tracemalloc_config
 
-  * Move header files to Include/cpython/
+Python 3.10
+-----------
 
-    * odictobject.h
-    * parser_interface.h
-    * picklebufobject.h
-    * pyarena.h
-    * pyctype.h
-    * pydebug.h
-    * pyfpe.h
-    * pytime.h
+Move header files from ``Include/`` to ``Include/cpython/``:
+
+* odictobject.h
+* parser_interface.h
+* picklebufobject.h
+* pyarena.h
+* pyctype.h
+* pydebug.h
+* pyfpe.h
+* pytime.h
 
 Fix the Limited C API
 =====================
@@ -193,7 +220,21 @@ Python 3.10
 Remove functions
 ================
 
-* Python 3.6:
+Symbols exported with PyAPI_FUNC() and PyAPI_DATA():
+
+=======  ===========
+Version  Symbols
+=======  ===========
+2.7      1098
+3.6      1460
+3.7      1547 (+87)
+3.8      1561 (+14)
+3.9      1552 (-9)
+3.10     1495 (-57)
+=======  ===========
+
+Python 3.6
+----------
 
   * Deprecate:
 
@@ -202,18 +243,21 @@ Remove functions
     * PyUnicode_AsEncodedObject()
     * PyUnicode_AsEncodedUnicode()
 
-* Python 3.7:
+Python 3.7
+----------
 
   * PyOS_AfterFork() deprecated in favour of new functions PyOS_BeforeFork(),
     PyOS_AfterFork_Parent() and PyOS_AfterFork_Child()
   * Remove PyExc_RecursionErrorInst singleton (also removed in Python 3.6.4).
 
-* Python 3.8:
+Python 3.8
+----------
 
   * PyByteArray_Init() and PyByteArray_Fini()
   * PyEval_ReInitThreads()
 
-* Python 3.9:
+Python 3.9
+----------
 
   * Remove
 
@@ -263,7 +307,8 @@ Remove functions
     * Py_UNICODE_FILL()
     * _PyUnicode_AsUnicode()
 
-Python 3.10:
+Python 3.10
+-----------
 
 * Remove:
 
@@ -317,6 +362,7 @@ Python 3.10:
   * PyUnicode_InternImmortal()
 
 Process to deprecate
+====================
 
 * Add Py_DEPRECATED()
 * Implement Py_DEPRECATED() for MSC
