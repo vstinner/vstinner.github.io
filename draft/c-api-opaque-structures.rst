@@ -1,22 +1,21 @@
-+++++++++++++++++++++++++
-Python 3.10 C API Changes
-+++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++
+Make structures opaque in the Python C API
+++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2021-03-26 12:00
 :tags: c-api, cpython
 :category: cpython
-:slug: python310-c-api-changes
+:slug: c-api-opaque-structures
 :authors: Victor Stinner
 
-This article is about changes on the Python C API between Python 3.6 and Python
-3.10. Most changes are driven by my `PEP 620 "Hide implementation details from
-the C API" <https://www.python.org/dev/peps/pep-0620/>`_.
-
-Don't access structure members
-==============================
+This article is about changes made in the Python C API in Python 3.8, 3.9 and
+3.10 to avoid accessing structures members directly: prepare the C API to make
+structures opaque. These changes are related to the `PEP 620 "Hide
+implementation details from the C API"
+<https://www.python.org/dev/peps/pep-0620/>`_.
 
 Rationale
----------
+=========
 
 The C API currently exposes most object structures, C extensions indirectly
 access structures through the API, but can also access them directly. It causes
@@ -37,7 +36,7 @@ different issues:
   long term.
 
 Issues
-------
+======
 
 * `PyObject: bpo-39573 <https://bugs.python.org/issue39573>`_
 * `PyTypeObject: bpo-40170 <https://bugs.python.org/issue40170>`_
@@ -45,13 +44,13 @@ Issues
 * `PyFrameObject: bpo-40421 <https://bugs.python.org/issue40421>`_
 
 Opaque structures
------------------
+=================
 
 * Python 3.8 made PyInterpreterState opaque
 * Python 3.9 made PyGC_Head opaque
 
 Add getter functions to Python 3.9
-----------------------------------
+==================================
 
 * PyObject, PyVarObject:
 
@@ -79,7 +78,7 @@ PyInterpreterState_Get() can be used to replace ``PyThreadState_Get()->interp``
 or ``PyThreadState_GetInterpreter(PyThreadState_Get())``.
 
 Convert macros to static inline functions in Python 3.8
--------------------------------------------------------
+=======================================================
 
 * Py_INCREF(), Py_XINCREF()
 * Py_DECREF(), Py_XDECREF()
@@ -120,7 +119,7 @@ One nice side effect of converting macros to static inline functions is that
 debuggers and profilers are able to retrieve the name of the function.
 
 Convert macros to regular functions in Python 3.9
--------------------------------------------------
+=================================================
 
 * PyIndex_Check()
 * PyObject_CheckBuffer()
@@ -172,7 +171,7 @@ In the C code, the function simply calls the internal static inline function::
 
 
 Python 3.10 incompatible C API change
--------------------------------------
+=====================================
 
 The ``Py_REFCNT()`` macro was converted to a static inline function:
 ``Py_REFCNT(obj) = refcnt;`` now fails with a compiler error.  The
@@ -180,7 +179,7 @@ The ``Py_REFCNT()`` macro was converted to a static inline function:
 the ``Py_REFCNT(obj) = refcnt;`` pattern with ``Py_SET_REFCNT(obj, refcnt)``.
 
 Reverted Python 3.10 Py_TYPE() and Py_SIZE() changes
-----------------------------------------------------
+====================================================
 
 The ``Py_TYPE()`` and ``Py_SIZE()`` macros were also converted to static inline
 functions, but the change `broke 17 C extensions
@@ -245,3 +244,13 @@ Since the change broke too many C extensions, I `converted Py_TYPE() and
 Py_SIZE() back to macros
 <https://github.com/python/cpython/commit/0e2ac21dd4960574e89561243763eabba685296a>`_
 to have more time to fix fix C extensions.
+
+What's Next?
+============
+
+* Convert again Py_TYPE() and Py_SIZE() macros to static inline functions.
+* Add "%T" formatter for Py_TYPE(obj)->tp_name:
+  see `rejected bpo-34595 <https://bugs.python.org/issue34595>`_
+* Modify Cython to use getter functions. Attempt to make some structures
+  opaque, like PyThreadState.
+

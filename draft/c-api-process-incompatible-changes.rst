@@ -34,11 +34,8 @@ Process to deprecate
 What's Next?
 ============
 
-* Convert again Py_TYPE() and Py_SIZE() macros to static inline functions.
 * Make upgrade_pythoncapi.py more popular! Try it on numpy. Maybe move the
   GitHub project under the PSF organization.
-* Add "%T" formatter for Py_TYPE(obj)->tp_name:
-  see `rejected bpo-34595 <https://bugs.python.org/issue34595>`_
 * Avoid ``PyObject**`` type, direct access into an array of ``PyObject*``:
 
   * Deprecate PySequence_Fast_ITEMS()
@@ -57,9 +54,6 @@ What's Next?
   * PyBytes_GetString()
   * Py_buffer with PyBuffer_Release() API notifies Python when the resource is
     no longer needed.
-
-* Modify Cython to use getter functions. Attempt to make some structures
-  opaque, like PyThreadState.
 
 * `PEP 620 -- Hide implementation details from the C API
   <https://www.python.org/dev/peps/pep-0620/>`_ by Victor Stinner
