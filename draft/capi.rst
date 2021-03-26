@@ -10,11 +10,16 @@ Big tasks:
 * Make the C API smaller
 * Guidelines to prevent flaws in new C APIs
 
+Hide implementation details
+===========================
+
+Add getter functions
+--------------------
+
 Python 3.9:
 
 * Add Py_SET_REFCNT(), Py_SET_TYPE(), Py_SET_SIZE()
 * Add Py_IS_TYPE()
-* Add PyModule_AddType()
 * PyFrameObject:
 
   * PyFrame_GetCode()
@@ -30,14 +35,62 @@ Python 3.9:
 
   * PyInterpreterState_Get()
 
+Incompatible C API changes
+--------------------------
+
 Python 3.10:
 
-* Py_REFCNT() becomes a static inline function: ``Py_REFCNT(obj) = refcnt;``
-  becomes illegal.
-* Add Py_NewRef() and Py_XNewRef()
-* Add PyModule_AddObjectRef()
+* ``Py_REFCNT()`` becomes a static inline function:
+  ``Py_REFCNT(obj) = refcnt;`` now fails with a compiler error.
+  The ``upgrade_pythoncapi.py`` script automatically replaces the pattern with
+  ``Py_SET_REFCNT()``.
 
-Enhance documentation:
+Borrowed references
+===================
+
+New C API
+---------
+
+* Python 3.9: Add PyModule_AddType()
+* Python 3.10: Add Py_NewRef(), Py_XNewRef() and PyModule_AddObjectRef()
+* pythoncapi_compat.h
+
+Backward compatibility
+----------------------
+
+* pythoncapi_compat.h defines private _Py_StealRef() and _Py_XStealRef() static
+  inline functions which are used for "Borrow" variants of functions, like
+  ``_PyFrame_GetCodeBorrow()``.
+* See also rejected idea: [C API] Add _Py_Borrow() private function: call Py_XDECREF() and return the object
+  https://bugs.python.org/issue42522
+
+Example::
+
+    static inline PyCodeObject*
+    _PyFrame_GetCodeBorrow(PyFrameObject *frame)
+    {
+        return (PyCodeObject *)_Py_StealRef(PyFrame_GetCode(frame));
+    }
+
+PyFrame_GetCode() is provided by Python on Python 3.9 and newer. On Python 3.8
+and older, it is implemented in pythoncapi_compat.h as::
+
+    static inline PyCodeObject*
+    PyFrame_GetCode(PyFrameObject *frame)
+    {
+        return (PyCodeObject*)Py_NewRef(frame->f_code);
+    }
+
+The ``upgrade_pythoncapi.py`` script replaces ``frame->f_code`` pattern with
+``_PyFrame_GetCodeBorrow(frame)``.
+
+Thanks for "Borrow" suffix in function names, it becomes easier to discover
+the usage of borrowed references. ``_PyFrame_GetCodeBorrow()`` can be replaced
+with ``PyFrame_GetCode()`` but it requires to explicitly delete the created
+strong reference (add ``Py_DECREF()``).
+
+Enhance documentation
+---------------------
 
 * Define `borrowed reference
   <https://docs.python.org/dev/glossary.html#term-borrowed-reference>`_
@@ -61,16 +114,219 @@ Enhance documentation:
     means that you should always call ``Py_INCREF()`` on the object except when
     it **cannot be destroyed before the last usage of the borrowed reference**.
 
-Rejected idea:
+Static inline functions
 
-[C API] Add _Py_Borrow() private function: call Py_XDECREF() and return the object
-https://bugs.python.org/issue42522
+* Python 3.8:
 
-pythoncapi_compat.h defines private _Py_StealRef() and _Py_XStealRef() static
-inline functions which are used for "Borrow" variants of functions, like
-``_PyFrame_GetCodeBorrow()``.
+  * Py_INCREF(), Py_DECREF()
+  * Py_XINCREF(), Py_XDECREF()
+  * PyObject_INIT(), PyObject_INIT_VAR()
+  * Private functions: _PyObject_GC_TRACK(), _PyObject_GC_UNTRACK(),
+    _Py_Dealloc()
 
-TODO:
+* Python 3.9
+
+  * PyObject_IS_GC()
+  * PyObject_NEW() macro => alias to PyObject_New() function
+  * PyObject_NEW_VAR() macro => alias to PyObjectVar_New() function
+  * PyType_HasFeature()
+  * PyObject_GET_WEAKREFS_LISTPTR()
+  * PyObject_CheckBuffer() and PyIndex_Check() become regular functions
+
+Reorganize the C API
+
+* Started in Python 3.7: PyInterpreterState moves to the internal C API
+* Python 3.8:
+
+  * PyInterpreterState becomes internal
+
+* Python 3.9: Move to the internal C API
+
+  * PyGC_Head
+  * _PyDebug_PrintTotalRefs()
+  * _Py_AddToAllObjects()
+  * _Py_PrintReferenceAddresses()
+  * _Py_PrintReferences()
+  * _Py_tracemalloc_config
+
+* Python 3.10
+
+  * Move header files to Include/cpython/
+
+    * odictobject.h
+    * parser_interface.h
+    * picklebufobject.h
+    * pyarena.h
+    * pyctype.h
+    * pydebug.h
+    * pyfpe.h
+    * pytime.h
+
+Fix the Limited C API
+=====================
+
+Python 3.9
+----------
+
+* Add:
+
+  * Py_EnterRecursiveCall(), Py_LeaveRecursiveCall()
+  * PyFrame_GetLineNumber()
+
+* Remove:
+
+  * PyFPE_START_PROTECT(), PyFPE_END_PROTECT()
+  * PyThreadState_DeleteCurrent()
+  * PyTrash_UNWIND_LEVEL
+  * Py_TRASHCAN_BEGIN, Py_TRASHCAN_BEGIN_CONDITION, Py_TRASHCAN_END
+  * Py_TRASHCAN_SAFE_BEGIN, Py_TRASHCAN_SAFE_END
+  * _PyTraceMalloc_NewReference()
+  * _Py_CheckRecursionLimit
+  * _Py_GetRefTotal()
+  * _Py_NewReference(), _Py_ForgetReference()
+
+Python 3.10
+-----------
+
+* Add PyUnicode_AsUTF8AndSize()
+
+Remove functions
+================
+
+* Python 3.6:
+
+  * Deprecate:
+
+    * PyUnicode_AsDecodedObject()
+    * PyUnicode_AsDecodedUnicode()
+    * PyUnicode_AsEncodedObject()
+    * PyUnicode_AsEncodedUnicode()
+
+* Python 3.7:
+
+  * PyOS_AfterFork() deprecated in favour of new functions PyOS_BeforeFork(),
+    PyOS_AfterFork_Parent() and PyOS_AfterFork_Child()
+  * Remove PyExc_RecursionErrorInst singleton (also removed in Python 3.6.4).
+
+* Python 3.8:
+
+  * PyByteArray_Init() and PyByteArray_Fini()
+  * PyEval_ReInitThreads()
+
+* Python 3.9:
+
+  * Remove
+
+    * PyAsyncGen_ClearFreeLists()
+    * PyCFunction_ClearFreeList()
+    * PyCmpWrapper_Type
+    * PyContext_ClearFreeList()
+    * PyDict_ClearFreeList()
+    * PyFloat_ClearFreeList()
+    * PyFrame_ClearFreeList()
+    * PyFrame_ExtendStack()
+    * PyList_ClearFreeList()
+    * PyMethod_ClearFreeList()
+    * PyNoArgsFunction type
+    * PyNullImporter_Type
+    * PySet_ClearFreeList()
+    * PySortWrapper_Type
+    * PyTuple_ClearFreeList()
+    * PyUnicode_ClearFreeList()
+    * Py_UNICODE_MATCH()
+    * _PyAIterWrapper_Type
+    * _PyBytes_InsertThousandsGrouping()
+    * _PyBytes_InsertThousandsGroupingLocale()
+    * _PyFloat_Digits()
+    * _PyFloat_DigitsInit()
+    * _PyFloat_Repr()
+    * _PyThreadState_GetFrame() and _PyRuntime.getframe
+    * _PyUnicode_ClearStaticStrings()
+    * _Py_InitializeFromArgs()
+    * _Py_InitializeFromWideArgs()
+
+  * Deprecate
+
+    * PyEval_CallFunction()
+    * PyEval_CallMethod()
+    * PyEval_CallObject()
+    * PyEval_CallObjectWithKeywords()
+    * PyNode_Compile()
+    * PyParser_SimpleParseFileFlags()
+    * PyParser_SimpleParseStringFlags()
+    * PyParser_SimpleParseStringFlagsFilename()
+    * PyUnicode_AsUnicode()
+    * PyUnicode_AsUnicodeAndSize()
+    * PyUnicode_FromUnicode()
+    * PyUnicode_WSTR_LENGTH()
+    * Py_UNICODE_COPY()
+    * Py_UNICODE_FILL()
+    * _PyUnicode_AsUnicode()
+
+Python 3.10:
+
+* Remove:
+
+  * PyAST_Compile()
+  * PyAST_CompileEx()
+  * PyAST_CompileObject()
+  * PyAST_Validate()
+  * PyArena_AddPyObject()
+  * PyArena_Free()
+  * PyArena_Malloc()
+  * PyArena_New()
+  * PyFuture_FromAST()
+  * PyFuture_FromASTObject()
+  * PyLong_FromUnicode()
+  * PyNode_Compile()
+  * PyOS_InitInterrupts()
+  * PyObject_AsCharBuffer()
+  * PyObject_AsReadBuffer()
+  * PyObject_AsWriteBuffer()
+  * PyObject_CheckReadBuffer()
+  * PyParser_ASTFromFile()
+  * PyParser_ASTFromFileObject()
+  * PyParser_ASTFromFilename()
+  * PyParser_ASTFromString()
+  * PyParser_ASTFromStringObject()
+  * PyParser_SimpleParseFileFlags()
+  * PyParser_SimpleParseStringFlags()
+  * PyParser_SimpleParseStringFlagsFilename()
+  * PyST_GetScope()
+  * PySymtable_Build()
+  * PySymtable_BuildObject()
+  * PySymtable_Free()
+  * PyUnicode_AsUnicodeCopy()
+  * PyUnicode_GetMax()
+  * Py_ALLOW_RECURSION, Py_END_ALLOW_RECURSION
+  * Py_SymtableString()
+  * Py_SymtableStringObject()
+  * Py_UNICODE_strcat()
+  * Py_UNICODE_strchr(), Py_UNICODE_strrchr()
+  * Py_UNICODE_strcmp()
+  * Py_UNICODE_strcpy(), Py_UNICODE_strncpy()
+  * Py_UNICODE_strlen()
+  * Py_UNICODE_strncmp()
+  * _PyUnicode_Name_CAPI structure
+  * _Py_CheckRecursionLimit
+
+* Deprecate:
+
+  * PyUnicode_FromUnicode(NULL, size)
+  * PyUnicode_FromStringAndSize(NULL, size)
+  * PyUnicode_InternImmortal()
+
+Process to deprecate
+
+* Add Py_DEPRECATED()
+* Implement Py_DEPRECATED() for MSC
+* PEP 387 updated
+* PEP 620 process
+* Check PyPI top 4000 packages
+* Fedora "continuous integration": Python packages of Fedora rebuilt with Python 3.10
+
+TODO
+====
 
 * "%T" formatter for Py_TYPE(obj)->tp_name
 * Guidelines to avoid PyBytes_GetString(): Py_buffer with PyBuffer_Release()
