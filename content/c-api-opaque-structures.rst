@@ -8,6 +8,10 @@ Make structures opaque in the Python C API
 :slug: c-api-opaque-structures
 :authors: Victor Stinner
 
+.. image:: {static}/images/incendie-ovh.jpg
+   :alt: OVHcloud datacenter fire in Strasbourg
+   :target: https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg
+
 This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to `make structures opaque
@@ -22,10 +26,6 @@ require to get the PEP 620 accepted.
 While compatible changes merged in Python 3.8 and Python 3.9 went fine, one
 Python 3.10 **incompatible change caused more troubles** and had to be
 reverted.
-
-.. image:: {static}/images/incendie-ovh.jpg
-   :alt: OVHcloud datacenter fire in Strasbourg
-   :target: https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg
 
 Photo: OVHcloud data center fire in Strasbourg.
 
