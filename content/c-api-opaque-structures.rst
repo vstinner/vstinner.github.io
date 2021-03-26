@@ -8,14 +8,23 @@ Make structures opaque in the Python C API
 :slug: c-api-opaque-structures
 :authors: Victor Stinner
 
-This article is about changes made in the Python C API in Python 3.8, 3.9 and
-3.10 to avoid accessing structures members directly: prepare the C API to make
-structures opaque. These changes are related to the `PEP 620 "Hide
-implementation details from the C API"
+This article is about changes that I made, with the help other developers, in
+the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
+members: prepare the C API to `make structures opaque
+<https://en.wikipedia.org/wiki/Opaque_data_type>`_. These changes are related
+to my `PEP 620 "Hide implementation details from the C API"
 <https://www.python.org/dev/peps/pep-0620/>`_.
 
+One change had **negative impact on performance** and had to be
+reverted. Making Python slower just to make structures opaque would first
+require to get the PEP 620 accepted.
+
+While compatible changes merged in Python 3.8 and Python 3.9 went fine, one
+Python 3.10 **incompatible change caused more troubles** and had to be
+reverted.
+
 .. image:: {static}/images/incendie-ovh.jpg
-   :alt: OVHcloud data center fire in Strasbourg
+   :alt: OVHcloud datacenter fire in Strasbourg
    :target: https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg
 
 Photo: OVHcloud data center fire in Strasbourg.
@@ -24,22 +33,20 @@ Rationale
 =========
 
 The C API currently exposes most object structures, C extensions indirectly
-access structures through the API, but can also access them directly. It causes
-different issues:
+access structures members through the API, but can also access them directly.
+It causes different issues:
 
 * Modifying a structure can break an unknown number of C extensions. To prevent
-  any risk, developers avoid modifying structures, whereas many optimizations
-  would benefit of the ability to modify structures.
+  any risk, CPython core developers avoid modifying structures. Once most
+  structures will be opaque, it will be possible to experiment **optimizations**
+  which require deep structures changes without breaking C extensions. The
+  irony is that we first have to break the backward compatibility and C
+  extensions for that.
 
-* Once most structures will be opaque, it will be possible to experiment
-  optimizations which require deep structures changes without breaking C
-  extensions. The irony is that we first have to break C extensions and the
-  backward compatibility for that.
-
-* Any structure change breaks the ABI. The stable ABI solved this issue by not
-  exposing structures into its limited C API. The idea is to bend the default C
-  API towards the limited C API to provide a stable ABI for everyone in the
-  long term.
+* Any structure change breaks the ABI. The **stable ABI** solved this issue by
+  not exposing structures into its limited C API. The idea is to bend the
+  default C API towards the limited C API to provide a stable ABI for everyone
+  in the long term.
 
 Issues
 ======
@@ -52,8 +59,8 @@ Issues
 Opaque structures
 =================
 
-* Python 3.8 made PyInterpreterState opaque
-* Python 3.9 made PyGC_Head opaque
+* Python 3.8 made the PyInterpreterState structure opaque.
+* Python 3.9 made the PyGC_Head structure opaque.
 
 Add getter functions to Python 3.9
 ==================================
@@ -81,26 +88,63 @@ Add getter functions to Python 3.9
   * PyInterpreterState_Get()
 
 PyInterpreterState_Get() can be used to replace ``PyThreadState_Get()->interp``
-or ``PyThreadState_GetInterpreter(PyThreadState_Get())``.
+and ``PyThreadState_GetInterpreter(PyThreadState_Get())``.
 
 Convert macros to static inline functions in Python 3.8
 =======================================================
+
+Macro pitfalls
+--------------
+
+Macros are convenient but have `multiple pitfalls
+<https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html>`_. Some macros
+can be abused in surprising ways. For example, the following code is valid with
+Python 3.9::
+
+    if (obj == NULL || PyList_SET_ITEM (l, i, obj) < 0) { ... }
+
+In Python 3.9, PyList_SET_ITEM() returns *obj* in this case, *obj* is a
+pointer, and so the test checks if a pointer is negative which makes no sense
+(but is accepted by C compilers by default). This code is likely a confusion
+with PyList_SetItem() which returns a int, negative in case of an error.
+
+Zackery Spytz and me modified `PyList_SET_ITEM()
+<https://github.com/python/cpython/commit/556d97f473fa538cef780f84bd29239ecf57d9c5>`_
+and `PyCell_SET()
+<https://github.com/python/cpython/commit/0ef96c2b2a291c9d2d9c0ba42bbc1900a21e65f3>`_
+macros in Python 3.10 to return void.
+
+This change broke alsa-python: I proposed a `fix which was merged
+<https://github.com/alsa-project/alsa-python/commit/5ea2f8709b4d091700750661231f8a3ddce0fc7c>`_.
+
+One nice side effect of converting macros to static inline functions is that
+debuggers and profilers are able to retrieve the name of the function.
+
+Converted macros
+----------------
 
 * Py_INCREF(), Py_XINCREF()
 * Py_DECREF(), Py_XDECREF()
 * PyObject_INIT(), PyObject_INIT_VAR()
 * _PyObject_GC_TRACK(), _PyObject_GC_UNTRACK(), _Py_Dealloc()
 
+Performance
+-----------
+
 Since ``Py_INCREF()`` is criticial for general Python performance, the impact
-of the change was analyzed in depth before being merged in `bpo-35059
-<https://bugs.python.org/issue35059>`_. The usage of
+of the change was analyzed in depth before `being merged
+<https://github.com/python/cpython/commit/2aaf0c12041bcaadd7f2cc5a54450eefd7a6ff12>`_
+in `bpo-35059 <https://bugs.python.org/issue35059>`_. The usage of
 ``__attribute__((always_inline))`` and ``__forceinline`` to force inlining was
 rejected.
 
+Cast to PyObject*
+-----------------
+
 Old Py_INCREF() implementation in Python 3.7::
 
-    #define Py_INCREF(op) (                         \
-        _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA       \
+    #define Py_INCREF(op) (                   \
+        _Py_INC_REFTOTAL  _Py_REF_DEBUG_COMMA \
         ((PyObject *)(op))->ob_refcnt++)
 
 where ``_Py_INC_REFTOTAL _Py_REF_DEBUG_COMMA`` becomes ``_Py_RefTotal++,`` if
@@ -121,11 +165,11 @@ Most static inline functions go through a macro to cast their argument to
 
     #define _PyObject_CAST(op) ((PyObject*)(op))
 
-One nice side effect of converting macros to static inline functions is that
-debuggers and profilers are able to retrieve the name of the function.
-
 Convert macros to regular functions in Python 3.9
 =================================================
+
+Converted macros
+----------------
 
 * PyIndex_Check()
 * PyObject_CheckBuffer()
@@ -134,18 +178,23 @@ Convert macros to regular functions in Python 3.9
 * PyObject_NEW(): alias to PyObject_New()
 * PyObject_NEW_VAR(): alias to PyObjectVar_New()
 
+Performance
+-----------
+
 PyType_HasFeature() was modified to always call PyType_GetFlags() function,
 rather than accessing directly ``PyTypeObject.tp_flags``. The problem is that
-on macOS, Python is built without LTO and so the PyType_GetFlags() call is not
-inlined, making functions like tuplegetter_descr_get() slower: see
-`bpo-39542 <https://bugs.python.org/issue39542#msg372962>`_
-and `bpo-41181
-<https://bugs.python.org/issue41181>`_. The PyType_HasFeature() change was
-reverted until the PEP 620 is accepted. macOS does not use LTO to keep support
-support for macOS 10.6 (Snow Leopard).
+on macOS, Python is built without LTO, the PyType_GetFlags() call is not
+inlined, making functions like tuplegetter_descr_get() **slower**: see
+`bpo-39542 <https://bugs.python.org/issue39542#msg372962>`_. I **reverted the
+PyType_HasFeature() change** until the PEP 620 is accepted. macOS does not
+use LTO to keep support support for macOS 10.6 (Snow Leopard): see `bpo-41181
+<https://bugs.python.org/issue41181>`_.
+
+Fast static inline functions
+----------------------------
 
 To keep best performances on Python built without LTO, fast private variants
-were added as static inline functions in the internal C API:
+were added as static inline functions to the internal C API:
 
 * _PyIndex_Check()
 * _PyObject_IS_GC()
@@ -154,7 +203,7 @@ were added as static inline functions in the internal C API:
 
 For example, PyObject_IS_GC() is defined as a function, whereas
 _PyObject_IS_GC() is defined as an internal static inline function. Header
-code::
+file::
 
     /* Test if an object implements the garbage collector protocol */
     PyAPI_FUNC(int) PyObject_IS_GC(PyObject *obj);
@@ -167,7 +216,7 @@ code::
                     || Py_TYPE(obj)->tp_is_gc(obj)));
     }
 
-In the C code, the function simply calls the internal static inline function::
+C code::
 
     int
     PyObject_IS_GC(PyObject *obj)
@@ -180,25 +229,32 @@ Python 3.10 incompatible C API change
 =====================================
 
 The ``Py_REFCNT()`` macro was converted to a static inline function:
-``Py_REFCNT(obj) = refcnt;`` now fails with a compiler error.  The
-``upgrade_pythoncapi.py`` script of pythoncapi_compat automatically replaces
-the ``Py_REFCNT(obj) = refcnt;`` pattern with ``Py_SET_REFCNT(obj, refcnt)``.
+``Py_REFCNT(obj) = refcnt;`` now fails with a compiler error. It must be
+replaced with ``Py_SET_REFCNT(obj, refcnt)``: Py_SET_REFCNT() was added to
+Python 3.9.
 
-Reverted Python 3.10 Py_TYPE() and Py_SIZE() changes
-====================================================
+The complex case of Py_TYPE() and Py_SIZE() macros
+==================================================
+
+Macros converted and then reverted
+----------------------------------
 
 The ``Py_TYPE()`` and ``Py_SIZE()`` macros were also converted to static inline
-functions, but the change `broke 17 C extensions
+functions in Python 3.10, but the change `broke 17 C extensions
 <https://bugs.python.org/issue39573#msg370303>`_.
 
-I fixed 6 extensions:
+Since the change broke too many C extensions, I reverted the change: I
+`converted Py_TYPE() and Py_SIZE() back to macros
+<https://github.com/python/cpython/commit/0e2ac21dd4960574e89561243763eabba685296a>`_
+to have more time to fix fix C extensions.
 
-* Cython: `my fix adds __Pyx_SET_SIZE() and __Pyx_SET_REFCNT()
+I fixed 6 extensions
+--------------------
+
+* Cython: `my fix adding __Pyx_SET_SIZE() and __Pyx_SET_REFCNT()
   <https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd>`_
-* immutables: `issue <https://github.com/MagicStack/immutables/issues/46>`_
-  fixed by `my commit adding pythoncapi_compat.h to get Py_SET_SIZE()
+* immutables: `my fix adding pythoncapi_compat.h for Py_SET_SIZE()
   <https://github.com/MagicStack/immutables/commit/45105ecd8b56a4d88dbcb380fcb8ff4b9cc7b19c>`_
-  (`PR 52 <https://github.com/MagicStack/immutables/pull/52>`_)
 * breezy: `my fix adding Py_SET_REFCNT() macro
   <https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647>`__
 * bitarray: `my fix adding pythoncapi_compat.h
@@ -214,13 +270,14 @@ I fixed 6 extensions:
   (then `fixed into upstream pythoncapi_compat.h
   <https://github.com/pythoncapi/pythoncapi_compat/commit/3e0bde93954ea8df328d36900c7060a3f3433eb0>`_)
 
-Extensions fixed by others:
+Extensions fixed by others
+--------------------------
 
-* numpy: `fix defining Py_SET_TYPE() and Py_SET_SIZE() on Python 3.8 and older
+* numpy: `fix defining Py_SET_TYPE() and Py_SET_SIZE()
   <https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa>`_,
   followed by a `cleanup commit
-  <https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aaz>`_
-* pycurl: `fix defining Py_SET_TYPE() on Python 3.8 and older
+  <https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa>`_
+* pycurl: `fix defining Py_SET_TYPE()
   <https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042>`_
 * boost: `fix adding Py_SET_TYPE() and Py_SET_SIZE() macros
   <https://github.com/boostorg/python/commit/500194edb7833d0627ce7a2595fec49d0aae2484#diff-b06ac66c98951b48056826c904be75263cdf56ec9b79d3274ea493e7d27cbac4>`_
@@ -231,7 +288,8 @@ Extensions fixed by others:
 * gobject-introspection: `fix adding Py_SET_TYPE() macro
   <https://gitlab.gnome.org/GNOME/gobject-introspection/-/commit/c4d7d21a2ad838077c6310532fdf7505321f0ae7>`__
 
-Extensions not fixed:
+Extensions still not fixed
+--------------------------
 
 * pyside2:
 
@@ -241,22 +299,17 @@ Extensions not fixed:
   * https://bugzilla.redhat.com/show_bug.cgi?id=1898974
   * https://bugzilla.redhat.com/show_bug.cgi?id=1902618
 
-* pybluez: `closed PR <https://github.com/pybluez/pybluez/pull/371>`_
+* pybluez: `closed PR (not merged)
+  <https://github.com/pybluez/pybluez/pull/371>`_
 * PyPAM
 * pygobject3
 * rdiff-backup
-
-Since the change broke too many C extensions, I `converted Py_TYPE() and
-Py_SIZE() back to macros
-<https://github.com/python/cpython/commit/0e2ac21dd4960574e89561243763eabba685296a>`_
-to have more time to fix fix C extensions.
 
 What's Next?
 ============
 
 * Convert again Py_TYPE() and Py_SIZE() macros to static inline functions.
-* Add "%T" formatter for Py_TYPE(obj)->tp_name:
-  see `rejected bpo-34595 <https://bugs.python.org/issue34595>`_
-* Modify Cython to use getter functions. Attempt to make some structures
-  opaque, like PyThreadState.
-
+* Add "%T" formatter for ``Py_TYPE(obj)->tp_name``:
+  see `rejected bpo-34595 <https://bugs.python.org/issue34595>`_.
+* Modify Cython to use getter functions.
+* Attempt to make some structures opaque, like PyThreadState.
