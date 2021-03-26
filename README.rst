@@ -39,4 +39,4 @@ Requirements:
 Command::
 
     python3 -m pip install --user --upgrade pelican ghp-import
-    git clone https://github.com/getpelican/pelican-themes
+    git clone --depth=1 https://github.com/getpelican/pelican-themes
