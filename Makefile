@@ -8,7 +8,7 @@ OUTPUTDIR=$(BASEDIR)/output
 CONFFILE=$(BASEDIR)/pelicanconf.py
 PUBLISHCONF=$(BASEDIR)/publishconf.py
 
-GITHUB_PAGES_BRANCH=master
+GITHUB_PAGES_BRANCH=main
 
 FTP_HOST=localhost
 FTP_USER=anonymous
@@ -28,7 +28,7 @@ CLOUDFILES_CONTAINER=my_cloudfiles_container
 DROPBOX_DIR=~/Dropbox/Public/
 
 # Local branch
-GITHUB_PAGES_BRANCH=master
+GITHUB_PAGES_BRANCH=main
 
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
@@ -122,6 +122,6 @@ cf_upload: publish
 
 github: publish
 	ghp-import -m "Generate Pelican site" -b $(GITHUB_PAGES_BRANCH) $(OUTPUTDIR)
-	git push origin
+	git push origin $(GITHUB_PAGES_BRANCH)
 
 .PHONY: html help clean regenerate serve serve-global devserver publish ssh_upload rsync_upload dropbox_upload ftp_upload s3_upload cf_upload github
