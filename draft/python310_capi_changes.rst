@@ -395,10 +395,16 @@ references.
 TODO
 ====
 
+* Convert again Py_TYPE() and Py_SIZE() macros to static inline functions.
+* Make upgrade_pythoncapi.py more popular. Try it on numpy.
 * Add "%T" formatter for Py_TYPE(obj)->tp_name:
   see `rejected bpo-34595 <https://bugs.python.org/issue34595>`_
 * Avoid ``PyObject**`` type, direct access into an array of ``PyObject*``:
 
+  * Deprecate PySequence_Fast_ITEMS()
+  * Disallow ``&PyTuple_GET_ITEM(0)``: convert ``PyTuple_GET_ITEM()`` macro
+    to static inline function:
+    `bpo-41078 <https://bugs.python.org/issue41078>`_.
   * https://www.python.org/dev/peps/pep-0620/#avoid-functions-returning-pyobject
   * https://mail.python.org/archives/list/python-dev@python.org/thread/632CV42376SWVYAZTHG4ROOV2HRHOVZ7/
 
@@ -412,7 +418,11 @@ TODO
   * Py_buffer with PyBuffer_Release() API notifies Python when the resource is
     no longer needed.
 
+* Modify Cython to use getter functions. Attempt to make some structures
+  opaque, like PyThreadState.
+
 * `PEP 620 -- Hide implementation details from the C API
   <https://www.python.org/dev/peps/pep-0620/>`_ by Victor Stinner
-* `PEP 652 -- Maintaining the Stable ABI
-  <https://www.python.org/dev/peps/pep-0652/>`_ by Petr Viktorin
+
+See also the draft `PEP 652 -- Maintaining the Stable ABI
+<https://www.python.org/dev/peps/pep-0652/>`_ by Petr Viktorin.
