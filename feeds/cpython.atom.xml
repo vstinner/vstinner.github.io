@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-03-26T12:00:00+01:00</updated><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;p&gt;This article is about changes that I made, with the help other developers, in
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-03-26T12:00:00+01:00</updated><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related
-to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;This article is about changes that I made, with the help other developers, in
+to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related
 to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation details from the C API&amp;quot;&lt;/a&gt;.&lt;/p&gt;
@@ -12,7 +14,6 @@ require to get the PEP 620 accepted.&lt;/p&gt;
 &lt;p&gt;While compatible changes merged in Python 3.8 and Python 3.9 went fine, one
 Python 3.10 &lt;strong&gt;incompatible change caused more troubles&lt;/strong&gt; and had to be
 reverted.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Photo: OVHcloud data center fire in Strasbourg.&lt;/p&gt;
 &lt;div class="section" id="rationale"&gt;
 &lt;h2&gt;Rationale&lt;/h2&gt;
