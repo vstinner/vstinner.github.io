@@ -14,6 +14,12 @@ structures opaque. These changes are related to the `PEP 620 "Hide
 implementation details from the C API"
 <https://www.python.org/dev/peps/pep-0620/>`_.
 
+.. image:: {static}/images/incendie-ovh.jpg
+   :alt: OVHcloud data center fire in Strasbourg
+   :target: https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg
+
+Photo: OVHcloud data center fire in Strasbourg.
+
 Rationale
 =========
 
