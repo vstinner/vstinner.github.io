@@ -14,8 +14,8 @@ and Python 3.10.
 Hide implementation details
 ===========================
 
-Add getter functions
---------------------
+Add getter functions to Python 3.9
+----------------------------------
 
 Python 3.9:
 
@@ -36,15 +36,24 @@ Python 3.9:
 
   * PyInterpreterState_Get()
 
-Incompatible C API changes
---------------------------
-
-Python 3.10:
+Python 3.0 incompatible C API changes
+-------------------------------------
 
 * ``Py_REFCNT()`` becomes a static inline function:
   ``Py_REFCNT(obj) = refcnt;`` now fails with a compiler error.
   The ``upgrade_pythoncapi.py`` script automatically replaces the pattern with
   ``Py_SET_REFCNT()``.
+
+pythoncapi_compat
+=================
+
+Creation of the pythoncapi_compat project which is made of two parts:
+
+* A ``pythoncapi_compat.h`` header file which provides new functions to old
+  functions, up to Python 2.7
+* A ``upgrade_pythoncapi.py`` script which adds Python 3.10 support to C
+  extensions, without losing support for old Python versions.
+  It adds ``#include "pythoncapi_compat.h"``.
 
 Borrowed references
 ===================
@@ -115,7 +124,8 @@ Enhance documentation
     means that you should always call ``Py_INCREF()`` on the object except when
     it **cannot be destroyed before the last usage of the borrowed reference**.
 
-Static inline functions
+Convert macros to static inline functions
+=========================================
 
 * Python 3.8:
 
@@ -143,7 +153,7 @@ Statistics
 Number of C API line numbers per Python version:
 
 =======  =============  ===========  ============  =======
-Version  Public         CPython      Internal      Total
+Python   Public         CPython      Internal      Total
 =======  =============  ===========  ============  =======
 2.7      12686 (100%)   0            0             12686
 3.6      16011 (100%)   0            0             16011
@@ -161,7 +171,7 @@ Creation on the ``Internal/internal/`` directory.
 Python 3.8
 ----------
 
-  * PyInterpreterState becomes internal
+Move PyInterpreterState structure to the internal C API.
 
 Python 3.9
 ----------
@@ -195,22 +205,22 @@ Fix the Limited C API
 Python 3.9
 ----------
 
-* Add:
+Add:
 
-  * Py_EnterRecursiveCall(), Py_LeaveRecursiveCall()
-  * PyFrame_GetLineNumber()
+* Py_EnterRecursiveCall(), Py_LeaveRecursiveCall()
+* PyFrame_GetLineNumber()
 
-* Remove:
+Remove:
 
-  * PyFPE_START_PROTECT(), PyFPE_END_PROTECT()
-  * PyThreadState_DeleteCurrent()
-  * PyTrash_UNWIND_LEVEL
-  * Py_TRASHCAN_BEGIN, Py_TRASHCAN_BEGIN_CONDITION, Py_TRASHCAN_END
-  * Py_TRASHCAN_SAFE_BEGIN, Py_TRASHCAN_SAFE_END
-  * _PyTraceMalloc_NewReference()
-  * _Py_CheckRecursionLimit
-  * _Py_GetRefTotal()
-  * _Py_NewReference(), _Py_ForgetReference()
+* PyFPE_START_PROTECT(), PyFPE_END_PROTECT()
+* PyThreadState_DeleteCurrent()
+* PyTrash_UNWIND_LEVEL
+* Py_TRASHCAN_BEGIN, Py_TRASHCAN_BEGIN_CONDITION, Py_TRASHCAN_END
+* Py_TRASHCAN_SAFE_BEGIN, Py_TRASHCAN_SAFE_END
+* _PyTraceMalloc_NewReference()
+* _Py_CheckRecursionLimit
+* _Py_GetRefTotal()
+* _Py_NewReference(), _Py_ForgetReference()
 
 Python 3.10
 -----------
@@ -223,7 +233,7 @@ Remove functions
 Symbols exported with PyAPI_FUNC() and PyAPI_DATA():
 
 =======  ===========
-Version  Symbols
+Python   Symbols
 =======  ===========
 2.7      1098
 3.6      1460
@@ -236,130 +246,131 @@ Version  Symbols
 Python 3.6
 ----------
 
-  * Deprecate:
+Deprecate 4 functions:
 
-    * PyUnicode_AsDecodedObject()
-    * PyUnicode_AsDecodedUnicode()
-    * PyUnicode_AsEncodedObject()
-    * PyUnicode_AsEncodedUnicode()
+* PyUnicode_AsDecodedObject()
+* PyUnicode_AsDecodedUnicode()
+* PyUnicode_AsEncodedObject()
+* PyUnicode_AsEncodedUnicode()
 
 Python 3.7
 ----------
 
-  * PyOS_AfterFork() deprecated in favour of new functions PyOS_BeforeFork(),
-    PyOS_AfterFork_Parent() and PyOS_AfterFork_Child()
-  * Remove PyExc_RecursionErrorInst singleton (also removed in Python 3.6.4).
+* Deprecate PyOS_AfterFork()
+* Remove PyExc_RecursionErrorInst singleton (also removed in Python 3.6.4).
 
 Python 3.8
 ----------
 
-  * PyByteArray_Init() and PyByteArray_Fini()
-  * PyEval_ReInitThreads()
+Remove 3 functions:
+
+* PyByteArray_Init() and PyByteArray_Fini()
+* PyEval_ReInitThreads()
 
 Python 3.9
 ----------
 
-  * Remove
+Remove 27 symbols:
 
-    * PyAsyncGen_ClearFreeLists()
-    * PyCFunction_ClearFreeList()
-    * PyCmpWrapper_Type
-    * PyContext_ClearFreeList()
-    * PyDict_ClearFreeList()
-    * PyFloat_ClearFreeList()
-    * PyFrame_ClearFreeList()
-    * PyFrame_ExtendStack()
-    * PyList_ClearFreeList()
-    * PyMethod_ClearFreeList()
-    * PyNoArgsFunction type
-    * PyNullImporter_Type
-    * PySet_ClearFreeList()
-    * PySortWrapper_Type
-    * PyTuple_ClearFreeList()
-    * PyUnicode_ClearFreeList()
-    * Py_UNICODE_MATCH()
-    * _PyAIterWrapper_Type
-    * _PyBytes_InsertThousandsGrouping()
-    * _PyBytes_InsertThousandsGroupingLocale()
-    * _PyFloat_Digits()
-    * _PyFloat_DigitsInit()
-    * _PyFloat_Repr()
-    * _PyThreadState_GetFrame() and _PyRuntime.getframe
-    * _PyUnicode_ClearStaticStrings()
-    * _Py_InitializeFromArgs()
-    * _Py_InitializeFromWideArgs()
+* PyAsyncGen_ClearFreeLists()
+* PyCFunction_ClearFreeList()
+* PyCmpWrapper_Type
+* PyContext_ClearFreeList()
+* PyDict_ClearFreeList()
+* PyFloat_ClearFreeList()
+* PyFrame_ClearFreeList()
+* PyFrame_ExtendStack()
+* PyList_ClearFreeList()
+* PyMethod_ClearFreeList()
+* PyNoArgsFunction type
+* PyNullImporter_Type
+* PySet_ClearFreeList()
+* PySortWrapper_Type
+* PyTuple_ClearFreeList()
+* PyUnicode_ClearFreeList()
+* Py_UNICODE_MATCH()
+* _PyAIterWrapper_Type
+* _PyBytes_InsertThousandsGrouping()
+* _PyBytes_InsertThousandsGroupingLocale()
+* _PyFloat_Digits()
+* _PyFloat_DigitsInit()
+* _PyFloat_Repr()
+* _PyThreadState_GetFrame() and _PyRuntime.getframe
+* _PyUnicode_ClearStaticStrings()
+* _Py_InitializeFromArgs()
+* _Py_InitializeFromWideArgs()
 
-  * Deprecate
+Deprecate 15 functions:
 
-    * PyEval_CallFunction()
-    * PyEval_CallMethod()
-    * PyEval_CallObject()
-    * PyEval_CallObjectWithKeywords()
-    * PyNode_Compile()
-    * PyParser_SimpleParseFileFlags()
-    * PyParser_SimpleParseStringFlags()
-    * PyParser_SimpleParseStringFlagsFilename()
-    * PyUnicode_AsUnicode()
-    * PyUnicode_AsUnicodeAndSize()
-    * PyUnicode_FromUnicode()
-    * PyUnicode_WSTR_LENGTH()
-    * Py_UNICODE_COPY()
-    * Py_UNICODE_FILL()
-    * _PyUnicode_AsUnicode()
+* PyEval_CallFunction()
+* PyEval_CallMethod()
+* PyEval_CallObject()
+* PyEval_CallObjectWithKeywords()
+* PyNode_Compile()
+* PyParser_SimpleParseFileFlags()
+* PyParser_SimpleParseStringFlags()
+* PyParser_SimpleParseStringFlagsFilename()
+* PyUnicode_AsUnicode()
+* PyUnicode_AsUnicodeAndSize()
+* PyUnicode_FromUnicode()
+* PyUnicode_WSTR_LENGTH()
+* Py_UNICODE_COPY()
+* Py_UNICODE_FILL()
+* _PyUnicode_AsUnicode()
 
 Python 3.10
 -----------
 
-* Remove:
+Remove 42 symbols:
 
-  * PyAST_Compile()
-  * PyAST_CompileEx()
-  * PyAST_CompileObject()
-  * PyAST_Validate()
-  * PyArena_AddPyObject()
-  * PyArena_Free()
-  * PyArena_Malloc()
-  * PyArena_New()
-  * PyFuture_FromAST()
-  * PyFuture_FromASTObject()
-  * PyLong_FromUnicode()
-  * PyNode_Compile()
-  * PyOS_InitInterrupts()
-  * PyObject_AsCharBuffer()
-  * PyObject_AsReadBuffer()
-  * PyObject_AsWriteBuffer()
-  * PyObject_CheckReadBuffer()
-  * PyParser_ASTFromFile()
-  * PyParser_ASTFromFileObject()
-  * PyParser_ASTFromFilename()
-  * PyParser_ASTFromString()
-  * PyParser_ASTFromStringObject()
-  * PyParser_SimpleParseFileFlags()
-  * PyParser_SimpleParseStringFlags()
-  * PyParser_SimpleParseStringFlagsFilename()
-  * PyST_GetScope()
-  * PySymtable_Build()
-  * PySymtable_BuildObject()
-  * PySymtable_Free()
-  * PyUnicode_AsUnicodeCopy()
-  * PyUnicode_GetMax()
-  * Py_ALLOW_RECURSION, Py_END_ALLOW_RECURSION
-  * Py_SymtableString()
-  * Py_SymtableStringObject()
-  * Py_UNICODE_strcat()
-  * Py_UNICODE_strchr(), Py_UNICODE_strrchr()
-  * Py_UNICODE_strcmp()
-  * Py_UNICODE_strcpy(), Py_UNICODE_strncpy()
-  * Py_UNICODE_strlen()
-  * Py_UNICODE_strncmp()
-  * _PyUnicode_Name_CAPI structure
-  * _Py_CheckRecursionLimit
+* PyAST_Compile()
+* PyAST_CompileEx()
+* PyAST_CompileObject()
+* PyAST_Validate()
+* PyArena_AddPyObject()
+* PyArena_Free()
+* PyArena_Malloc()
+* PyArena_New()
+* PyFuture_FromAST()
+* PyFuture_FromASTObject()
+* PyLong_FromUnicode()
+* PyNode_Compile()
+* PyOS_InitInterrupts()
+* PyObject_AsCharBuffer()
+* PyObject_AsReadBuffer()
+* PyObject_AsWriteBuffer()
+* PyObject_CheckReadBuffer()
+* PyParser_ASTFromFile()
+* PyParser_ASTFromFileObject()
+* PyParser_ASTFromFilename()
+* PyParser_ASTFromString()
+* PyParser_ASTFromStringObject()
+* PyParser_SimpleParseFileFlags()
+* PyParser_SimpleParseStringFlags()
+* PyParser_SimpleParseStringFlagsFilename()
+* PyST_GetScope()
+* PySymtable_Build()
+* PySymtable_BuildObject()
+* PySymtable_Free()
+* PyUnicode_AsUnicodeCopy()
+* PyUnicode_GetMax()
+* Py_ALLOW_RECURSION, Py_END_ALLOW_RECURSION
+* Py_SymtableString()
+* Py_SymtableStringObject()
+* Py_UNICODE_strcat()
+* Py_UNICODE_strchr(), Py_UNICODE_strrchr()
+* Py_UNICODE_strcmp()
+* Py_UNICODE_strcpy(), Py_UNICODE_strncpy()
+* Py_UNICODE_strlen()
+* Py_UNICODE_strncmp()
+* _PyUnicode_Name_CAPI structure
+* _Py_CheckRecursionLimit
 
-* Deprecate:
+Deprecate 3 functions:
 
-  * PyUnicode_FromUnicode(NULL, size)
-  * PyUnicode_FromStringAndSize(NULL, size)
-  * PyUnicode_InternImmortal()
+* PyUnicode_FromUnicode(NULL, size)
+* PyUnicode_FromStringAndSize(NULL, size)
+* PyUnicode_InternImmortal()
 
 Process to deprecate
 ====================
@@ -371,9 +382,37 @@ Process to deprecate
 * Check PyPI top 4000 packages
 * Fedora "continuous integration": Python packages of Fedora rebuilt with Python 3.10
 
+Include/README.rst
+==================
+
+New `Include/README.rst documentation
+<https://github.com/python/cpython/blob/master/Include/README.rst>`_.
+
+Explain the 3 C API, guidelines for adding new functions. For example, new
+functions in the public C API must not steal references nor return borrowed
+references.
+
 TODO
 ====
 
-* "%T" formatter for Py_TYPE(obj)->tp_name
-* Guidelines to avoid PyBytes_GetString(): Py_buffer with PyBuffer_Release()
-  API notifies Python when the resource is no longer needed.
+* Add "%T" formatter for Py_TYPE(obj)->tp_name:
+  see `rejected bpo-34595 <https://bugs.python.org/issue34595>`_
+* Avoid ``PyObject**`` type, direct access into an array of ``PyObject*``:
+
+  * https://www.python.org/dev/peps/pep-0620/#avoid-functions-returning-pyobject
+  * https://mail.python.org/archives/list/python-dev@python.org/thread/632CV42376SWVYAZTHG4ROOV2HRHOVZ7/
+
+* Avoid funtions giving a direct access into object data with no API to signal
+  when the resource can be released.
+
+  * Issue for moving GC
+  * Pin memory or copy memory, unpin or freed the copy when the resource is
+    released
+  * PyBytes_GetString()
+  * Py_buffer with PyBuffer_Release() API notifies Python when the resource is
+    no longer needed.
+
+* `PEP 620 -- Hide implementation details from the C API
+  <https://www.python.org/dev/peps/pep-0620/>`_ by Victor Stinner
+* `PEP 652 -- Maintaining the Stable ABI
+  <https://www.python.org/dev/peps/pep-0652/>`_ by Petr Viktorin
