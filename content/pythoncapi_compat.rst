@@ -17,10 +17,9 @@ In 2020, I created a new `pythoncapi_compat project
 to C extensions without losing support for old Python versions. It supports
 Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:
 
-* ``pythoncapi_compat.h``: Header file providing new functions of the Python C
-  API to old Python versions, like ``Py_SET_TYPE()``.
-* ``upgrade_pythoncapi.py``: Script upgrading C extension modules to newer
-  Python API without losing support for old Python versions. It relies on
+* ``pythoncapi_compat.h``: Header file providing new C API functions to old
+  Python versions, like ``Py_SET_TYPE()``.
+* ``upgrade_pythoncapi.py``: Script upgrading C extension modules using
   ``pythoncapi_compat.h``. For example, it replaces ``Py_TYPE(obj) = type;``
   with ``Py_SET_TYPE(obj, type);``.
 
@@ -34,11 +33,12 @@ Py_SET_TYPE() macro for Python 3.8 and older
 Py_TYPE() macro converted to a static inline function
 -----------------------------------------------------
 
-In Python 3.10, `Py_TYPE()
+In May 2020 in the `bpo-39573 "Make PyObject an opaque structure"
+<https://bugs.python.org/issue39573>`_, `Py_TYPE()
 <https://github.com/python/cpython/commit/ad3252bad905d41635bcbb4b76db30d570cf0087>`_
-(changed by Dong-hee Na), `Py_REFCNT() and Py_SIZE()
+(change by Dong-hee Na), `Py_REFCNT() and Py_SIZE()
 <https://github.com/python/cpython/commit/fe2978b3b940fe2478335e3a2ca5ad22338cdf9c>`_
-(changed by me) macros were converted to static inline functions. This change
+(change by me) macros were converted to static inline functions. This change
 broke 17 C extension modules (see my previous article `Make structures opaque
 in the Python C API <{filename}/c-api-opaque-structures.rst>`_).
 
@@ -60,9 +60,7 @@ Cython and numpy fixes
 ----------------------
 
 I fixed Cython by `adding __Pyx_SET_REFCNT() and __Pyx_SET_SIZE() macros
-<https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd>`_
-which use Py_SET_REFCNT() and Py_SET_SIZE() on Python 3.9 and newer, or use
-Py_REFCNT() and Py_TYPE() on Python 3.8 and older::
+<https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd>`_::
 
     #if PY_VERSION_HEX >= 0x030900A4
       #define __Pyx_SET_REFCNT(obj, refcnt) Py_SET_REFCNT(obj, refcnt)
@@ -72,26 +70,20 @@ Py_REFCNT() and Py_TYPE() on Python 3.8 and older::
       #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
     #endif
 
-`numpy fix
-<https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa>`_
-only defines Py_SET_TYPE() and Py_SET_SIZE() on Python 3.8 and older, or simply
-reuse existing functions on Python 3.9 and newer::
+The `numpy fix
+<https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa>`__::
 
     #if PY_VERSION_HEX < 0x030900a4
-        /* Introduced in https://github.com/python/cpython/commit/d2ec81a8c99796b51fb8c49b77a7fe369863226f */
         #define Py_SET_TYPE(obj, typ) (Py_TYPE(obj) = typ)
-        /* Introduced in https://github.com/python/cpython/commit/b10dc3e7a11fcdb97e285882eba6da92594f90f9 */
         #define Py_SET_SIZE(obj, size) (Py_SIZE(obj) = size)
     #endif
 
 `The numpy fix was updated
 <https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa>`__
-to not have a return value by adding ``", (void)0"`` to the macros::
+to not have a return value by adding ``", (void)0"``::
 
     #if PY_VERSION_HEX < 0x030900a4
-        /* Introduced in https://github.com/python/cpython/commit/d2ec81a8c99796b51fb8c49b77a7fe369863226f */
         #define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
-        /* Introduced in https://github.com/python/cpython/commit/b10dc3e7a11fcdb97e285882eba6da92594f90f9 */
         #define Py_SET_SIZE(obj, size) ((Py_SIZE(obj) = (size)), (void)0)
     #endif
 
@@ -100,7 +92,8 @@ So the macros better mimicks the static inline functions behavior.
 C API Porting Guide
 -------------------
 
-I copied the numpy macros `to the C API Python 3.10 porting guide
+I copied the numpy macros `to the C API section of the Python 3.10 porting
+guide (What's New in Python 3.10)
 <https://github.com/python/cpython/commit/dc24b8a2ac32114313bae519db3ccc21fe45c982>`_.
 Py_SET_TYPE() documentation.
 
@@ -133,15 +126,15 @@ project::
 
 These macros started to be copied into multiple projects. Examples:
 
+* `breezy
+  <https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647>`_
 * `numpy
   <https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa>`__
-* `breezy fix: define Py_SET_REFCNT()
-  <https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647>`_
 * `pycurl
   <https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042>`_
 
-There might be a better way to copy/paste these compatibility layer in each
-project, adding macros one by one.
+There might be a better way than copying/pasting these compatibility layer in
+each project, adding macros one by one...
 
 Creation of the pythoncapi_compat.h header file
 ===============================================
@@ -162,9 +155,9 @@ In June 2020, I created `the pythoncapi_compat project
 <https://github.com/pythoncapi/pythoncapi_compat>`__ project with a
 `pythoncapi_compat.h header file
 <https://github.com/pythoncapi/pythoncapi_compat/blob/main/pythoncapi_compat.h>`_
-which defines these functions as static inline functions. A ``#if
-PY_VERSION_HEX`` guard prevents to define a function if it's already provided
-by ``Python.h``. Example of the current implementation of
+which defines these functions as static inline functions. An
+``"#if PY_VERSION_HEX"`` guard prevents to define a function if it's already
+provided by ``Python.h``. Example of the current implementation of
 PyThreadState_GetInterpreter() for Python 3.8 and older::
 
     // bpo-39947 added PyThreadState_GetInterpreter() to Python 3.9.0a5
@@ -177,24 +170,23 @@ PyThreadState_GetInterpreter() for Python 3.8 and older::
     }
     #endif
 
-I wrote tests on each function using a C extension. The project intially
+I wrote tests on each function using a C extension. The project initially
 supported Python 3.6 to Python 3.10. The test runner checks also for reference
 leaks.
-
-My first success was to convince bitarray and immutables projects to use
-pythoncapi_compat.h!
 
 Mercurial and Python 2.7
 ========================
 
-The Mercurial project uses many C extensions, was broken on Python 3.10 by the
-Py_SIZE() change, and is one of the last project still requiring Python 2.7 in
-2021. It's a good candidate to check if pythoncapi_compat.h is useful.
+The Mercurial project has multiple C extensions, was broken on Python 3.10 by
+the Py_TYPE() change, and is one of the last project still requiring Python 2.7
+in 2021. It's a good candidate to check if pythoncapi_compat.h is useful.
 
-I proposed a patch then converted to a merge request. It got accepted in the
-"next" branch, but compatibility with Visual Studio 2008 had to be fixed for
-Python 2.7 on Windows. I fixed pythoncapi_compat.h by defining ``inline`` as
-``__inline``::
+`I proposed a patch <https://bz.mercurial-scm.org/show_bug.cgi?id=6451>`_ then
+`converted to a merge request
+<https://foss.heptapod.net/octobus/mercurial-devel/-/merge_requests/61>`_. It
+got accepted in the "next" branch, but compatibility with Visual Studio 2008
+had to be fixed for Python 2.7 on Windows. I fixed pythoncapi_compat.h by
+defining ``inline`` as ``__inline``::
 
     // Compatibility with Visual Studio 2013 and older which don't support
     // the inline keyword in C (only in C++): use __inline instead.
@@ -213,9 +205,8 @@ Python 2.7 on Windows. I fixed pythoncapi_compat.h by defining ``inline`` as
     #endif
 
 I chose to continue writing ``static inline``, so pythoncapi_compat.h remains
-close to Python header files.
-
-I modified the pythoncapi_compat test suite to also test Python 2.7.
+close to Python header files. I also modified the pythoncapi_compat test suite
+to also test Python 2.7.
 
 pybind11 and PyPy
 =================
@@ -238,19 +229,20 @@ upgrade_pythoncapi.py
 ---------------------
 
 In November 2020, I created a new ``upgrade_pythoncapi.py`` script to replace
-``Py_TYPE(obj) = type;`` with ``Py_SET_TYPE(obj, type);``. The script is based
-on my `old sixer.py project <https://github.com/vstinner/sixer>`_ which adds
-Python 3 support to a Python project using the ``six`` module. It uses regular
-expressions to replace one pattern with another.
+``"Py_TYPE(obj) = type;"`` with ``"Py_SET_TYPE(obj, type);"``. The script is
+based on my `old sixer.py project <https://github.com/vstinner/sixer>`_ which
+adds Python 3 support to a Python project without losing Python 2 support. The
+``upgrade_pythoncapi.py`` script uses regular expressions to replace one
+pattern with another.
 
 Similar to ``sixer`` which adds ``import six`` to support Python 2 and Python 3
 in a single code base, ``upgrade_pythoncapi.py`` adds
-``#include "pythoncapi_compat.h"`` to support old and new versions of the C API
-in a single code base.
+``#include "pythoncapi_compat.h"`` to support old and new versions of the
+Python C API in a single code base.
 
-First, I created a new GitHub project for upgrade_pythoncapi.py. But since it
+I first created a new GitHub project for upgrade_pythoncapi.py, but since it
 was too tightly coupled to the pythoncapi_compat.h header file, I moved the
-script there.
+script to the pythoncapi_compat project.
 
 Tests
 -----
@@ -265,7 +257,7 @@ Borrowed references
 -------------------
 
 Code accessing ``frame->f_code`` directly must use ``PyFrame_GetCode()`` but
-this function (added to Python 3.9) returns a strong reference, whereas
+this function returns a strong reference, whereas
 ``frame->f_code`` gives a borrowed reference. I added "Borrow" variants of the
 functions to ``pythoncapi_compat.h`` for ``upgrade_pythoncapi.py``. For
 example, ``frame->f_code`` is replaced with ``_PyFrame_GetCodeBorrow()`` which
@@ -293,13 +285,16 @@ First I proposed to add them to Python, but I abandoned the idea (see
 `bpo-42522 <https://bugs.python.org/issue42522>`_).
 
 Thanks to the "Borrow" suffix in function names, it becomes easier to discover
-the usage of borrowed references. For example, ``_PyFrame_GetCodeBorrow()`` can
-be replaced with ``PyFrame_GetCode()``, but it requires to explicitly delete
-the created strong reference with ``Py_DECREF()``.
+the usage of borrowed references. Using a borrowed reference is unsafe if it is
+possible that the object is destroyed before the last usage of borrowed
+reference. In case of doubt, it's better to use a strong reference. For
+example, ``_PyFrame_GetCodeBorrow()`` can be replaced with
+``PyFrame_GetCode()``, but it requires to explicitly delete the created strong
+reference with ``Py_DECREF()``.
 
 
-Success
-=======
+Practical solution for incompatible C API changes
+=================================================
 
 So far, I succeeded to convince 4 projects to use pythoncapi_compat.h:
 bitarray, immutables, Mercurial and python-zstandard.
