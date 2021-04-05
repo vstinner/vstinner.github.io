@@ -1,5 +1,270 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-03-26T12:00:00+01:00</updated><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-03-30T20:00:00+02:00</updated><entry><title>Creation of the pythoncapi_compat project</title><link href="https://vstinner.github.io/pythoncapi_compat.html" rel="alternate"></link><published>2021-03-30T20:00:00+02:00</published><updated>2021-03-30T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-30:/pythoncapi_compat.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;&lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In 2020, I created a new &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat project&lt;/a&gt; to add Python 3.10 support
+to C extensions without losing support for old Python versions. It supports
+Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt;: Header file providing new C API …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;&lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In 2020, I created a new &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat project&lt;/a&gt; to add Python 3.10 support
+to C extensions without losing support for old Python versions. It supports
+Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt;: Header file providing new C API functions to old
+Python versions, like &lt;tt class="docutils literal"&gt;Py_SET_TYPE()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt;: Script upgrading C extension modules using
+&lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt;. For example, it replaces &lt;tt class="docutils literal"&gt;Py_TYPE(obj) = type;&lt;/tt&gt;
+with &lt;tt class="docutils literal"&gt;Py_SET_TYPE(obj, type);&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This article is about the creation of the header file and the upgrade script.&lt;/p&gt;
+&lt;p&gt;Photo: Strange cats 🐾 by Kéké.&lt;/p&gt;
+&lt;div class="section" id="py-set-type-macro-for-python-3-8-and-older"&gt;
+&lt;h2&gt;Py_SET_TYPE() macro for Python 3.8 and older&lt;/h2&gt;
+&lt;div class="section" id="py-type-macro-converted-to-a-static-inline-function"&gt;
+&lt;h3&gt;Py_TYPE() macro converted to a static inline function&lt;/h3&gt;
+&lt;p&gt;In May 2020 in the &lt;a class="reference external" href="https://bugs.python.org/issue39573"&gt;bpo-39573 &amp;quot;Make PyObject an opaque structure&amp;quot;&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/python/cpython/commit/ad3252bad905d41635bcbb4b76db30d570cf0087"&gt;Py_TYPE()&lt;/a&gt;
+(change by Dong-hee Na), &lt;a class="reference external" href="https://github.com/python/cpython/commit/fe2978b3b940fe2478335e3a2ca5ad22338cdf9c"&gt;Py_REFCNT() and Py_SIZE()&lt;/a&gt;
+(change by me) macros were converted to static inline functions. This change
+broke 17 C extension modules (see my previous article &lt;a class="reference external" href="https://vstinner.github.io/c-api-opaque-structures.html"&gt;Make structures opaque
+in the Python C API&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;I prepared this change in Python 3.9 by adding Py_SET_REFCNT(), Py_SET_TYPE()
+and Py_SET_SIZE() functions, and by modifying Python to use these functions. I
+also &lt;a class="reference external" href="https://github.com/python/cpython/commit/d905df766c367c350f20c46ccd99d4da19ed57d8"&gt;added Py_IS_TYPE() function&lt;/a&gt;
+which tests the type of an object:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline int _Py_IS_TYPE(PyObject *ob, PyTypeObject *type) {
+    return ob-&amp;gt;ob_type == type;
+}
+#define Py_IS_TYPE(ob, type) _Py_IS_TYPE(_PyObject_CAST(ob), type)
+&lt;/pre&gt;
+&lt;p&gt;For example, &lt;tt class="docutils literal"&gt;Py_TYPE(ob) == (tp)&lt;/tt&gt; can be replaced with &lt;tt class="docutils literal"&gt;Py_IS_TYPE(ob, tp)&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cython-and-numpy-fixes"&gt;
+&lt;h3&gt;Cython and numpy fixes&lt;/h3&gt;
+&lt;p&gt;I fixed Cython by &lt;a class="reference external" href="https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd"&gt;adding __Pyx_SET_REFCNT() and __Pyx_SET_SIZE() macros&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#if PY_VERSION_HEX &amp;gt;= 0x030900A4
+  #define __Pyx_SET_REFCNT(obj, refcnt) Py_SET_REFCNT(obj, refcnt)
+  #define __Pyx_SET_SIZE(obj, size) Py_SET_SIZE(obj, size)
+#else
+  #define __Pyx_SET_REFCNT(obj, refcnt) Py_REFCNT(obj) = (refcnt)
+  #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
+#endif
+&lt;/pre&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa"&gt;numpy fix&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#if PY_VERSION_HEX &amp;lt; 0x030900a4
+    #define Py_SET_TYPE(obj, typ) (Py_TYPE(obj) = typ)
+    #define Py_SET_SIZE(obj, size) (Py_SIZE(obj) = size)
+#endif
+&lt;/pre&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa"&gt;The numpy fix was updated&lt;/a&gt;
+to not have a return value by adding &lt;tt class="docutils literal"&gt;&amp;quot;, (void)0&amp;quot;&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#if PY_VERSION_HEX &amp;lt; 0x030900a4
+    #define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+    #define Py_SET_SIZE(obj, size) ((Py_SIZE(obj) = (size)), (void)0)
+#endif
+&lt;/pre&gt;
+&lt;p&gt;So the macros better mimicks the static inline functions behavior.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="c-api-porting-guide"&gt;
+&lt;h3&gt;C API Porting Guide&lt;/h3&gt;
+&lt;p&gt;I copied the numpy macros &lt;a class="reference external" href="https://github.com/python/cpython/commit/dc24b8a2ac32114313bae519db3ccc21fe45c982"&gt;to the C API section of the Python 3.10 porting
+guide (What's New in Python 3.10)&lt;/a&gt;.
+Py_SET_TYPE() documentation.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Since &lt;tt class="docutils literal"&gt;Py_TYPE()&lt;/tt&gt; is changed to the inline static function,
+&lt;tt class="docutils literal"&gt;Py_TYPE(obj) = new_type&lt;/tt&gt; must be replaced with
+&lt;tt class="docutils literal"&gt;Py_SET_TYPE(obj, new_type)&lt;/tt&gt;: see &lt;tt class="docutils literal"&gt;Py_SET_TYPE()&lt;/tt&gt; (available since
+Python 3.9). For backward compatibility, this macro can be used:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#if PY_VERSION_HEX &amp;lt; 0x030900A4
+#  define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+#endif
+&lt;/pre&gt;
+&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="copy-paste-macros"&gt;
+&lt;h3&gt;Copy/paste macros&lt;/h3&gt;
+&lt;p&gt;Up to 3 macros must be copied/pasted for backward compatibility in each
+project:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#if PY_VERSION_HEX &amp;lt; 0x030900A4
+#  define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+#endif
+
+#if PY_VERSION_HEX &amp;lt; 0x030900A4
+#  define Py_SET_REFCNT(obj, refcnt) ((Py_REFCNT(obj) = (refcnt)), (void)0)
+#endif
+
+#if PY_VERSION_HEX &amp;lt; 0x030900A4
+#  define Py_SET_SIZE(obj, size) ((Py_SIZE(obj) = (size)), (void)0)
+#endif
+&lt;/pre&gt;
+&lt;p&gt;These macros started to be copied into multiple projects. Examples:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647"&gt;breezy&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa"&gt;numpy&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042"&gt;pycurl&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There might be a better way than copying/pasting these compatibility layer in
+each project, adding macros one by one...&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="creation-of-the-pythoncapi-compat-h-header-file"&gt;
+&lt;h2&gt;Creation of the pythoncapi_compat.h header file&lt;/h2&gt;
+&lt;p&gt;While the code for Py_SET_REFCNT(), Py_SET_TYPE() and Py_SET_SIZE() macros is
+short, I also wanted to use the new seven Python 3.9 getter functions on Python
+3.8 and older:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Py_IS_TYPE()&lt;/li&gt;
+&lt;li&gt;PyFrame_GetBack()&lt;/li&gt;
+&lt;li&gt;PyFrame_GetCode()&lt;/li&gt;
+&lt;li&gt;PyInterpreterState_Get()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetFrame()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetID()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetInterpreter()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In June 2020, I created &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;the pythoncapi_compat project&lt;/a&gt; project with a
+&lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat/blob/main/pythoncapi_compat.h"&gt;pythoncapi_compat.h header file&lt;/a&gt;
+which defines these functions as static inline functions. An
+&lt;tt class="docutils literal"&gt;&amp;quot;#if PY_VERSION_HEX&amp;quot;&lt;/tt&gt; guard prevents to define a function if it's already
+provided by &lt;tt class="docutils literal"&gt;Python.h&lt;/tt&gt;. Example of the current implementation of
+PyThreadState_GetInterpreter() for Python 3.8 and older:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+// bpo-39947 added PyThreadState_GetInterpreter() to Python 3.9.0a5
+#if PY_VERSION_HEX &amp;lt; 0x030900A5
+static inline PyInterpreterState *
+PyThreadState_GetInterpreter(PyThreadState *tstate)
+{
+    assert(tstate != NULL);
+    return tstate-&amp;gt;interp;
+}
+#endif
+&lt;/pre&gt;
+&lt;p&gt;I wrote tests on each function using a C extension. The project initially
+supported Python 3.6 to Python 3.10. The test runner checks also for reference
+leaks.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="mercurial-and-python-2-7"&gt;
+&lt;h2&gt;Mercurial and Python 2.7&lt;/h2&gt;
+&lt;p&gt;The Mercurial project has multiple C extensions, was broken on Python 3.10 by
+the Py_TYPE() change, and is one of the last project still requiring Python 2.7
+in 2021. It's a good candidate to check if pythoncapi_compat.h is useful.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://bz.mercurial-scm.org/show_bug.cgi?id=6451"&gt;I proposed a patch&lt;/a&gt; then
+&lt;a class="reference external" href="https://foss.heptapod.net/octobus/mercurial-devel/-/merge_requests/61"&gt;converted to a merge request&lt;/a&gt;. It
+got accepted in the &amp;quot;next&amp;quot; branch, but compatibility with Visual Studio 2008
+had to be fixed for Python 2.7 on Windows. I fixed pythoncapi_compat.h by
+defining &lt;tt class="docutils literal"&gt;inline&lt;/tt&gt; as &lt;tt class="docutils literal"&gt;__inline&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+// Compatibility with Visual Studio 2013 and older which don't support
+// the inline keyword in C (only in C++): use __inline instead.
+#if (defined(_MSC_VER) &amp;amp;&amp;amp; _MSC_VER &amp;lt; 1900 \
+     &amp;amp;&amp;amp; !defined(__cplusplus) &amp;amp;&amp;amp; !defined(inline))
+#  define inline __inline
+#  define PYTHONCAPI_COMPAT_MSC_INLINE
+   // These two macros are undefined at the end of this file
+#endif
+
+(...)
+
+#ifdef PYTHONCAPI_COMPAT_MSC_INLINE
+#  undef inline
+#  undef PYTHONCAPI_COMPAT_MSC_INLINE
+#endif
+&lt;/pre&gt;
+&lt;p&gt;I chose to continue writing &lt;tt class="docutils literal"&gt;static inline&lt;/tt&gt;, so pythoncapi_compat.h remains
+close to Python header files. I also modified the pythoncapi_compat test suite
+to also test Python 2.7.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pybind11-and-pypy"&gt;
+&lt;h2&gt;pybind11 and PyPy&lt;/h2&gt;
+&lt;p&gt;More recently, I added PyPy 2.7, 3.6 and 3.7 support for pybind11, since PyPy
+is tested by their CI. The fix is to no longer define the following functions
+on PyPy:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;PyFrame_GetBack(), _PyFrame_GetBackBorrow()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetFrame(), _PyThreadState_GetFrameBorrow()&lt;/li&gt;
+&lt;li&gt;PyThreadState_GetID()&lt;/li&gt;
+&lt;li&gt;PyObject_GC_IsTracked()&lt;/li&gt;
+&lt;li&gt;PyObject_GC_IsFinalized()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="creation-of-the-upgrade-pythoncapi-py-script"&gt;
+&lt;h2&gt;Creation of the upgrade_pythoncapi.py script&lt;/h2&gt;
+&lt;div class="section" id="upgrade-pythoncapi-py"&gt;
+&lt;h3&gt;upgrade_pythoncapi.py&lt;/h3&gt;
+&lt;p&gt;In November 2020, I created a new &lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt; script to replace
+&lt;tt class="docutils literal"&gt;&amp;quot;Py_TYPE(obj) = type;&amp;quot;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;&amp;quot;Py_SET_TYPE(obj, &lt;span class="pre"&gt;type);&amp;quot;&lt;/span&gt;&lt;/tt&gt;. The script is
+based on my &lt;a class="reference external" href="https://github.com/vstinner/sixer"&gt;old sixer.py project&lt;/a&gt; which
+adds Python 3 support to a Python project without losing Python 2 support. The
+&lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt; script uses regular expressions to replace one
+pattern with another.&lt;/p&gt;
+&lt;p&gt;Similar to &lt;tt class="docutils literal"&gt;sixer&lt;/tt&gt; which adds &lt;tt class="docutils literal"&gt;import six&lt;/tt&gt; to support Python 2 and Python 3
+in a single code base, &lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt; adds
+&lt;tt class="docutils literal"&gt;#include &amp;quot;pythoncapi_compat.h&amp;quot;&lt;/tt&gt; to support old and new versions of the
+Python C API in a single code base.&lt;/p&gt;
+&lt;p&gt;I first created a new GitHub project for upgrade_pythoncapi.py, but since it
+was too tightly coupled to the pythoncapi_compat.h header file, I moved the
+script to the pythoncapi_compat project.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="tests"&gt;
+&lt;h3&gt;Tests&lt;/h3&gt;
+&lt;p&gt;I added more and more &amp;quot;operations&amp;quot; to update C extensions. For me, &lt;strong&gt;the most
+important part is the test suite&lt;/strong&gt; to ensure that the script doesn't introduce
+bugs. It contains code which must not be replaced. For example, it ensures that
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;frame-&amp;gt;f_code&lt;/span&gt; = code&lt;/tt&gt; is not replaced with &lt;tt class="docutils literal"&gt;_PyFrame_GetCodeBorrow(frame) =
+code&lt;/tt&gt; by mistake.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="borrowed-references"&gt;
+&lt;h3&gt;Borrowed references&lt;/h3&gt;
+&lt;p&gt;Code accessing &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;frame-&amp;gt;f_code&lt;/span&gt;&lt;/tt&gt; directly must use &lt;tt class="docutils literal"&gt;PyFrame_GetCode()&lt;/tt&gt; but
+this function returns a strong reference, whereas
+&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;frame-&amp;gt;f_code&lt;/span&gt;&lt;/tt&gt; gives a borrowed reference. I added &amp;quot;Borrow&amp;quot; variants of the
+functions to &lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt; for &lt;tt class="docutils literal"&gt;upgrade_pythoncapi.py&lt;/tt&gt;. For
+example, &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;frame-&amp;gt;f_code&lt;/span&gt;&lt;/tt&gt; is replaced with &lt;tt class="docutils literal"&gt;_PyFrame_GetCodeBorrow()&lt;/tt&gt; which
+is defined as:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline PyCodeObject*
+_PyFrame_GetCodeBorrow(PyFrameObject *frame)
+{
+    return (PyCodeObject *)_Py_StealRef(PyFrame_GetCode(frame));
+}
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;_Py_StealRef(obj)&lt;/tt&gt; function converts a strong reference to a borrowed
+reference (simplified code):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline PyObject* _Py_StealRef(PyObject *obj)
+{
+    Py_DECREF(obj);
+    return obj;
+}
+&lt;/pre&gt;
+&lt;p&gt;It is the opposite of &lt;tt class="docutils literal"&gt;Py_NewRef()&lt;/tt&gt;. It is similar to &lt;tt class="docutils literal"&gt;Py_DECREF(obj)&lt;/tt&gt; but
+it can be used as an expression: it returns &lt;em&gt;obj&lt;/em&gt;.  pythoncapi_compat.h defines
+private &lt;tt class="docutils literal"&gt;_Py_StealRef()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;_Py_XStealRef()&lt;/tt&gt; static inline functions.
+First I proposed to add them to Python, but I abandoned the idea (see
+&lt;a class="reference external" href="https://bugs.python.org/issue42522"&gt;bpo-42522&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;Thanks to the &amp;quot;Borrow&amp;quot; suffix in function names, it becomes easier to discover
+the usage of borrowed references. Using a borrowed reference is unsafe if it is
+possible that the object is destroyed before the last usage of borrowed
+reference. In case of doubt, it's better to use a strong reference. For
+example, &lt;tt class="docutils literal"&gt;_PyFrame_GetCodeBorrow()&lt;/tt&gt; can be replaced with
+&lt;tt class="docutils literal"&gt;PyFrame_GetCode()&lt;/tt&gt;, but it requires to explicitly delete the created strong
+reference with &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="practical-solution-for-incompatible-c-api-changes"&gt;
+&lt;h2&gt;Practical solution for incompatible C API changes&lt;/h2&gt;
+&lt;p&gt;So far, I succeeded to convince 4 projects to use pythoncapi_compat.h:
+bitarray, immutables, Mercurial and python-zstandard.&lt;/p&gt;
+&lt;p&gt;In my opinion, pythoncapi_compat.h is the right approach to introduce
+incompatible C API changes: provide a practical solution to support old and new
+Python versions in a single code base.&lt;/p&gt;
+&lt;p&gt;The next steps is to get it adopted more widely and get it endorsed by the
+Python project, maybe by moving it under the PSF organization on GitHub.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related

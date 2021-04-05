@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Creation of the pythoncapi_compat project — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Creation of the pythoncapi_compat project; Date: 2021-03-30; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Creation of the pythoncapi_compat project</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2021-03-30T20:00:00+02:00" itemprop="datePublished">mar. 30 mars 2021</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"><img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /></a>
+<p>In 2020, I created a new <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat project</a> to add Python 3.10 support
+to C extensions without losing support for old Python versions. It supports
+Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:</p>
+<ul class="simple">
+<li><tt class="docutils literal">pythoncapi_compat.h</tt>: Header file providing new C API functions to old
+Python versions, like <tt class="docutils literal">Py_SET_TYPE()</tt>.</li>
+<li><tt class="docutils literal">upgrade_pythoncapi.py</tt>: Script upgrading C extension modules using
+<tt class="docutils literal">pythoncapi_compat.h</tt>. For example, it replaces <tt class="docutils literal">Py_TYPE(obj) = type;</tt>
+with <tt class="docutils literal">Py_SET_TYPE(obj, type);</tt>.</li>
+</ul>
+<p>This article is about the creation of the header file and the upgrade script.</p>
+<p>Photo: Strange cats 🐾 by Kéké.</p>
+<div class="section" id="py-set-type-macro-for-python-3-8-and-older">
+<h2>Py_SET_TYPE() macro for Python 3.8 and older</h2>
+<div class="section" id="py-type-macro-converted-to-a-static-inline-function">
+<h3>Py_TYPE() macro converted to a static inline function</h3>
+<p>In May 2020 in the <a class="reference external" href="https://bugs.python.org/issue39573">bpo-39573 &quot;Make PyObject an opaque structure&quot;</a>, <a class="reference external" href="https://github.com/python/cpython/commit/ad3252bad905d41635bcbb4b76db30d570cf0087">Py_TYPE()</a>
+(change by Dong-hee Na), <a class="reference external" href="https://github.com/python/cpython/commit/fe2978b3b940fe2478335e3a2ca5ad22338cdf9c">Py_REFCNT() and Py_SIZE()</a>
+(change by me) macros were converted to static inline functions. This change
+broke 17 C extension modules (see my previous article <a class="reference external" href="https://vstinner.github.io/c-api-opaque-structures.html">Make structures opaque
+in the Python C API</a>).</p>
+<p>I prepared this change in Python 3.9 by adding Py_SET_REFCNT(), Py_SET_TYPE()
+and Py_SET_SIZE() functions, and by modifying Python to use these functions. I
+also <a class="reference external" href="https://github.com/python/cpython/commit/d905df766c367c350f20c46ccd99d4da19ed57d8">added Py_IS_TYPE() function</a>
+which tests the type of an object:</p>
+<pre class="literal-block">
+static inline int _Py_IS_TYPE(PyObject *ob, PyTypeObject *type) {
+    return ob-&gt;ob_type == type;
+}
+#define Py_IS_TYPE(ob, type) _Py_IS_TYPE(_PyObject_CAST(ob), type)
+</pre>
+<p>For example, <tt class="docutils literal">Py_TYPE(ob) == (tp)</tt> can be replaced with <tt class="docutils literal">Py_IS_TYPE(ob, tp)</tt>.</p>
+</div>
+<div class="section" id="cython-and-numpy-fixes">
+<h3>Cython and numpy fixes</h3>
+<p>I fixed Cython by <a class="reference external" href="https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd">adding __Pyx_SET_REFCNT() and __Pyx_SET_SIZE() macros</a>:</p>
+<pre class="literal-block">
+#if PY_VERSION_HEX &gt;= 0x030900A4
+  #define __Pyx_SET_REFCNT(obj, refcnt) Py_SET_REFCNT(obj, refcnt)
+  #define __Pyx_SET_SIZE(obj, size) Py_SET_SIZE(obj, size)
+#else
+  #define __Pyx_SET_REFCNT(obj, refcnt) Py_REFCNT(obj) = (refcnt)
+  #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
+#endif
+</pre>
+<p>The <a class="reference external" href="https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa">numpy fix</a>:</p>
+<pre class="literal-block">
+#if PY_VERSION_HEX &lt; 0x030900a4
+    #define Py_SET_TYPE(obj, typ) (Py_TYPE(obj) = typ)
+    #define Py_SET_SIZE(obj, size) (Py_SIZE(obj) = size)
+#endif
+</pre>
+<p><a class="reference external" href="https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa">The numpy fix was updated</a>
+to not have a return value by adding <tt class="docutils literal">&quot;, (void)0&quot;</tt>:</p>
+<pre class="literal-block">
+#if PY_VERSION_HEX &lt; 0x030900a4
+    #define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+    #define Py_SET_SIZE(obj, size) ((Py_SIZE(obj) = (size)), (void)0)
+#endif
+</pre>
+<p>So the macros better mimicks the static inline functions behavior.</p>
+</div>
+<div class="section" id="c-api-porting-guide">
+<h3>C API Porting Guide</h3>
+<p>I copied the numpy macros <a class="reference external" href="https://github.com/python/cpython/commit/dc24b8a2ac32114313bae519db3ccc21fe45c982">to the C API section of the Python 3.10 porting
+guide (What's New in Python 3.10)</a>.
+Py_SET_TYPE() documentation.</p>
+<blockquote>
+<p>Since <tt class="docutils literal">Py_TYPE()</tt> is changed to the inline static function,
+<tt class="docutils literal">Py_TYPE(obj) = new_type</tt> must be replaced with
+<tt class="docutils literal">Py_SET_TYPE(obj, new_type)</tt>: see <tt class="docutils literal">Py_SET_TYPE()</tt> (available since
+Python 3.9). For backward compatibility, this macro can be used:</p>
+<pre class="literal-block">
+#if PY_VERSION_HEX &lt; 0x030900A4
+#  define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+#endif
+</pre>
+</blockquote>
+</div>
+<div class="section" id="copy-paste-macros">
+<h3>Copy/paste macros</h3>
+<p>Up to 3 macros must be copied/pasted for backward compatibility in each
+project:</p>
+<pre class="literal-block">
+#if PY_VERSION_HEX &lt; 0x030900A4
+#  define Py_SET_TYPE(obj, type) ((Py_TYPE(obj) = (type)), (void)0)
+#endif
+
+#if PY_VERSION_HEX &lt; 0x030900A4
+#  define Py_SET_REFCNT(obj, refcnt) ((Py_REFCNT(obj) = (refcnt)), (void)0)
+#endif
+
+#if PY_VERSION_HEX &lt; 0x030900A4
+#  define Py_SET_SIZE(obj, size) ((Py_SIZE(obj) = (size)), (void)0)
+#endif
+</pre>
+<p>These macros started to be copied into multiple projects. Examples:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://bazaar.launchpad.net/~brz/brz/3.1/revision/7647">breezy</a></li>
+<li><a class="reference external" href="https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa">numpy</a></li>
+<li><a class="reference external" href="https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042">pycurl</a></li>
+</ul>
+<p>There might be a better way than copying/pasting these compatibility layer in
+each project, adding macros one by one...</p>
+</div>
+</div>
+<div class="section" id="creation-of-the-pythoncapi-compat-h-header-file">
+<h2>Creation of the pythoncapi_compat.h header file</h2>
+<p>While the code for Py_SET_REFCNT(), Py_SET_TYPE() and Py_SET_SIZE() macros is
+short, I also wanted to use the new seven Python 3.9 getter functions on Python
+3.8 and older:</p>
+<ul class="simple">
+<li>Py_IS_TYPE()</li>
+<li>PyFrame_GetBack()</li>
+<li>PyFrame_GetCode()</li>
+<li>PyInterpreterState_Get()</li>
+<li>PyThreadState_GetFrame()</li>
+<li>PyThreadState_GetID()</li>
+<li>PyThreadState_GetInterpreter()</li>
+</ul>
+<p>In June 2020, I created <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">the pythoncapi_compat project</a> project with a
+<a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat/blob/main/pythoncapi_compat.h">pythoncapi_compat.h header file</a>
+which defines these functions as static inline functions. An
+<tt class="docutils literal">&quot;#if PY_VERSION_HEX&quot;</tt> guard prevents to define a function if it's already
+provided by <tt class="docutils literal">Python.h</tt>. Example of the current implementation of
+PyThreadState_GetInterpreter() for Python 3.8 and older:</p>
+<pre class="literal-block">
+// bpo-39947 added PyThreadState_GetInterpreter() to Python 3.9.0a5
+#if PY_VERSION_HEX &lt; 0x030900A5
+static inline PyInterpreterState *
+PyThreadState_GetInterpreter(PyThreadState *tstate)
+{
+    assert(tstate != NULL);
+    return tstate-&gt;interp;
+}
+#endif
+</pre>
+<p>I wrote tests on each function using a C extension. The project initially
+supported Python 3.6 to Python 3.10. The test runner checks also for reference
+leaks.</p>
+</div>
+<div class="section" id="mercurial-and-python-2-7">
+<h2>Mercurial and Python 2.7</h2>
+<p>The Mercurial project has multiple C extensions, was broken on Python 3.10 by
+the Py_TYPE() change, and is one of the last project still requiring Python 2.7
+in 2021. It's a good candidate to check if pythoncapi_compat.h is useful.</p>
+<p><a class="reference external" href="https://bz.mercurial-scm.org/show_bug.cgi?id=6451">I proposed a patch</a> then
+<a class="reference external" href="https://foss.heptapod.net/octobus/mercurial-devel/-/merge_requests/61">converted to a merge request</a>. It
+got accepted in the &quot;next&quot; branch, but compatibility with Visual Studio 2008
+had to be fixed for Python 2.7 on Windows. I fixed pythoncapi_compat.h by
+defining <tt class="docutils literal">inline</tt> as <tt class="docutils literal">__inline</tt>:</p>
+<pre class="literal-block">
+// Compatibility with Visual Studio 2013 and older which don't support
+// the inline keyword in C (only in C++): use __inline instead.
+#if (defined(_MSC_VER) &amp;&amp; _MSC_VER &lt; 1900 \
+     &amp;&amp; !defined(__cplusplus) &amp;&amp; !defined(inline))
+#  define inline __inline
+#  define PYTHONCAPI_COMPAT_MSC_INLINE
+   // These two macros are undefined at the end of this file
+#endif
+
+(...)
+
+#ifdef PYTHONCAPI_COMPAT_MSC_INLINE
+#  undef inline
+#  undef PYTHONCAPI_COMPAT_MSC_INLINE
+#endif
+</pre>
+<p>I chose to continue writing <tt class="docutils literal">static inline</tt>, so pythoncapi_compat.h remains
+close to Python header files. I also modified the pythoncapi_compat test suite
+to also test Python 2.7.</p>
+</div>
+<div class="section" id="pybind11-and-pypy">
+<h2>pybind11 and PyPy</h2>
+<p>More recently, I added PyPy 2.7, 3.6 and 3.7 support for pybind11, since PyPy
+is tested by their CI. The fix is to no longer define the following functions
+on PyPy:</p>
+<ul class="simple">
+<li>PyFrame_GetBack(), _PyFrame_GetBackBorrow()</li>
+<li>PyThreadState_GetFrame(), _PyThreadState_GetFrameBorrow()</li>
+<li>PyThreadState_GetID()</li>
+<li>PyObject_GC_IsTracked()</li>
+<li>PyObject_GC_IsFinalized()</li>
+</ul>
+</div>
+<div class="section" id="creation-of-the-upgrade-pythoncapi-py-script">
+<h2>Creation of the upgrade_pythoncapi.py script</h2>
+<div class="section" id="upgrade-pythoncapi-py">
+<h3>upgrade_pythoncapi.py</h3>
+<p>In November 2020, I created a new <tt class="docutils literal">upgrade_pythoncapi.py</tt> script to replace
+<tt class="docutils literal">&quot;Py_TYPE(obj) = type;&quot;</tt> with <tt class="docutils literal">&quot;Py_SET_TYPE(obj, <span class="pre">type);&quot;</span></tt>. The script is
+based on my <a class="reference external" href="https://github.com/vstinner/sixer">old sixer.py project</a> which
+adds Python 3 support to a Python project without losing Python 2 support. The
+<tt class="docutils literal">upgrade_pythoncapi.py</tt> script uses regular expressions to replace one
+pattern with another.</p>
+<p>Similar to <tt class="docutils literal">sixer</tt> which adds <tt class="docutils literal">import six</tt> to support Python 2 and Python 3
+in a single code base, <tt class="docutils literal">upgrade_pythoncapi.py</tt> adds
+<tt class="docutils literal">#include &quot;pythoncapi_compat.h&quot;</tt> to support old and new versions of the
+Python C API in a single code base.</p>
+<p>I first created a new GitHub project for upgrade_pythoncapi.py, but since it
+was too tightly coupled to the pythoncapi_compat.h header file, I moved the
+script to the pythoncapi_compat project.</p>
+</div>
+<div class="section" id="tests">
+<h3>Tests</h3>
+<p>I added more and more &quot;operations&quot; to update C extensions. For me, <strong>the most
+important part is the test suite</strong> to ensure that the script doesn't introduce
+bugs. It contains code which must not be replaced. For example, it ensures that
+<tt class="docutils literal"><span class="pre">frame-&gt;f_code</span> = code</tt> is not replaced with <tt class="docutils literal">_PyFrame_GetCodeBorrow(frame) =
+code</tt> by mistake.</p>
+</div>
+<div class="section" id="borrowed-references">
+<h3>Borrowed references</h3>
+<p>Code accessing <tt class="docutils literal"><span class="pre">frame-&gt;f_code</span></tt> directly must use <tt class="docutils literal">PyFrame_GetCode()</tt> but
+this function returns a strong reference, whereas
+<tt class="docutils literal"><span class="pre">frame-&gt;f_code</span></tt> gives a borrowed reference. I added &quot;Borrow&quot; variants of the
+functions to <tt class="docutils literal">pythoncapi_compat.h</tt> for <tt class="docutils literal">upgrade_pythoncapi.py</tt>. For
+example, <tt class="docutils literal"><span class="pre">frame-&gt;f_code</span></tt> is replaced with <tt class="docutils literal">_PyFrame_GetCodeBorrow()</tt> which
+is defined as:</p>
+<pre class="literal-block">
+static inline PyCodeObject*
+_PyFrame_GetCodeBorrow(PyFrameObject *frame)
+{
+    return (PyCodeObject *)_Py_StealRef(PyFrame_GetCode(frame));
+}
+</pre>
+<p>The <tt class="docutils literal">_Py_StealRef(obj)</tt> function converts a strong reference to a borrowed
+reference (simplified code):</p>
+<pre class="literal-block">
+static inline PyObject* _Py_StealRef(PyObject *obj)
+{
+    Py_DECREF(obj);
+    return obj;
+}
+</pre>
+<p>It is the opposite of <tt class="docutils literal">Py_NewRef()</tt>. It is similar to <tt class="docutils literal">Py_DECREF(obj)</tt> but
+it can be used as an expression: it returns <em>obj</em>.  pythoncapi_compat.h defines
+private <tt class="docutils literal">_Py_StealRef()</tt> and <tt class="docutils literal">_Py_XStealRef()</tt> static inline functions.
+First I proposed to add them to Python, but I abandoned the idea (see
+<a class="reference external" href="https://bugs.python.org/issue42522">bpo-42522</a>).</p>
+<p>Thanks to the &quot;Borrow&quot; suffix in function names, it becomes easier to discover
+the usage of borrowed references. Using a borrowed reference is unsafe if it is
+possible that the object is destroyed before the last usage of borrowed
+reference. In case of doubt, it's better to use a strong reference. For
+example, <tt class="docutils literal">_PyFrame_GetCodeBorrow()</tt> can be replaced with
+<tt class="docutils literal">PyFrame_GetCode()</tt>, but it requires to explicitly delete the created strong
+reference with <tt class="docutils literal">Py_DECREF()</tt>.</p>
+</div>
+</div>
+<div class="section" id="practical-solution-for-incompatible-c-api-changes">
+<h2>Practical solution for incompatible C API changes</h2>
+<p>So far, I succeeded to convince 4 projects to use pythoncapi_compat.h:
+bitarray, immutables, Mercurial and python-zstandard.</p>
+<p>In my opinion, pythoncapi_compat.h is the right approach to introduce
+incompatible C API changes: provide a practical solution to support old and new
+Python versions in a single code base.</p>
+<p>The next steps is to get it adopted more widely and get it endorsed by the
+Python project, maybe by moving it under the PSF organization on GitHub.</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (14)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
