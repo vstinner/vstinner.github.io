@@ -2,7 +2,7 @@
 Borrowed references in the Python C API
 +++++++++++++++++++++++++++++++++++++++
 
-:date: 2021-03-26 17:00
+:date: 2021-04-09 12:00
 :tags: c-api, cpython
 :category: cpython
 :slug: c-api-borrowed-references
