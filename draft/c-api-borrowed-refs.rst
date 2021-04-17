@@ -12,6 +12,60 @@ In a Python implementations not implemented with reference counting, like PyPy,
 emulating borrowed references is inefficient and so borrowed references should
 be avoided in the public C API.
 
+Problem caused by borrowed references
+=====================================
+
+A borrowed reference is a pointer which doesn't "hold" a reference. If the
+object is destroyed, the borrowed reference becomes a `dangling pointer
+<https://en.wikipedia.org/wiki/Dangling_pointer>`_: point to freed memory which
+might be reused by a new object. Borrowed references can lead to bugs and
+crashes when misused. Recent example of CPython bug: `bpo-25750: crash in
+type_getattro() <https://bugs.python.org/issue25750>`_.
+
+Borrowed references are a problem whenever there is no reference to borrow:
+they assume that a referenced object already exists (and thus have a positive
+refcount), so that it is just borrowed.
+
+:ref:`Tagged pointers <tagged-pointer>` are an example of this: since there is
+no concrete ``PyObject*`` to represent the integer, it cannot easily be
+manipulated.
+
+PyPy has a similar problem with list strategies: if there is a list containing
+only integers, it is stored as a compact C array of longs, and the W_IntObject
+is only created when an item is accessed (most of the time the W_IntObject is
+optimized away by the JIT, but this is another story).
+
+But for :ref:`cpyext <cpyext>`, this is a problem: ``PyList_GetItem()`` returns a borrowed
+reference, but there is no any concrete ``PyObject*`` to return! The current
+``cpyext`` solution is very bad: basically, the first time ``PyList_GetItem()``
+is called, the *whole* list is converted to a list of ``PyObject*``, just to
+have something to return: see `cpyext get_list_storage()
+<https://bitbucket.org/pypy/pypy/src/b9bbd6c0933349cbdbfe2b884a68a16ad16c3a8a/pypy/module/cpyext/listobject.py#lines-28>`_.
+
+See also the :ref:`Specialized list for small integers <specialized-list>`
+optimization: same optimization applied to CPython. This optimization is
+incompatible with borrowed references, since the runtime cannot guess when the
+temporary object should be destroyed.
+
+
+If ``PyList_GetItem()`` returned a strong reference, the ``PyObject*`` could
+just be allocated on the fly and destroy it when the user decref it. Basically,
+by putting borrowed references in the API, we are fixing in advance the data
+structure to use!
+
+C API using borrowed references
+===============================
+
+Examples of C API functions returning borrowed references:
+
+* ``PyDict_GetItem()``
+* ``PyFunction_GetCode()``
+* ``PyList_GetItem()``
+* ``PyMethod_Self()``
+* ``PySys_GetObject()``
+* ``PyTuple_GET_ITEM()``
+* ``PyWeakref_GET_OBJECT()``
+
 Py_NewRef()
 ===========
 
