@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-10-04T15:00:00+02:00</updated><entry><title>C API changes between Python 3.5 to 3.10</title><link href="https://vstinner.github.io/c-api-python3_10-changes.html" rel="alternate"></link><published>2021-10-04T15:00:00+02:00</published><updated>2021-10-04T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-04:/c-api-python3_10-changes.html</id><summary type="html">&lt;p&gt;I'm trying to enhance and to fix the Python C API for 5 years. My first goal
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-10-04T15:00:00+02:00</updated><entry><title>C API changes between Python 3.5 to 3.10</title><link href="https://vstinner.github.io/c-api-python3_10-changes.html" rel="alternate"></link><published>2021-10-04T15:00:00+02:00</published><updated>2021-10-04T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-04:/c-api-python3_10-changes.html</id><summary type="html">&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
+&lt;p&gt;I'm trying to enhance and to fix the Python C API for 5 years. My first goal
 was to shrink the C API without breaking third party C extensions. I hid many
 private functions from the public functions: I moved them to the &amp;quot;internal C
-API&amp;quot;. I also deprecated and …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I'm trying to enhance and to fix the Python C API for 5 years. My first goal
+API&amp;quot;. I also deprecated and …&lt;/p&gt;</summary><content type="html">&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
+&lt;p&gt;I'm trying to enhance and to fix the Python C API for 5 years. My first goal
 was to shrink the C API without breaking third party C extensions. I hid many
 private functions from the public functions: I moved them to the &amp;quot;internal C
 API&amp;quot;. I also deprecated and removed many functions.&lt;/p&gt;
@@ -21,7 +23,6 @@ references.&lt;/p&gt;
 functions have been removed. The Stable ABI is now explicitly defined and
 documented in the &lt;a class="reference external" href="https://docs.python.org/dev/c-api/stable.html#stable"&gt;C API Stability&lt;/a&gt; page.&lt;/p&gt;
 &lt;p&gt;This article lists all C API changes, not only the ones done by me.&lt;/p&gt;
-&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
 &lt;div class="section" id="shrink-the-the-c-api"&gt;
 &lt;h2&gt;Shrink the the C API&lt;/h2&gt;
 &lt;p&gt;Between Python 3.5 and 3.10, 80 symbols (functions or variables) have been

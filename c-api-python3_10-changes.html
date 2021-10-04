@@ -48,7 +48,8 @@
 			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
 		</span>
 	</div>
-	<div itemprop="articleBody" class="article-body"><p>I'm trying to enhance and to fix the Python C API for 5 years. My first goal
+	<div itemprop="articleBody" class="article-body"><img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" />
+<p>I'm trying to enhance and to fix the Python C API for 5 years. My first goal
 was to shrink the C API without breaking third party C extensions. I hid many
 private functions from the public functions: I moved them to the &quot;internal C
 API&quot;. I also deprecated and removed many functions.</p>
@@ -67,7 +68,6 @@ references.</p>
 functions have been removed. The Stable ABI is now explicitly defined and
 documented in the <a class="reference external" href="https://docs.python.org/dev/c-api/stable.html#stable">C API Stability</a> page.</p>
 <p>This article lists all C API changes, not only the ones done by me.</p>
-<img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" />
 <div class="section" id="shrink-the-the-c-api">
 <h2>Shrink the the C API</h2>
 <p>Between Python 3.5 and 3.10, 80 symbols (functions or variables) have been
