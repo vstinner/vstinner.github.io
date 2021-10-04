@@ -8,6 +8,9 @@ C API changes between Python 3.5 to 3.10
 :slug: c-api-python3_10-changes
 :authors: Victor Stinner
 
+.. image:: {static}/images/homer_hiding.webp
+   :alt: Homer Simpson hiding
+
 I'm trying to enhance and to fix the Python C API for 5 years. My first goal
 was to shrink the C API without breaking third party C extensions. I hid many
 private functions from the public functions: I moved them to the "internal C
@@ -32,9 +35,6 @@ documented in the `C API Stability
 <https://docs.python.org/dev/c-api/stable.html#stable>`_ page.
 
 This article lists all C API changes, not only the ones done by me.
-
-.. image:: {static}/images/homer_hiding.webp
-   :alt: Homer Simpson hiding
 
 Shrink the the C API
 ====================
