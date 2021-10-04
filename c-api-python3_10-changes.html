@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>C API changes between Python 3.5 to 3.10 — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: C API changes between Python 3.5 to 3.10; Date: 2021-10-04; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">C API changes between Python 3.5 to 3.10</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2021-10-04T15:00:00+02:00" itemprop="datePublished">lun. 04 octobre 2021</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><p>I'm trying to enhance and to fix the Python C API for 5 years. My first goal
+was to shrink the C API without breaking third party C extensions. I hid many
+private functions from the public functions: I moved them to the &quot;internal C
+API&quot;. I also deprecated and removed many functions.</p>
+<p>Between Python 3.5 and 3.10, 80 symbols have been removed. Python 3.10 is the
+first Python version exporting less symbols than its previous version!</p>
+<p>Since Python 3.8, the C API is organized as 3 parts:</p>
+<ol class="arabic simple">
+<li><tt class="docutils literal">Include/</tt> directory: Limited API</li>
+<li><tt class="docutils literal">Include/cpython/</tt> directory: CPython implementation details</li>
+<li><tt class="docutils literal">Include/internal/</tt> directory: The internal API</li>
+</ol>
+<p>The devguide <a class="reference external" href="https://devguide.python.org/c-api/">Changing Python’s C API</a>
+documentation now gives guidelines for C API additions, like avoiding borrowed
+references.</p>
+<p>The limited C API got a few more functions, whereas broken and private
+functions have been removed. The Stable ABI is now explicitly defined and
+documented in the <a class="reference external" href="https://docs.python.org/dev/c-api/stable.html#stable">C API Stability</a> page.</p>
+<p>This article lists all C API changes, not only the ones done by me.</p>
+<img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" />
+<div class="section" id="shrink-the-the-c-api">
+<h2>Shrink the the C API</h2>
+<p>Between Python 3.5 and 3.10, 80 symbols (functions or variables) have been
+removed, 3 structures have been removed, and 21 functions have been deprecated.
+In meanwhile, other symbols have been added to implement new Python features at
+each Python version.</p>
+<p>Python 3.10 is the first Python version exporting less symbols than its
+previous version.</p>
+<div class="section" id="python-3-6">
+<h3>Python 3.6</h3>
+<p>Deprecate 4 functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyUnicode_AsDecodedObject()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AsDecodedUnicode()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AsEncodedObject()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AsEncodedUnicode()</tt></li>
+</ul>
+</div>
+<div class="section" id="python-3-7">
+<h3>Python 3.7</h3>
+<ul class="simple">
+<li>Deprecate <tt class="docutils literal">PyOS_AfterFork()</tt></li>
+<li>Remove <tt class="docutils literal">PyExc_RecursionErrorInst</tt> singleton (also removed in Python 3.6.4).</li>
+</ul>
+</div>
+<div class="section" id="python-3-8">
+<h3>Python 3.8</h3>
+<p>Remove 3 functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyByteArray_Init()</tt></li>
+<li><tt class="docutils literal">PyByteArray_Fini()</tt></li>
+<li><tt class="docutils literal">PyEval_ReInitThreads()</tt></li>
+</ul>
+<p>Remove 1 structure:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyInterpreterState</tt> (moved to the internal C API)</li>
+</ul>
+</div>
+<div class="section" id="python-3-9">
+<h3>Python 3.9</h3>
+<p>Remove 32 symbols:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyAsyncGen_ClearFreeLists()</tt></li>
+<li><tt class="docutils literal">PyCFunction_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyCmpWrapper_Type</tt></li>
+<li><tt class="docutils literal">PyContext_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyDict_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyFloat_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyFrame_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyFrame_ExtendStack()</tt></li>
+<li><tt class="docutils literal">PyList_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyMethod_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyNoArgsFunction type</tt></li>
+<li><tt class="docutils literal">PyNullImporter_Type</tt></li>
+<li><tt class="docutils literal">PySet_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PySortWrapper_Type</tt></li>
+<li><tt class="docutils literal">PyTuple_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">PyUnicode_ClearFreeList()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_MATCH()</tt></li>
+<li><tt class="docutils literal">_PyAIterWrapper_Type</tt></li>
+<li><tt class="docutils literal">_PyBytes_InsertThousandsGrouping()</tt></li>
+<li><tt class="docutils literal">_PyBytes_InsertThousandsGroupingLocale()</tt></li>
+<li><tt class="docutils literal">_PyDebug_PrintTotalRefs()</tt></li>
+<li><tt class="docutils literal">_PyFloat_Digits()</tt></li>
+<li><tt class="docutils literal">_PyFloat_DigitsInit()</tt></li>
+<li><tt class="docutils literal">_PyFloat_Repr()</tt></li>
+<li><tt class="docutils literal">_PyThreadState_GetFrame()</tt> (and <tt class="docutils literal">_PyRuntime.getframe</tt>)</li>
+<li><tt class="docutils literal">_PyUnicode_ClearStaticStrings()</tt></li>
+<li><tt class="docutils literal">_Py_AddToAllObjects()</tt></li>
+<li><tt class="docutils literal">_Py_InitializeFromArgs()</tt></li>
+<li><tt class="docutils literal">_Py_InitializeFromWideArgs()</tt></li>
+<li><tt class="docutils literal">_Py_PrintReferenceAddresses()</tt></li>
+<li><tt class="docutils literal">_Py_PrintReferences()</tt></li>
+<li><tt class="docutils literal">_Py_tracemalloc_config</tt></li>
+</ul>
+<p>Remove 1 structure:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyGC_Head</tt> (moved to the internal C API)</li>
+</ul>
+<p>Deprecate 15 functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyEval_CallFunction()</tt></li>
+<li><tt class="docutils literal">PyEval_CallMethod()</tt></li>
+<li><tt class="docutils literal">PyEval_CallObject()</tt></li>
+<li><tt class="docutils literal">PyEval_CallObjectWithKeywords()</tt></li>
+<li><tt class="docutils literal">PyNode_Compile()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseFileFlags()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseStringFlags()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseStringFlagsFilename()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AsUnicode()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AsUnicodeAndSize()</tt></li>
+<li><tt class="docutils literal">PyUnicode_FromUnicode()</tt></li>
+<li><tt class="docutils literal">PyUnicode_WSTR_LENGTH()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_COPY()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_FILL()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_AsUnicode()</tt></li>
+</ul>
+</div>
+<div class="section" id="python-3-10">
+<h3>Python 3.10</h3>
+<p>Remove 44 symbols:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyAST_Compile()</tt></li>
+<li><tt class="docutils literal">PyAST_CompileEx()</tt></li>
+<li><tt class="docutils literal">PyAST_CompileObject()</tt></li>
+<li><tt class="docutils literal">PyAST_Validate()</tt></li>
+<li><tt class="docutils literal">PyArena_AddPyObject()</tt></li>
+<li><tt class="docutils literal">PyArena_Free()</tt></li>
+<li><tt class="docutils literal">PyArena_Malloc()</tt></li>
+<li><tt class="docutils literal">PyArena_New()</tt></li>
+<li><tt class="docutils literal">PyFuture_FromAST()</tt></li>
+<li><tt class="docutils literal">PyFuture_FromASTObject()</tt></li>
+<li><tt class="docutils literal">PyLong_FromUnicode()</tt></li>
+<li><tt class="docutils literal">PyNode_Compile()</tt></li>
+<li><tt class="docutils literal">PyOS_InitInterrupts()</tt></li>
+<li><tt class="docutils literal">PyObject_AsCharBuffer()</tt></li>
+<li><tt class="docutils literal">PyObject_AsReadBuffer()</tt></li>
+<li><tt class="docutils literal">PyObject_AsWriteBuffer()</tt></li>
+<li><tt class="docutils literal">PyObject_CheckReadBuffer()</tt></li>
+<li><tt class="docutils literal">PyParser_ASTFromFile()</tt></li>
+<li><tt class="docutils literal">PyParser_ASTFromFileObject()</tt></li>
+<li><tt class="docutils literal">PyParser_ASTFromFilename()</tt></li>
+<li><tt class="docutils literal">PyParser_ASTFromString()</tt></li>
+<li><tt class="docutils literal">PyParser_ASTFromStringObject()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseFileFlags()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseStringFlags()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseStringFlagsFilename()</tt></li>
+<li><tt class="docutils literal">PyST_GetScope()</tt></li>
+<li><tt class="docutils literal">PySymtable_Build()</tt></li>
+<li><tt class="docutils literal">PySymtable_BuildObject()</tt></li>
+<li><tt class="docutils literal">PySymtable_Free()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AsUnicodeCopy()</tt></li>
+<li><tt class="docutils literal">PyUnicode_GetMax()</tt></li>
+<li><tt class="docutils literal">Py_ALLOW_RECURSION</tt></li>
+<li><tt class="docutils literal">Py_END_ALLOW_RECURSION</tt></li>
+<li><tt class="docutils literal">Py_SymtableString()</tt></li>
+<li><tt class="docutils literal">Py_SymtableStringObject()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strcat()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strchr()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strcmp()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strcpy()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strlen()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strncmp()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strncpy()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_strrchr()</tt></li>
+<li><tt class="docutils literal">_Py_CheckRecursionLimit</tt></li>
+</ul>
+<p>Remove 1 structure:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_PyUnicode_Name_CAPI</tt></li>
+</ul>
+<p>Deprecate 1 function:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyUnicode_InternImmortal()</tt></li>
+</ul>
+<p>Moreover, <tt class="docutils literal">PyUnicode_FromStringAndSize(NULL, size)</tt> and
+<tt class="docutils literal">PyUnicode_FromUnicode(NULL, size)</tt> have been deprecated.</p>
+</div>
+<div class="section" id="statistics">
+<h3>Statistics</h3>
+<p>Public Python symbols exported with <tt class="docutils literal">PyAPI_FUNC()</tt> and <tt class="docutils literal">PyAPI_DATA()</tt>:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="39%" />
+<col width="61%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Python</th>
+<th class="head">Symbols</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>2.7</td>
+<td>891</td>
+</tr>
+<tr><td>3.6</td>
+<td>1041 (+150)</td>
+</tr>
+<tr><td>3.7</td>
+<td>1068 (+27)</td>
+</tr>
+<tr><td>3.8</td>
+<td>1105 (+37)</td>
+</tr>
+<tr><td>3.9</td>
+<td>1115 (+10)</td>
+</tr>
+<tr><td>3.10</td>
+<td>1080 (-35)</td>
+</tr>
+</tbody>
+</table>
+<p>Command used to count public symbols:</p>
+<pre class="literal-block">
+grep -E 'PyAPI_(FUNC|DATA)' Include/*.h Include/cpython/*.h|grep -v ' _Py'|wc -l
+</pre>
+</div>
+</div>
+<div class="section" id="reorganize-header-files">
+<h2>Reorganize header files</h2>
+<p>Since Python 3.8, the C API is organized as 3 parts:</p>
+<ol class="arabic simple">
+<li><tt class="docutils literal">Include/</tt> directory: Limited API</li>
+<li><tt class="docutils literal">Include/cpython/</tt> directory: CPython implementation details</li>
+<li><tt class="docutils literal">Include/internal/</tt> directory: The internal API</li>
+</ol>
+<p>The intent is to help developers to think about if their additions must be part
+of the limited C API, the CPython C API or the internal C API.</p>
+<div class="section" id="id1">
+<h3>Python 3.7</h3>
+<p>Creation on the <tt class="docutils literal">Include/internal/</tt> directory.</p>
+</div>
+<div class="section" id="id2">
+<h3>Python 3.8</h3>
+<p>Creation on the <tt class="docutils literal">Include/cpython/</tt> directory.</p>
+</div>
+<div class="section" id="id3">
+<h3>Python 3.10</h3>
+<p>Move 8 header files from <tt class="docutils literal">Include/</tt> to <tt class="docutils literal">Include/cpython/</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">odictobject.h</tt></li>
+<li><tt class="docutils literal">parser_interface.h</tt></li>
+<li><tt class="docutils literal">picklebufobject.h</tt></li>
+<li><tt class="docutils literal">pyarena.h</tt></li>
+<li><tt class="docutils literal">pyctype.h</tt></li>
+<li><tt class="docutils literal">pydebug.h</tt></li>
+<li><tt class="docutils literal">pyfpe.h</tt></li>
+<li><tt class="docutils literal">pytime.h</tt></li>
+</ul>
+<p>Python 3.10 added a <a class="reference external" href="https://github.com/python/cpython/blob/master/Include/README.rst">Include/README.rst documentation</a> to explain
+this organization and give guidelines for adding new functions. For example,
+new functions in the public C API must not steal references nor return borrowed
+references. In the meanwhile, this documentation moved to the devguide:
+<a class="reference external" href="https://devguide.python.org/c-api/">Changing Python’s C API</a>.</p>
+</div>
+<div class="section" id="id5">
+<h3>Statistics</h3>
+<p>Number of C API line numbers per Python version:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="14%" />
+<col width="27%" />
+<col width="22%" />
+<col width="24%" />
+<col width="14%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Python</th>
+<th class="head">Limited API</th>
+<th class="head">CPython API</th>
+<th class="head">Internal API</th>
+<th class="head">Total</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td>2.7</td>
+<td>12,686 (100%)</td>
+<td>0</td>
+<td>0</td>
+<td>12,686</td>
+</tr>
+<tr><td>3.6</td>
+<td>16,011 (100%)</td>
+<td>0</td>
+<td>0</td>
+<td>16,011</td>
+</tr>
+<tr><td>3.7</td>
+<td>16,517 (96%)</td>
+<td>0</td>
+<td>705 (4%)</td>
+<td>17,222</td>
+</tr>
+<tr><td>3.8</td>
+<td>13,160 (70%)</td>
+<td>3,417 (18%)</td>
+<td>2,230 (12%)</td>
+<td>18,807</td>
+</tr>
+<tr><td>3.9</td>
+<td>12,264 (62%)</td>
+<td>4,343 (22%)</td>
+<td>3,066 (16%)</td>
+<td>19,673</td>
+</tr>
+<tr><td>3.10</td>
+<td>10,305 (52%)</td>
+<td>4,513 (23%)</td>
+<td>5,092 (26%)</td>
+<td>19,910</td>
+</tr>
+</tbody>
+</table>
+<p>Commands:</p>
+<ul class="simple">
+<li>Limited: <tt class="docutils literal">wc <span class="pre">-l</span> <span class="pre">Include/*.h</span></tt></li>
+<li>CPython: <tt class="docutils literal">wc <span class="pre">-l</span> <span class="pre">Include/cpython/*.h</span></tt></li>
+<li>Internal: <tt class="docutils literal">wc <span class="pre">-l</span> <span class="pre">Include/internal/*.h</span></tt></li>
+</ul>
+</div>
+</div>
+<div class="section" id="changes-in-the-limited-c-api">
+<h2>Changes in the Limited C API</h2>
+<p>Between Python 3.8 and 3.10, 4 new functions have been and 14 symbols
+(functions or variables) have been removed from the limited C API.</p>
+<p>The trashcan API was excluded from the limited C API since it never worked.
+The implementation accessed directly PyThreadState members, whereas this
+structure is opaque in the limited C API.</p>
+<p>On the other side, Py_EnterRecursiveCall() and Py_LeaveRecursiveCall()
+functions have been added to the limited C API. In Python 3.8, they were
+defined as macros accessing directly PyThreadState members. In Python 3.9, they
+became opaque function calls and so are now compatible with the stable ABI.</p>
+<div class="section" id="id6">
+<h3>Python 3.9</h3>
+<p>Add 3 functions to the limited C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">Py_EnterRecursiveCall()</tt></li>
+<li><tt class="docutils literal">Py_LeaveRecursiveCall()</tt></li>
+<li><tt class="docutils literal">PyFrame_GetLineNumber()</tt></li>
+</ul>
+<p>Remove 14 symbols from the limited C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyFPE_START_PROTECT()</tt></li>
+<li><tt class="docutils literal">PyFPE_END_PROTECT()</tt></li>
+<li><tt class="docutils literal">PyThreadState_DeleteCurrent()</tt></li>
+<li><tt class="docutils literal">PyTrash_UNWIND_LEVEL</tt></li>
+<li><tt class="docutils literal">Py_TRASHCAN_BEGIN</tt></li>
+<li><tt class="docutils literal">Py_TRASHCAN_BEGIN_CONDITION</tt></li>
+<li><tt class="docutils literal">Py_TRASHCAN_END</tt></li>
+<li><tt class="docutils literal">Py_TRASHCAN_SAFE_BEGIN</tt></li>
+<li><tt class="docutils literal">Py_TRASHCAN_SAFE_END</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_NewReference()</tt></li>
+<li><tt class="docutils literal">_Py_CheckRecursionLimit</tt></li>
+<li><tt class="docutils literal">_Py_GetRefTotal()</tt></li>
+<li><tt class="docutils literal">_Py_NewReference()</tt></li>
+<li><tt class="docutils literal">_Py_ForgetReference()</tt></li>
+</ul>
+</div>
+<div class="section" id="id7">
+<h3>Python 3.10</h3>
+<p>Add 1 function to the limited C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyUnicode_AsUTF8AndSize()</tt></li>
+</ul>
+</div>
+</div>
+<div class="section" id="pep-652-maintaining-the-stable-abi">
+<h2>PEP 652: Maintaining the Stable ABI</h2>
+<p>Petr Viktorin wrote and implemented the <a class="reference external" href="https://www.python.org/dev/peps/pep-0652/">PEP 652: Maintaining the Stable ABI</a> in Python 3.10.</p>
+<p>The Stable ABI (Application Binary Interface) for extension modules or
+embedding Python is now explicitly defined. The <a class="reference external" href="https://docs.python.org/dev/c-api/stable.html#stable">C API Stability</a> documentation
+describes C API and ABI stability guarantees along with best practices for
+using the Stable ABI.</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (15)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
