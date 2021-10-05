@@ -61,6 +61,9 @@ was reverted twice. I had to fix many C extensions and fix a test_exceptions
 crash on Windows to be able to finally merge my change in September 2021.</p>
 <p>Finally, we will also see what can be done next to be able to fully make the
 PyObject structure opaque.</p>
+<p>Thanks to <strong>Dong-hee Na</strong>, <strong>Hai Shi</strong> and <strong>Andy Lester</strong> who helped me to
+make these changes, and thanks to <strong>Miro Hrončok</strong> who reported C extensions
+broken by my incompatible C API changes.</p>
 <p>This article is a follow-up of the <a class="reference external" href="https://vstinner.github.io/c-api-opaque-structures.html">Make structures opaque in the Python C API</a> article.</p>
 <p><em>Drawing: &quot;A spider in my bedroom&quot; by Kéké</em></p>
 <div class="section" id="the-c-api-prevents-to-optimize-cpython">
