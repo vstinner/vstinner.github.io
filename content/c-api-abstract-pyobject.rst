@@ -14,11 +14,12 @@ Python C API: Add functions to access PyObject
 
 The PyObject structure prevents indirectly to optimize CPython. We will see why
 and how I prepared the C API to make this structure opaque. It took me 1 year
-and a half to add functions and to introduce incompatible C API changes.
+and a half to add functions and to introduce **incompatible C API changes**
+(fear!).
 
-I added functions like Py_SET_TYPE() to abstract access to the ``PyObject``
-structure. I modified the standard library to use functions like Py_TYPE() and
-Py_SET_TYPE().
+In February 2020, I started by adding functions like ``Py_SET_TYPE()`` to
+abstract accesses to the ``PyObject`` structure. I modified C extensions of the
+standard library to use functions like ``Py_TYPE()`` and ``Py_SET_TYPE()``.
 
 I converted the ``Py_TYPE()`` macro to a static inline function, but my change
 was reverted twice. I had to fix many C extensions and fix a test_exceptions
