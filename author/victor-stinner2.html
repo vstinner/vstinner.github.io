@@ -27,6 +27,33 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/python37-dev-mode.html">
+		<h2 itemprop="name headline">Python 3.7 Development Mode</h2>
+	</a>
+	<time datetime="2020-01-16T12:00:00+01:00" itemprop="datePublished">jeu. 16 janvier 2020</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"><img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /></a>
+<p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
+(-X dev)</a> that I <strong>added
+to Python 3.7</strong> and how it has been implemented.</p>
+<p>The development mode enables runtime checks which are too expensive to be
+enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev …</tt></p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/cpython-pass-tstate.html">
 		<h2 itemprop="name headline">Pass the Python thread state explicitly</h2>
 	</a>
@@ -279,39 +306,6 @@ and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/locale-bugfixes-python3.html">
-		<h2 itemprop="name headline">Locale Bugfixes in Python 3</h2>
-	</a>
-	<time datetime="2019-01-09T00:30:00+01:00" itemprop="datePublished">mer. 09 janvier 2019</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"><img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /></a>
-<p>This article describes a few locales bugs that I fixed in Python 3 between 2012
-(Python 3.3) and 2018 (Python 3.7):</p>
-<ul class="simple">
-<li>Support non-ASCII decimal point and thousands separator</li>
-<li>Crash with non-ASCII decimal point</li>
-<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
-<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
-<li>Tests non-ASCII locales …</li></ul></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/unicode.html" rel="tag">unicode</a>
-	</span>
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/locales.html" rel="tag">locales</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/author/victor-stinner.html">&larr; Previous</a></li>
@@ -352,7 +346,7 @@ and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (15)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (16)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

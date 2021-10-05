@@ -1,5 +1,238 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-10-04T15:00:00+02:00</updated><entry><title>C API changes between Python 3.5 to 3.10</title><link href="https://vstinner.github.io/c-api-python3_10-changes.html" rel="alternate"></link><published>2021-10-04T15:00:00+02:00</published><updated>2021-10-04T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-04:/c-api-python3_10-changes.html</id><summary type="html">&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-10-05T14:00:00+02:00</updated><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"></link><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;&lt;/a&gt;
+&lt;p&gt;The PyObject structure prevents indirectly to optimize CPython. We will see why
+and how I prepared the C API to make this structure opaque. It took me 1 year
+and a half to add functions and to introduce &lt;strong&gt;incompatible C API changes&lt;/strong&gt;
+(fear!).&lt;/p&gt;
+&lt;p&gt;In February 2020, I started by adding …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;&lt;/a&gt;
+&lt;p&gt;The PyObject structure prevents indirectly to optimize CPython. We will see why
+and how I prepared the C API to make this structure opaque. It took me 1 year
+and a half to add functions and to introduce &lt;strong&gt;incompatible C API changes&lt;/strong&gt;
+(fear!).&lt;/p&gt;
+&lt;p&gt;In February 2020, I started by adding functions like &lt;tt class="docutils literal"&gt;Py_SET_TYPE()&lt;/tt&gt; to
+abstract accesses to the &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure. I modified C extensions of the
+standard library to use functions like &lt;tt class="docutils literal"&gt;Py_TYPE()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_SET_TYPE()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I converted the &lt;tt class="docutils literal"&gt;Py_TYPE()&lt;/tt&gt; macro to a static inline function, but my change
+was reverted twice. I had to fix many C extensions and fix a test_exceptions
+crash on Windows to be able to finally merge my change in September 2021.&lt;/p&gt;
+&lt;p&gt;Finally, we will also see what can be done next to be able to fully make the
+PyObject structure opaque.&lt;/p&gt;
+&lt;p&gt;This article is a follow-up of the &lt;a class="reference external" href="https://vstinner.github.io/c-api-opaque-structures.html"&gt;Make structures opaque in the Python C API&lt;/a&gt; article.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Drawing: &amp;quot;A spider in my bedroom&amp;quot; by Kéké&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="the-c-api-prevents-to-optimize-cpython"&gt;
+&lt;h2&gt;The C API prevents to optimize CPython&lt;/h2&gt;
+&lt;p&gt;The C API allows to access directly to structure members by deferencing an
+&lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; pointer. Example getting directly the reference count of an
+object:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Py_ssize_t get_refcnt(PyObject *obj)
+{
+    return obj-&amp;gt;ob_refcnt;
+}
+&lt;/pre&gt;
+&lt;p&gt;This ability to access directly structure members prevents optimizing CPython.&lt;/p&gt;
+&lt;div class="section" id="mandatory-inefficient-boxing-unboxing"&gt;
+&lt;h3&gt;Mandatory inefficient boxing/unboxing&lt;/h3&gt;
+&lt;p&gt;The ability to dereference a &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; pointer prevents optimizations which
+avoid inefficient boxing/unboxing, like tagged pointers or list strategies.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="no-tagged-pointer"&gt;
+&lt;h3&gt;No tagged pointer&lt;/h3&gt;
+&lt;p&gt;Tagged pointers require adding code to all functions which currently
+dereference object pointers. The current C API prevents doing that in C
+extensions, since pointers can be dereferenced directly.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="no-list-strategies"&gt;
+&lt;h3&gt;No list strategies&lt;/h3&gt;
+&lt;p&gt;Since all Python object structures must start with a &lt;tt class="docutils literal"&gt;PyObject ob_base;&lt;/tt&gt;
+member, it is not possible to make other structures opaque before PyObject is
+made opaque. It prevents implementing PyPy list strategies to reduce the memory
+footprint, like storing an array of numbers directly as numbers, not as boxed
+numbers (&lt;tt class="docutils literal"&gt;PyLongObject&lt;/tt&gt; objects).&lt;/p&gt;
+&lt;p&gt;Currently, the &lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; structure cannot be made opaque. If
+&lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; could be made opaque, it would be possible to store an array
+of numbers directly as numbers, and to box objects in &lt;tt class="docutils literal"&gt;PyList_GetItem()&lt;/tt&gt; on
+demand.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="no-moving-garbage-collector"&gt;
+&lt;h3&gt;No moving garbage collector&lt;/h3&gt;
+&lt;p&gt;Being able to dereference a &lt;tt class="docutils literal"&gt;PyObject**&lt;/tt&gt; pointer also prevents to move
+objects in memory. A moving garbage collector can compact memory to reduce the
+fragmentation. Currently, it cannot be implemented in CPython.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cannot-allocate-temporarily-objects-on-the-stack"&gt;
+&lt;h3&gt;Cannot allocate temporarily objects on the stack&lt;/h3&gt;
+&lt;p&gt;In CPython, all objects must be allocated on the heap. If an object is
+allocated on the stack, stored in a list and the list is still accessible after
+the function completes: the stack memory is no longer valid, and so the list is
+corrupted at the function exit.&lt;/p&gt;
+&lt;p&gt;If objects would only be referenced by opaque handles, as the HPy project does,
+it would be possible to copy the object from the stack to the heap memory, when
+the object is added to the list.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="reference-counting-doesn-t-scale"&gt;
+&lt;h3&gt;Reference counting doesn't scale&lt;/h3&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure has a reference count (&lt;tt class="docutils literal"&gt;ob_refcnt&lt;/tt&gt; member),
+whereas reference counting is a performance bottleneck when using the same
+objects from multiple threads running in parallel. Quickly, there is a race for
+the memory cacheline which contains the &lt;tt class="docutils literal"&gt;PyObject.ob_refcnt&lt;/tt&gt; counter. It is
+especially true for the most commonly used Python objects like None and True
+singletons. All CPUs want to read or modify it in parallel.&lt;/p&gt;
+&lt;p&gt;This problem killed the Gilectomy project which attempted to remove the GIL
+from CPython.&lt;/p&gt;
+&lt;p&gt;A &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Tracing_garbage_collection"&gt;tracing garbage collector&lt;/a&gt; doesn't need
+reference counting, but it cannot be implemented currently because of the
+&lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="creation-of-the-issue-feb-2020"&gt;
+&lt;h2&gt;Creation of the issue (Feb 2020)&lt;/h2&gt;
+&lt;p&gt;In February 2020, I created the &lt;a class="reference external" href="https://bugs.python.org/issue39573"&gt;bpo-39573&lt;/a&gt; : &amp;quot;[C API] Make PyObject an opaque
+structure in the limited C API&amp;quot;. It is related to my work on the my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620
+(Hide implementation details from the C API)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;My initial plan was to make the PyObject structure fully opaque in the C API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-functions"&gt;
+&lt;h2&gt;Add functions&lt;/h2&gt;
+&lt;p&gt;In Python 3.8, &lt;tt class="docutils literal"&gt;Py_REFCNT()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_TYPE()&lt;/tt&gt; macros can be used to set directly an
+object reference count or an object type:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Py_REFCNT(obj) = new_refcnt;
+Py_TYPE(obj) = new_type;
+&lt;/pre&gt;
+&lt;p&gt;Such syntax requires a direct access to &lt;tt class="docutils literal"&gt;PyObject.ob_refcnt&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;PyObject.ob_type&lt;/tt&gt; members as l-value.&lt;/p&gt;
+&lt;p&gt;In Python 3.9, I added Py_SET_REFCNT() and Py_SET_TYPE() functions to add an
+abstraction to &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; members, and I added &lt;tt class="docutils literal"&gt;Py_SET_SIZE()&lt;/tt&gt; to add an
+abstraction to the &lt;tt class="docutils literal"&gt;PyVarObject.ob_size&lt;/tt&gt; member.&lt;/p&gt;
+&lt;p&gt;In Python 3.9, I also added &lt;tt class="docutils literal"&gt;Py_IS_TYPE(obj, type,)&lt;/tt&gt; helper function to test
+an object type. It is equivalent to: &lt;tt class="docutils literal"&gt;Py_TYPE(obj) == type&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="use-py-type-and-py-set-size-in-the-stdlib"&gt;
+&lt;h2&gt;Use Py_TYPE() and Py_SET_SIZE() in the stdlib&lt;/h2&gt;
+&lt;p&gt;I modified the standard library (C extensions) to no longer access directly
+&lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyVarObject&lt;/tt&gt; members directly:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;&amp;quot;obj-&amp;gt;ob_refcnt&amp;quot;&lt;/span&gt;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_REFCNT(obj)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;&amp;quot;obj-&amp;gt;ob_type&amp;quot;&lt;/span&gt;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_TYPE(obj)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;&amp;quot;obj-&amp;gt;ob_size&amp;quot;&lt;/span&gt;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_SIZE(obj)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&amp;quot;Py_REFCNT(obj) = new_refcnt&amp;quot;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_SET_REFCNT(obj, new_refcnt)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&amp;quot;Py_TYPE(obj) = new_type&amp;quot;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_SET_TYPE(obj, new_type)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&amp;quot;Py_SIZE(obj) = new_size&amp;quot;&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;Py_SET_SIZE(obj, new_size)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;&amp;quot;Py_TYPE(obj) == type&amp;quot;&lt;/tt&gt; test with &lt;tt class="docutils literal"&gt;Py_IS_TYPE(obj, type)&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="enforce-py-set-type"&gt;
+&lt;h2&gt;Enforce Py_SET_TYPE()&lt;/h2&gt;
+&lt;p&gt;In Python 3.10, I converted Py_REFCNT(), Py_TYPE() and Py_SIZE() macros to
+static inline functions, so &lt;tt class="docutils literal"&gt;Py_TYPE(obj) = new_type&lt;/tt&gt; becomes a compiler
+error.&lt;/p&gt;
+&lt;p&gt;Static inline functions still access directly &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyVarObject&lt;/tt&gt;
+members at the ABI level, and so don't solve the initial goal: &amp;quot;make the
+PyObject structure opaque&amp;quot;. Not accessing members at the ABI level can have a
+negative impact on performance and I prefer to address it later. I already get
+enough backfire with the other C API changes that I made :-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="broken-c-extensions-first-revert"&gt;
+&lt;h2&gt;Broken C extensions (first revert)&lt;/h2&gt;
+&lt;p&gt;Converting Py_TYPE() and Py_SIZE() macros to static inline functions broke 16 C
+extensions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;strong&gt;Cython&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;PyPAM&lt;/li&gt;
+&lt;li&gt;bitarray&lt;/li&gt;
+&lt;li&gt;boost&lt;/li&gt;
+&lt;li&gt;breezy&lt;/li&gt;
+&lt;li&gt;duplicity&lt;/li&gt;
+&lt;li&gt;gobject-introspection&lt;/li&gt;
+&lt;li&gt;immutables&lt;/li&gt;
+&lt;li&gt;mercurial&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;numpy&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;pybluez&lt;/li&gt;
+&lt;li&gt;pycurl&lt;/li&gt;
+&lt;li&gt;pygobject3&lt;/li&gt;
+&lt;li&gt;pylibacl&lt;/li&gt;
+&lt;li&gt;pyside2&lt;/li&gt;
+&lt;li&gt;rdiff-backup&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In November 2020, during the Python 3.10 devcycle, I preferred to revert
+Py_TYPE() and Py_SIZE() changes.&lt;/p&gt;
+&lt;p&gt;I kept the Py_REFCNT() change since it only broke a single C extension
+(PySide2) and it was simple to update it to Py_SET_REFCNT().&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pythoncapi-compat"&gt;
+&lt;h2&gt;pythoncapi_compat&lt;/h2&gt;
+&lt;p&gt;I created the &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat&lt;/a&gt; project to provide the
+following functions to Python 3.8 and older:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_SET_REFCNT()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_SET_TYPE()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_SET_SIZE()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_IS_TYPE()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I also wrote a upgrade_pythoncapi.py script to upgrade C extensions to use
+these functions, without losing support for Python 3.8 and older.&lt;/p&gt;
+&lt;p&gt;Using the pythoncapi_compat project, I succeeded to update multiple C
+extensions to prepare them for Py_TYPE() becoming a static inline function.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="test-exceptions-crash-second-revert"&gt;
+&lt;h2&gt;test_exceptions crash (second revert)&lt;/h2&gt;
+&lt;p&gt;In June 2021, during the Python 3.11 devcycle, I changed again Py_TYPE() and
+Py_SIZE() since &lt;a class="reference external" href="https://bugs.python.org/issue39573#msg401378"&gt;most C extensions have been fixed in the meanwhile&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Problem: &lt;tt class="docutils literal"&gt;test_recursion_in_except_handler()&lt;/tt&gt; of &lt;tt class="docutils literal"&gt;test_exceptions&lt;/tt&gt; started
+to crash on a Python debug build on Windows: see &lt;a class="reference external" href="https://bugs.python.org/issue44348"&gt;bpo-44348&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Since nobody understood the issue, it was decided to revert my change again to
+repair buildbots.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-baseexception-deallocator"&gt;
+&lt;h2&gt;Fix BaseException deallocator&lt;/h2&gt;
+&lt;p&gt;In September 2021, I looked at the test_exceptions crash. In a &lt;strong&gt;debug build&lt;/strong&gt;,
+the MSC compiler &lt;strong&gt;doesn't inline&lt;/strong&gt; calls to static inline functions. Because
+of that, converting Py_TYPE() macro to a static inline functions &lt;strong&gt;increases
+the stack memory usage&lt;/strong&gt; on a Python debug build on Windows.&lt;/p&gt;
+&lt;p&gt;I proposed to enable compiler optimizations when building Python in debug mode
+on Windows, to inline calls to static inline functions like Py_TYPE(). This
+idea was rejected, since the debug build must remain fully usable in a
+debugger.&lt;/p&gt;
+&lt;p&gt;I looked again at the crash and found the root issue.
+test_recursion_in_except_handler() creates chained of exceptions. When an
+exception is deallocated, it calls the deallocator of another exception, etc.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;recurse_in_except() sub-test creates chains of 11 nested deallocator calls&lt;/li&gt;
+&lt;li&gt;recurse_in_body_and_except() sub-test creates a chain of &lt;strong&gt;8192 nested deallocator calls&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I proposed a change to use the &lt;strong&gt;trashcan mechanism&lt;/strong&gt;. It limits the call stack to
+50 function calls. I checked with a benchmark that the performance overhead is
+acceptable. My change fixed the test_exceptions crash!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="close-the-pyobject-issue"&gt;
+&lt;h2&gt;Close the PyObject issue&lt;/h2&gt;
+&lt;p&gt;Since most C extensions have been fixed and test_exceptions is fixed, I was
+able to change Py_TYPE() and Py_SIZE() for the third time. My final commit:
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/cb15afcccffc6c42cbfb7456ce8db89cd2f77512"&gt;Py_TYPE becomes a static inline function&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I changed the issue topic to restrict it to adding functions to access PyObject
+members. Previously, the goal was to make the PyObject structure opaque.
+It took 1 year and a half to add made all these changes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="what-s-next-to-make-pyobject-opaque"&gt;
+&lt;h2&gt;What's Next to Make PyObject opaque?&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure is used to define structurres of all Python types,
+like &lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt;. All structures start with &lt;tt class="docutils literal"&gt;PyObject ob_base;&lt;/tt&gt; and so
+the compiler must have access to the &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure.&lt;/p&gt;
+&lt;p&gt;Moreover, &lt;tt class="docutils literal"&gt;PyType_FromSpec()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyType_Spec&lt;/tt&gt; API use indirectly
+&lt;tt class="docutils literal"&gt;sizeof(PyObject)&lt;/tt&gt; in the &lt;tt class="docutils literal"&gt;PyType_Spec.basicsize&lt;/tt&gt; member when defining a
+type.&lt;/p&gt;
+&lt;p&gt;One option to make the &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure opaque would be to modify the
+&lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure to make it empty, and move its members into a new
+private &lt;tt class="docutils literal"&gt;_PyObject&lt;/tt&gt; structure. This &lt;tt class="docutils literal"&gt;_PyObject&lt;/tt&gt; structure would be
+allocated before the &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; pointer, same idea as the current
+&lt;tt class="docutils literal"&gt;PyGC_Head&lt;/tt&gt; header which is also allocated before the &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; pointer.&lt;/p&gt;
+&lt;p&gt;These changes are more complex than what I expected and so I prefer to open a
+new issue later to propose these changes. Also, the performance of these
+changes must be checked with benchmarks, to ensure that there is no performance
+overhead or that the overhead is acceptable.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>C API changes between Python 3.5 to 3.10</title><link href="https://vstinner.github.io/c-api-python3_10-changes.html" rel="alternate"></link><published>2021-10-04T15:00:00+02:00</published><updated>2021-10-04T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-04:/c-api-python3_10-changes.html</id><summary type="html">&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
 &lt;p&gt;I'm trying to enhance and to fix the Python C API for 5 years. My first goal
 was to shrink the C API without breaking third party C extensions. I hid many
 private functions from the public functions: I moved them to the &amp;quot;internal C
