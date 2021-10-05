@@ -2,7 +2,7 @@
 Borrowed references in the Python C API
 +++++++++++++++++++++++++++++++++++++++
 
-:date: 2021-04-09 12:00
+:date: 2021-10-04 19:00
 :tags: c-api, cpython
 :category: cpython
 :slug: c-api-borrowed-references
@@ -26,23 +26,22 @@ Borrowed references are a problem whenever there is no reference to borrow:
 they assume that a referenced object already exists (and thus have a positive
 refcount), so that it is just borrowed.
 
-:ref:`Tagged pointers <tagged-pointer>` are an example of this: since there is
-no concrete ``PyObject*`` to represent the integer, it cannot easily be
-manipulated.
+Tagged pointers are an example of this: since there is no concrete
+``PyObject*`` to represent the integer, it cannot easily be manipulated.
 
 PyPy has a similar problem with list strategies: if there is a list containing
 only integers, it is stored as a compact C array of longs, and the W_IntObject
 is only created when an item is accessed (most of the time the W_IntObject is
 optimized away by the JIT, but this is another story).
 
-But for :ref:`cpyext <cpyext>`, this is a problem: ``PyList_GetItem()`` returns a borrowed
+But for PyPy cpyext module, this is a problem: ``PyList_GetItem()`` returns a borrowed
 reference, but there is no any concrete ``PyObject*`` to return! The current
 ``cpyext`` solution is very bad: basically, the first time ``PyList_GetItem()``
 is called, the *whole* list is converted to a list of ``PyObject*``, just to
 have something to return: see `cpyext get_list_storage()
 <https://bitbucket.org/pypy/pypy/src/b9bbd6c0933349cbdbfe2b884a68a16ad16c3a8a/pypy/module/cpyext/listobject.py#lines-28>`_.
 
-See also the :ref:`Specialized list for small integers <specialized-list>`
+See also the Specialized list for small integers
 optimization: same optimization applied to CPython. This optimization is
 incompatible with borrowed references, since the runtime cannot guess when the
 temporary object should be destroyed.
