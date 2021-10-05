@@ -28,6 +28,10 @@ crash on Windows to be able to finally merge my change in September 2021.
 Finally, we will also see what can be done next to be able to fully make the
 PyObject structure opaque.
 
+Thanks to **Dong-hee Na**, **Hai Shi** and **Andy Lester** who helped me to
+make these changes, and thanks to **Miro Hrončok** who reported C extensions
+broken by my incompatible C API changes.
+
 This article is a follow-up of the `Make structures opaque in the Python C API
 <{filename}/c-api-opaque-structures.rst>`_ article.
 
