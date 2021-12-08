@@ -8,6 +8,15 @@ Python incompatible changes
 :slug: python-incompatible-changes
 :authors: Victor Stinner
 
+Fedora bugs
+===========
+
+Python 3.10: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON3.10&hide_resolved=0
+Python 3.9: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON39&hide_resolved=0
+Python 3.8: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON38&hide_resolved=0
+Python 3.7: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON37&hide_resolved=0
+
+
 PyUnicode_InternImmortal()
 ==========================
 
@@ -197,6 +206,16 @@ Python 3.7: async and await keywords
 
 * async and await names are now reserved keywords.
 * https://bugs.python.org/issue30406
+
+Impacted projects: Twisted?
+
+inspect signature
+=================
+
+* Add inspect.signature()
+* Remove inspect.getargspec()
+
+inspect.getfullargspec() is still there
 
 Porting to Python 3.x documentations
 ====================================
