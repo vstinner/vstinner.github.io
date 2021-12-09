@@ -289,3 +289,16 @@ Porting to Python 3.x documentations
 * https://docs.python.org/dev/whatsnew/3.0.html#porting-to-python-3-0
 
 See also "Deprecated" and "Removed" sections of these documents.
+
+classmethod
+===========
+
+Irit: There was a change to classmethod in 3.9 which caused quite a lot of
+headache for my team at work. It seems like it was not considered to be an API
+change when it was made, the notes were "make it work" but the impact was
+actually "change how it works", and we had a very widely used utility that
+broke when it changed.
+
+See: https://bugs.python.org/issue42832
+
+(we noticed it too late to ask for it to be reverted)
