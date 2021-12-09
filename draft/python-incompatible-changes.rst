@@ -8,13 +8,61 @@ Python incompatible changes
 :slug: python-incompatible-changes
 :authors: Victor Stinner
 
+Fedora: single package build failure caused many packages fail to build
+=======================================================================
+
+In Fedora, when a package fails to build, it can cause many other packages
+to build if they depend on it. A package can be broken for different reasons:
+
+* Python incompatible change
+* Broken build dependency
+* Broken runtime dependency
+* Building C extensions fail
+* Test failure: new warning treated as error, pytest change, etc.
+* Something else.
+
+Identifying the root issue causing 20+ package failures take time, it requires
+to dig into build logs of each package.
+
+A common task is to identify the most important dependencies and first fix
+these ones.
+
+
+ast.Constant change
+===================
+
+Remove specific constant AST types in favor of ast.Constant
+https://bugs.python.org/issue32892
+
+* astroid (used by pylint):
+
+  * https://github.com/PyCQA/astroid/issues/617
+  * https://github.com/PyCQA/astroid/issues/616
+
+* pyflakes:
+
+  * https://github.com/PyCQA/pyflakes/issues/367
+  * https://github.com/PyCQA/pyflakes/pull/369
+
+* Genshi:
+
+  * https://github.com/python/performance/issues/46
+  * https://genshi.edgewall.org/ticket/612
+
+* Chameleon:
+
+  * https://github.com/python/performance/issues/47
+  * https://github.com/malthe/chameleon/issues/272
+
+* Mako: https://github.com/sqlalchemy/mako/issues/287
+
 Fedora bugs
 ===========
 
-Python 3.10: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON3.10&hide_resolved=0
-Python 3.9: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON39&hide_resolved=0
-Python 3.8: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON38&hide_resolved=0
-Python 3.7: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON37&hide_resolved=0
+* Python 3.10: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON3.10&hide_resolved=0
+* Python 3.9: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON39&hide_resolved=0
+* Python 3.8: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON38&hide_resolved=0
+* Python 3.7: https://bugzilla.redhat.com/showdependencytree.cgi?id=PYTHON37&hide_resolved=0
 
 
 PyUnicode_InternImmortal()
@@ -40,6 +88,13 @@ breezy uses "Py_REFCNT(self) -= 1;"
 
 * Breezy ("bzr"): https://bugs.launchpad.net/brz/+bug/1904868
 * PySide: https://bugreports.qt.io/browse/PYSIDE-1436
+
+PyCode_New() and positional only PEP 570
+========================================
+
+* https://www.python.org/dev/peps/pep-0570/
+* Cython
+* Add CodeType.replace() to Python 3.8: https://docs.python.org/dev/library/types.html#types.CodeType.replace
 
 Py_TYPE() and Py_SIZE()
 =======================
