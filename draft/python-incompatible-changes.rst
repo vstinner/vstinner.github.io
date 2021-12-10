@@ -267,10 +267,26 @@ Impacted projects: Twisted?
 inspect signature
 =================
 
-* Add inspect.signature()
+* inspect.signature() added to Python 3.3
+* inspect.getfullargspec() is still there
 * Remove inspect.getargspec()
 
-inspect.getfullargspec() is still there
+Part 1:
+
+* https://bugs.python.org/issue20438
+* Deprecate: https://hg.python.org/cpython/rev/3a5fec5e025d
+* Remove deprecation: https://github.com/python/cpython/commit/0899b9809547ec2894dcf88cf4bba732c5d47d0d
+
+Part 2:
+
+* https://bugs.python.org/issue25486
+* Remove: https://hg.python.org/cpython/rev/a565aad5d6e1
+* Add again: https://hg.python.org/cpython/rev/32c8bdcd66cc
+
+Part 3:
+
+* https://bugs.python.org/issue45320
+* Remove: https://github.com/python/cpython/commit/d89fb9a5a610a257014d112bdceef73d7df14082
 
 Porting to Python 3.x documentations
 ====================================
