@@ -403,6 +403,11 @@ collections
   * https://github.com/html5lib/html5lib-python/commit/4f9235752cea29c5a31721440578b430823a1e69
   * https://github.com/pypa/pip/commit/ef7ca1472c1fdd085cffb8183b7ce8abbe9e2800
 
+Broken packages
+
+* May 2018, pytest: https://github.com/pytest-dev/pytest/commit/7985eff5b4b824576c0a1a98ddf31cbce14498ef
+* nose: see Fedora fix
+
 asyncio loop parameter removal
 ==============================
 
@@ -415,14 +420,41 @@ Python 3.7: async and await keywords
 * async and await names are now reserved keywords.
 * https://bugs.python.org/issue30406
 
-Impacted projects: Twisted?
+Impacted projects:
+
+* Twisted:
+
+  * https://github.com/twisted/twisted/commit/ee535041258e7ef0b3223d2e12cd9aaa0bc2289f
+
+* python-txaio:
+
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1605971
+  * https://github.com/crossbario/txaio/issues/134
+  * https://github.com/crossbario/txaio/commit/619740efa6554c7e73c0fc442fb775325f21b6ea
+
+* dbus-python: https://bugzilla.redhat.com/show_bug.cgi?id=1578726
+* python-psycopg2: https://github.com/psycopg/psycopg2/commit/ef64493b8913e4069c4422ad14da6de405c445f6
+* py3dns: https://bugs.launchpad.net/py3dns/+bug/1776027
+* python-pyroute2: https://github.com/svinota/pyroute2/commit/6153d375ff4b3770f84f0afca8ee0a1b8ea54604
+* bodhi: https://github.com/fedora-infra/bodhi/commit/f3c0c01831cee8a7bb6baf7c72f5d66d05117efd
+* javapackages-tools: https://github.com/fedora-java/javapackages/commit/70fa2258ac91c48f0f0fc24436e24ea26dc474f7
+* trollius: https://bugzilla.redhat.com/show_bug.cgi?id=1593133
+* python-pytelegrambotapi: https://bugzilla.redhat.com/show_bug.cgi?id=1594941
+* ara: https://bugzilla.redhat.com/show_bug.cgi?id=1603394
+* subscription-manager: https://github.com/candlepin/subscription-manager/commit/a8f40b7722984e8b262962037401647f197f8a20
+* pyatspi2: https://gitlab.gnome.org/GNOME/pyatspi2/-/commit/b73dabbd1025ba1be332cd6f11cca5a5d49eeecf
+* accerciser: https://gitlab.gnome.org/GNOME/accerciser/-/commit/f06188961ade937c722a727bf016132428f5d70c
+* python-kubernetes: https://bugzilla.redhat.com/show_bug.cgi?id=1597588
+* stem: https://gitweb.torproject.org/stem.git/patch/?id=6c677b6a4080d14a56d2d88ab2ddd9766cc60b9a
+* jira: https://bugzilla.redhat.com/show_bug.cgi?id=1605735
+  (fixed in 2.0?)
 
 inspect signature
 =================
 
 * inspect.signature() added to Python 3.3
 * inspect.getfullargspec() is still there
-* Remove inspect.getargspec()
+* Remove inspect.getargspec() and inspect.formatargspec()
 
 Part 1:
 
@@ -440,6 +472,13 @@ Part 3:
 
 * https://bugs.python.org/issue45320
 * Remove: https://github.com/python/cpython/commit/d89fb9a5a610a257014d112bdceef73d7df14082
+
+Projects:
+
+* sqlalchemy:
+
+  * https://src.fedoraproject.org/rpms/python-sqlalchemy/pull-request/2#request_diff
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1591353
 
 Porting to Python 3.x documentations
 ====================================
@@ -492,3 +531,120 @@ PEP 608 "Coordinated Python release"
 ====================================
 
 https://www.python.org/dev/peps/pep-0608/
+
+False alarm: XML
+================
+
+ElementTree not preserving attribute order
+------------------------------------------
+
+Python 3.8.
+
+The writexml(), toxml() and toprettyxml() methods of xml.dom.minidom, and the
+write() method of xml.etree, now preserve the attribute order specified by the
+user. (Contributed by Diego Rojas and Raymond Hettinger in bpo-34160.)
+
+* https://bugs.python.org/issue34160
+* xml.etree: https://github.com/python/cpython/commit/e3685fd5fdd8808acda81bfc12fb9702d4b59a60
+* html: https://github.com/python/cpython/commit/3b05ad7be09af1d4510eb698b0a70d36387f296e
+* minidom: https://github.com/python/cpython/commit/5598cc90c745dab827e55fadded42dbe85e31d33
+* Recipe to get Python 3.7 behavior
+* https://github.com/python/cpython/commit/a3697db0102b9b6747fe36009e42f9b08f0c1ea8
+* https://mail.python.org/pipermail/python-dev/2019-March/156709.html
+
+Broken projects:
+
+* docutils: https://sourceforge.net/p/docutils/bugs/359/
+* python-glyphsLib: https://bugzilla.redhat.com/show_bug.cgi?id=1705391
+* pcs: https://bugzilla.redhat.com/show_bug.cgi?id=1705475
+
+SyntaxWarning on "\"
+====================
+
+Python 3.7: Unknown escapes consisting of '\' and an ASCII letter in
+replacement templates for re.sub() were deprecated in Python 3.5, and will now
+cause an error.
+
+* libsbml: https://sourceforge.net/p/sbml/libsbml/461/
+  "re.error: bad escape \s at position 0"
+
+
+Python 3.7: PEP 479 StopIteration
+=================================
+
+* https://docs.python.org/3.7/whatsnew/3.7.html#changes-in-python-behavior
+* https://www.python.org/dev/peps/pep-0479/
+* python-netaddr
+
+  * Fixed In Version: python-netaddr-0.7.19-10.fc29
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1592941
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1583818
+
+* python-paste
+
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1583818
+  * https://github.com/cdent/paste/commit/777b6cd5b6b2159d32461846f53617fc7cb962be
+
+* more-itertools:
+  https://github.com/erikrose/more-itertools/commit/e38574428c952b143fc4e0e42cb99b242c7b7977
+* astroid:
+
+  * https://github.com/PyCQA/astroid/commit/be874a94b81f2b9404722937f1ea0e105c3c034a
+  * https://github.com/PyCQA/astroid/commit/a4996b4ce7d2a1b651ae984ee3448b8913577c5f
+  * https://github.com/PyCQA/astroid/issues/539
+  * https://github.com/PyCQA/astroid/issues/540
+
+* waf:
+
+  * wxPython: "Updated the waf tool used by the build to version 2.0.7. This fixes problems with building for Python 3.7."
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1593143
+
+* python-peewee: https://bugzilla.redhat.com/show_bug.cgi?id=1595331
+* meson: https://github.com/mesonbuild/meson/commit/a87496addd9160300837aa50193f4798c6f1d251
+* sphinx (napoleon ext): https://github.com/sphinx-doc/sphinx/commit/b553c23ab1cadfe75db6637ca95daa11abc87049
+
+Misc
+====
+
+Python 3.7:
+
+* pathlib2 used test.support.android_not_root()
+  https://github.com/jazzband/pathlib2/issues/39
+* gdb: _PyImport_FixupBuiltin()
+
+  * https://sourceware.org/bugzilla/show_bug.cgi?id=23252
+  * https://sourceware.org/legacy-ml/gdb-patches/2018-05/msg00863.html
+  * https://sourceware.org/legacy-ml/gdb/2018-05/msg00027.html
+
+* testtools: str(Exception)
+
+  * https://github.com/testing-cabal/testtools/issues/270
+  * https://github.com/testing-cabal/testtools/commit/f865cfefae73e540aedb16ebb19f813cc648f2b6
+
+* sure: replace re._pattern_type with re.Pattern
+
+  * https://github.com/gabrielfalcao/sure/commit/01d61727ee94b743fb18d0fdfa19246f8abb5b18
+
+* dnf: os.errno has been removed
+  https://github.com/rpm-software-management/dnf/commit/199fc9cb11ff004fc752b58b7177aaf8d7fcedfd
+
+* scipy: tstate->exc_value
+  "Update to 1.1.0 solves this."
+
+* fontforge: real regression.
+  https://bugzilla.redhat.com/show_bug.cgi?id=1595421
+
+argparse
+========
+
+* https://bugzilla.redhat.com/show_bug.cgi?id=1578825
+* https://github.com/neithere/argh/issues/128
+* https://github.com/python/cpython/pull/7089
+* https://bugs.python.org/issue29298
+* https://bugs.python.org/issue26510
+
+AST docstring revert
+====================
+
+* https://bugs.python.org/issue32911
+* python-mccabe: https://bugzilla.redhat.com/show_bug.cgi?id=1583745
