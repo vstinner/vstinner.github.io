@@ -648,3 +648,100 @@ AST docstring revert
 
 * https://bugs.python.org/issue32911
 * python-mccabe: https://bugzilla.redhat.com/show_bug.cgi?id=1583745
+
+Python 3.10: unittest: assertEqual
+==================================
+
+TestCase method aliases
+
+* failUnlessEqual
+* failIfEqual
+* failUnless
+* failIf
+* failUnlessRaises
+* failUnlessAlmostEqual
+* failIfAlmostEqual (deprecated in Python 3.1)
+* assertEquals
+* assertNotEquals
+* assert_
+* assertAlmostEquals
+* assertNotAlmostEquals
+* assertRegexpMatches
+* assertRaisesRegexp (deprecated in Python 3.2)
+* assertNotRegexpMatches (deprecated in Python 3.5).
+
+Python 3.10: C API PY_SSIZE_T_CLEAN macro
+=========================================
+
+Change:
+
+* Deprecate: https://bugs.python.org/issue36381
+* Remove: https://bugs.python.org/issue40943
+* https://docs.python.org/3.10/c-api/arg.html#arg-parsing
+* PEP 353 -- Using ssize_t as the index type
+  https://www.python.org/dev/peps/pep-0353
+* SystemError exception raised at runtime
+
+Broken packages:
+
+* python-ephem: https://bugzilla.redhat.com/show_bug.cgi?id=1891793
+* libxml2:
+
+  * https://gitlab.gnome.org/GNOME/libxml2/-/issues/203
+  * https://gitlab.gnome.org/GNOME/libxml2/-/merge_requests/87 (my proposed fix)
+  * https://gitlab.gnome.org/GNOME/libxml2/-/commit/f42a0524c693a6d52e95a37c9cf04df1be48262c
+  * https://gitlab.gnome.org/GNOME/libxml2/-/commit/ac5e99911a45ad6f57a6aa7b33fd2de9da72aa72
+
+* python-setproctitle: https://bugzilla.redhat.com/show_bug.cgi?id=1919789
+* audit: https://github.com/linux-audit/audit-userspace/commit/005fcc16282bba2689af7b56c9935579a32bce75
+* python-crypto: https://bugzilla.redhat.com/show_bug.cgi?id=1897544
+  Should be fixed in python-crypto-2.6.1-33.fc34
+* python-lzo: https://bugzilla.redhat.com/show_bug.cgi?id=1897607
+* nordugrid-arc: https://source.coderefinery.org/nordugrid/arc/-/commit/307e06d5827d974321b824d3359b6c42d4371ad8
+* py-radix:
+
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1899466
+  * https://github.com/mjschultz/py-radix/issues/54
+  * https://src.fedoraproject.org/rpms/py-radix/pull-request/1#request_diff
+  * https://src.fedoraproject.org/rpms/py-radix/pull-request/2#request_diff
+
+* python-scss: https://bugzilla.redhat.com/show_bug.cgi?id=1899555
+* python-zstd: https://github.com/sergey-dryabzhinsky/python-zstd/commit/428a31edcde94d2908aa8ca3439ca01a797de3a4
+* python-kerberos:
+
+  * https://github.com/apple/ccs-pykerberos/issues/88
+  * https://src.fedoraproject.org/rpms/python-kerberos/pull-request/1#request_diff
+
+Python "3.1" instead of "3.10"
+==============================
+
+* RPM macro
+
+  * ubertooth fails to build with Python 3.10: 'py?.?' glob should be replaced with macro %{python3_version} (edit)
+    https://bugzilla.redhat.com/show_bug.cgi?id=1914899
+  * paternoster fails to build with Python 3.10: 'py?.?' glob should be replaced with macro %{python3_version}
+    https://bugzilla.redhat.com/show_bug.cgi?id=1948519
+
+* abseil-py: https://github.com/abseil/abseil-py/commit/d61b0b6bda1902f645e5bbbc3f138c142767befa
+* gnumeric: https://bugzilla.redhat.com/show_bug.cgi?id=1951997
+* python-niapy: https://bugzilla.redhat.com/show_bug.cgi?id=1953902
+* sugar-datastore: https://bugzilla.redhat.com/show_bug.cgi?id=1900789
+* automake:
+
+  * https://lists.gnu.org/archive/html/bug-automake/2020-10/msg00022.html
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1889732
+  * Broken by automake:
+
+    * libreport: https://bugzilla.redhat.com/show_bug.cgi?id=1893652
+    * abrt: https://bugzilla.redhat.com/show_bug.cgi?id=1897489
+    * satyr: https://github.com/abrt/satyr/pull/320/commits/c0c38e7f462ce610c3759aa14992ca9ce37cb7df
+
+* COPASI: https://bugzilla.redhat.com/show_bug.cgi?id=1896407
+* libvirt-python: https://gitlab.com/libvirt/libvirt-python/-/commit/417b39049ef01a39fd7789f6f1eb861d6893075f
+* python-dmidecode: https://bugzilla.redhat.com/show_bug.cgi?id=1898981
+* python-caja: https://bugzilla.redhat.com/show_bug.cgi?id=1899132
+* grammalecte: https://bugzilla.redhat.com/show_bug.cgi?id=1900632
+* libCombine: https://bugzilla.redhat.com/show_bug.cgi?id=1900644
+* libnuml: https://bugzilla.redhat.com/show_bug.cgi?id=1900660
+* python-productivity: https://github.com/numat/productivity/commit/a8c14fb3d273d1c780c413b6b3daf30bee228d80
+* shortuuid: https://github.com/skorokithakis/shortuuid/commit/b1b94b8f5e7422d6fc9e15098ab06bdc135560ac
