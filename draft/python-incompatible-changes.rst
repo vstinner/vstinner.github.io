@@ -25,6 +25,7 @@ Incompatible Changes
 * Python 3.10: unittest: assertEqual
 * Python 3.10: C API PY_SSIZE_T_CLEAN macro
 * Python 3.10 version read as "3.1"
+* Python 3.10: PyObject_AsWriteBuffer
 
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
@@ -401,16 +402,87 @@ collections
   https://bugs.python.org/issue37324
 * Keep deprecated features in Python 3.9 to ease migration from Python 2.7, but remove in Python 3.10
   https://bugs.python.org/issue39674
-* pip vendors html5lib which didn't get a release for 1 year 1/2
-
-  * https://github.com/html5lib/html5lib-python/issues/419
-  * https://github.com/html5lib/html5lib-python/commit/4f9235752cea29c5a31721440578b430823a1e69
-  * https://github.com/pypa/pip/commit/ef7ca1472c1fdd085cffb8183b7ce8abbe9e2800
 
 Broken packages
 
+* html5lib which didn't get a release for 1 year 1/2
+
+  * https://github.com/html5lib/html5lib-python/issues/419
+  * https://github.com/html5lib/html5lib-python/commit/4f9235752cea29c5a31721440578b430823a1e69
+  * pip vendors html5lib:
+  * https://github.com/pypa/pip/commit/ef7ca1472c1fdd085cffb8183b7ce8abbe9e2800
+
 * May 2018, pytest: https://github.com/pytest-dev/pytest/commit/7985eff5b4b824576c0a1a98ddf31cbce14498ef
 * nose: see Fedora fix
+* python-minibelt: https://bugzilla.redhat.com/show_bug.cgi?id=1926215
+* python-oslo-utils: https://review.opendev.org/c/openstack/oslo.utils/+/773351
+* python-svg-path: https://bugzilla.redhat.com/show_bug.cgi?id=1926233
+  4.1 (2021-02-16): Use collections.abc for ABC import to add Python 3.9 compatibility.
+* mkdocs: https://github.com/mkdocs/mkdocs/commit/72f506dcce8db268ae4b3798cd30c8afd378d076
+* autoarchive: https://bugzilla.redhat.com/show_bug.cgi?id=1926069
+* pygal: https://github.com/Kozea/pygal/commit/7796f14c80fe82b9435cdc33b7d2939c8331d649
+* tabulate: https://github.com/astanin/python-tabulate/commit/24625986d76b50abea7cdce45f62861e72cff2b6
+
+  * tabulate broken multiple packages. Examples:
+  * home-assistant-cli
+  * litecli
+  * mycli
+  * packit
+  * transtats-cli
+
+* fn.py: https://github.com/kachayev/fn.py/pull/87
+* leather: https://github.com/wireservice/leather/commit/4ec3b6d78ba79dad221fa3616d528fe2bf348f45
+* mtg: https://github.com/chigby/mtg/pull/29/files
+* buildstream: https://bugzilla.redhat.com/show_bug.cgi?id=1926194
+* fail2ban: https://bugzilla.redhat.com/show_bug.cgi?id=1926201
+* openvswitch: https://bugzilla.redhat.com/show_bug.cgi?id=1926202
+* agate: https://github.com/wireservice/agate/commit/6152feae83d48ab36e62d4ee5a434bb1ae1bdff5
+
+  * It broke python-agate-excel, python-agate-dbf, python-agate-sql, python-csvkit
+
+* python-docx: https://bugzilla.redhat.com/show_bug.cgi?id=1926209
+* orderedmultidict: https://bugzilla.redhat.com/show_bug.cgi?id=1926211
+* python-grako: https://bugzilla.redhat.com/show_bug.cgi?id=1926212
+* ipywidgets: https://github.com/jupyter-widgets/ipywidgets/commit/f9a13dbb3b8f1ffefef483bdb4c14f04f7743ff1
+* python-minibelt: https://bugzilla.redhat.com/show_bug.cgi?id=1926215
+* python-rnc2rng: https://bugzilla.redhat.com/show_bug.cgi?id=1926225
+* python-rply: https://bugzilla.redhat.com/show_bug.cgi?id=1926231
+  * Broke python-citeproc-py
+* rebase-helper: https://github.com/rebase-helper/rebase-helper/commit/e7784929f8bbb95bd5b0be528988b48161dee5e8
+* python-vdf: https://bugzilla.redhat.com/show_bug.cgi?id=1926335
+  * vdf aslo broke python-steam
+* python-troveclient: https://review.opendev.org/c/openstack/python-troveclient/+/775121
+* python-stompest: https://bugzilla.redhat.com/show_bug.cgi?id=1926350
+* python-sphinxcontrib-openapi: https://bugzilla.redhat.com/show_bug.cgi?id=1926352
+* python-shadowsocks: https://bugzilla.redhat.com/show_bug.cgi?id=1926354
+* cypy: https://github.com/cyrus-/cypy/commit/b0101172ecc565dbcaf8579684ad3536af260bf6
+* python-schedule: https://bugzilla.redhat.com/show_bug.cgi?id=1926357 RETIRED PACKAGE
+* python-requests-toolbelt: https://bugzilla.redhat.com/show_bug.cgi?id=1926358
+* python-pysb: https://bugzilla.redhat.com/show_bug.cgi?id=1926359
+* oslo.context:
+
+  * https://review.opendev.org/c/openstack/oslo.context/+/773116
+  * https://review.opendev.org/c/openstack/oslo.context/+/773362
+
+* openstacksdk: https://review.opendev.org/c/openstack/openstacksdk/+/749973
+* python-odml: https://bugzilla.redhat.com/show_bug.cgi?id=1926362
+* nose2: https://bugzilla.redhat.com/show_bug.cgi?id=1926363
+* sushy: https://review.opendev.org/c/openstack/sushy/+/774598
+* python-pypet: https://bugzilla.redhat.com/show_bug.cgi?id=1926610
+* music21: https://github.com/cuthbertLab/music21/commit/218217d5306737d71789fc7031ac5ae9056ace7b
+* yaql: https://github.com/openstack/yaql/commit/c3bda9eeb1d802cd95b3120925d3786a4f060025
+
+  * Broke package: python-murano-pkg-check
+
+* python-losant-rest: https://bugzilla.redhat.com/show_bug.cgi?id=1926613
+* python-lazyarray: https://bugzilla.redhat.com/show_bug.cgi?id=1926614
+* python-IPy: https://bugzilla.redhat.com/show_bug.cgi?id=1926615
+* python-compreffor: https://bugzilla.redhat.com/show_bug.cgi?id=1926616
+* qtsass: https://github.com/spyder-ide/qtsass/commit/06f15194239ba430d5a9a144c1cc7c6b03e585a3
+* mayavi: https://github.com/enthought/mayavi/commit/0823fd8fdb15a728be1bba44980fb4d1a3efb90f
+* python-pyphi: https://bugzilla.redhat.com/show_bug.cgi?id=1962452
+* python-slip: https://github.com/nphilipp/python-slip/commit/9b939c0b534c1b7958fa0a3c7aedf30bca910431
+* git-cinnabar: https://bugzilla.redhat.com/show_bug.cgi?id=1978342
 
 Python 3.10: asyncio loop parameter removal
 ===========================================
@@ -607,37 +679,6 @@ Python 3.7: PEP 479 StopIteration
 * meson: https://github.com/mesonbuild/meson/commit/a87496addd9160300837aa50193f4798c6f1d251
 * sphinx (napoleon ext): https://github.com/sphinx-doc/sphinx/commit/b553c23ab1cadfe75db6637ca95daa11abc87049
 
-Misc
-====
-
-Python 3.7:
-
-* pathlib2 used test.support.android_not_root()
-  https://github.com/jazzband/pathlib2/issues/39
-* gdb: _PyImport_FixupBuiltin()
-
-  * https://sourceware.org/bugzilla/show_bug.cgi?id=23252
-  * https://sourceware.org/legacy-ml/gdb-patches/2018-05/msg00863.html
-  * https://sourceware.org/legacy-ml/gdb/2018-05/msg00027.html
-
-* testtools: str(Exception)
-
-  * https://github.com/testing-cabal/testtools/issues/270
-  * https://github.com/testing-cabal/testtools/commit/f865cfefae73e540aedb16ebb19f813cc648f2b6
-
-* sure: replace re._pattern_type with re.Pattern
-
-  * https://github.com/gabrielfalcao/sure/commit/01d61727ee94b743fb18d0fdfa19246f8abb5b18
-
-* dnf: os.errno has been removed
-  https://github.com/rpm-software-management/dnf/commit/199fc9cb11ff004fc752b58b7177aaf8d7fcedfd
-
-* scipy: tstate->exc_value
-  "Update to 1.1.0 solves this."
-
-* fontforge: real regression.
-  https://bugzilla.redhat.com/show_bug.cgi?id=1595421
-
 argparse
 ========
 
@@ -658,21 +699,21 @@ Python 3.10: unittest: assertEqual
 
 TestCase method aliases
 
-* failUnlessEqual
-* failIfEqual
-* failUnless
-* failIf
-* failUnlessRaises
-* failUnlessAlmostEqual
-* failIfAlmostEqual (deprecated in Python 3.1)
-* assertEquals
-* assertNotEquals
-* assert_
-* assertAlmostEquals
-* assertNotAlmostEquals
-* assertRegexpMatches
-* assertRaisesRegexp (deprecated in Python 3.2)
-* assertNotRegexpMatches (deprecated in Python 3.5).
+* ``assertAlmostEquals()``
+* ``assertEquals()``
+* ``assertNotAlmostEquals()``
+* ``assertNotEquals()``
+* ``assertNotRegexpMatches()`` (deprecated in Python 3.5).
+* ``assertRaisesRegexp()`` (deprecated in Python 3.2)
+* ``assertRegexpMatches()``
+* ``assert_()``
+* ``failIf()``
+* ``failIfAlmostEqual()`` (deprecated in Python 3.1)
+* ``failIfEqual()``
+* ``failUnless()``
+* ``failUnlessAlmostEqual()``
+* ``failUnlessEqual()``
+* ``failUnlessRaises()``
 
 Python 3.10: C API PY_SSIZE_T_CLEAN macro
 =========================================
@@ -725,6 +766,10 @@ Python 3.10 version read as "3.1"
     https://bugzilla.redhat.com/show_bug.cgi?id=1914899
   * paternoster fails to build with Python 3.10: 'py?.?' glob should be replaced with macro %{python3_version}
     https://bugzilla.redhat.com/show_bug.cgi?id=1948519
+  * javapackages-tools fails to build with Python 3.10: uses a python?.? glob in %files (edit)
+    https://bugzilla.redhat.com/show_bug.cgi?id=1897070
+  * python-bashate fails to build with Python 3.10: 'py?.?' glob should be replaced with macro %{python3_version}
+    https://bugzilla.redhat.com/show_bug.cgi?id=1900508
 
 * abseil-py: https://github.com/abseil/abseil-py/commit/d61b0b6bda1902f645e5bbbc3f138c142767befa
 * gnumeric: https://bugzilla.redhat.com/show_bug.cgi?id=1951997
@@ -750,3 +795,76 @@ Python 3.10 version read as "3.1"
 * python-productivity: https://github.com/numat/productivity/commit/a8c14fb3d273d1c780c413b6b3daf30bee228d80
 * shortuuid: https://github.com/skorokithakis/shortuuid/commit/b1b94b8f5e7422d6fc9e15098ab06bdc135560ac
 * abseil-py: https://github.com/abseil/abseil-py/commit/d61b0b6bda1902f645e5bbbc3f138c142767befa
+* opentrep: https://github.com/trep/opentrep/commit/33405330f2a7bd3325d6774998311ec996c61114
+* sugar-datastore: https://bugzilla.redhat.com/show_bug.cgi?id=1900789
+* dnfdaemon: https://github.com/manatools/dnfdaemon/commit/13f5059639263a39d6a33419ac78f7b64ab27893
+* libsbml: https://src.fedoraproject.org/rpms/libsbml/c/9769386c2d8bb9b0c177439401bbc227002a7674?branch=c3a30fb4de321f8c37be41332090e9426b001e97
+* libsedml: https://bugzilla.redhat.com/show_bug.cgi?id=1897111
+
+Misc
+====
+
+Python 3.7:
+
+* pathlib2 used test.support.android_not_root()
+  https://github.com/jazzband/pathlib2/issues/39
+* gdb: _PyImport_FixupBuiltin()
+
+  * https://sourceware.org/bugzilla/show_bug.cgi?id=23252
+  * https://sourceware.org/legacy-ml/gdb-patches/2018-05/msg00863.html
+  * https://sourceware.org/legacy-ml/gdb/2018-05/msg00027.html
+
+* testtools: str(Exception)
+
+  * https://github.com/testing-cabal/testtools/issues/270
+  * https://github.com/testing-cabal/testtools/commit/f865cfefae73e540aedb16ebb19f813cc648f2b6
+
+* sure: replace re._pattern_type with re.Pattern
+
+  * https://github.com/gabrielfalcao/sure/commit/01d61727ee94b743fb18d0fdfa19246f8abb5b18
+
+* dnf: os.errno has been removed
+  https://github.com/rpm-software-management/dnf/commit/199fc9cb11ff004fc752b58b7177aaf8d7fcedfd
+
+* scipy: tstate->exc_value
+  "Update to 1.1.0 solves this."
+
+* fontforge: real regression.
+  https://bugzilla.redhat.com/show_bug.cgi?id=1595421
+
+* kdevelop-python: use the removed parser C API:
+  https://bugzilla.redhat.com/show_bug.cgi?id=1898116
+
+Python 3.10: PyObject_AsWriteBuffer
+===================================
+
+Avoid using PyObject_AsCharBuffer(), PyObject_AsReadBuffer() and PyObject_AsWriteBuffer():
+
+* https://bugs.python.org/issue41103
+* https://docs.python.org/3.10/whatsnew/3.10.html#id4
+
+Broken packages:
+
+* pycairo: https://bugzilla.redhat.com/show_bug.cgi?id=1889722
+* msgpack (used by borgbackup):
+
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1927146
+  * https://github.com/borgbackup/borg/issues/5683
+  * https://github.com/borgbackup/borg/pull/5684
+  * https://github.com/borgbackup/borg/commit/44ba5ddd87078b14d55da9b7da0ebb6f9fd3a1f1
+
+* python-mapnik: https://bugzilla.redhat.com/show_bug.cgi?id=1900688
+* wsaccel: https://github.com/methane/wsaccel/commit/b171314d883df04bf5449085e017e44dee21231f
+* python-djvulibre: https://github.com/jwilk/python-djvulibre/commit/3a61d30c38b0abec4e4ef22f1c63b1003ba2d35f
+* python-apsw: https://bugzilla.redhat.com/show_bug.cgi?id=1897500
+* pygame: https://bugzilla.redhat.com/show_bug.cgi?id=1897263
+* coccinelle:
+
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1896393
+  * https://systeme.lip6.fr/pipermail/cocci/2020-November/008399.html
+
+* pycairo: https://bugzilla.redhat.com/show_bug.cgi?id=
+* libsolv:
+
+  * https://github.com/openSUSE/libsolv/commit/170f8550
+  * https://github.com/openSUSE/libsolv/commit/e258226c
