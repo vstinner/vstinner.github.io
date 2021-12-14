@@ -8,6 +8,20 @@ Python incompatible changes
 :slug: python-incompatible-changes
 :authors: Victor Stinner
 
+Incompatible Changes
+====================
+
+* PyTypeObject.tp_print
+* PyCode_New()
+* types.CodeType constructor
+* ast.Constant
+* Py_TYPE() and Py_SIZE() l-value
+* asyncore, asynchat, smtpd modules removal
+* collections aliases
+* open() "U" mode
+* async and await keyword
+* inspect.getargspec() removal
+
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
 
@@ -89,12 +103,85 @@ breezy uses "Py_REFCNT(self) -= 1;"
 * Breezy ("bzr"): https://bugs.launchpad.net/brz/+bug/1904868
 * PySide: https://bugreports.qt.io/browse/PYSIDE-1436
 
-PyCode_New() and positional only PEP 570
-========================================
+PEP 570 Positional only arguments (May 2019)
+============================================
 
-* https://www.python.org/dev/peps/pep-0570/
+* https://www.python.org/dev/peps/pep-0570
+* https://github.com/python/cpython/pull/12701
+* Expected stability of PyCode_New() and types.CodeType() signatures
+  https://mail.python.org/archives/list/python-dev@python.org/thread/VXDPH2TUAHNPT5K6HBUIV6VASBCKKY2K/
+
+Python API change: types.CodeType constructor
+---------------------------------------------
+
+* Add CodeType.replace() to Python 3.8:
+
+  * https://bugs.python.org/issue37032
+  * https://docs.python.org/dev/library/types.html#types.CodeType.replace
+
+Broken projects:
+
+* Genshi:
+
+  * https://github.com/edgewall/genshi/pull/19
+  * Recently updated to use CodeType.replace() to support Python 3.10:
+    https://github.com/edgewall/genshi/commit/a23f3054b96b487215b04812c680075c5117470a
+
+* Hypothesis:
+
+  * https://github.com/HypothesisWorks/hypothesis/issues/1943
+  * https://github.com/HypothesisWorks/hypothesis/commit/8f47297fa2e19c426a42b06bb5f8bf1406b8f0f3
+
+* ipython:
+  https://github.com/ipython/ipython/commit/248128dfaabb33e922b1e36a298fd7ec0c730069
+
+* Cloud Pickle:
+  https://github.com/cloudpipe/cloudpickle/commit/b9dc17fc5f723ffbfc665295fafdd076907c0a93
+
+C API change: PyCode_New()
+--------------------------
+
+* https://bugs.python.org/issue37221
+* https://bugs.python.org/issue36886
+  Failed to construct CodeType on Python-3.8.0a4
+* https://bugs.python.org/issue36896
+  clarify in types.rst that FunctionTypes & co  constructors don't have stable signature
+
+  * https://github.com/python/cpython/pull/13271/files
+
 * Cython
-* Add CodeType.replace() to Python 3.8: https://docs.python.org/dev/library/types.html#types.CodeType.replace
+
+Add PyCode_NewWithPosOnlyArgs()
+-------------------------------
+
+* June 2019: bpo-37221: Add PyCode_NewWithPosOnlyArgs to be used internally and set PyCode_New as a compatibility wrapper
+  https://github.com/python/cpython/pull/13959
+
+Cython?
+-------
+
+* April 2019, master: https://github.com/cython/cython/commit/d22678c700446636360d3fe97aef60f0cedef741
+* May 2019, branch 0.29.x: https://github.com/cython/cython/commit/61ed2e81b9580ba66cd7d42f67d336ab1c5d65ab
+* June 2019: https://github.com/cython/cython/commit/9b6a02f7f28934fa0d02ab4d173c1b89bf3bd8f8
+
+
+Removal of PyTypeObject.tp_print
+================================
+
+* CPython change, PEP 590
+
+  * https://github.com/python/cpython/pull/13185
+  * Replace PyTypeObject.tp_print with PyTypeObject.tp_vectorcall:
+    https://github.com/python/cpython/commit/aacc77fbd77640a8f03638216fa09372cc21673d
+
+* https://bugs.python.org/issue37250
+* https://mail.python.org/pipermail/python-dev/2018-June/153927.html
+* Cython
+
+  * https://github.com/cython/cython/issues/2976
+  * https://github.com/cython/cython/commit/f10a0a391edef10bd37095af87f521808cb362f7
+  * Cython 0.29.10 (June 2, 2019)
+
 
 Py_TYPE() and Py_SIZE()
 =======================
@@ -247,8 +334,74 @@ collections aliases, open() U flag
 * https://mail.python.org/archives/list/python-dev@python.org/thread/EYLXCGGJOUMZSE5X35ILW3UNTJM3MCRE/#OUHSUXWDWQ2TL7ZESB5WODLNHKMBZHYH
 * https://lwn.net/Articles/811369/
 * https://docs.python.org/dev/whatsnew/3.9.html#you-should-check-for-deprecationwarning-in-your-code
+
+open() "U" flag
+---------------
+
+* https://bugs.python.org/issue37330
+* https://github.com/python/cpython/commit/e471e72977c83664f13d041c78549140c86c92de
+
+Broken:
+
+* docutils:
+
+  * https://sourceforge.net/p/docutils/bugs/363/
+  * https://sourceforge.net/p/docutils/bugs/364/
+  * At 2019-07-22,  Günter Milde wrote: "Docutils 0.15 is released" (with the
+    fix). The latest docutils version is 0.17.1.
+
+* Samba build (waf):
+
+  * https://bugzilla.samba.org/show_bug.cgi?id=14266
+  * https://github.com/samba-team/samba/blob/1209c89dcf6371bbfa4f3929a47a573ef2916c1a/buildtools/wafsamba/samba_utils.py#L692
+
+* 2020-03-04: bpo-39674: Revert "bpo-37330: open() no longer accept 'U' in file mode (GH-16959)" (GH-18767)
+  https://github.com/python/cpython/commit/942f7a2dea2e95a0fa848329565c0d0288d92e47
+
+* 2021-09-02: bpo-37330: open() no longer accept 'U' in file mode (GH-28118)
+  https://github.com/python/cpython/commit/19ba2122ac7313ac29207360cfa864a275b9489e
+
+Another candidate is to revert the ignored "U" mode in open(): commit e471e72977c83664f13d041c78549140c86c92de of bpo-37330.
+
+Removing "U" mode of open() broke 11 packages in Fedora:
+
+* aubio
+* openvswitch
+* python-SALib
+* python-altgraph
+* python-apsw
+* python-magic-wormhole-mailbox-server
+* python-munch
+* python-parameterized
+* python-pylibmc
+* python-sphinx-testing
+* veusz
+
+Keeping "U" mode in Python 3.9 is also a formal request from Andrew Bartlett of the Samba project: https://bugs.python.org/issue37330#msg362362
+
+collections
+-----------
+
+* Emit warning
+
+  * https://bugs.python.org/issue25988
+  * https://github.com/python/cpython/commit/c66f9f8d3909f588c251957d499599a1680e2320
+
+* bpo-25988: Do not expose abstract collection classes in the collections module. (GH-10596)
+  https://github.com/python/cpython/commit/ef092fe9905f61ca27889092ca1248a11aa74498
+* bpo-39674: Revert "bpo-25988: Do not expose abstract collection classes in the collections module. (GH-10596)" (GH-18545)
+  https://github.com/python/cpython/commit/af5ee3ff610377ef446c2d88bbfcbb3dffaaf0c9
+* bpo-37324: Remove ABC aliases from collections (GH-23754)
+  https://github.com/python/cpython/commit/c47c78b878ff617164b2b94ff711a6103e781753
 * collections: remove deprecated aliases to ABC classes:
   https://bugs.python.org/issue37324
+* Keep deprecated features in Python 3.9 to ease migration from Python 2.7, but remove in Python 3.10
+  https://bugs.python.org/issue39674
+* pip vendors html5lib which didn't get a release for 1 year 1/2
+
+  * https://github.com/html5lib/html5lib-python/issues/419
+  * https://github.com/html5lib/html5lib-python/commit/4f9235752cea29c5a31721440578b430823a1e69
+  * https://github.com/pypa/pip/commit/ef7ca1472c1fdd085cffb8183b7ce8abbe9e2800
 
 asyncio loop parameter removal
 ==============================
@@ -318,3 +471,24 @@ broke when it changed.
 See: https://bugs.python.org/issue42832
 
 (we noticed it too late to ask for it to be reverted)
+
+
+Large code base
+===============
+
+A problem is that some companies have a large code bases and don't have the
+resources to upgrade to every Python version, so they don't get
+DeprecationWarning, but skip Python versions and get immediately errors about
+*removed* features a pratical problem is to get a supported Python package on
+the Linux distribution. well, Fedora provides many Python versions, but it's
+not the case of other Linux distributions.
+
+PEP 606 "Python Compatibility Version"
+======================================
+
+https://www.python.org/dev/peps/pep-0606/
+
+PEP 608 "Coordinated Python release"
+====================================
+
+https://www.python.org/dev/peps/pep-0608/
