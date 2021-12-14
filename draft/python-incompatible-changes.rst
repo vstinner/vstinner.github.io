@@ -11,21 +11,21 @@ Python incompatible changes
 Incompatible Changes
 ====================
 
-* Python 3.7: async and await keywords
-* Python 3.8: PyTypeObject.tp_print
-* Python 3.8: PyCode_New()
-* Python 3.8: types.CodeType constructor
-* Python 3.8: ast.Constant
-* Python 3.9 and 3.10: collections ABC aliases
-* Python 3.9 and 3.11: open() "U" mode
+* Python 3.7: async and await keywords (17 broken packages)
+* Python 3.8: PyTypeObject.tp_print (1 broken package)
+* Python 3.8: PyCode_New() (1 broken package)
+* Python 3.8: types.CodeType constructor (4 broken packages)
+* Python 3.8: ast.Constant (5 broken packages)
+* Python 3.9 and 3.10: collections ABC aliases (51 broken packages)
+* Python 3.9 and 3.11: open() "U" mode (13 broken packages)
 * Python 3.10: asyncio loop parameter removal
-* inspect.getargspec() removal
 * Python 3.10: unittest: assertEqual
-* Python 3.10: C API PY_SSIZE_T_CLEAN macro
-* Python 3.10 version read as "3.1"
-* Python 3.10: PyObject_AsWriteBuffer
-* Python 3.11: Py_TYPE() and Py_SIZE() l-value
-* Python 3.11: asyncore, asynchat, smtpd modules removal
+* Python 3.10: C API PY_SSIZE_T_CLEAN macro (11 broken packages)
+* Python 3.10: Python "3.10" version read as "3.1" (20 broken packages)
+* Python 3.10: PyObject_AsWriteBuffer (10 broken packages)
+* Python 3.11: Py_TYPE() and Py_SIZE() l-value (43 broken packages)
+* Python 3.11: asyncore, asynchat, smtpd modules removal (21 broken packages)
+* Python 3.11: inspect.getargspec() removal (1 broken package)
 
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
@@ -53,7 +53,7 @@ Python 3.7: async and await keywords
 * async and await names are now reserved keywords.
 * https://bugs.python.org/issue30406
 
-Impacted projects:
+Broken projects (17):
 
 * Twisted:
 
@@ -88,6 +88,8 @@ Python 3.8: ast.Constant change
 
 Remove specific constant AST types in favor of ast.Constant
 https://bugs.python.org/issue32892
+
+Broken packages (5):
 
 * astroid (used by pylint):
 
@@ -163,7 +165,7 @@ Python API change: types.CodeType constructor
   * https://bugs.python.org/issue37032
   * https://docs.python.org/dev/library/types.html#types.CodeType.replace
 
-Broken projects:
+Broken projects (4):
 
 * Genshi:
 
@@ -193,6 +195,8 @@ C API change: PyCode_New()
 
   * https://github.com/python/cpython/pull/13271/files
 
+Broken packages (1):
+
 * Cython
 
 Add PyCode_NewWithPosOnlyArgs()
@@ -220,6 +224,9 @@ Python 3.8: Removal of PyTypeObject.tp_print
 
 * https://bugs.python.org/issue37250
 * https://mail.python.org/pipermail/python-dev/2018-June/153927.html
+
+Broken packages (1):
+
 * Cython
 
   * https://github.com/cython/cython/issues/2976
@@ -241,8 +248,12 @@ Python 3.9 and 3.11: open() "U" flag
 * Remove: https://github.com/python/cpython/commit/e471e72977c83664f13d041c78549140c86c92de
 * Revert: https://github.com/python/cpython/commit/942f7a2dea2e95a0fa848329565c0d0288d92e47
 * Remove again: https://github.com/python/cpython/commit/19ba2122ac7313ac29207360cfa864a275b9489e
+* 2020-03-04: bpo-39674: Revert "bpo-37330: open() no longer accept 'U' in file mode (GH-16959)" (GH-18767)
+  https://github.com/python/cpython/commit/942f7a2dea2e95a0fa848329565c0d0288d92e47
+* 2021-09-02: bpo-37330: open() no longer accept 'U' in file mode (GH-28118)
+  https://github.com/python/cpython/commit/19ba2122ac7313ac29207360cfa864a275b9489e
 
-Broken:
+Broken packages (13):
 
 * docutils:
 
@@ -251,20 +262,10 @@ Broken:
   * At 2019-07-22,  Günter Milde wrote: "Docutils 0.15 is released" (with the
     fix). The latest docutils version is 0.17.1.
 
-* Samba build (waf):
+* waf (used by Samba build):
 
   * https://bugzilla.samba.org/show_bug.cgi?id=14266
   * https://github.com/samba-team/samba/blob/1209c89dcf6371bbfa4f3929a47a573ef2916c1a/buildtools/wafsamba/samba_utils.py#L692
-
-* 2020-03-04: bpo-39674: Revert "bpo-37330: open() no longer accept 'U' in file mode (GH-16959)" (GH-18767)
-  https://github.com/python/cpython/commit/942f7a2dea2e95a0fa848329565c0d0288d92e47
-
-* 2021-09-02: bpo-37330: open() no longer accept 'U' in file mode (GH-28118)
-  https://github.com/python/cpython/commit/19ba2122ac7313ac29207360cfa864a275b9489e
-
-Another candidate is to revert the ignored "U" mode in open(): commit e471e72977c83664f13d041c78549140c86c92de of bpo-37330.
-
-Removing "U" mode of open() broke 11 packages in Fedora:
 
 * aubio
 * openvswitch
@@ -299,7 +300,7 @@ Python 3.9 and 3.10: collections ABC aliases
 * Keep deprecated features in Python 3.9 to ease migration from Python 2.7, but remove in Python 3.10
   https://bugs.python.org/issue39674
 
-Broken packages
+Broken packages (51):
 
 * html5lib which didn't get a release for 1 year 1/2
 
@@ -385,37 +386,6 @@ Python 3.10: asyncio loop parameter removal
 
 * https://docs.python.org/dev/whatsnew/3.10.html#changes-in-the-python-api
 * https://bugs.python.org/issue42392
-
-Python 3.11: Remove inspect.getargspec()
-========================================
-
-* inspect.signature() added to Python 3.3
-* inspect.getfullargspec() is still there
-* Remove inspect.getargspec() and inspect.formatargspec()
-
-Part 1:
-
-* https://bugs.python.org/issue20438
-* Deprecate: https://hg.python.org/cpython/rev/3a5fec5e025d
-* Remove deprecation: https://github.com/python/cpython/commit/0899b9809547ec2894dcf88cf4bba732c5d47d0d
-
-Part 2:
-
-* https://bugs.python.org/issue25486
-* Remove: https://hg.python.org/cpython/rev/a565aad5d6e1
-* Add again: https://hg.python.org/cpython/rev/32c8bdcd66cc
-
-Part 3:
-
-* https://bugs.python.org/issue45320
-* Remove: https://github.com/python/cpython/commit/d89fb9a5a610a257014d112bdceef73d7df14082
-
-Broken projects:
-
-* sqlalchemy:
-
-  * https://src.fedoraproject.org/rpms/python-sqlalchemy/pull-request/2#request_diff
-  * https://bugzilla.redhat.com/show_bug.cgi?id=1591353
 
 Porting to Python 3.x documentations
 ====================================
@@ -588,7 +558,7 @@ Change:
   https://www.python.org/dev/peps/pep-0353
 * SystemError exception raised at runtime
 
-Broken packages:
+Broken packages (11):
 
 * python-ephem: https://bugzilla.redhat.com/show_bug.cgi?id=1891793
 * libxml2:
@@ -620,6 +590,8 @@ Broken packages:
 
 Python 3.10 version read as "3.1"
 =================================
+
+Broken packages (20):
 
 * RPM macro
 
@@ -704,7 +676,7 @@ Avoid using PyObject_AsCharBuffer(), PyObject_AsReadBuffer() and PyObject_AsWrit
 * https://bugs.python.org/issue41103
 * https://docs.python.org/3.10/whatsnew/3.10.html#id4
 
-Broken packages:
+Broken packages (10):
 
 * pycairo: https://bugzilla.redhat.com/show_bug.cgi?id=1889722
 * msgpack (used by borgbackup):
@@ -742,7 +714,7 @@ Changed in Python 3.11:
 
 Article about these changes: https://vstinner.github.io/c-api-abstract-pyobject.html
 
-Fixed:
+Broken packages (43):
 
 * Cython: https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd
 * immutables: https://github.com/MagicStack/immutables/pull/52
@@ -759,20 +731,10 @@ Fixed:
 * breezy: https://bugs.launchpad.net/brz/+bug/1904868
 * duplicity: https://git.launchpad.net/duplicity/commit/duplicity/_librsyncmodule.c?id=bbaae91b5ac6ef7e295968e508522884609fbf84
 * gobject-introspection: https://gitlab.gnome.org/GNOME/gobject-introspection/-/merge_requests/243
-
-Fix proposed:
-
 * pybluez: https://github.com/pybluez/pybluez/pull/410
-
-Broken:
-
 * PyPAM
-* pygobject3
 * pylibacl
 * rdiff-backup
-
-Py_SIZE:
-
 * Naked-0.1.31
 * Shapely-1.8.0
 * dedupe-hcluster-0.3.8
@@ -797,9 +759,6 @@ Py_SIZE:
 * thriftrw-1.8.1
 * tinycss-0.4
 * triangle-20200424
-
-Py_TYPE:
-
 * datatable-1.0.0.tar.gz
 * mypy-0.910
 * pysha3-1.0.2
@@ -852,7 +811,9 @@ Changes:
 * Revert 3 modules: https://github.com/python/cpython/commit/cf7eaa4617295747ee5646c4e2b7e7a16d7c64ab
 
 According to a code search in the PyPI top 5000 projects: the source code of 21
-projects contains "import asyncore", "import asynchat" or "import smtpd":
+projects contains "import asyncore", "import asynchat" or "import smtpd".
+
+Broken packages (21):
 
 * ansible-5.0.0
 * cassandra-driver-3.25.0
@@ -877,4 +838,36 @@ projects contains "import asyncore", "import asynchat" or "import smtpd":
 * tlslite-0.4.9
 
 I ignored false positives like "from eventlet(...) import asyncore".
+
+
+Python 3.11: Remove inspect.getargspec()
+========================================
+
+* inspect.signature() added to Python 3.3
+* inspect.getfullargspec() is still there
+* Remove inspect.getargspec() and inspect.formatargspec()
+
+Part 1:
+
+* https://bugs.python.org/issue20438
+* Deprecate: https://hg.python.org/cpython/rev/3a5fec5e025d
+* Remove deprecation: https://github.com/python/cpython/commit/0899b9809547ec2894dcf88cf4bba732c5d47d0d
+
+Part 2:
+
+* https://bugs.python.org/issue25486
+* Remove: https://hg.python.org/cpython/rev/a565aad5d6e1
+* Add again: https://hg.python.org/cpython/rev/32c8bdcd66cc
+
+Part 3:
+
+* https://bugs.python.org/issue45320
+* Remove: https://github.com/python/cpython/commit/d89fb9a5a610a257014d112bdceef73d7df14082
+
+Broken project (1):
+
+* sqlalchemy:
+
+  * https://src.fedoraproject.org/rpms/python-sqlalchemy/pull-request/2#request_diff
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1591353
 
