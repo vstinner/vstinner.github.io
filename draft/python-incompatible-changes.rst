@@ -16,11 +16,15 @@ Incompatible Changes
 * types.CodeType constructor
 * ast.Constant
 * Py_TYPE() and Py_SIZE() l-value
-* asyncore, asynchat, smtpd modules removal
+* Python 3.11: asyncore, asynchat, smtpd modules removal
 * collections aliases
 * open() "U" mode
-* async and await keyword
+* Python 3.10: asyncio loop parameter removal
+* Python 3.7: async and await keyword
 * inspect.getargspec() removal
+* Python 3.10: unittest: assertEqual
+* Python 3.10: C API PY_SSIZE_T_CLEAN macro
+* Python 3.10 version read as "3.1"
 
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
@@ -284,8 +288,8 @@ In practice, the majority of affected projects only have to make two changes:
 
 PyDescr_NAME() and PyDescr_TYPE()
 
-asyncore, asynchat, smtpd
-=========================
+Python 3.11: asyncore, asynchat, smtpd
+======================================
 
 Links:
 
@@ -408,8 +412,8 @@ Broken packages
 * May 2018, pytest: https://github.com/pytest-dev/pytest/commit/7985eff5b4b824576c0a1a98ddf31cbce14498ef
 * nose: see Fedora fix
 
-asyncio loop parameter removal
-==============================
+Python 3.10: asyncio loop parameter removal
+===========================================
 
 * https://docs.python.org/dev/whatsnew/3.10.html#changes-in-the-python-api
 * https://bugs.python.org/issue42392
@@ -712,8 +716,8 @@ Broken packages:
   * https://github.com/apple/ccs-pykerberos/issues/88
   * https://src.fedoraproject.org/rpms/python-kerberos/pull-request/1#request_diff
 
-Python "3.1" instead of "3.10"
-==============================
+Python 3.10 version read as "3.1"
+=================================
 
 * RPM macro
 
@@ -745,3 +749,4 @@ Python "3.1" instead of "3.10"
 * libnuml: https://bugzilla.redhat.com/show_bug.cgi?id=1900660
 * python-productivity: https://github.com/numat/productivity/commit/a8c14fb3d273d1c780c413b6b3daf30bee228d80
 * shortuuid: https://github.com/skorokithakis/shortuuid/commit/b1b94b8f5e7422d6fc9e15098ab06bdc135560ac
+* abseil-py: https://github.com/abseil/abseil-py/commit/d61b0b6bda1902f645e5bbbc3f138c142767befa
