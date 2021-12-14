@@ -89,6 +89,11 @@ Python 3.8: ast.Constant change
 Remove specific constant AST types in favor of ast.Constant
 https://bugs.python.org/issue32892
 
+See also:
+
+* https://bugs.python.org/issue36917 "ast.NodeVisitor no longer calls visit_Str".
+* https://bugs.python.org/issue39999 "Fix some issues with AST node classes"
+
 Broken packages (5):
 
 * astroid (used by pylint):
