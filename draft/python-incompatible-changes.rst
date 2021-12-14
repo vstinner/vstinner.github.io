@@ -11,21 +11,21 @@ Python incompatible changes
 Incompatible Changes
 ====================
 
-* PyTypeObject.tp_print
-* PyCode_New()
-* types.CodeType constructor
-* ast.Constant
-* Py_TYPE() and Py_SIZE() l-value
-* Python 3.11: asyncore, asynchat, smtpd modules removal
-* collections aliases
-* open() "U" mode
+* Python 3.7: async and await keywords
+* Python 3.8: PyTypeObject.tp_print
+* Python 3.8: PyCode_New()
+* Python 3.8: types.CodeType constructor
+* Python 3.8: ast.Constant
+* Python 3.9 and 3.10: collections ABC aliases
+* Python 3.9 and 3.11: open() "U" mode
 * Python 3.10: asyncio loop parameter removal
-* Python 3.7: async and await keyword
 * inspect.getargspec() removal
 * Python 3.10: unittest: assertEqual
 * Python 3.10: C API PY_SSIZE_T_CLEAN macro
 * Python 3.10 version read as "3.1"
 * Python 3.10: PyObject_AsWriteBuffer
+* Python 3.11: Py_TYPE() and Py_SIZE() l-value
+* Python 3.11: asyncore, asynchat, smtpd modules removal
 
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
@@ -47,8 +47,44 @@ A common task is to identify the most important dependencies and first fix
 these ones.
 
 
-ast.Constant change
-===================
+Python 3.7: async and await keywords
+====================================
+
+* async and await names are now reserved keywords.
+* https://bugs.python.org/issue30406
+
+Impacted projects:
+
+* Twisted:
+
+  * https://github.com/twisted/twisted/commit/ee535041258e7ef0b3223d2e12cd9aaa0bc2289f
+
+* python-txaio:
+
+  * https://bugzilla.redhat.com/show_bug.cgi?id=1605971
+  * https://github.com/crossbario/txaio/issues/134
+  * https://github.com/crossbario/txaio/commit/619740efa6554c7e73c0fc442fb775325f21b6ea
+
+* dbus-python: https://bugzilla.redhat.com/show_bug.cgi?id=1578726
+* python-psycopg2: https://github.com/psycopg/psycopg2/commit/ef64493b8913e4069c4422ad14da6de405c445f6
+* py3dns: https://bugs.launchpad.net/py3dns/+bug/1776027
+* python-pyroute2: https://github.com/svinota/pyroute2/commit/6153d375ff4b3770f84f0afca8ee0a1b8ea54604
+* bodhi: https://github.com/fedora-infra/bodhi/commit/f3c0c01831cee8a7bb6baf7c72f5d66d05117efd
+* javapackages-tools: https://github.com/fedora-java/javapackages/commit/70fa2258ac91c48f0f0fc24436e24ea26dc474f7
+* trollius: https://bugzilla.redhat.com/show_bug.cgi?id=1593133
+* python-pytelegrambotapi: https://bugzilla.redhat.com/show_bug.cgi?id=1594941
+* ara: https://bugzilla.redhat.com/show_bug.cgi?id=1603394
+* subscription-manager: https://github.com/candlepin/subscription-manager/commit/a8f40b7722984e8b262962037401647f197f8a20
+* pyatspi2: https://gitlab.gnome.org/GNOME/pyatspi2/-/commit/b73dabbd1025ba1be332cd6f11cca5a5d49eeecf
+* accerciser: https://gitlab.gnome.org/GNOME/accerciser/-/commit/f06188961ade937c722a727bf016132428f5d70c
+* python-kubernetes: https://bugzilla.redhat.com/show_bug.cgi?id=1597588
+* stem: https://gitweb.torproject.org/stem.git/patch/?id=6c677b6a4080d14a56d2d88ab2ddd9766cc60b9a
+* jira: https://bugzilla.redhat.com/show_bug.cgi?id=1605735
+  (fixed in 2.0?)
+
+
+Python 3.8: ast.Constant change
+===============================
 
 Remove specific constant AST types in favor of ast.Constant
 https://bugs.python.org/issue32892
@@ -75,6 +111,7 @@ https://bugs.python.org/issue32892
 
 * Mako: https://github.com/sqlalchemy/mako/issues/287
 
+
 Fedora bugs
 ===========
 
@@ -96,8 +133,9 @@ Open question: is it ok to remove the symbol from the stable ABI? A solution is
 to remove the function from the API, keep it in the ABI, but modify it to only
 raise an error.
 
-Py_REFCNT()
-===========
+
+Python 3.10: Py_REFCNT()
+========================
 
 Changed in Python 3.10:
 
@@ -108,8 +146,9 @@ breezy uses "Py_REFCNT(self) -= 1;"
 * Breezy ("bzr"): https://bugs.launchpad.net/brz/+bug/1904868
 * PySide: https://bugreports.qt.io/browse/PYSIDE-1436
 
-PEP 570 Positional only arguments (May 2019)
-============================================
+
+Python 3.8: PEP 570 Positional only arguments (May 2019)
+========================================================
 
 * https://www.python.org/dev/peps/pep-0570
 * https://github.com/python/cpython/pull/12701
@@ -170,8 +209,8 @@ Cython?
 * June 2019: https://github.com/cython/cython/commit/9b6a02f7f28934fa0d02ab4d173c1b89bf3bd8f8
 
 
-Removal of PyTypeObject.tp_print
-================================
+Python 3.8: Removal of PyTypeObject.tp_print
+============================================
 
 * CPython change, PEP 590
 
@@ -188,163 +227,20 @@ Removal of PyTypeObject.tp_print
   * Cython 0.29.10 (June 2, 2019)
 
 
-Py_TYPE() and Py_SIZE()
-=======================
-
-Changed in Python 3.11:
-
-* https://bugs.python.org/issue39573#msg379675
-* https://bugs.python.org/issue45476#msg407410
-* https://github.com/python/steering-council/issues/79
-
-Article about these changes: https://vstinner.github.io/c-api-abstract-pyobject.html
-
-Fixed:
-
-* Cython: https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd
-* immutables: https://github.com/MagicStack/immutables/pull/52
-* numpy:
-
-  * https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa
-  * https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa
-
-* pycurl: https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042
-* bitarray: https://github.com/ilanschnell/bitarray/pull/109
-* mercurial: https://bz.mercurial-scm.org/show_bug.cgi?id=6451
-* boost: https://github.com/boostorg/python/commit/500194edb7833d0627ce7a2595fec49d0aae2484
-* pyside2: https://bugreports.qt.io/browse/PYSIDE-1436
-* breezy: https://bugs.launchpad.net/brz/+bug/1904868
-* duplicity: https://git.launchpad.net/duplicity/commit/duplicity/_librsyncmodule.c?id=bbaae91b5ac6ef7e295968e508522884609fbf84
-* gobject-introspection: https://gitlab.gnome.org/GNOME/gobject-introspection/-/merge_requests/243
-
-Fix proposed:
-
-* pybluez: https://github.com/pybluez/pybluez/pull/410
-
-Broken:
-
-* PyPAM
-* pygobject3
-* pylibacl
-* rdiff-backup
-
-Py_SIZE:
-
-* Naked-0.1.31
-* Shapely-1.8.0
-* dedupe-hcluster-0.3.8
-* fastdtw-0.3.4
-* fuzzyset-0.0.19
-* gluonnlp-0.10.0
-* hdbscan-0.8.27
-* jenkspy-0.2.0
-* lightfm-1.16
-* neobolt-1.7.17
-* orderedset-2.0.3
-* ptvsd-4.3.2
-* py_spy-0.3.11
-* pyemd-0.5.1
-* pyhacrf-datamade-0.2.5
-* pyjq-2.5.2
-* pypcap-1.2.3
-* python-crfsuite-0.9.7
-* reedsolo-1.5.4
-* tables-3.6.1
-* thriftpy-0.3.9
-* thriftrw-1.8.1
-* tinycss-0.4
-* triangle-20200424
-
-Py_TYPE:
-
-* datatable-1.0.0.tar.gz
-* mypy-0.910
-* pysha3-1.0.2
-* recordclass-0.16.3
-
-
-PEP 670
-=======
-
-Removing the return value of macros is an incompatible API change made on
-purpose: see the Remove the return value section.
-
-Some function arguments are still cast to PyObject* to prevent emitting new
-compiler warnings.
-
-Macros which can be used as l-value in an assignment are not modified by this
-PEP to avoid incompatible changes.
-
-PEP 674
-=======
-
-On the PyPI top 5000 projects, only 14 projects (0.3%) are affected by 4 macro
-changes. Moreover, 24 projects just have to regenerate their Cython code to use
-Py_SET_TYPE().
-
-In practice, the majority of affected projects only have to make two changes:
-
-* Replace Py_TYPE(obj) = new_type; with Py_SET_TYPE(obj, new_type);.
-* Replace Py_SIZE(obj) = new_size; with Py_SET_SIZE(obj, new_size);.
-
-PyDescr_NAME() and PyDescr_TYPE()
-
-Python 3.11: asyncore, asynchat, smtpd
-======================================
-
-Links:
-
-* https://bugs.python.org/issue28533
-* https://mail.python.org/archives/list/python-dev@python.org/thread/LZOOLX5EKOITW55TW7JQYKLXJUPCAJB4/
-* https://github.com/python/steering-council/issues/86
-
-Changes:
-
-* Deprecate in 3.6 doc: https://github.com/python/cpython/commit/9bf2cbc4c498812e14f20d86acb61c53928a5a57
-* ... reverted: https://hg.python.org/cpython/rev/6eb3312a9a16
-* Remove asyncore from test_pyclbr: https://github.com/python/cpython/commit/138e7bbb0a5ed44bdd54605e8c58c8f3d3865321
-* Remove 3 modules: https://github.com/python/cpython/commit/9bf2cbc4c498812e14f20d86acb61c53928a5a57
-* Revert 3 modules: https://github.com/python/cpython/commit/cf7eaa4617295747ee5646c4e2b7e7a16d7c64ab
-
-According to a code search in the PyPI top 5000 projects: the source code of 21
-projects contains "import asyncore", "import asynchat" or "import smtpd":
-
-* ansible-5.0.0
-* cassandra-driver-3.25.0
-* django-extensions-3.1.5
-* eth_abi-2.1.1
-* eth-account-0.5.6
-* eth-hash-0.3.2
-* eth-utils-2.0.0
-* gevent-21.8.0
-* h5py-3.6.0
-* hexbytes-0.2.2
-* jedi-0.18.1
-* M2Crypto-0.38.0
-* mercurial-6.0
-* mypy-0.910
-* plac-1.3.3
-* pyftpdlib-1.5.6
-* pyinotify-0.9.6
-* pysnmp-4.4.12
-* pytest-localserver-0.5.1
-* pytype-2021.11.29
-* tlslite-0.4.9
-
-I ignored false positives like "from eventlet(...) import asyncore".
-
-collections aliases, open() U flag
-==================================
+Python 3.9 to 3.11: collections ABC aliases, open() U flag
+==========================================================
 
 * https://mail.python.org/archives/list/python-dev@python.org/thread/EYLXCGGJOUMZSE5X35ILW3UNTJM3MCRE/#OUHSUXWDWQ2TL7ZESB5WODLNHKMBZHYH
 * https://lwn.net/Articles/811369/
 * https://docs.python.org/dev/whatsnew/3.9.html#you-should-check-for-deprecationwarning-in-your-code
 
-open() "U" flag
----------------
+Python 3.9 and 3.11: open() "U" flag
+------------------------------------
 
 * https://bugs.python.org/issue37330
-* https://github.com/python/cpython/commit/e471e72977c83664f13d041c78549140c86c92de
+* Remove: https://github.com/python/cpython/commit/e471e72977c83664f13d041c78549140c86c92de
+* Revert: https://github.com/python/cpython/commit/942f7a2dea2e95a0fa848329565c0d0288d92e47
+* Remove again: https://github.com/python/cpython/commit/19ba2122ac7313ac29207360cfa864a275b9489e
 
 Broken:
 
@@ -384,19 +280,19 @@ Removing "U" mode of open() broke 11 packages in Fedora:
 
 Keeping "U" mode in Python 3.9 is also a formal request from Andrew Bartlett of the Samba project: https://bugs.python.org/issue37330#msg362362
 
-collections
------------
+Python 3.9 and 3.10: collections ABC aliases
+--------------------------------------------
 
 * Emit warning
 
   * https://bugs.python.org/issue25988
   * https://github.com/python/cpython/commit/c66f9f8d3909f588c251957d499599a1680e2320
 
-* bpo-25988: Do not expose abstract collection classes in the collections module. (GH-10596)
+* Remove (Python 3.9): bpo-25988: Do not expose abstract collection classes in the collections module. (GH-10596)
   https://github.com/python/cpython/commit/ef092fe9905f61ca27889092ca1248a11aa74498
-* bpo-39674: Revert "bpo-25988: Do not expose abstract collection classes in the collections module. (GH-10596)" (GH-18545)
+* Revert (Python 3.9): bpo-39674: Revert "bpo-25988: Do not expose abstract collection classes in the collections module. (GH-10596)" (GH-18545)
   https://github.com/python/cpython/commit/af5ee3ff610377ef446c2d88bbfcbb3dffaaf0c9
-* bpo-37324: Remove ABC aliases from collections (GH-23754)
+* Remove again (Python 3.10): bpo-37324: Remove ABC aliases from collections (GH-23754)
   https://github.com/python/cpython/commit/c47c78b878ff617164b2b94ff711a6103e781753
 * collections: remove deprecated aliases to ABC classes:
   https://bugs.python.org/issue37324
@@ -490,43 +386,8 @@ Python 3.10: asyncio loop parameter removal
 * https://docs.python.org/dev/whatsnew/3.10.html#changes-in-the-python-api
 * https://bugs.python.org/issue42392
 
-Python 3.7: async and await keywords
-====================================
-
-* async and await names are now reserved keywords.
-* https://bugs.python.org/issue30406
-
-Impacted projects:
-
-* Twisted:
-
-  * https://github.com/twisted/twisted/commit/ee535041258e7ef0b3223d2e12cd9aaa0bc2289f
-
-* python-txaio:
-
-  * https://bugzilla.redhat.com/show_bug.cgi?id=1605971
-  * https://github.com/crossbario/txaio/issues/134
-  * https://github.com/crossbario/txaio/commit/619740efa6554c7e73c0fc442fb775325f21b6ea
-
-* dbus-python: https://bugzilla.redhat.com/show_bug.cgi?id=1578726
-* python-psycopg2: https://github.com/psycopg/psycopg2/commit/ef64493b8913e4069c4422ad14da6de405c445f6
-* py3dns: https://bugs.launchpad.net/py3dns/+bug/1776027
-* python-pyroute2: https://github.com/svinota/pyroute2/commit/6153d375ff4b3770f84f0afca8ee0a1b8ea54604
-* bodhi: https://github.com/fedora-infra/bodhi/commit/f3c0c01831cee8a7bb6baf7c72f5d66d05117efd
-* javapackages-tools: https://github.com/fedora-java/javapackages/commit/70fa2258ac91c48f0f0fc24436e24ea26dc474f7
-* trollius: https://bugzilla.redhat.com/show_bug.cgi?id=1593133
-* python-pytelegrambotapi: https://bugzilla.redhat.com/show_bug.cgi?id=1594941
-* ara: https://bugzilla.redhat.com/show_bug.cgi?id=1603394
-* subscription-manager: https://github.com/candlepin/subscription-manager/commit/a8f40b7722984e8b262962037401647f197f8a20
-* pyatspi2: https://gitlab.gnome.org/GNOME/pyatspi2/-/commit/b73dabbd1025ba1be332cd6f11cca5a5d49eeecf
-* accerciser: https://gitlab.gnome.org/GNOME/accerciser/-/commit/f06188961ade937c722a727bf016132428f5d70c
-* python-kubernetes: https://bugzilla.redhat.com/show_bug.cgi?id=1597588
-* stem: https://gitweb.torproject.org/stem.git/patch/?id=6c677b6a4080d14a56d2d88ab2ddd9766cc60b9a
-* jira: https://bugzilla.redhat.com/show_bug.cgi?id=1605735
-  (fixed in 2.0?)
-
-inspect signature
-=================
+Python 3.11: Remove inspect.getargspec()
+========================================
 
 * inspect.signature() added to Python 3.3
 * inspect.getfullargspec() is still there
@@ -549,7 +410,7 @@ Part 3:
 * https://bugs.python.org/issue45320
 * Remove: https://github.com/python/cpython/commit/d89fb9a5a610a257014d112bdceef73d7df14082
 
-Projects:
+Broken projects:
 
 * sqlalchemy:
 
@@ -868,3 +729,152 @@ Broken packages:
 
   * https://github.com/openSUSE/libsolv/commit/170f8550
   * https://github.com/openSUSE/libsolv/commit/e258226c
+
+
+Python 3.11: Py_TYPE() and Py_SIZE() l-value (PEP 674)
+======================================================
+
+Changed in Python 3.11:
+
+* https://bugs.python.org/issue39573#msg379675
+* https://bugs.python.org/issue45476#msg407410
+* https://github.com/python/steering-council/issues/79
+
+Article about these changes: https://vstinner.github.io/c-api-abstract-pyobject.html
+
+Fixed:
+
+* Cython: https://github.com/cython/cython/commit/d8e93b332fe7d15459433ea74cd29178c03186bd
+* immutables: https://github.com/MagicStack/immutables/pull/52
+* numpy:
+
+  * https://github.com/numpy/numpy/commit/a96b18e3d4d11be31a321999cda4b795ea9eccaa
+  * https://github.com/numpy/numpy/commit/f1671076c80bd972421751f2d48186ee9ac808aa
+
+* pycurl: https://github.com/pycurl/pycurl/commit/e633f9a1ac4df5e249e78c218d5fbbd848219042
+* bitarray: https://github.com/ilanschnell/bitarray/pull/109
+* mercurial: https://bz.mercurial-scm.org/show_bug.cgi?id=6451
+* boost: https://github.com/boostorg/python/commit/500194edb7833d0627ce7a2595fec49d0aae2484
+* pyside2: https://bugreports.qt.io/browse/PYSIDE-1436
+* breezy: https://bugs.launchpad.net/brz/+bug/1904868
+* duplicity: https://git.launchpad.net/duplicity/commit/duplicity/_librsyncmodule.c?id=bbaae91b5ac6ef7e295968e508522884609fbf84
+* gobject-introspection: https://gitlab.gnome.org/GNOME/gobject-introspection/-/merge_requests/243
+
+Fix proposed:
+
+* pybluez: https://github.com/pybluez/pybluez/pull/410
+
+Broken:
+
+* PyPAM
+* pygobject3
+* pylibacl
+* rdiff-backup
+
+Py_SIZE:
+
+* Naked-0.1.31
+* Shapely-1.8.0
+* dedupe-hcluster-0.3.8
+* fastdtw-0.3.4
+* fuzzyset-0.0.19
+* gluonnlp-0.10.0
+* hdbscan-0.8.27
+* jenkspy-0.2.0
+* lightfm-1.16
+* neobolt-1.7.17
+* orderedset-2.0.3
+* ptvsd-4.3.2
+* py_spy-0.3.11
+* pyemd-0.5.1
+* pyhacrf-datamade-0.2.5
+* pyjq-2.5.2
+* pypcap-1.2.3
+* python-crfsuite-0.9.7
+* reedsolo-1.5.4
+* tables-3.6.1
+* thriftpy-0.3.9
+* thriftrw-1.8.1
+* tinycss-0.4
+* triangle-20200424
+
+Py_TYPE:
+
+* datatable-1.0.0.tar.gz
+* mypy-0.910
+* pysha3-1.0.2
+* recordclass-0.16.3
+
+
+Python 3.11: PEP 670: convert macros to functions
+=================================================
+
+Removing the return value of macros is an incompatible API change made on
+purpose: see the Remove the return value section.
+
+Some function arguments are still cast to PyObject* to prevent emitting new
+compiler warnings.
+
+Macros which can be used as l-value in an assignment are not modified by this
+PEP to avoid incompatible changes.
+
+
+Python 3.11: PEP 674
+====================
+
+On the PyPI top 5000 projects, only 14 projects (0.3%) are affected by 4 macro
+changes. Moreover, 24 projects just have to regenerate their Cython code to use
+Py_SET_TYPE().
+
+In practice, the majority of affected projects only have to make two changes:
+
+* Replace ``Py_TYPE(obj) = new_type;`` with ``Py_SET_TYPE(obj, new_type);``.
+* Replace ``Py_SIZE(obj) = new_size;`` with ``Py_SET_SIZE(obj, new_size);``.
+
+See also ``PyDescr_NAME()`` and ``PyDescr_TYPE()``.
+
+
+Python 3.11: asyncore, asynchat, smtpd
+======================================
+
+Links:
+
+* https://bugs.python.org/issue28533
+* https://mail.python.org/archives/list/python-dev@python.org/thread/LZOOLX5EKOITW55TW7JQYKLXJUPCAJB4/
+* https://github.com/python/steering-council/issues/86
+
+Changes:
+
+* Deprecate in 3.6 doc: https://github.com/python/cpython/commit/9bf2cbc4c498812e14f20d86acb61c53928a5a57
+* ... reverted: https://hg.python.org/cpython/rev/6eb3312a9a16
+* Remove asyncore from test_pyclbr: https://github.com/python/cpython/commit/138e7bbb0a5ed44bdd54605e8c58c8f3d3865321
+* Remove 3 modules: https://github.com/python/cpython/commit/9bf2cbc4c498812e14f20d86acb61c53928a5a57
+* Revert 3 modules: https://github.com/python/cpython/commit/cf7eaa4617295747ee5646c4e2b7e7a16d7c64ab
+
+According to a code search in the PyPI top 5000 projects: the source code of 21
+projects contains "import asyncore", "import asynchat" or "import smtpd":
+
+* ansible-5.0.0
+* cassandra-driver-3.25.0
+* django-extensions-3.1.5
+* eth_abi-2.1.1
+* eth-account-0.5.6
+* eth-hash-0.3.2
+* eth-utils-2.0.0
+* gevent-21.8.0
+* h5py-3.6.0
+* hexbytes-0.2.2
+* jedi-0.18.1
+* M2Crypto-0.38.0
+* mercurial-6.0
+* mypy-0.910
+* plac-1.3.3
+* pyftpdlib-1.5.6
+* pyinotify-0.9.6
+* pysnmp-4.4.12
+* pytest-localserver-0.5.1
+* pytype-2021.11.29
+* tlslite-0.4.9
+
+I ignored false positives like "from eventlet(...) import asyncore".
+
