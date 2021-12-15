@@ -38,6 +38,125 @@ Incompatible Changes
   * asyncore, asynchat, smtpd modules removal (21 broken packages)
   * inspect.getargspec() removal (1 broken package)
 
+Questions about incompatible changes
+====================================
+
+Good practices to mitigate the issue
+------------------------------------
+
+* There must be a way to have a single code base supporting the old and the new
+  way. If it's not possible, it must be an exception and not a general rule.
+* If possible, update affected projects and wait for releases of these projects
+  before doing the actual change.
+* Update 2 or 3 affected projects to go through practical issues.
+* Document a practical method to update a project, without losing support
+  for the old way.
+* If possible, provide instructions to automate the update.
+* Notify affected projects. If possible, help the most popular project to be
+  prepared.
+
+How to estimate how many packages will be broken?
+-------------------------------------------------
+
+* Code search: only applicable for changes which don't need to execute code.
+  Heuristic: a regex cannot match every possible syntax.
+* Run the test suite of a group of projects with a modified Python:
+
+  * Fedora COPR
+  * `pythonci <https://github.com/vstinner/pythonci>`_ project
+
+* Traditional way: make the change, release Python, and wait for feedback.
+* If the estimation is too complicated (ex: having to rebuild Fedora with the
+  change and go through 100+ build errors for various unrelated reasons),
+  the estimation will be skipped and so the change will not be well prepared.
+  There must be a trade-off between a coarse estimation and the time spent
+  to run this estimation.
+
+Changes which are the most complicated to estimate
+--------------------------------------------------
+
+* Changes which require to run code at runtime.
+* PY_SSIZE_T_CLEAN change.
+* Functions no longer accepting float, but only int.
+
+Scale of complexity to detect the change
+----------------------------------------
+
+Easiest to hardest:
+
+* Can be found with a regex search on the source code
+
+  * async and await keywords? Need to exclude "async def" and variants.
+  * unittest assertEquals() removal
+  * "import asyncore" removal
+  * remove inspect.getargspec? Need to exclude compatibility functions using
+    inspect.signature() if available. May need to test at runtime.
+
+* Dependency broken by the change
+* Build error (C extensions)
+
+  * Py_TYPE() l-value
+  * PyCode_New() requires one more argument
+  * Python 3.10 version read as "3.1"
+  * Removing C functions: PyObject_AsWriteBuffer()
+
+* Python import error (runtime)
+
+  * collections ABC aliases removal
+
+* Exceptions raised at runtime:
+
+  * Exceptions when running the test suite
+  * Exceptions only raised when running the whole application in production
+  * open() "U" flag removal
+  * types.CodeType constructor change
+
+Which changes cause most troubles?
+----------------------------------
+
+* Breaking a project which is a very common dependency prevent to use a
+  majority of proejcts. Examples:
+
+  * Cython
+  * pip and any its vendored library, like html5lib
+  * tabulate: broke many CLI projects
+  * numpy
+
+* Each time Cython is broken, it's a pain to have to wait until all projects
+  using Cython ship a new version with regenerated C files.
+* C API changes are harder to handle since less developers are used to write
+  C code and there is less tooling.
+* Commonly used feature like collections.Iterable affect a large number of
+  projects.
+
+Which changes cause least troubles?
+-----------------------------------
+
+Many incompatible changes are not listed in this document because no project
+is known to be affected by the change. For example, removing an undocumented
+private function affect a minority of projects. Sometimes, nobody ever used
+it outside Python itself.
+
+Examples:
+
+* Remove undocumented functions
+* Changing the number of parameter which is usually used as a positional
+  argument. Or to convert it to a positional argument.
+
+Misc notes
+----------
+
+* AST changes affected a known list of projects. Mitigating AST change issues
+  can be done by helping to update these projects, and it has been done. Core
+  developers usually help.
+
+  * astroid (used by pylint):
+  * pyflakes
+  * Genshi
+  * Chameleon
+  * Mako
+  * Maybe also pythran?
+
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
 
