@@ -369,6 +369,17 @@ Broken packages (1):
   * Cython 0.29.10 (June 2, 2019)
 
 
+Python 3.8: Reject float when int is expected
+=============================================
+
+* https://bugs.python.org/issue36048
+* https://github.com/python/cpython/pull/11952
+* https://github.com/python/cpython/commit/6a44f6eef3d0958d88882347190b3e2d1222c2e9
+
+Broken packages:
+
+* projects creating PyQt5 QPoint() with floats which expect ints
+
 Python 3.9 to 3.11: collections ABC aliases, open() U flag
 ==========================================================
 
