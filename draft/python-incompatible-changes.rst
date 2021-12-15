@@ -11,21 +11,32 @@ Python incompatible changes
 Incompatible Changes
 ====================
 
-* Python 3.7: async and await keywords (17 broken packages)
-* Python 3.8: PyTypeObject.tp_print (1 broken package)
-* Python 3.8: PyCode_New() (1 broken package)
-* Python 3.8: types.CodeType constructor (4 broken packages)
-* Python 3.8: ast.Constant (5 broken packages)
-* Python 3.9 and 3.10: collections ABC aliases (51 broken packages)
-* Python 3.9 and 3.11: open() "U" mode (13 broken packages)
-* Python 3.10: asyncio loop parameter removal
-* Python 3.10: unittest: assertEqual
-* Python 3.10: C API PY_SSIZE_T_CLEAN macro (11 broken packages)
-* Python 3.10: Python "3.10" version read as "3.1" (20 broken packages)
-* Python 3.10: PyObject_AsWriteBuffer (10 broken packages)
-* Python 3.11: Py_TYPE() and Py_SIZE() l-value (43 broken packages)
-* Python 3.11: asyncore, asynchat, smtpd modules removal (21 broken packages)
-* Python 3.11: inspect.getargspec() removal (1 broken package)
+* Python 3.7 (17 broken packages):
+
+  * async and await keywords (17 broken packages)
+
+* Python 3.8 (11 broken packages):
+
+  * PyTypeObject.tp_print (1 broken package)
+  * PyCode_New() (1 broken package)
+  * types.CodeType constructor (4 broken packages)
+  * ast.Constant (5 broken packages)
+
+* Python 3.10 (92 broken packages):
+
+  * Remove collections ABC aliases (51 broken packages)
+  * asyncio loop parameter removal
+  * C API PY_SSIZE_T_CLEAN macro (11 broken packages)
+  * Python "3.10" version read as "3.1" (20 broken packages)
+  * PyObject_AsWriteBuffer (10 broken packages)
+
+* Python 3.11 (78 broken packages):
+
+  * remove open() "U" mode (13 broken packages)
+  * unittest: remove assertEquals
+  * Py_TYPE() and Py_SIZE() l-value (43 broken packages)
+  * asyncore, asynchat, smtpd modules removal (21 broken packages)
+  * inspect.getargspec() removal (1 broken package)
 
 Fedora: single package build failure caused many packages fail to build
 =======================================================================
@@ -530,27 +541,6 @@ AST docstring revert
 * https://bugs.python.org/issue32911
 * python-mccabe: https://bugzilla.redhat.com/show_bug.cgi?id=1583745
 
-Python 3.10: unittest: assertEqual
-==================================
-
-TestCase method aliases
-
-* ``assertAlmostEquals()``
-* ``assertEquals()``
-* ``assertNotAlmostEquals()``
-* ``assertNotEquals()``
-* ``assertNotRegexpMatches()`` (deprecated in Python 3.5).
-* ``assertRaisesRegexp()`` (deprecated in Python 3.2)
-* ``assertRegexpMatches()``
-* ``assert_()``
-* ``failIf()``
-* ``failIfAlmostEqual()`` (deprecated in Python 3.1)
-* ``failIfEqual()``
-* ``failUnless()``
-* ``failUnlessAlmostEqual()``
-* ``failUnlessEqual()``
-* ``failUnlessRaises()``
-
 Python 3.10: C API PY_SSIZE_T_CLEAN macro
 =========================================
 
@@ -707,6 +697,27 @@ Broken packages (10):
   * https://github.com/openSUSE/libsolv/commit/170f8550
   * https://github.com/openSUSE/libsolv/commit/e258226c
 
+
+Python 3.11: unittest: remove assertEquals
+==========================================
+
+TestCase method aliases
+
+* ``assertAlmostEquals()``
+* ``assertEquals()``
+* ``assertNotAlmostEquals()``
+* ``assertNotEquals()``
+* ``assertNotRegexpMatches()`` (deprecated in Python 3.5).
+* ``assertRaisesRegexp()`` (deprecated in Python 3.2)
+* ``assertRegexpMatches()``
+* ``assert_()``
+* ``failIf()``
+* ``failIfAlmostEqual()`` (deprecated in Python 3.1)
+* ``failIfEqual()``
+* ``failUnless()``
+* ``failUnlessAlmostEqual()``
+* ``failUnlessEqual()``
+* ``failUnlessRaises()``
 
 Python 3.11: Py_TYPE() and Py_SIZE() l-value (PEP 674)
 ======================================================
