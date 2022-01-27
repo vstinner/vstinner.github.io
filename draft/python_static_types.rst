@@ -1,4 +1,5 @@
-== SC decision: Feb 2021 ==
+SC decision: Feb 2021
+=====================
 
 Jan 6, 2021, itertools: https://github.com/python/cpython/pull/24065#issuecomment-755251541
 
@@ -12,9 +13,11 @@ Feb 8, 2021: https://github.com/python/steering-council/blob/1d85eefdc5861a096c3
 
 The Steering Council discussed the ongoing work on porting types in the standard library to heap-types and the subinterpreter-related changes. It was decided that through Pablo, the Steering Council will ask the core developers driving those changes to create an informational PEP and not to make any more changes in this area after beta 1, as per our general policy.
 
-== Python 3.10 regressions ===
+Python 3.10 regressions
+=======================
 
-=== Mutable types ===
+Mutable types
+-------------
 
 April, 2021: https://bugs.python.org/issue43908
 
@@ -98,7 +101,8 @@ In Python 3.11, 68 heap types have the Py_TPFLAGS_IMMUTABLETYPE flag:
 * unicodedata.UCD
 
 
-=== tp_new ===
+tp_new
+------
 
 https://bugs.python.org/issue43916
 
@@ -155,7 +159,8 @@ In Python 3.11, 41 types are declared explicitly with the
 * zlib.Decompress
 
 
-=== GC bug ===
+GC bug
+------
 
 Major GC bug: fixed by adding many traverse function, add the GC flag, etc.
 
@@ -185,28 +190,26 @@ GC fails to break the cycle:
     Problem: many heap types didn't implement the traverse function nor the GC protocol!
 
 
-== Approved PEPs ==
+Approved PEPs
+=============
 
-    PEP 384 "Stable ABI" (approved in 2009): add an API to declare heap types, https://www.python.org/dev/peps/pep-0384/#type-objects
-
-    PEP 573 "Module State Access from C Extension Methods" (approved in 2016): the whole PEP is about heap types
-
-    PEP 630 "Isolating Extension Modules" (informal, not "approved"): https://www.python.org/dev/peps/pep-0630/#heap-types
+* PEP 384 "Stable ABI" (approved in 2009): add an API to declare heap types, https://www.python.org/dev/peps/pep-0384/#type-objects
+* PEP 573 "Module State Access from C Extension Methods" (approved in 2016): the whole PEP is about heap types
+* PEP 630 "Isolating Extension Modules" (informal, not "approved"): https://www.python.org/dev/peps/pep-0630/#heap-types
 
 
-== May 2021, Language Summit talk ==
+May 2021, Language Summit talk
+==============================
 
 https://github.com/vstinner/talks/blob/main/2021-PyconUS/subinterpreters.pdf
 
-    Benchmark: no significant impact on perf
+Benchmark: no significant impact on perf.
 
 
-== Misc concerns ==
+Misc concerns
+=============
 
-    Performance issue
-
-    _functools optimization: https://github.com/python/cpython/commit/139c232f3851b393798d0ea4e65f1298bfbcd9cf
-
-    _PyType_GetModuleByDef() optimization... is incorrect? https://bugs.python.org/issue46433
-
-    Private C API: _PyType_GetModuleByDef()
+* Performance issue
+* _functools optimization: https://github.com/python/cpython/commit/139c232f3851b393798d0ea4e65f1298bfbcd9cf
+* _PyType_GetModuleByDef() optimization... is incorrect? https://bugs.python.org/issue46433
+* Private C API: _PyType_GetModuleByDef()
