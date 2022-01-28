@@ -13,6 +13,37 @@ Feb 8, 2021: https://github.com/python/steering-council/blob/1d85eefdc5861a096c3
 
 The Steering Council discussed the ongoing work on porting types in the standard library to heap-types and the subinterpreter-related changes. It was decided that through Pablo, the Steering Council will ask the core developers driving those changes to create an informational PEP and not to make any more changes in this area after beta 1, as per our general policy.
 
+Full GC protocol
+================
+
+https://bugs.python.org/issue42972
+
+A heap type must respect the following 3 conditions to collaborate with the GC:
+
+* Py_TPFLAGS_HAVE_GC flag
+* tp_traverse function
+* Instances must be tracked by the GC
+
+Mandatory tp_traverse
+=====================
+
+
+https://github.com/python/cpython/commit/ee7637596d8de25f54261bbeabc602d31e74f482 change::
+
+    commit ee7637596d8de25f54261bbeabc602d31e74f482
+    Author: Victor Stinner <vstinner@python.org>
+    Date:   Tue Jun 1 23:37:12 2021 +0200
+
+        bpo-44263: Py_TPFLAGS_HAVE_GC requires tp_traverse (GH-26463)
+
+        The PyType_Ready() function now raises an error if a type is defined
+        with the Py_TPFLAGS_HAVE_GC flag set but has no traverse function
+        (PyTypeObject.tp_traverse).
+
+* https://github.com/python/cpython/commit/8b55bc3f93a655bc803bff79725d5fe3f124e2f0
+* https://github.com/python/cpython/commit/8b55bc3f93a655bc803bff79725d5fe3f124e2f0
+
+
 Python 3.10 regressions
 =======================
 
