@@ -1,5 +1,452 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2021-10-05T14:00:00+02:00</updated><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"></link><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2022-11-04T13:00:00+01:00</updated><entry><title>Debug a Python reference leak</title><link href="https://vstinner.github.io/debug-python-refleak.html" rel="alternate"></link><published>2022-11-04T13:00:00+01:00</published><updated>2022-11-04T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-11-04:/debug-python-refleak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;&lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This morning, I got &lt;a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&amp;#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/"&gt;this email&lt;/a&gt;
+from the buildbot-status mailing list:&lt;/p&gt;
+&lt;blockquote&gt;
+The Buildbot has detected a new failure on builder PPC64LE Fedora Rawhide
+&lt;strong&gt;Refleaks&lt;/strong&gt; 3.x while building Python.&lt;/blockquote&gt;
+&lt;p&gt;I get many of buildbot failures per month (by email), but I like to debug
+reference leaks: they are more challenging …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;&lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This morning, I got &lt;a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&amp;#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/"&gt;this email&lt;/a&gt;
+from the buildbot-status mailing list:&lt;/p&gt;
+&lt;blockquote&gt;
+The Buildbot has detected a new failure on builder PPC64LE Fedora Rawhide
+&lt;strong&gt;Refleaks&lt;/strong&gt; 3.x while building Python.&lt;/blockquote&gt;
+&lt;p&gt;I get many of buildbot failures per month (by email), but I like to debug
+reference leaks: they are more challenging :-) I decided to write this article
+to document and explain my work on maintaining Python (buildbots).&lt;/p&gt;
+&lt;p&gt;I truncated most the output of most commands in this article to make it easier
+to read.&lt;/p&gt;
+&lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;Childhood memories in the countryside&lt;/a&gt; by &lt;a class="reference external" href="https://twitter.com/djamilaknopf/"&gt;Djamila
+Knopf&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="section" id="reproduce-the-bug"&gt;
+&lt;h2&gt;Reproduce the bug&lt;/h2&gt;
+&lt;p&gt;I look into &lt;a class="reference external" href="https://buildbot.python.org/all/#builders/300/builds/548"&gt;buildbot logs&lt;/a&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+test_int leaked [1, 1, 1] references, sum=3
+&lt;/pre&gt;
+&lt;p&gt;Aha, interesting: the &lt;tt class="docutils literal"&gt;test_int&lt;/tt&gt; test leaks Python strong references, each
+test iteration leaks exactly one reference. Well, in short, it leaks memory.&lt;/p&gt;
+&lt;p&gt;I build Python to check if the refleak is still there:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+git switch main
+make clean
+./configure --with-pydebug
+make
+&lt;/pre&gt;
+&lt;p&gt;The main branch is currently at this commit:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git show main
+commit 2844aa6a8eb1d486b5c432f0ed33a2082998f41e
+(...)
+&lt;/pre&gt;
+&lt;p&gt;I run the test with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-R&lt;/span&gt; 3:3&lt;/tt&gt; to check for reference leaks:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_int
+(...)
+test_int leaked [1, 1, 1] references, sum=3
+(...)
+Total duration: 4.8 sec
+&lt;/pre&gt;
+&lt;p&gt;Great! It's still there, it's real regression. I told you, I love this kind of
+bugs :-)&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="identify-which-test-leaks-test-bisect-cmd"&gt;
+&lt;h2&gt;Identify which test leaks (test.bisect_cmd)&lt;/h2&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test test_int --list-cases|wc -l
+42
+$ wc -l Lib/test/test_int.py
+885 Lib/test/test_int.py
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;test_int&lt;/tt&gt; has only 42 methods and takes 4.8 seconds to run (with &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-R&lt;/span&gt;
+3:3&lt;/tt&gt;).  That's small, but the file is made of 885 lines of Python code. I'm
+lazy, I don't want to read so many lines. I will use &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-m&lt;/span&gt;
+test.bisect_cmd&lt;/tt&gt; to identify which test method leaks so I have less test code
+to read and reproducing the test will be even faster.&lt;/p&gt;
+&lt;p&gt;I run &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-m&lt;/span&gt; test.bisect_cmd&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test.bisect_cmd -R 3:3 test_int
+(...)
+[+] Iteration 17: run 1 tests/2
+(...)
+test_int leaked [1, 1, 1] references, sum=3
+(...)
+* test.test_int.PyLongModuleTests.test_pylong_misbehavior_error_path_from_str
+&lt;/pre&gt;
+&lt;p&gt;I love watching this tool doing my job, I don't have anything to do! :-)&lt;/p&gt;
+&lt;p&gt;I confirm that the &lt;tt class="docutils literal"&gt;test_pylong_misbehavior_error_path_from_str()&lt;/tt&gt; test
+leaks:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+Total duration: 445 ms
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;test_pylong_misbehavior_error_path_from_str()&lt;/tt&gt; method is only 17 lines
+of code, it's way better than 885 lines of code (52x less code to read). And
+reproducing the bug now only takes 445 ms instead of 4.8 seconds (10x faster).&lt;/p&gt;
+&lt;p&gt;At this point, there is the brave method of looking into the C code: Python is
+made of 500 000 lines of C code. Good luck! Or maybe there is another way?&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="git-bisection"&gt;
+&lt;h2&gt;Git bisection&lt;/h2&gt;
+&lt;p&gt;Again, I'm lazy. I always begin with the &amp;quot;divide to conquer&amp;quot; method. A Git
+bisection is an efficient method for that.&lt;/p&gt;
+&lt;p&gt;I start &lt;tt class="docutils literal"&gt;git bisect&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+git bisect reset
+git bisect start --term-bad=leak --term-good=noleak
+git bisect leak  # we just saw that current commit leaks
+&lt;/pre&gt;
+&lt;p&gt;Defining &amp;quot;good&amp;quot; and &amp;quot;bad&amp;quot; terms helps me a lot to prevent mistakes: it's a nice
+Git bisect feature! In the past, I always picked the wrong one at some point
+which messed up the whole bisection.&lt;/p&gt;
+&lt;p&gt;Ok, now how can I know when the leak was introduced? Well, I like to move in
+the past step by step: one day, two days, one week, one month, one year, etc.&lt;/p&gt;
+&lt;p&gt;I pick a random commit merged yesterday:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ date
+Fri Nov  4 11:55:12 CET 2022
+
+$ git log
+(...)
+commit 016c7d37b6acfe2203542a2655080c6402b3be1f
+Date:   Thu Nov 3 23:21:01 2022 +0000
+(...)
+commit 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead
+Date:   Thu Nov 3 16:18:38 2022 -0700
+(...)
+&lt;/pre&gt;
+&lt;p&gt;I'm not lucky at my first bet, the code already leaked yesterday:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git checkout 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead^C
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+&lt;/pre&gt;
+&lt;p&gt;I repeat the process, I pick a random commit the day before:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git log
+(...)
+commit f3007ac3702ea22c7dd0abf8692b1504ea3c9f63
+Author: Victor Stinner &amp;lt;vstinner&amp;#64;python.org&amp;gt;
+Date:   Wed Nov 2 20:45:58 2022 +0100
+(...)
+&lt;/pre&gt;
+&lt;p&gt;For my greatest pleasure, I pick a commit made by myself. Maybe I'm lucky and
+I'm the one who introduced the leak :-D&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git checkout f3007ac3702ea22c7dd0abf8692b1504ea3c9f63
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+(...)
+Tests result: NO TESTS RAN
+&lt;/pre&gt;
+&lt;p&gt;&amp;quot;NO TESTS RAN&amp;quot; means that the test doesn't exist. Oh wait, the test didn't
+exist 2 days ago? So the test itself is new? Well, no tests ran also means...
+&amp;quot;no leak&amp;quot;.&lt;/p&gt;
+&lt;p&gt;I will make the assumption that &amp;quot;NO TESTS RAN&amp;quot; means &amp;quot;no leak&amp;quot; and see what's
+going on:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git bisect noleak
+Bisecting: 13 revisions left to test after this (roughly 4 steps)
+
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+$ git bisect noleak
+Bisecting: 6 revisions left to test after this (roughly 3 steps)
+
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+$ git bisect noleak
+Bisecting: 3 revisions left to test after this (roughly 2 steps)
+
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+$ git bisect noleak
+Bisecting: 1 revision left to test after this (roughly 1 step)
+
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+$ git bisect leak
+Bisecting: 0 revisions left to test after this (roughly 0 steps)
+
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+
+vstinner&amp;#64;mona$ git bisect leak
+4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead is the first leak commit
+
+commit 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead
+Author: Gregory P. Smith &amp;lt;greg&amp;#64;krypto.org&amp;gt;
+Date:   Thu Nov 3 16:18:38 2022 -0700
+
+    gh-90716: bugfixes and more tests for _pylong. (#99073)
+
+    * Properly decref on _pylong import error.
+    * Improve the error message on _pylong TypeError.
+    * Fix the assertion error in pydebug builds to be a TypeError.
+    * Tie the return value comments together.
+
+    These are minor followups to issues not caught among the reviewers on
+    https://github.com/python/cpython/pull/96673.
+
+ Lib/test/test_int.py | 39 +++++++++++++++++++++++++++++++++++++++
+ Objects/longobject.c | 15 +++++++++++----
+ 2 files changed, 50 insertions(+), 4 deletions(-)
+&lt;/pre&gt;
+&lt;p&gt;In total, it took 7 &lt;tt class="docutils literal"&gt;git bisect&lt;/tt&gt; steps to identify a single commit. That's
+quick! I also love this tool, I feel that it does my job!&lt;/p&gt;
+&lt;p&gt;Sometimes, I mess up with Git bisection. Here, &lt;a class="reference external" href="https://github.com/python/cpython/commit/4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead"&gt;the guilty commit&lt;/a&gt;
+seems like a good candidate since it changes &lt;tt class="docutils literal"&gt;Objects/longobject.c&lt;/tt&gt; which is
+C code, so it can likely introduce a leak. Moreover, this C file is the
+implementation of the Python &lt;tt class="docutils literal"&gt;int&lt;/tt&gt; type, so it is directly related to
+&lt;tt class="docutils literal"&gt;test_int&lt;/tt&gt; (the test suite of the &lt;tt class="docutils literal"&gt;int&lt;/tt&gt; type).&lt;/p&gt;
+&lt;p&gt;Just in case, I test manually the the leak before/after:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# after
+$ git checkout 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+
+# before
+$ git checkout 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead^
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+&lt;/pre&gt;
+&lt;p&gt;Ok, there is no doubt anymore: the commit introduced the leak. But since the
+commit also adds the leaking test, maybe the leak already existed, and it's
+just that nobody noticed the leak before.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="debug-the-leak"&gt;
+&lt;h2&gt;Debug the leak&lt;/h2&gt;
+&lt;p&gt;Since I identified the commit introducing the leak, I only have to review code
+changes by this single commit. But to debug the code, I prefer to come back to
+the main branch. To prepare a fix, I will have to start from the main branch
+anyway.&lt;/p&gt;
+&lt;p&gt;Go back to the main branch:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git bisect reset
+$ git switch main
+&lt;/pre&gt;
+&lt;p&gt;The second command is useless, I was already at the main branch. I did some
+many mistakes with Git in the past, that I took the habit of doing things very
+carefully. I don't care of doing things twice, just in case. It's cheaper than
+messing with the Git god! Trust me.&lt;/p&gt;
+&lt;p&gt;Just in case, I double check that the leak is still there in the main branch:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+&lt;/pre&gt;
+&lt;p&gt;Ok, we are good to start debugging. Let me open Lib/test/test_int.py and look
+for the test_pylong_misbehavior_error_path_from_str() method:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;#64;support.cpython_only  # tests implementation details of CPython.
+&amp;#64;unittest.skipUnless(_pylong, &amp;quot;_pylong module required&amp;quot;)
+&amp;#64;mock.patch.object(_pylong, &amp;quot;int_from_string&amp;quot;)
+def test_pylong_misbehavior_error_path_from_str(
+        self, mock_int_from_str):
+    big_value = '7'*19_999
+    with support.adjust_int_max_str_digits(20_000):
+        mock_int_from_str.return_value = b'not an int'
+        with self.assertRaises(TypeError) as ctx:
+            int(big_value)
+        self.assertIn('_pylong.int_from_string did not',
+                      str(ctx.exception))
+
+        mock_int_from_str.side_effect = RuntimeError(&amp;quot;test123&amp;quot;)
+        with self.assertRaises(RuntimeError):
+            int(big_value)
+&lt;/pre&gt;
+&lt;p&gt;Always divide to conquer: let me try to make the code as short as possible (7
+lines), I also make the &amp;quot;big_value&amp;quot; smaller:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;#64;mock.patch.object(_pylong, &amp;quot;int_from_string&amp;quot;)
+def test_pylong_misbehavior_error_path_from_str(self, mock_int_from_str):
+    big_value = '7' * 9999
+    with support.adjust_int_max_str_digits(10_000):
+        mock_int_from_str.return_value = b'not an int'
+        with self.assertRaises(TypeError) as ctx:
+            int(big_value)
+&lt;/pre&gt;
+&lt;p&gt;Ok, so the test is about converting a long string (9999 decimal digits) to an
+integer using the new &lt;tt class="docutils literal"&gt;_pylong&lt;/tt&gt; module which is implemented
+in pure Python (&lt;tt class="docutils literal"&gt;Lib/_pylong.py&lt;/tt&gt;) and called from C code
+(&lt;tt class="docutils literal"&gt;Objects/longobject.c&lt;/tt&gt;). Well, I followed recent developments, so I don't
+have to dig into the C code to know that. It helps!&lt;/p&gt;
+&lt;p&gt;If I search for &lt;tt class="docutils literal"&gt;_pylong&lt;/tt&gt; in &lt;tt class="docutils literal"&gt;Objects/longobject.c&lt;/tt&gt;, I find this
+interesting function:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/* asymptotically faster str-to-long conversion for base 10, using _pylong.py */
+static int
+pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+{
+    PyObject *mod = PyImport_ImportModule(&amp;quot;_pylong&amp;quot;);
+    ...
+}
+&lt;/pre&gt;
+&lt;p&gt;With a quick look, I don't see any obvious reference leak in this code. I add
+&lt;tt class="docutils literal"&gt;printf()&lt;/tt&gt; to make sure that I'm looking at the right function:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static int
+pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+{
+    ...
+    PyObject *s = PyUnicode_FromStringAndSize(start, end-start);
+    if (s == NULL) {
+        Py_DECREF(mod);
+        goto error;
+    }
+printf(&amp;quot;pylong_int_from_string()\n&amp;quot;);
+    PyObject *result = PyObject_CallMethod(mod, &amp;quot;int_from_string&amp;quot;, &amp;quot;O&amp;quot;, s);
+    ...
+}
+&lt;/pre&gt;
+&lt;p&gt;I added the print before the int_from_string() call, since this function is
+overriden by the test.&lt;/p&gt;
+&lt;p&gt;I build Python and run the test:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ make
+$ ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+(...)
+beginning 6 repetitions
+123456
+pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+(...)
+&lt;/pre&gt;
+&lt;p&gt;Ok, I'm looking at the right place. The print happens when the test runs. So
+which code path is taken?  Let me add print calls &lt;em&gt;after&lt;/em&gt; the function call:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static int
+pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+{
+    ...
+    PyObject *result = PyObject_CallMethod(mod, &amp;quot;int_from_string&amp;quot;, &amp;quot;O&amp;quot;, s);
+    Py_DECREF(s);
+    Py_DECREF(mod);
+    if (result == NULL) {
+printf(&amp;quot;pylong_int_from_string() error\n&amp;quot;);   // &amp;lt;====== ADD
+        goto error;
+    }
+    if (!PyLong_Check(result)) {
+printf(&amp;quot;pylong_int_from_string() wrong type\n&amp;quot;);   // &amp;lt;====== ADD
+        PyErr_SetString(PyExc_TypeError,
+                        &amp;quot;_pylong.int_from_string did not return an int&amp;quot;);
+        goto error;
+    }
+printf(&amp;quot;pylong_int_from_string() ok\n&amp;quot;);   // &amp;lt;====== ADD
+    ...
+}
+&lt;/pre&gt;
+&lt;p&gt;Test output:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+...
+pylong_int_from_string() wrong type
+.pylong_int_from_string() wrong type
+.pylong_int_from_string() wrong type
+...
+&lt;/pre&gt;
+&lt;p&gt;Aha, the bug should be around the &lt;tt class="docutils literal"&gt;if (!PyLong_Check(result))&lt;/tt&gt; code path. Oh
+wait... &lt;tt class="docutils literal"&gt;result&lt;/tt&gt; is a Python object, and in this code path, the function exits
+without returning &lt;tt class="docutils literal"&gt;result&lt;/tt&gt; to the caller, nor removing the reference to
+&lt;tt class="docutils literal"&gt;result&lt;/tt&gt;. That's our leak!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="write-a-fix"&gt;
+&lt;h2&gt;Write a fix&lt;/h2&gt;
+&lt;p&gt;To write a fix, I start by reverting all local changes (remove debug traces,
+restore the original test code):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git checkout .
+&lt;/pre&gt;
+&lt;p&gt;I write a fix:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git diff
+diff --git a/Objects/longobject.c b/Objects/longobject.c
+index a872938990..652fdb7974 100644
+--- a/Objects/longobject.c
++++ b/Objects/longobject.c
+&amp;#64;&amp;#64; -2376,6 +2376,7 &amp;#64;&amp;#64; pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+         goto error;
+     }
+     if (!PyLong_Check(result)) {
++        Py_DECREF(result);
+         PyErr_SetString(PyExc_TypeError,
+                         &amp;quot;_pylong.int_from_string did not return an int&amp;quot;);
+         goto error;
+&lt;/pre&gt;
+&lt;p&gt;I build and test my fix:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+(...)
+Tests result: SUCCESS
+&lt;/pre&gt;
+&lt;p&gt;Ok, the leak is fixed! So it was a just a missing &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; in code
+recently added to Python. It's a common mistake. By the way, when I looked at
+the code the first code, I also missed this &amp;quot;obvious&amp;quot; leak.&lt;/p&gt;
+&lt;p&gt;I prepare a PR:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ git switch -c int_str
+$ git commit -a
+# Commit message:
+# gh-90716: Fix pylong_int_from_string() refleak
+&lt;/pre&gt;
+&lt;p&gt;Let me validate my work from the new clean commit:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ make &amp;amp;&amp;amp; ./python -m test -R 3:3 test_int
+(...)
+Tests result: SUCCESS
+&lt;/pre&gt;
+&lt;p&gt;I complete the commit message using &lt;tt class="docutils literal"&gt;git commit &lt;span class="pre"&gt;--amend&lt;/span&gt;&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+gh-90716: Fix pylong_int_from_string() refleak
+
+Fix validated by:
+
+    $ ./python -m test -R 3:3 test_int
+    Tests result: SUCCESS
+&lt;/pre&gt;
+&lt;p&gt;I run &lt;tt class="docutils literal"&gt;gh_pr.sh&lt;/tt&gt; (my short shell script) to create a PR from the command
+line.&lt;/p&gt;
+&lt;p&gt;I add the &lt;tt class="docutils literal"&gt;skip news&lt;/tt&gt; label on the PR, since this refleak is not part of any
+Python release, no user is impacted. It's not worth documenting it. I don't
+think that the change is part of Python 3.12 alpha 1. Moreover, only very few
+users test alpha 1 releases.&lt;/p&gt;
+&lt;p&gt;Here it is, my shiny PR fixing the leak! &lt;a class="reference external" href="https://github.com/python/cpython/pull/99094"&gt;https://github.com/python/cpython/pull/99094&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Since Gregory worked on longobject.c recently, I add him in copy of my PR. I
+just add the comment &lt;tt class="docutils literal"&gt;cc &amp;#64;gpshead&lt;/tt&gt; to my PR.&lt;/p&gt;
+&lt;p&gt;I don't plan to wait for this review. The change is just one line, I'm
+confident that it does fix the issue, I don't need a review.&lt;/p&gt;
+&lt;p&gt;To finish, I &lt;a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&amp;#64;python.org/message/J3MC7FIPFN6GNQAWQQRHE4EDLE7J2MIQ/"&gt;reply by email to the buildbot-status failure email&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;In total, it took me between one and two hours to reproduce, debug and fix this
+reference leak.&lt;/p&gt;
+&lt;p&gt;In the meanwhile, I also looked into other Python stuffs (and I discussed with
+friends!), while the bisection was running, or during the Python build. It's
+hard to estimate exactly how much time it takes me to fix a refleak.&lt;/p&gt;
+&lt;p&gt;I consider that I'm efficient on fixing such leak since I'm following the
+Python development: I was already aware of the on-going &lt;tt class="docutils literal"&gt;_pylong&lt;/tt&gt; work. I
+also fixed many refleaks in the past.&lt;/p&gt;
+&lt;p&gt;By the way, I wrote the &lt;tt class="docutils literal"&gt;python &lt;span class="pre"&gt;-m&lt;/span&gt; test.bisect_cmd&lt;/tt&gt; tool exactly to
+accelerate my work on debugging reference leaks. I'm now also used to Git
+bisection.&lt;/p&gt;
+&lt;p&gt;For me, &lt;strong&gt;the key of my whole methodology is to &amp;quot;divide to conquer&amp;quot;&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Reproduce the issue&lt;/li&gt;
+&lt;li&gt;Get a reproducer&lt;/li&gt;
+&lt;li&gt;Make the reproducer as fast as possible and as short as possible&lt;/li&gt;
+&lt;li&gt;Use Git bisection to identify the change introducing the change&lt;/li&gt;
+&lt;li&gt;Add print calls to identify which parts of the code and the test are
+taken by the issue&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Oh by the way, while I finished my article, my PR got reviewed and I merged it:
+&lt;a class="reference external" href="https://github.com/python/cpython/commit/387f72588d538bc56669f0f28cc41df854fc5b43"&gt;my commit fixing the leak&lt;/a&gt;!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="refleak"></category><category term="cpython"></category></entry><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"></link><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;&lt;/a&gt;
 &lt;p&gt;The PyObject structure prevents indirectly to optimize CPython. We will see why
 and how I prepared the C API to make this structure opaque. It took me 1 year
 and a half to add functions and to introduce &lt;strong&gt;incompatible C API changes&lt;/strong&gt;
@@ -467,15 +914,15 @@ grep -E 'PyAPI_(FUNC|DATA)' Include/*.h Include/cpython/*.h|grep -v ' _Py'|wc -l
 &lt;/ol&gt;
 &lt;p&gt;The intent is to help developers to think about if their additions must be part
 of the limited C API, the CPython C API or the internal C API.&lt;/p&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="python-3-7-1"&gt;
 &lt;h3&gt;Python 3.7&lt;/h3&gt;
 &lt;p&gt;Creation on the &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; directory.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id2"&gt;
+&lt;div class="section" id="python-3-8-1"&gt;
 &lt;h3&gt;Python 3.8&lt;/h3&gt;
 &lt;p&gt;Creation on the &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt; directory.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id3"&gt;
+&lt;div class="section" id="python-3-10-1"&gt;
 &lt;h3&gt;Python 3.10&lt;/h3&gt;
 &lt;p&gt;Move 8 header files from &lt;tt class="docutils literal"&gt;Include/&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -494,7 +941,7 @@ new functions in the public C API must not steal references nor return borrowed
 references. In the meanwhile, this documentation moved to the devguide:
 &lt;a class="reference external" href="https://devguide.python.org/c-api/"&gt;Changing Python’s C API&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id5"&gt;
+&lt;div class="section" id="statistics-1"&gt;
 &lt;h3&gt;Statistics&lt;/h3&gt;
 &lt;p&gt;Number of C API line numbers per Python version:&lt;/p&gt;
 &lt;table border="1" class="docutils"&gt;
@@ -571,7 +1018,7 @@ structure is opaque in the limited C API.&lt;/p&gt;
 functions have been added to the limited C API. In Python 3.8, they were
 defined as macros accessing directly PyThreadState members. In Python 3.9, they
 became opaque function calls and so are now compatible with the stable ABI.&lt;/p&gt;
-&lt;div class="section" id="id6"&gt;
+&lt;div class="section" id="python-3-9-1"&gt;
 &lt;h3&gt;Python 3.9&lt;/h3&gt;
 &lt;p&gt;Add 3 functions to the limited C API:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -597,7 +1044,7 @@ became opaque function calls and so are now compatible with the stable ABI.&lt;/
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_ForgetReference()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id7"&gt;
+&lt;div class="section" id="python-3-10-2"&gt;
 &lt;h3&gt;Python 3.10&lt;/h3&gt;
 &lt;p&gt;Add 1 function to the limited C API:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1025,7 +1472,7 @@ static inline void _Py_INCREF(PyObject *op)
 &lt;/div&gt;
 &lt;div class="section" id="convert-macros-to-regular-functions-in-python-3-9"&gt;
 &lt;h2&gt;Convert macros to regular functions in Python 3.9&lt;/h2&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="converted-macros-1"&gt;
 &lt;h3&gt;Converted macros&lt;/h3&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;PyIndex_Check()&lt;/li&gt;
@@ -1036,7 +1483,7 @@ static inline void _Py_INCREF(PyObject *op)
 &lt;li&gt;PyObject_NEW_VAR(): alias to PyObjectVar_New()&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id2"&gt;
+&lt;div class="section" id="performance-1"&gt;
 &lt;h3&gt;Performance&lt;/h3&gt;
 &lt;p&gt;PyType_HasFeature() was modified to always call PyType_GetFlags() function,
 rather than accessing directly &lt;tt class="docutils literal"&gt;PyTypeObject.tp_flags&lt;/tt&gt;. The problem is that
@@ -2239,7 +2686,7 @@ subinterpreters:&lt;/p&gt;
 +    }
 &lt;/pre&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="threading-shutdown-race-condition-1"&gt;
 &lt;h3&gt;threading._shutdown() race condition&lt;/h3&gt;
 &lt;p&gt;&lt;tt class="docutils literal"&gt;threading._shutdown()&lt;/tt&gt; uses &lt;tt class="docutils literal"&gt;threading.enumerate()&lt;/tt&gt; which iterates on
 &lt;tt class="docutils literal"&gt;threading._active&lt;/tt&gt; dictionary.&lt;/p&gt;

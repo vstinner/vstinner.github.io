@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Debug a Python reference leak — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Debug a Python reference leak; Date: 2022-11-04; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Debug a Python reference leak</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2022-11-04T13:00:00+01:00" itemprop="datePublished">Fri 04 November 2022</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/refleak.html" rel="tag">refleak</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"><img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /></a>
+<p>This morning, I got <a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/">this email</a>
+from the buildbot-status mailing list:</p>
+<blockquote>
+The Buildbot has detected a new failure on builder PPC64LE Fedora Rawhide
+<strong>Refleaks</strong> 3.x while building Python.</blockquote>
+<p>I get many of buildbot failures per month (by email), but I like to debug
+reference leaks: they are more challenging :-) I decided to write this article
+to document and explain my work on maintaining Python (buildbots).</p>
+<p>I truncated most the output of most commands in this article to make it easier
+to read.</p>
+<p>Drawing: <a class="reference external" href="https://twitter.com/djamilaknopf/status/1587441869403099136">Childhood memories in the countryside</a> by <a class="reference external" href="https://twitter.com/djamilaknopf/">Djamila
+Knopf</a>.</p>
+<div class="section" id="reproduce-the-bug">
+<h2>Reproduce the bug</h2>
+<p>I look into <a class="reference external" href="https://buildbot.python.org/all/#builders/300/builds/548">buildbot logs</a>:</p>
+<pre class="literal-block">
+test_int leaked [1, 1, 1] references, sum=3
+</pre>
+<p>Aha, interesting: the <tt class="docutils literal">test_int</tt> test leaks Python strong references, each
+test iteration leaks exactly one reference. Well, in short, it leaks memory.</p>
+<p>I build Python to check if the refleak is still there:</p>
+<pre class="literal-block">
+git switch main
+make clean
+./configure --with-pydebug
+make
+</pre>
+<p>The main branch is currently at this commit:</p>
+<pre class="literal-block">
+$ git show main
+commit 2844aa6a8eb1d486b5c432f0ed33a2082998f41e
+(...)
+</pre>
+<p>I run the test with <tt class="docutils literal"><span class="pre">-R</span> 3:3</tt> to check for reference leaks:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_int
+(...)
+test_int leaked [1, 1, 1] references, sum=3
+(...)
+Total duration: 4.8 sec
+</pre>
+<p>Great! It's still there, it's real regression. I told you, I love this kind of
+bugs :-)</p>
+</div>
+<div class="section" id="identify-which-test-leaks-test-bisect-cmd">
+<h2>Identify which test leaks (test.bisect_cmd)</h2>
+<pre class="literal-block">
+$ ./python -m test test_int --list-cases|wc -l
+42
+$ wc -l Lib/test/test_int.py
+885 Lib/test/test_int.py
+</pre>
+<p><tt class="docutils literal">test_int</tt> has only 42 methods and takes 4.8 seconds to run (with <tt class="docutils literal"><span class="pre">-R</span>
+3:3</tt>).  That's small, but the file is made of 885 lines of Python code. I'm
+lazy, I don't want to read so many lines. I will use <tt class="docutils literal">python <span class="pre">-m</span>
+test.bisect_cmd</tt> to identify which test method leaks so I have less test code
+to read and reproducing the test will be even faster.</p>
+<p>I run <tt class="docutils literal">python <span class="pre">-m</span> test.bisect_cmd</tt>:</p>
+<pre class="literal-block">
+$ ./python -m test.bisect_cmd -R 3:3 test_int
+(...)
+[+] Iteration 17: run 1 tests/2
+(...)
+test_int leaked [1, 1, 1] references, sum=3
+(...)
+* test.test_int.PyLongModuleTests.test_pylong_misbehavior_error_path_from_str
+</pre>
+<p>I love watching this tool doing my job, I don't have anything to do! :-)</p>
+<p>I confirm that the <tt class="docutils literal">test_pylong_misbehavior_error_path_from_str()</tt> test
+leaks:</p>
+<pre class="literal-block">
+$ ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+Total duration: 445 ms
+</pre>
+<p>The <tt class="docutils literal">test_pylong_misbehavior_error_path_from_str()</tt> method is only 17 lines
+of code, it's way better than 885 lines of code (52x less code to read). And
+reproducing the bug now only takes 445 ms instead of 4.8 seconds (10x faster).</p>
+<p>At this point, there is the brave method of looking into the C code: Python is
+made of 500 000 lines of C code. Good luck! Or maybe there is another way?</p>
+</div>
+<div class="section" id="git-bisection">
+<h2>Git bisection</h2>
+<p>Again, I'm lazy. I always begin with the &quot;divide to conquer&quot; method. A Git
+bisection is an efficient method for that.</p>
+<p>I start <tt class="docutils literal">git bisect</tt>:</p>
+<pre class="literal-block">
+git bisect reset
+git bisect start --term-bad=leak --term-good=noleak
+git bisect leak  # we just saw that current commit leaks
+</pre>
+<p>Defining &quot;good&quot; and &quot;bad&quot; terms helps me a lot to prevent mistakes: it's a nice
+Git bisect feature! In the past, I always picked the wrong one at some point
+which messed up the whole bisection.</p>
+<p>Ok, now how can I know when the leak was introduced? Well, I like to move in
+the past step by step: one day, two days, one week, one month, one year, etc.</p>
+<p>I pick a random commit merged yesterday:</p>
+<pre class="literal-block">
+$ date
+Fri Nov  4 11:55:12 CET 2022
+
+$ git log
+(...)
+commit 016c7d37b6acfe2203542a2655080c6402b3be1f
+Date:   Thu Nov 3 23:21:01 2022 +0000
+(...)
+commit 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead
+Date:   Thu Nov 3 16:18:38 2022 -0700
+(...)
+</pre>
+<p>I'm not lucky at my first bet, the code already leaked yesterday:</p>
+<pre class="literal-block">
+$ git checkout 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead^C
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+</pre>
+<p>I repeat the process, I pick a random commit the day before:</p>
+<pre class="literal-block">
+$ git log
+(...)
+commit f3007ac3702ea22c7dd0abf8692b1504ea3c9f63
+Author: Victor Stinner &lt;vstinner&#64;python.org&gt;
+Date:   Wed Nov 2 20:45:58 2022 +0100
+(...)
+</pre>
+<p>For my greatest pleasure, I pick a commit made by myself. Maybe I'm lucky and
+I'm the one who introduced the leak :-D</p>
+<pre class="literal-block">
+$ git checkout f3007ac3702ea22c7dd0abf8692b1504ea3c9f63
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+(...)
+Tests result: NO TESTS RAN
+</pre>
+<p>&quot;NO TESTS RAN&quot; means that the test doesn't exist. Oh wait, the test didn't
+exist 2 days ago? So the test itself is new? Well, no tests ran also means...
+&quot;no leak&quot;.</p>
+<p>I will make the assumption that &quot;NO TESTS RAN&quot; means &quot;no leak&quot; and see what's
+going on:</p>
+<pre class="literal-block">
+$ git bisect noleak
+Bisecting: 13 revisions left to test after this (roughly 4 steps)
+
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+$ git bisect noleak
+Bisecting: 6 revisions left to test after this (roughly 3 steps)
+
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+$ git bisect noleak
+Bisecting: 3 revisions left to test after this (roughly 2 steps)
+
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+$ git bisect noleak
+Bisecting: 1 revision left to test after this (roughly 1 step)
+
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+$ git bisect leak
+Bisecting: 0 revisions left to test after this (roughly 0 steps)
+
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+
+vstinner&#64;mona$ git bisect leak
+4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead is the first leak commit
+
+commit 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead
+Author: Gregory P. Smith &lt;greg&#64;krypto.org&gt;
+Date:   Thu Nov 3 16:18:38 2022 -0700
+
+    gh-90716: bugfixes and more tests for _pylong. (#99073)
+
+    * Properly decref on _pylong import error.
+    * Improve the error message on _pylong TypeError.
+    * Fix the assertion error in pydebug builds to be a TypeError.
+    * Tie the return value comments together.
+
+    These are minor followups to issues not caught among the reviewers on
+    https://github.com/python/cpython/pull/96673.
+
+ Lib/test/test_int.py | 39 +++++++++++++++++++++++++++++++++++++++
+ Objects/longobject.c | 15 +++++++++++----
+ 2 files changed, 50 insertions(+), 4 deletions(-)
+</pre>
+<p>In total, it took 7 <tt class="docutils literal">git bisect</tt> steps to identify a single commit. That's
+quick! I also love this tool, I feel that it does my job!</p>
+<p>Sometimes, I mess up with Git bisection. Here, <a class="reference external" href="https://github.com/python/cpython/commit/4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead">the guilty commit</a>
+seems like a good candidate since it changes <tt class="docutils literal">Objects/longobject.c</tt> which is
+C code, so it can likely introduce a leak. Moreover, this C file is the
+implementation of the Python <tt class="docutils literal">int</tt> type, so it is directly related to
+<tt class="docutils literal">test_int</tt> (the test suite of the <tt class="docutils literal">int</tt> type).</p>
+<p>Just in case, I test manually the the leak before/after:</p>
+<pre class="literal-block">
+# after
+$ git checkout 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+
+# before
+$ git checkout 4c4b5ce2e529a1279cd287e2d2d73ffcb6cf2ead^
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+Tests result: NO TESTS RAN
+</pre>
+<p>Ok, there is no doubt anymore: the commit introduced the leak. But since the
+commit also adds the leaking test, maybe the leak already existed, and it's
+just that nobody noticed the leak before.</p>
+</div>
+<div class="section" id="debug-the-leak">
+<h2>Debug the leak</h2>
+<p>Since I identified the commit introducing the leak, I only have to review code
+changes by this single commit. But to debug the code, I prefer to come back to
+the main branch. To prepare a fix, I will have to start from the main branch
+anyway.</p>
+<p>Go back to the main branch:</p>
+<pre class="literal-block">
+$ git bisect reset
+$ git switch main
+</pre>
+<p>The second command is useless, I was already at the main branch. I did some
+many mistakes with Git in the past, that I took the habit of doing things very
+carefully. I don't care of doing things twice, just in case. It's cheaper than
+messing with the Git god! Trust me.</p>
+<p>Just in case, I double check that the leak is still there in the main branch:</p>
+<pre class="literal-block">
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+test_int leaked [1, 1, 1] references, sum=3
+</pre>
+<p>Ok, we are good to start debugging. Let me open Lib/test/test_int.py and look
+for the test_pylong_misbehavior_error_path_from_str() method:</p>
+<pre class="literal-block">
+&#64;support.cpython_only  # tests implementation details of CPython.
+&#64;unittest.skipUnless(_pylong, &quot;_pylong module required&quot;)
+&#64;mock.patch.object(_pylong, &quot;int_from_string&quot;)
+def test_pylong_misbehavior_error_path_from_str(
+        self, mock_int_from_str):
+    big_value = '7'*19_999
+    with support.adjust_int_max_str_digits(20_000):
+        mock_int_from_str.return_value = b'not an int'
+        with self.assertRaises(TypeError) as ctx:
+            int(big_value)
+        self.assertIn('_pylong.int_from_string did not',
+                      str(ctx.exception))
+
+        mock_int_from_str.side_effect = RuntimeError(&quot;test123&quot;)
+        with self.assertRaises(RuntimeError):
+            int(big_value)
+</pre>
+<p>Always divide to conquer: let me try to make the code as short as possible (7
+lines), I also make the &quot;big_value&quot; smaller:</p>
+<pre class="literal-block">
+&#64;mock.patch.object(_pylong, &quot;int_from_string&quot;)
+def test_pylong_misbehavior_error_path_from_str(self, mock_int_from_str):
+    big_value = '7' * 9999
+    with support.adjust_int_max_str_digits(10_000):
+        mock_int_from_str.return_value = b'not an int'
+        with self.assertRaises(TypeError) as ctx:
+            int(big_value)
+</pre>
+<p>Ok, so the test is about converting a long string (9999 decimal digits) to an
+integer using the new <tt class="docutils literal">_pylong</tt> module which is implemented
+in pure Python (<tt class="docutils literal">Lib/_pylong.py</tt>) and called from C code
+(<tt class="docutils literal">Objects/longobject.c</tt>). Well, I followed recent developments, so I don't
+have to dig into the C code to know that. It helps!</p>
+<p>If I search for <tt class="docutils literal">_pylong</tt> in <tt class="docutils literal">Objects/longobject.c</tt>, I find this
+interesting function:</p>
+<pre class="literal-block">
+/* asymptotically faster str-to-long conversion for base 10, using _pylong.py */
+static int
+pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+{
+    PyObject *mod = PyImport_ImportModule(&quot;_pylong&quot;);
+    ...
+}
+</pre>
+<p>With a quick look, I don't see any obvious reference leak in this code. I add
+<tt class="docutils literal">printf()</tt> to make sure that I'm looking at the right function:</p>
+<pre class="literal-block">
+static int
+pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+{
+    ...
+    PyObject *s = PyUnicode_FromStringAndSize(start, end-start);
+    if (s == NULL) {
+        Py_DECREF(mod);
+        goto error;
+    }
+printf(&quot;pylong_int_from_string()\n&quot;);
+    PyObject *result = PyObject_CallMethod(mod, &quot;int_from_string&quot;, &quot;O&quot;, s);
+    ...
+}
+</pre>
+<p>I added the print before the int_from_string() call, since this function is
+overriden by the test.</p>
+<p>I build Python and run the test:</p>
+<pre class="literal-block">
+$ make
+$ ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+(...)
+beginning 6 repetitions
+123456
+pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+.pylong_int_from_string()
+(...)
+</pre>
+<p>Ok, I'm looking at the right place. The print happens when the test runs. So
+which code path is taken?  Let me add print calls <em>after</em> the function call:</p>
+<pre class="literal-block">
+static int
+pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+{
+    ...
+    PyObject *result = PyObject_CallMethod(mod, &quot;int_from_string&quot;, &quot;O&quot;, s);
+    Py_DECREF(s);
+    Py_DECREF(mod);
+    if (result == NULL) {
+printf(&quot;pylong_int_from_string() error\n&quot;);   // &lt;====== ADD
+        goto error;
+    }
+    if (!PyLong_Check(result)) {
+printf(&quot;pylong_int_from_string() wrong type\n&quot;);   // &lt;====== ADD
+        PyErr_SetString(PyExc_TypeError,
+                        &quot;_pylong.int_from_string did not return an int&quot;);
+        goto error;
+    }
+printf(&quot;pylong_int_from_string() ok\n&quot;);   // &lt;====== ADD
+    ...
+}
+</pre>
+<p>Test output:</p>
+<pre class="literal-block">
+...
+pylong_int_from_string() wrong type
+.pylong_int_from_string() wrong type
+.pylong_int_from_string() wrong type
+...
+</pre>
+<p>Aha, the bug should be around the <tt class="docutils literal">if (!PyLong_Check(result))</tt> code path. Oh
+wait... <tt class="docutils literal">result</tt> is a Python object, and in this code path, the function exits
+without returning <tt class="docutils literal">result</tt> to the caller, nor removing the reference to
+<tt class="docutils literal">result</tt>. That's our leak!</p>
+</div>
+<div class="section" id="write-a-fix">
+<h2>Write a fix</h2>
+<p>To write a fix, I start by reverting all local changes (remove debug traces,
+restore the original test code):</p>
+<pre class="literal-block">
+$ git checkout .
+</pre>
+<p>I write a fix:</p>
+<pre class="literal-block">
+$ git diff
+diff --git a/Objects/longobject.c b/Objects/longobject.c
+index a872938990..652fdb7974 100644
+--- a/Objects/longobject.c
++++ b/Objects/longobject.c
+&#64;&#64; -2376,6 +2376,7 &#64;&#64; pylong_int_from_string(const char *start, const char *end, PyLongObject **res)
+         goto error;
+     }
+     if (!PyLong_Check(result)) {
++        Py_DECREF(result);
+         PyErr_SetString(PyExc_TypeError,
+                         &quot;_pylong.int_from_string did not return an int&quot;);
+         goto error;
+</pre>
+<p>I build and test my fix:</p>
+<pre class="literal-block">
+$ make &amp;&amp; ./python -m test -R 3:3 test_int -m test_pylong_misbehavior_error_path_from_str
+(...)
+Tests result: SUCCESS
+</pre>
+<p>Ok, the leak is fixed! So it was a just a missing <tt class="docutils literal">Py_DECREF()</tt> in code
+recently added to Python. It's a common mistake. By the way, when I looked at
+the code the first code, I also missed this &quot;obvious&quot; leak.</p>
+<p>I prepare a PR:</p>
+<pre class="literal-block">
+$ git switch -c int_str
+$ git commit -a
+# Commit message:
+# gh-90716: Fix pylong_int_from_string() refleak
+</pre>
+<p>Let me validate my work from the new clean commit:</p>
+<pre class="literal-block">
+$ make &amp;&amp; ./python -m test -R 3:3 test_int
+(...)
+Tests result: SUCCESS
+</pre>
+<p>I complete the commit message using <tt class="docutils literal">git commit <span class="pre">--amend</span></tt>:</p>
+<pre class="literal-block">
+gh-90716: Fix pylong_int_from_string() refleak
+
+Fix validated by:
+
+    $ ./python -m test -R 3:3 test_int
+    Tests result: SUCCESS
+</pre>
+<p>I run <tt class="docutils literal">gh_pr.sh</tt> (my short shell script) to create a PR from the command
+line.</p>
+<p>I add the <tt class="docutils literal">skip news</tt> label on the PR, since this refleak is not part of any
+Python release, no user is impacted. It's not worth documenting it. I don't
+think that the change is part of Python 3.12 alpha 1. Moreover, only very few
+users test alpha 1 releases.</p>
+<p>Here it is, my shiny PR fixing the leak! <a class="reference external" href="https://github.com/python/cpython/pull/99094">https://github.com/python/cpython/pull/99094</a></p>
+<p>Since Gregory worked on longobject.c recently, I add him in copy of my PR. I
+just add the comment <tt class="docutils literal">cc &#64;gpshead</tt> to my PR.</p>
+<p>I don't plan to wait for this review. The change is just one line, I'm
+confident that it does fix the issue, I don't need a review.</p>
+<p>To finish, I <a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&#64;python.org/message/J3MC7FIPFN6GNQAWQQRHE4EDLE7J2MIQ/">reply by email to the buildbot-status failure email</a>.</p>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>In total, it took me between one and two hours to reproduce, debug and fix this
+reference leak.</p>
+<p>In the meanwhile, I also looked into other Python stuffs (and I discussed with
+friends!), while the bisection was running, or during the Python build. It's
+hard to estimate exactly how much time it takes me to fix a refleak.</p>
+<p>I consider that I'm efficient on fixing such leak since I'm following the
+Python development: I was already aware of the on-going <tt class="docutils literal">_pylong</tt> work. I
+also fixed many refleaks in the past.</p>
+<p>By the way, I wrote the <tt class="docutils literal">python <span class="pre">-m</span> test.bisect_cmd</tt> tool exactly to
+accelerate my work on debugging reference leaks. I'm now also used to Git
+bisection.</p>
+<p>For me, <strong>the key of my whole methodology is to &quot;divide to conquer&quot;</strong>:</p>
+<ul class="simple">
+<li>Reproduce the issue</li>
+<li>Get a reproducer</li>
+<li>Make the reproducer as fast as possible and as short as possible</li>
+<li>Use Git bisection to identify the change introducing the change</li>
+<li>Add print calls to identify which parts of the code and the test are
+taken by the issue</li>
+</ul>
+<p>Oh by the way, while I finished my article, my PR got reviewed and I merged it:
+<a class="reference external" href="https://github.com/python/cpython/commit/387f72588d538bc56669f0f28cc41df854fc5b43">my commit fixing the leak</a>!</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (17)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
