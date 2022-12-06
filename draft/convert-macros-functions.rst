@@ -1,6 +1,5 @@
-Macros converted to functions, static inline functions or regular functions, in the Python C API.
-
-TODO: Python 3.8 and Python 3.9.
+Macros converted to functions, static inline functions or regular functions, in
+the Python C API.
 
 Python 3.12
 ===========
