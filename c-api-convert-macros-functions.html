@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Convert macros to functions in the Python C API — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Convert macros to functions in the Python C API; Date: 2022-12-12; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Convert macros to functions in the Python C API</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2022-12-12T23:00:00+01:00" itemprop="datePublished">lun. 12 décembre 2022</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"><img alt="L'oeil du cyclone - Théo Grosjean" src="https://vstinner.github.io/images/loeil_cyclone.jpg" /></a>
+<p><em>Drawing: &quot;L'oeil du cyclone&quot; by Théo Grosjean.</em></p>
+<div class="section" id="convert-macros-to-functions">
+<h2>Convert macros to functions</h2>
+<p>For 4 years, between Python 3.7 (2018) and Python 3.12 (2022), I made many
+changes on macros in the Python C API to make the API less error prone (avoid
+<a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html">macro pitfalls</a>) and
+better define the API (parameter types and return types, variable scope, etc.).
+<a class="reference external" href="https://peps.python.org/pep-0670/">PEP 670</a> &quot;Convert macros to functions in
+the Python C API&quot; describes in length the rationale of these changes.</p>
+<p>I moved private functions to the internal C API to reduce the C API size.</p>
+<p>Some changes are also related to preparing the API to make members of
+structures like <tt class="docutils literal">PyObject</tt> or <tt class="docutils literal">PyTypeObject</tt> private.</p>
+<p>Converting macros and static inline functions to regular functions hides
+implementation details and bends the API towards the limited C API and the
+stable ABI (build a C extension once, use the binary on multiple Python
+versions). Regular functions are usable in programming languages and use cases
+which cannot use C macros and C static inline functions.</p>
+<p>Most macros are converted to static inline functions, rather regular functions,
+to have no impact on performance.</p>
+<p>This work was made incrementally in 5 Python versions (3.8, 3.9, 3.10, 3.11 and
+3.12) to limit the number of impacted projects at each Python release.</p>
+<p>Changing <tt class="docutils literal">Py_TYPE()</tt> and <tt class="docutils literal">Py_SIZE()</tt> macros impacted most projects. Python
+3.11 contains the change. During Python 3.10 development cycle, the change has
+to be reverted since it impacted too many projects.</p>
+</div>
+<div class="section" id="statistics">
+<h2>Statistics</h2>
+<p><a class="reference external" href="https://pythoncapi.readthedocs.io/stats.html">Statistics on public functions</a>:</p>
+<ul class="simple">
+<li>Python 3.7: 893 regular functions, 315 macros.</li>
+<li>Python 3.12: 943 regular functions, 246 macros, 69 static inline functions.</li>
+</ul>
+<p>Cumulative changes on macros between Python 3.7 and Python 3.12 on public,
+private and internal APIs:</p>
+<ul class="simple">
+<li>Converted 88 macros to static inline functions</li>
+<li>Converted 11 macros to regular functions</li>
+<li>Converted 3 static inline functions to regular functions:</li>
+<li>Removed 47 macros</li>
+</ul>
+<p>See <a class="reference external" href="https://pythoncapi.readthedocs.io/stats.html">Statistics on the Python C API</a> for more numbers.</p>
+</div>
+<div class="section" id="python-3-12">
+<h2>Python 3.12</h2>
+<p>Convert 39 macros to static inline functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyCell_GET()</tt></li>
+<li><tt class="docutils literal">PyCell_SET()</tt></li>
+<li><tt class="docutils literal">PyCode_GetNumFree()</tt></li>
+<li><tt class="docutils literal">PyDict_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyFloat_AS_DOUBLE()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_ANNOTATIONS()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_CLOSURE()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_CODE()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_DEFAULTS()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_GLOBALS()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_KW_DEFAULTS()</tt></li>
+<li><tt class="docutils literal">PyFunction_GET_MODULE()</tt></li>
+<li><tt class="docutils literal">PyInstanceMethod_GET_FUNCTION()</tt></li>
+<li><tt class="docutils literal">PyMemoryView_GET_BASE()</tt></li>
+<li><tt class="docutils literal">PyMemoryView_GET_BUFFER()</tt></li>
+<li><tt class="docutils literal">PyMethod_GET_FUNCTION()</tt></li>
+<li><tt class="docutils literal">PyMethod_GET_SELF()</tt></li>
+<li><tt class="docutils literal">PySet_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_HIGH_SURROGATE()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_ISALNUM()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_ISSPACE()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_IS_HIGH_SURROGATE()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_IS_LOW_SURROGATE()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_IS_SURROGATE()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_JOIN_SURROGATES()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_LOW_SURROGATE()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_NEXT()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_PREV()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_NEXT()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_PREV()</tt></li>
+<li><tt class="docutils literal">_PyGC_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyGC_SET_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyObject_GC_IS_TRACKED()</tt></li>
+<li><tt class="docutils literal">_PyObject_GC_MAY_BE_TRACKED()</tt></li>
+<li><tt class="docutils literal">_PyObject_SIZE()</tt></li>
+<li><tt class="docutils literal">_PyObject_VAR_SIZE()</tt></li>
+<li><tt class="docutils literal">_Py_AS_GC()</tt></li>
+</ul>
+<p>Remove 5 macros:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyUnicode_AS_DATA()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AS_UNICODE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_GET_DATA_SIZE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_WSTR_LENGTH()</tt></li>
+</ul>
+<p>The following 4 macros can be used as l-values in Python 3.12:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyList_GET_ITEM()</tt></li>
+<li><tt class="docutils literal">PyTuple_GET_ITEM()</tt>:</li>
+<li><tt class="docutils literal">PyDescr_NAME()</tt></li>
+<li><tt class="docutils literal">PyDescr_TYPE()</tt></li>
+</ul>
+<p>Code pattern like <tt class="docutils literal">&amp;PyTuple_GET_ITEM(tuple, 0)</tt> and <tt class="docutils literal">&amp;PyList_GET_ITEM(list,
+0)</tt> is still commonly used to get a direct access to items as <tt class="docutils literal">PyObject**</tt>.
+<tt class="docutils literal">PyDescr_NAME()</tt> and <tt class="docutils literal">PyDescr_TYPE()</tt> are used by SWIG: see
+<a class="reference external" href="https://bugs.python.org/issue46538">https://bugs.python.org/issue46538</a></p>
+</div>
+<div class="section" id="python-3-11">
+<h2>Python 3.11</h2>
+<p>Convert 33 macros to static inline functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyByteArray_AS_STRING()</tt></li>
+<li><tt class="docutils literal">PyByteArray_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyBytes_AS_STRING()</tt></li>
+<li><tt class="docutils literal">PyBytes_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyCFunction_GET_CLASS()</tt></li>
+<li><tt class="docutils literal">PyCFunction_GET_FLAGS()</tt></li>
+<li><tt class="docutils literal">PyCFunction_GET_FUNCTION()</tt></li>
+<li><tt class="docutils literal">PyCFunction_GET_SELF()</tt></li>
+<li><tt class="docutils literal">PyList_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyList_SET_ITEM()</tt></li>
+<li><tt class="docutils literal">PyTuple_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyTuple_SET_ITEM()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AS_DATA()</tt></li>
+<li><tt class="docutils literal">PyUnicode_AS_UNICODE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_CHECK_INTERNED()</tt></li>
+<li><tt class="docutils literal">PyUnicode_DATA()</tt></li>
+<li><tt class="docutils literal">PyUnicode_GET_DATA_SIZE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_GET_LENGTH()</tt></li>
+<li><tt class="docutils literal">PyUnicode_GET_SIZE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_IS_ASCII()</tt></li>
+<li><tt class="docutils literal">PyUnicode_IS_COMPACT()</tt></li>
+<li><tt class="docutils literal">PyUnicode_IS_COMPACT_ASCII()</tt></li>
+<li><tt class="docutils literal">PyUnicode_IS_READY()</tt></li>
+<li><tt class="docutils literal">PyUnicode_MAX_CHAR_VALUE()</tt></li>
+<li><tt class="docutils literal">PyUnicode_READ()</tt></li>
+<li><tt class="docutils literal">PyUnicode_READY()</tt></li>
+<li><tt class="docutils literal">PyUnicode_READ_CHAR()</tt></li>
+<li><tt class="docutils literal">PyUnicode_WRITE()</tt></li>
+<li><tt class="docutils literal">PyWeakref_GET_OBJECT()</tt></li>
+<li><tt class="docutils literal">Py_SIZE()</tt>: <tt class="docutils literal">Py_SET_SIZE()</tt> must be used to set an object size</li>
+<li><tt class="docutils literal">Py_TYPE()</tt>: <tt class="docutils literal">Py_SET_TYPE()</tt> must be used to set an object type</li>
+<li><tt class="docutils literal">_PyUnicode_COMPACT_DATA()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_NONCOMPACT_DATA()</tt></li>
+</ul>
+<p>Convert 2 macros to regular functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyType_SUPPORTS_WEAKREFS()</tt></li>
+<li><tt class="docutils literal">Py_GETENV()</tt></li>
+</ul>
+<p>Remove 11 macros:</p>
+<ul class="simple">
+<li>Moved to the internal C API:<ul>
+<li><tt class="docutils literal">PyHeapType_GET_MEMBERS()</tt>: renamed to <tt class="docutils literal">_PyHeapType_GET_MEMBERS()</tt></li>
+<li><tt class="docutils literal">_Py_InIntegralTypeRange()</tt></li>
+<li><tt class="docutils literal">_Py_IntegralTypeMax()</tt></li>
+<li><tt class="docutils literal">_Py_IntegralTypeMin()</tt></li>
+<li><tt class="docutils literal">_Py_IntegralTypeSigned()</tt></li>
+</ul>
+</li>
+<li><tt class="docutils literal">PyFunction_AS_FRAME_CONSTRUCTOR()</tt></li>
+<li><tt class="docutils literal">Py_FORCE_DOUBLE()</tt></li>
+<li><tt class="docutils literal">Py_OVERFLOWED()</tt></li>
+<li><tt class="docutils literal">Py_SET_ERANGE_IF_OVERFLOW()</tt></li>
+<li><tt class="docutils literal">Py_SET_ERRNO_ON_MATH_ERROR()</tt></li>
+<li><tt class="docutils literal">_Py_SET_EDOM_FOR_NAN()</tt></li>
+</ul>
+<p>Add <tt class="docutils literal">_Py_RVALUE()</tt> to 7 macros to disallow using them as l-value:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_PyGCHead_SET_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_NEXT()</tt></li>
+<li><tt class="docutils literal">asdl_seq_GET()</tt></li>
+<li><tt class="docutils literal">asdl_seq_GET_UNTYPED()</tt></li>
+<li><tt class="docutils literal">asdl_seq_LEN()</tt></li>
+<li><tt class="docutils literal">asdl_seq_SET()</tt></li>
+<li><tt class="docutils literal">asdl_seq_SET_UNTYPED()</tt></li>
+</ul>
+<p>Note: the <tt class="docutils literal">PyCell_SET()</tt> macro was modified to use <tt class="docutils literal">_Py_RVALUE()</tt>, but it
+already used <tt class="docutils literal">(void)</tt> in Python 3.10.</p>
+</div>
+<div class="section" id="python-3-10">
+<h2>Python 3.10</h2>
+<p>Convert 3 macros to regular functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyDescr_IsData()</tt></li>
+<li><tt class="docutils literal">PyExceptionClass_Name()</tt></li>
+<li><tt class="docutils literal">PyIter_Check()</tt></li>
+</ul>
+<p>Convert 2 macros to static inline functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyObject_TypeCheck()</tt></li>
+<li><tt class="docutils literal">Py_REFCNT()</tt>: <tt class="docutils literal">Py_SET_REFCNT()</tt> must be used to set an object reference
+count</li>
+</ul>
+<p>Remove 6 macros:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyAST_Compile()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseFile()</tt></li>
+<li><tt class="docutils literal">PyParser_SimpleParseString()</tt></li>
+<li><tt class="docutils literal">PySTEntry_Check()</tt>: moved to the internal C API</li>
+<li><tt class="docutils literal">_PyErr_OCCURRED()</tt></li>
+<li><tt class="docutils literal">_PyList_ITEMS()</tt>: moved to the internal C API</li>
+</ul>
+<p>Modify 3 macros to disallow using them as l-values by adding <tt class="docutils literal">(void)</tt> cast:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyCell_SET()</tt></li>
+<li><tt class="docutils literal">PyList_SET_ITEM()</tt></li>
+<li><tt class="docutils literal">PyTuple_SET_ITEM()</tt></li>
+</ul>
+</div>
+<div class="section" id="python-3-9">
+<h2>Python 3.9</h2>
+<p>Convert 6 macros to regular functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyIndex_Check()</tt></li>
+<li><tt class="docutils literal">PyObject_CheckBuffer()</tt></li>
+<li><tt class="docutils literal">PyObject_GET_WEAKREFS_LISTPTR()</tt></li>
+<li><tt class="docutils literal">PyObject_IS_GC()</tt></li>
+<li><tt class="docutils literal">Py_EnterRecursiveCall()</tt></li>
+<li><tt class="docutils literal">Py_LeaveRecursiveCall()</tt></li>
+</ul>
+<p>Convert 5 macros to static inline functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyType_Check()</tt></li>
+<li><tt class="docutils literal">PyType_CheckExact()</tt></li>
+<li><tt class="docutils literal">PyType_HasFeature()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_COPY()</tt></li>
+<li><tt class="docutils literal">Py_UNICODE_FILL()</tt></li>
+</ul>
+<p>Convert 3 static inline functions to regular functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_Py_Dealloc()</tt></li>
+<li><tt class="docutils literal">_Py_ForgetReference()</tt></li>
+<li><tt class="docutils literal">_Py_NewReference()</tt></li>
+</ul>
+<p>Remove 18 macros:</p>
+<ul class="simple">
+<li>Moved to the internal C API:<ul>
+<li><tt class="docutils literal">PyDoc_STRVAR_shared()</tt>:</li>
+<li><tt class="docutils literal">PyObject_GC_IS_TRACKED()</tt></li>
+<li><tt class="docutils literal">PyObject_GC_MAY_BE_TRACKED()</tt></li>
+<li><tt class="docutils literal">Py_AS_GC()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_NEXT()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_PREV()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_FINALIZED()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_NEXT()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_PREV()</tt></li>
+<li><tt class="docutils literal">_PyGC_SET_FINALIZED()</tt></li>
+</ul>
+</li>
+<li><tt class="docutils literal">Py_UNICODE_MATCH()</tt></li>
+<li><tt class="docutils literal">_Py_DEC_TPFREES()</tt></li>
+<li><tt class="docutils literal">_Py_INC_TPALLOCS()</tt></li>
+<li><tt class="docutils literal">_Py_INC_TPFREES()</tt></li>
+<li><tt class="docutils literal">_Py_MakeEndRecCheck()</tt></li>
+<li><tt class="docutils literal">_Py_MakeRecCheck()</tt></li>
+<li><tt class="docutils literal">_Py_RecursionLimitLowerWaterMark()</tt></li>
+</ul>
+</div>
+<div class="section" id="python-3-8">
+<h2>Python 3.8</h2>
+<p>Convert 9 macros to static inline functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">Py_DECREF()</tt></li>
+<li><tt class="docutils literal">Py_INCREF()</tt></li>
+<li><tt class="docutils literal">Py_XDECREF()</tt></li>
+<li><tt class="docutils literal">Py_XINCREF()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallNoArg()</tt></li>
+<li><tt class="docutils literal">_PyObject_FastCall()</tt></li>
+<li><tt class="docutils literal">_Py_Dealloc()</tt></li>
+<li><tt class="docutils literal">_Py_ForgetReference()</tt></li>
+<li><tt class="docutils literal">_Py_NewReference()</tt></li>
+</ul>
+<p>Remove 7 macros:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_PyGCHead_DECREF()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_REFS()</tt></li>
+<li><tt class="docutils literal">_PyGCHead_SET_REFS()</tt></li>
+<li><tt class="docutils literal">_PyGC_REFS()</tt></li>
+<li><tt class="docutils literal">_PyObject_GC_TRACK()</tt>: moved to the internal C API</li>
+<li><tt class="docutils literal">_PyObject_GC_UNTRACK()</tt>: moved to the internal C API</li>
+<li><tt class="docutils literal">_Py_CHECK_REFCNT()</tt></li>
+</ul>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (18)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
