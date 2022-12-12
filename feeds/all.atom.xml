@@ -31,6 +31,8 @@ to have no impact on performance.&lt;/p&gt;
 &lt;p&gt;Changing &lt;tt class="docutils literal"&gt;Py_TYPE()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_SIZE()&lt;/tt&gt; macros impacted most projects. Python
 3.11 contains the change. During Python 3.10 development cycle, the change has
 to be reverted since it impacted too many projects.&lt;/p&gt;
+&lt;p&gt;Note: I didn't modify all macros and functions listed in this article, it's a
+collaborative work as usual.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="statistics"&gt;
 &lt;h2&gt;Statistics&lt;/h2&gt;
