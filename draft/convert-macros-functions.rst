@@ -1,21 +1,55 @@
 Macros converted to functions, static inline functions or regular functions, in
 the Python C API.
 
+Converting macros to functions
+==============================
+
+Between 2018 (Python 3.7) and 2022 (Python 3.12), I made many changes on macros
+on the Python C API to make the API less error prone (avoid macro pitfalls) and
+better define the API: parameter types and return types, variable scope, etc.
+`PEP 670 <https://peps.python.org/pep-0670/>`_ "Convert macros to functions in
+the Python C API" describes the rationale for these changes in length.
+
+To reduce the size of the C API, I moved many private functions to the internal
+C API.
+
+Some changes are also related to preparing the API to make members of
+structures like ``PyObject`` or ``PyTypeObject`` private.
+
+Converting macros and static inline functions to regular functions hide
+implementation details and moves the whole API closer to the stable ABI (build
+a C extension once, use the binary on multiple Python versions). Regular
+functions are usable in programming languages and use cases which cannot use C
+macros and C static inline functions.
+
+Most macros are converted to static inline functions, rather regular functions,
+to have no impact on performance.
+
+This work was made incrementally in 5 Python versions (3.8, 3.9, 3.10, 3.11 and
+3.12) to limit the number of impacted projects at each Python release.
+
+Changing ``Py_TYPE()`` and ``Py_SIZE()`` macros impacted most projects. Python
+3.11 contains the change. During Python 3.10 development cycle, the change has
+to be reverted since it impacted too many projects.
+
+Statistics
+==========
+
 Statistics on public functions:
 
 * Python 3.7: 893 regular functions, 315 macros.
 * Python 3.12: 943 regular functions, 246 macros, 69 static inline functions.
 
-Between Python 3.7 and Python 3.12 (public, private and internal API):
+Cumulative changes on macros between Python 3.7 and Python 3.12 on public,
+private and internal APIs:
 
-* Converted 91 macros to static inline functions
+* Converted 88 macros to static inline functions
 * Converted 11 macros to regular functions
 * Converted 3 static inline functions to regular functions:
 * Removed 47 macros
 
-Note: macros converted first to static inline functions and then to regular
-functions are only counted in "macros converted to regular functions". Macros
-converted and then removed are not counted in "converted" macros.
+See `Statistics on the Python C API
+<https://pythoncapi.readthedocs.io/stats.html>`_ for more numbers.
 
 Python 3.12
 ===========
@@ -62,13 +96,6 @@ Converted 39 macros to static inline functions:
 * ``_PyObject_VAR_SIZE()``
 * ``_Py_AS_GC()``
 
-The following 4 macros can still be used as l-values in Python 3.12:
-
-* ``PyList_GET_ITEM()``, ``PyTuple_GET_ITEM()``:
-  code like ``&PyTuple_GET_ITEM(tuple, 0)`` is still commonly used to get
-  a direct access to items as ``PyObject**``
-* ``PyDescr_NAME()``, ``PyDescr_TYPE()``: see `<https://bugs.python.org/issue46538>`_
-
 Remove 5 macros:
 
 * ``PyUnicode_AS_DATA()``
@@ -77,10 +104,22 @@ Remove 5 macros:
 * ``PyUnicode_GET_SIZE()``
 * ``PyUnicode_WSTR_LENGTH()``
 
+The following 4 macros can still be used as l-values in Python 3.12:
+
+* ``PyList_GET_ITEM()``
+* ``PyTuple_GET_ITEM()``:
+* ``PyDescr_NAME()``
+* ``PyDescr_TYPE()``
+
+Code like ``&PyTuple_GET_ITEM(tuple, 0)`` is still commonly used to get a
+direct access to items as ``PyObject**``. ``PyDescr_NAME()`` and
+``PyDescr_TYPE()`` are used by SWIG: see
+`<https://bugs.python.org/issue46538>`_
+
 Python 3.11
 ===========
 
-Convert 36 macros to static inline functions:
+Convert 33 macros to static inline functions:
 
 * ``PyByteArray_AS_STRING()``
 * ``PyByteArray_GET_SIZE()``
@@ -94,9 +133,6 @@ Convert 36 macros to static inline functions:
 * ``PyList_SET_ITEM()``
 * ``PyTuple_GET_SIZE()``
 * ``PyTuple_SET_ITEM()``
-* ``PyUnicode_1BYTE_DATA()``
-* ``PyUnicode_2BYTE_DATA()``
-* ``PyUnicode_4BYTE_DATA()``
 * ``PyUnicode_AS_DATA()``
 * ``PyUnicode_AS_UNICODE()``
 * ``PyUnicode_CHECK_INTERNED()``
