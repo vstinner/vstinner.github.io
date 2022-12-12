@@ -1,3 +1,17 @@
+++++++++++++++++++++++++++++++++++++++++
+Convert Python C API macros to functions
+++++++++++++++++++++++++++++++++++++++++
+
+:date: 2022-12-12 23:00
+:tags: c-api, cpython
+:category: cpython
+:slug: c-api-convert-macros-functions
+:authors: Victor Stinner
+
+.. image:: {static}/images/loeil_cyclone.jpg
+   :alt: L'oeil du cyclone - Théo Grosjean
+   :target: https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone
+
 Macros converted to functions, static inline functions or regular functions, in
 the Python C API.
 
