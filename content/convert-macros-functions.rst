@@ -45,6 +45,9 @@ Changing ``Py_TYPE()`` and ``Py_SIZE()`` macros impacted most projects. Python
 3.11 contains the change. During Python 3.10 development cycle, the change has
 to be reverted since it impacted too many projects.
 
+Note: I didn't modify all macros and functions listed in this article, it's a
+collaborative work as usual.
+
 Statistics
 ==========
 
