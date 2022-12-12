@@ -1,6 +1,6 @@
-++++++++++++++++++++++++++++++++++++++++
-Convert Python C API macros to functions
-++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++
+Convert macros to functions in the Python C API
++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2022-12-12 23:00
 :tags: c-api, cpython
@@ -12,29 +12,28 @@ Convert Python C API macros to functions
    :alt: L'oeil du cyclone - Théo Grosjean
    :target: https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone
 
-Macros converted to functions, static inline functions or regular functions, in
-the Python C API.
+*Drawing: "L'oeil du cyclone" by Théo Grosjean.*
 
-Converting macros to functions
-==============================
+Convert macros to functions
+===========================
 
-Between 2018 (Python 3.7) and 2022 (Python 3.12), I made many changes on macros
-on the Python C API to make the API less error prone (avoid macro pitfalls) and
-better define the API: parameter types and return types, variable scope, etc.
+For 4 years, between Python 3.7 (2018) and Python 3.12 (2022), I made many
+changes on macros in the Python C API to make the API less error prone (avoid
+`macro pitfalls <https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html>`_) and
+better define the API (parameter types and return types, variable scope, etc.).
 `PEP 670 <https://peps.python.org/pep-0670/>`_ "Convert macros to functions in
-the Python C API" describes the rationale for these changes in length.
+the Python C API" describes in length the rationale of these changes.
 
-To reduce the size of the C API, I moved many private functions to the internal
-C API.
+I moved private functions to the internal C API to reduce the C API size.
 
 Some changes are also related to preparing the API to make members of
 structures like ``PyObject`` or ``PyTypeObject`` private.
 
-Converting macros and static inline functions to regular functions hide
-implementation details and moves the whole API closer to the stable ABI (build
-a C extension once, use the binary on multiple Python versions). Regular
-functions are usable in programming languages and use cases which cannot use C
-macros and C static inline functions.
+Converting macros and static inline functions to regular functions hides
+implementation details and bends the API towards the limited C API and the
+stable ABI (build a C extension once, use the binary on multiple Python
+versions). Regular functions are usable in programming languages and use cases
+which cannot use C macros and C static inline functions.
 
 Most macros are converted to static inline functions, rather regular functions,
 to have no impact on performance.
@@ -49,7 +48,8 @@ to be reverted since it impacted too many projects.
 Statistics
 ==========
 
-Statistics on public functions:
+`Statistics on public functions
+<https://pythoncapi.readthedocs.io/stats.html>`_:
 
 * Python 3.7: 893 regular functions, 315 macros.
 * Python 3.12: 943 regular functions, 246 macros, 69 static inline functions.
@@ -68,7 +68,7 @@ See `Statistics on the Python C API
 Python 3.12
 ===========
 
-Converted 39 macros to static inline functions:
+Convert 39 macros to static inline functions:
 
 * ``PyCell_GET()``
 * ``PyCell_SET()``
@@ -118,16 +118,16 @@ Remove 5 macros:
 * ``PyUnicode_GET_SIZE()``
 * ``PyUnicode_WSTR_LENGTH()``
 
-The following 4 macros can still be used as l-values in Python 3.12:
+The following 4 macros can be used as l-values in Python 3.12:
 
 * ``PyList_GET_ITEM()``
 * ``PyTuple_GET_ITEM()``:
 * ``PyDescr_NAME()``
 * ``PyDescr_TYPE()``
 
-Code like ``&PyTuple_GET_ITEM(tuple, 0)`` is still commonly used to get a
-direct access to items as ``PyObject**``. ``PyDescr_NAME()`` and
-``PyDescr_TYPE()`` are used by SWIG: see
+Code pattern like ``&PyTuple_GET_ITEM(tuple, 0)`` and ``&PyList_GET_ITEM(list,
+0)`` is still commonly used to get a direct access to items as ``PyObject**``.
+``PyDescr_NAME()`` and ``PyDescr_TYPE()`` are used by SWIG: see
 `<https://bugs.python.org/issue46538>`_
 
 Python 3.11
