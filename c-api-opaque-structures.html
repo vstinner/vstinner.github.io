@@ -191,7 +191,7 @@ static inline void _Py_INCREF(PyObject *op)
 </div>
 <div class="section" id="convert-macros-to-regular-functions-in-python-3-9">
 <h2>Convert macros to regular functions in Python 3.9</h2>
-<div class="section" id="converted-macros-1">
+<div class="section" id="id1">
 <h3>Converted macros</h3>
 <ul class="simple">
 <li>PyIndex_Check()</li>
@@ -202,7 +202,7 @@ static inline void _Py_INCREF(PyObject *op)
 <li>PyObject_NEW_VAR(): alias to PyObjectVar_New()</li>
 </ul>
 </div>
-<div class="section" id="performance-1">
+<div class="section" id="id2">
 <h3>Performance</h3>
 <p>PyType_HasFeature() was modified to always call PyType_GetFlags() function,
 rather than accessing directly <tt class="docutils literal">PyTypeObject.tp_flags</tt>. The problem is that

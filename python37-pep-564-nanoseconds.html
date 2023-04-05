@@ -48,13 +48,13 @@
 	<div itemprop="articleBody" class="article-body"><p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-<a class="reference external" href="https://peps.python.org/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. While the PEP
+<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. While the PEP
 was discussed, I also deprecated <tt class="docutils literal">time.clock()</tt> and removed
 <tt class="docutils literal">os.stat_float_times()</tt>.</p>
 <a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"><img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /></a>
 <div class="section" id="time-clock">
 <h2>time.clock()</h2>
-<p>Since I wrote the <a class="reference external" href="https://peps.python.org/pep-0418">PEP 418</a> &quot;Add monotonic time, performance counter, and
+<p>Since I wrote the <a class="reference external" href="http://www.python.org/dev/peps/pep-0418">PEP 418</a> &quot;Add monotonic time, performance counter, and
 process time functions&quot; in 2012, I dislike <tt class="docutils literal">time.clock()</tt>. This clock is not
 portable: on Windows it mesures wall-clock, whereas it measures CPU time on
 Unix. Extract of <a class="reference external" href="https://docs.python.org/dev/library/time.html#time.clock">time.clock() documentation</a>:</p>
@@ -89,12 +89,12 @@ it broke the <tt class="docutils literal">logging</tt> module, so I decided to l
 </div>
 <div class="section" id="pep-564-time-time-ns">
 <h2>PEP 564: time.time_ns()</h2>
-<p>Six years ago (2012), I wrote the <a class="reference external" href="https://peps.python.org/pep-0410">PEP 410</a> &quot;Use decimal.Decimal type for
+<p>Six years ago (2012), I wrote the <a class="reference external" href="http://www.python.org/dev/peps/pep-0410">PEP 410</a> &quot;Use decimal.Decimal type for
 timestamps&quot; which proposes a large and complex change in all Python functions
 returning time to support nanosecond resolution using the <tt class="docutils literal">decimal.Decimal</tt>
 type.  The PEP was <a class="reference external" href="https://mail.python.org/pipermail/python-dev/2012-February/116837.html">rejected for different reasons</a>.</p>
 <p>Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
-<a class="reference external" href="https://peps.python.org/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. Abstract:</p>
+<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond resolution&quot;. Abstract:</p>
 <blockquote>
 <p>Add six new &quot;nanosecond&quot; variants of existing functions to the <tt class="docutils literal">time</tt>
 module: <tt class="docutils literal">clock_gettime_ns()</tt>, <tt class="docutils literal">clock_settime_ns()</tt>,
@@ -146,7 +146,7 @@ wasn't tested at all!</p>
 <div class="section" id="conclusion">
 <h2>Conclusion</h2>
 <p>I added 6 new functions to get time with a nanosecond resolution like
-<tt class="docutils literal">time.time_ns()</tt> with my approved <a class="reference external" href="https://peps.python.org/pep-0564">PEP 564</a>. I also modified
+<tt class="docutils literal">time.time_ns()</tt> with my approved <a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a>. I also modified
 <tt class="docutils literal">time.clock()</tt> to emit a <tt class="docutils literal">DeprecationWarning</tt> and I removed the legacy
 <tt class="docutils literal">os.stat_float_times()</tt> function.</p>
 </div>

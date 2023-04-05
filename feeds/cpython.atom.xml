@@ -1208,15 +1208,15 @@ grep -E 'PyAPI_(FUNC|DATA)' Include/*.h Include/cpython/*.h|grep -v ' _Py'|wc -l
 &lt;/ol&gt;
 &lt;p&gt;The intent is to help developers to think about if their additions must be part
 of the limited C API, the CPython C API or the internal C API.&lt;/p&gt;
-&lt;div class="section" id="python-3-7-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h3&gt;Python 3.7&lt;/h3&gt;
 &lt;p&gt;Creation on the &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; directory.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="python-3-8-1"&gt;
+&lt;div class="section" id="id2"&gt;
 &lt;h3&gt;Python 3.8&lt;/h3&gt;
 &lt;p&gt;Creation on the &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt; directory.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="python-3-10-1"&gt;
+&lt;div class="section" id="id3"&gt;
 &lt;h3&gt;Python 3.10&lt;/h3&gt;
 &lt;p&gt;Move 8 header files from &lt;tt class="docutils literal"&gt;Include/&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1235,7 +1235,7 @@ new functions in the public C API must not steal references nor return borrowed
 references. In the meanwhile, this documentation moved to the devguide:
 &lt;a class="reference external" href="https://devguide.python.org/c-api/"&gt;Changing Python’s C API&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="statistics-1"&gt;
+&lt;div class="section" id="id5"&gt;
 &lt;h3&gt;Statistics&lt;/h3&gt;
 &lt;p&gt;Number of C API line numbers per Python version:&lt;/p&gt;
 &lt;table border="1" class="docutils"&gt;
@@ -1312,7 +1312,7 @@ structure is opaque in the limited C API.&lt;/p&gt;
 functions have been added to the limited C API. In Python 3.8, they were
 defined as macros accessing directly PyThreadState members. In Python 3.9, they
 became opaque function calls and so are now compatible with the stable ABI.&lt;/p&gt;
-&lt;div class="section" id="python-3-9-1"&gt;
+&lt;div class="section" id="id6"&gt;
 &lt;h3&gt;Python 3.9&lt;/h3&gt;
 &lt;p&gt;Add 3 functions to the limited C API:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1338,7 +1338,7 @@ became opaque function calls and so are now compatible with the stable ABI.&lt;/
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_ForgetReference()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="python-3-10-2"&gt;
+&lt;div class="section" id="id7"&gt;
 &lt;h3&gt;Python 3.10&lt;/h3&gt;
 &lt;p&gt;Add 1 function to the limited C API:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1766,7 +1766,7 @@ static inline void _Py_INCREF(PyObject *op)
 &lt;/div&gt;
 &lt;div class="section" id="convert-macros-to-regular-functions-in-python-3-9"&gt;
 &lt;h2&gt;Convert macros to regular functions in Python 3.9&lt;/h2&gt;
-&lt;div class="section" id="converted-macros-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h3&gt;Converted macros&lt;/h3&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;PyIndex_Check()&lt;/li&gt;
@@ -1777,7 +1777,7 @@ static inline void _Py_INCREF(PyObject *op)
 &lt;li&gt;PyObject_NEW_VAR(): alias to PyObjectVar_New()&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="performance-1"&gt;
+&lt;div class="section" id="id2"&gt;
 &lt;h3&gt;Performance&lt;/h3&gt;
 &lt;p&gt;PyType_HasFeature() was modified to always call PyType_GetFlags() function,
 rather than accessing directly &lt;tt class="docutils literal"&gt;PyTypeObject.tp_flags&lt;/tt&gt;. The problem is that
@@ -2980,7 +2980,7 @@ subinterpreters:&lt;/p&gt;
 +    }
 &lt;/pre&gt;
 &lt;/div&gt;
-&lt;div class="section" id="threading-shutdown-race-condition-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h3&gt;threading._shutdown() race condition&lt;/h3&gt;
 &lt;p&gt;&lt;tt class="docutils literal"&gt;threading._shutdown()&lt;/tt&gt; uses &lt;tt class="docutils literal"&gt;threading.enumerate()&lt;/tt&gt; which iterates on
 &lt;tt class="docutils literal"&gt;threading._active&lt;/tt&gt; dictionary.&lt;/p&gt;

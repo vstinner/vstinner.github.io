@@ -2445,7 +2445,7 @@ previous proposal:&lt;/p&gt;
 &lt;div class="section" id="pep-383"&gt;
 &lt;h2&gt;PEP 383&lt;/h2&gt;
 &lt;p&gt;April 2009, Martin v. Löwis proposed again his idea, now as the well defined
-&lt;a class="reference external" href="https://peps.python.org/pep-0383"&gt;PEP 383&lt;/a&gt;: &lt;strong&gt;Non-decodable Bytes in System Character Interfaces&lt;/strong&gt;. He &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/088919.html"&gt;posted
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0383"&gt;PEP 383&lt;/a&gt;: &lt;strong&gt;Non-decodable Bytes in System Character Interfaces&lt;/strong&gt;. He &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/088919.html"&gt;posted
 his PEP to python-dev&lt;/a&gt; for
 comments.&lt;/p&gt;
 &lt;p&gt;Abstract:&lt;/p&gt;
@@ -3044,16 +3044,16 @@ Thanks to all developers who helped me to fix this bug!&lt;/p&gt;
 </content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-&lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-&lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. While the PEP
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. While the PEP
 was discussed, I also deprecated &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; and removed
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt;.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"&gt;&lt;img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="time-clock"&gt;
 &lt;h2&gt;time.clock()&lt;/h2&gt;
-&lt;p&gt;Since I wrote the &lt;a class="reference external" href="https://peps.python.org/pep-0418"&gt;PEP 418&lt;/a&gt; &amp;quot;Add monotonic time, performance counter, and
+&lt;p&gt;Since I wrote the &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0418"&gt;PEP 418&lt;/a&gt; &amp;quot;Add monotonic time, performance counter, and
 process time functions&amp;quot; in 2012, I dislike &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt;. This clock is not
 portable: on Windows it mesures wall-clock, whereas it measures CPU time on
 Unix. Extract of &lt;a class="reference external" href="https://docs.python.org/dev/library/time.html#time.clock"&gt;time.clock() documentation&lt;/a&gt;:&lt;/p&gt;
@@ -3088,12 +3088,12 @@ it broke the &lt;tt class="docutils literal"&gt;logging&lt;/tt&gt; module, so I 
 &lt;/div&gt;
 &lt;div class="section" id="pep-564-time-time-ns"&gt;
 &lt;h2&gt;PEP 564: time.time_ns()&lt;/h2&gt;
-&lt;p&gt;Six years ago (2012), I wrote the &lt;a class="reference external" href="https://peps.python.org/pep-0410"&gt;PEP 410&lt;/a&gt; &amp;quot;Use decimal.Decimal type for
+&lt;p&gt;Six years ago (2012), I wrote the &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0410"&gt;PEP 410&lt;/a&gt; &amp;quot;Use decimal.Decimal type for
 timestamps&amp;quot; which proposes a large and complex change in all Python functions
 returning time to support nanosecond resolution using the &lt;tt class="docutils literal"&gt;decimal.Decimal&lt;/tt&gt;
 type.  The PEP was &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2012-February/116837.html"&gt;rejected for different reasons&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
-&lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. Abstract:&lt;/p&gt;
+&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. Abstract:&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Add six new &amp;quot;nanosecond&amp;quot; variants of existing functions to the &lt;tt class="docutils literal"&gt;time&lt;/tt&gt;
 module: &lt;tt class="docutils literal"&gt;clock_gettime_ns()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;clock_settime_ns()&lt;/tt&gt;,
@@ -3145,7 +3145,7 @@ wasn't tested at all!&lt;/p&gt;
 &lt;div class="section" id="conclusion"&gt;
 &lt;h2&gt;Conclusion&lt;/h2&gt;
 &lt;p&gt;I added 6 new functions to get time with a nanosecond resolution like
-&lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt; with my approved &lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt;. I also modified
+&lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt; with my approved &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt;. I also modified
 &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; to emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and I removed the legacy
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; function.&lt;/p&gt;
 &lt;/div&gt;
@@ -5475,7 +5475,7 @@ to cleanup threads.&lt;/li&gt;
 after removing it.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="python-2-7-1"&gt;
+&lt;div class="section" id="id2"&gt;
 &lt;h2&gt;Python 2.7&lt;/h2&gt;
 &lt;p&gt;I wanted to fix &lt;em&gt;all&lt;/em&gt; buildbot issues of &lt;em&gt;all&lt;/em&gt; branches including 2.7, whereas
 I didn't touch much the Python 2.7 code base last months (last years???). The
@@ -6236,7 +6236,7 @@ duration, etc.&lt;/li&gt;
 &lt;li&gt;Fix regrtest -j0 -R output: write also dots into stderr, instead of stdout.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="bugfixes-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h2&gt;Bugfixes&lt;/h2&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Issue #29140: Fix hash(datetime.time). Fix time_hash() function: replace
@@ -6272,7 +6272,7 @@ Python 3.7, the few remaining issues are still …&lt;/p&gt;</summary><content t
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
 Python 3.7, the few remaining issues are still open.&lt;/p&gt;
-&lt;div class="section" id="fastcall-issues-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h2&gt;27 FASTCALL issues&lt;/h2&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;2016-04-21: &lt;a class="reference external" href="http://bugs.python.org/issue26814"&gt;[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments&lt;/a&gt;&lt;/li&gt;

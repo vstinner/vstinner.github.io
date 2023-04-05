@@ -276,15 +276,15 @@ grep -E 'PyAPI_(FUNC|DATA)' Include/*.h Include/cpython/*.h|grep -v ' _Py'|wc -l
 </ol>
 <p>The intent is to help developers to think about if their additions must be part
 of the limited C API, the CPython C API or the internal C API.</p>
-<div class="section" id="python-3-7-1">
+<div class="section" id="id1">
 <h3>Python 3.7</h3>
 <p>Creation on the <tt class="docutils literal">Include/internal/</tt> directory.</p>
 </div>
-<div class="section" id="python-3-8-1">
+<div class="section" id="id2">
 <h3>Python 3.8</h3>
 <p>Creation on the <tt class="docutils literal">Include/cpython/</tt> directory.</p>
 </div>
-<div class="section" id="python-3-10-1">
+<div class="section" id="id3">
 <h3>Python 3.10</h3>
 <p>Move 8 header files from <tt class="docutils literal">Include/</tt> to <tt class="docutils literal">Include/cpython/</tt>:</p>
 <ul class="simple">
@@ -303,7 +303,7 @@ new functions in the public C API must not steal references nor return borrowed
 references. In the meanwhile, this documentation moved to the devguide:
 <a class="reference external" href="https://devguide.python.org/c-api/">Changing Python’s C API</a>.</p>
 </div>
-<div class="section" id="statistics-1">
+<div class="section" id="id5">
 <h3>Statistics</h3>
 <p>Number of C API line numbers per Python version:</p>
 <table border="1" class="docutils">
@@ -380,7 +380,7 @@ structure is opaque in the limited C API.</p>
 functions have been added to the limited C API. In Python 3.8, they were
 defined as macros accessing directly PyThreadState members. In Python 3.9, they
 became opaque function calls and so are now compatible with the stable ABI.</p>
-<div class="section" id="python-3-9-1">
+<div class="section" id="id6">
 <h3>Python 3.9</h3>
 <p>Add 3 functions to the limited C API:</p>
 <ul class="simple">
@@ -406,7 +406,7 @@ became opaque function calls and so are now compatible with the stable ABI.</p>
 <li><tt class="docutils literal">_Py_ForgetReference()</tt></li>
 </ul>
 </div>
-<div class="section" id="python-3-10-2">
+<div class="section" id="id7">
 <h3>Python 3.10</h3>
 <p>Add 1 function to the limited C API:</p>
 <ul class="simple">

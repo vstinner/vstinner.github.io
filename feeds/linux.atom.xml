@@ -195,7 +195,7 @@ about this technology.&lt;/p&gt;
 &lt;p&gt;This article is about the &lt;strong&gt;GNOME&lt;/strong&gt; desktop environment with &lt;strong&gt;Wayland&lt;/strong&gt;
 running on &lt;strong&gt;Fedora&lt;/strong&gt; 30, with Linux kernel &lt;strong&gt;vgaswitcheroo&lt;/strong&gt; in muxless mode
 (more about that above).&lt;/p&gt;
-&lt;div class="section" id="hybrid-graphics-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h2&gt;Hybrid Graphics&lt;/h2&gt;
 &lt;p&gt;Hybrid Graphics are known under different names:&lt;/p&gt;
 &lt;ul class="simple"&gt;

@@ -830,7 +830,7 @@ CPU | POLL | C1-S | C1E- | C3-S | C6-S
 &lt;/pre&gt;
 &lt;p&gt;See also: &lt;a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states"&gt;Power Management States: P-States, C-States, and Package C-States&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="turbo-boost-1"&gt;
+&lt;div class="section" id="id1"&gt;
 &lt;h2&gt;Turbo Boost&lt;/h2&gt;
 &lt;p&gt;In 2005, Intel introduced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep"&gt;SpeedStep&lt;/a&gt;, a serie of dynamic frequency
 scaling technologies to reduce the power consumption of laptop CPUs. Turbo
