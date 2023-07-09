@@ -12,6 +12,12 @@ In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. Here I describe a few of the most important contributions that I made
 to Python 3.12 and Python 3.13 in these months.
 
+.. image:: {static}/images/foxes_in_love_cuddle.jpg
+   :alt: Foxes in Love: Cuddle
+   :target: https://twitter.com/foxes_in_love/status/1668558475490742277
+
+*Drawing: Foxes in Love: Cuddle*
+
 Summary
 =======
 
