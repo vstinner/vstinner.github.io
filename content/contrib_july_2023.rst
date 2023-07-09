@@ -21,20 +21,15 @@ to Python 3.12 and Python 3.13 in these months.
 Summary
 =======
 
-Python 3.13:
-
-* Add PyImport_AddModuleRef() and PyWeakref_GetRef()
-* PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds
-* Remove 19 stdlib modules
-* Remove locale.resetlocale() and logging.Logger.warn()
-* Remove 181 private C API functions
-
-Python 3.12:
-
-* Py_INCREF() and Py_DECREF() as opaque function call in limited C API
-* Document how to replace imp with importlib
-
-Define "Soft Deprecation" in PEP 387; getopt and optparse are soft deprecated.
+* Add PyImport_AddModuleRef() and PyWeakref_GetRef().
+* Py_INCREF() and Py_DECREF() as opaque function call in limited C API.
+* PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds.
+* Define "Soft Deprecation" in PEP 387; getopt and optparse are soft
+  deprecated.
+* Document how to replace imp with importlib.
+* Remove 19 stdlib modules.
+* Remove locale.resetlocale() and logging.Logger.warn().
+* Remove 181 private C API functions.
 
 PEP 594
 =======
