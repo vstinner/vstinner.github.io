@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2023-07-08T23:00:00+02:00</updated><entry><title>My contributions to Python (July 2023)</title><link href="https://vstinner.github.io/contrib-python-july-2023.html" rel="alternate"></link><published>2023-07-08T23:00:00+02:00</published><updated>2023-07-08T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-07-08:/contrib-python-july-2023.html</id><summary type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
-branch. Here I describe a few of the most important contributions that I made
-to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
+branch. In this article, I describe the most important Python contributions
+that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: Foxes in Love: Cuddle&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Add PyImport_AddModuleRef() and …&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
-branch. Here I describe a few of the most important contributions that I made
-to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
+branch. In this article, I describe the most important Python contributions
+that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: Foxes in Love: Cuddle&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
