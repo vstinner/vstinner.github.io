@@ -55,20 +55,17 @@ to Python 3.12 and Python 3.13 in these months.</p>
 <p><em>Drawing: Foxes in Love: Cuddle</em></p>
 <div class="section" id="summary">
 <h2>Summary</h2>
-<p>Python 3.13:</p>
 <ul class="simple">
-<li>Add PyImport_AddModuleRef() and PyWeakref_GetRef()</li>
-<li>PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds</li>
-<li>Remove 19 stdlib modules</li>
-<li>Remove locale.resetlocale() and logging.Logger.warn()</li>
-<li>Remove 181 private C API functions</li>
+<li>Add PyImport_AddModuleRef() and PyWeakref_GetRef().</li>
+<li>Py_INCREF() and Py_DECREF() as opaque function call in limited C API.</li>
+<li>PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds.</li>
+<li>Define &quot;Soft Deprecation&quot; in PEP 387; getopt and optparse are soft
+deprecated.</li>
+<li>Document how to replace imp with importlib.</li>
+<li>Remove 19 stdlib modules.</li>
+<li>Remove locale.resetlocale() and logging.Logger.warn().</li>
+<li>Remove 181 private C API functions.</li>
 </ul>
-<p>Python 3.12:</p>
-<ul class="simple">
-<li>Py_INCREF() and Py_DECREF() as opaque function call in limited C API</li>
-<li>Document how to replace imp with importlib</li>
-</ul>
-<p>Define &quot;Soft Deprecation&quot; in PEP 387; getopt and optparse are soft deprecated.</p>
 </div>
 <div class="section" id="pep-594">
 <h2>PEP 594</h2>

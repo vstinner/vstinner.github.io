@@ -6,27 +6,25 @@ to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;p&gt;&lt;em&gt;Drawing: Foxes in Love: Cuddle&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
-&lt;p&gt;Python 3.13 …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add PyImport_AddModuleRef() and …&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. Here I describe a few of the most important contributions that I made
 to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: Foxes in Love: Cuddle&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
-&lt;p&gt;Python 3.13:&lt;/p&gt;
 &lt;ul class="simple"&gt;
-&lt;li&gt;Add PyImport_AddModuleRef() and PyWeakref_GetRef()&lt;/li&gt;
-&lt;li&gt;PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds&lt;/li&gt;
-&lt;li&gt;Remove 19 stdlib modules&lt;/li&gt;
-&lt;li&gt;Remove locale.resetlocale() and logging.Logger.warn()&lt;/li&gt;
-&lt;li&gt;Remove 181 private C API functions&lt;/li&gt;
+&lt;li&gt;Add PyImport_AddModuleRef() and PyWeakref_GetRef().&lt;/li&gt;
+&lt;li&gt;Py_INCREF() and Py_DECREF() as opaque function call in limited C API.&lt;/li&gt;
+&lt;li&gt;PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds.&lt;/li&gt;
+&lt;li&gt;Define &amp;quot;Soft Deprecation&amp;quot; in PEP 387; getopt and optparse are soft
+deprecated.&lt;/li&gt;
+&lt;li&gt;Document how to replace imp with importlib.&lt;/li&gt;
+&lt;li&gt;Remove 19 stdlib modules.&lt;/li&gt;
+&lt;li&gt;Remove locale.resetlocale() and logging.Logger.warn().&lt;/li&gt;
+&lt;li&gt;Remove 181 private C API functions.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Python 3.12:&lt;/p&gt;
-&lt;ul class="simple"&gt;
-&lt;li&gt;Py_INCREF() and Py_DECREF() as opaque function call in limited C API&lt;/li&gt;
-&lt;li&gt;Document how to replace imp with importlib&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Define &amp;quot;Soft Deprecation&amp;quot; in PEP 387; getopt and optparse are soft deprecated.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="pep-594"&gt;
 &lt;h2&gt;PEP 594&lt;/h2&gt;
