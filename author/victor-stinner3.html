@@ -27,6 +27,33 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html">
+		<h2 itemprop="name headline">asyncio: WSARecv() cancellation causing data loss</h2>
+	</a>
+	<time datetime="2019-01-31T15:20:00+01:00" itemprop="datePublished">jeu. 31 janvier 2019</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
+<p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
+function.</p>
+<p>A newly added test failed on Windows. Later, the test started to fail
+randomly on Linux as well. In fact, it was a well hidden race condition in the
+asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which will take 5 months of …</p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">
 		<h2 itemprop="name headline">Asyncio: Proactor ConnectPipe() Race Condition</h2>
 	</a>
@@ -291,45 +318,6 @@ directory looks like a very bad idea.</p>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">
-		<h2 itemprop="name headline">Python 3.0 listdir() Bug on Undecodable Filenames</h2>
-	</a>
-	<time datetime="2018-03-09T13:00:00+01:00" itemprop="datePublished">ven. 09 mars 2018</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><p>Ten years ago, when Python 3.0 final was released, <tt class="docutils literal">os.listdir(str)</tt>
-<strong>ignored silently undecodable filenames</strong>:</p>
-<pre class="literal-block">
-$ python3.0
-&gt;&gt;&gt; os.mkdir(b'x')
-&gt;&gt;&gt; open(b'x/nonascii\xff', 'w').close()
-&gt;&gt;&gt; os.listdir('x')
-[]
-</pre>
-<p>You had to use bytes to see all filenames:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; os.listdir(b'x')
-[b'nonascii\xff']
-</pre>
-<p>If the locale is POSIX …</p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/unicode.html" rel="tag">unicode</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/author/victor-stinner2.html">&larr; Previous</a></li>
@@ -370,7 +358,7 @@ $ python3.0
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (18)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (19)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

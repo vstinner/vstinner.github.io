@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>My contributions to Python (July 2023) — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: My contributions to Python (July 2023); Date: 2023-07-08; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">My contributions to Python (July 2023)</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2023-07-08T23:00:00+02:00" itemprop="datePublished">sam. 08 juillet 2023</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><p>In 2023, between May 4 and July 8, I made 144 commits in the Python main
+branch. Here I describe a few of the most important contributions that I made
+to Python 3.12 and Python 3.13 in these months.</p>
+<a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"><img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /></a>
+<p><em>Drawing: Foxes in Love: Cuddle</em></p>
+<div class="section" id="summary">
+<h2>Summary</h2>
+<p>Python 3.13:</p>
+<ul class="simple">
+<li>Add PyImport_AddModuleRef() and PyWeakref_GetRef()</li>
+<li>PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds</li>
+<li>Remove 19 stdlib modules</li>
+<li>Remove locale.resetlocale() and logging.Logger.warn()</li>
+<li>Remove 181 private C API functions</li>
+</ul>
+<p>Python 3.12:</p>
+<ul class="simple">
+<li>Py_INCREF() and Py_DECREF() as opaque function call in limited C API</li>
+<li>Document how to replace imp with importlib</li>
+</ul>
+<p>Define &quot;Soft Deprecation&quot; in PEP 387; getopt and optparse are soft deprecated.</p>
+</div>
+<div class="section" id="pep-594">
+<h2>PEP 594</h2>
+<p>In Python 3.13, I removed 19 modules deprecated in Python 3.11 by PEP 594:</p>
+<ul class="simple">
+<li>aifc</li>
+<li>audioop</li>
+<li>cgi</li>
+<li>cgitb</li>
+<li>chunk</li>
+<li>crypt</li>
+<li>imghdr</li>
+<li>mailcap</li>
+<li>nis</li>
+<li>nntplib</li>
+<li>ossaudiodev</li>
+<li>pipes</li>
+<li>sndhdr</li>
+<li>spwd</li>
+<li>sunau</li>
+<li>telnetlib</li>
+<li>uu</li>
+<li>xdrlib</li>
+</ul>
+<p><em>Zachary Ware</em> removed the last deprecated module, msilib, so the PEP 594 is
+now fully implemented in Python 3.13!</p>
+<p>I announced the change: <a class="reference external" href="https://discuss.python.org/t/pep-594-has-been-implemented-python-3-13-removes-20-stdlib-modules/27124">PEP 594 has been implemented: Python 3.13 removes 20
+stdlib modules</a>.</p>
+<p>Removing imghdr caused me some troubles with building the Python documentation.
+Sphinx uses imghdr, but recent Sphinx versions no longer use it. I updated
+the Sphinx version to workaround this issue.</p>
+</div>
+<div class="section" id="c-api-strong-reference">
+<h2>C API: Strong reference</h2>
+<p><strong>tl; dr I added PyImport_AddModuleRef() and PyWeakref_GetRef() to Python 3.13
+to return strong references, instead of borrowed references.</strong></p>
+<p>When I <a class="reference external" href="https://pythoncapi.readthedocs.io/">analyzed issues of Python C API</a>., I quickly identified that the usage of
+borrowed references is causing a lot of troubles. By the way, I recently
+updated the <a class="reference external" href="https://pythoncapi.readthedocs.io/bad_api.html#functions">list of the 41 functions returning borrowed refererences</a>. This issue is
+also tracked as <a class="reference external" href="https://github.com/capi-workgroup/problems/issues/21">Returning borrowed references is fundamentally unsafe</a> in the recently
+created <a class="reference external" href="https://github.com/capi-workgroup/problems/">Problems</a> project of
+the new C API workgroup.</p>
+<p>In Python 3.10, I added <tt class="docutils literal">Py_NewRef()</tt> and <tt class="docutils literal">Py_XNewRef()</tt> functions which
+have a better semantics: they create a new strong reference to a Python object.
+I also added the <tt class="docutils literal">PyModule_AddObjectRef()</tt> function, variant of
+<tt class="docutils literal">PyModule_AddObject()</tt>, which returns a strong reference.  And I added
+<a class="reference external" href="https://docs.python.org/dev/glossary.html#term-borrowed-reference">borrowed reference</a> and
+<a class="reference external" href="https://docs.python.org/dev/glossary.html#term-strong-reference">strong reference</a> terms to
+the glossary.</p>
+<p>In Python 3.13, I added two functions:</p>
+<ul class="simple">
+<li><strong>PyImport_AddModuleRef()</strong>: variant of <tt class="docutils literal">PyImport_AddModule()</tt></li>
+<li><strong>PyWeakref_GetRef()</strong>: variant of <tt class="docutils literal">PyWeakref_GetObject()</tt>.
+I also deprecated <tt class="docutils literal">PyWeakref_GetObject()</tt> and <tt class="docutils literal">PyWeakref_GET_OBJECT()</tt>
+functions.</li>
+</ul>
+<p>I updated pythoncapi-compat to <a class="reference external" href="https://pythoncapi-compat.readthedocs.io/en/latest/api.html#python-3-13">provide these functions to Python 3.12 and
+older</a>.</p>
+<p>I also added <tt class="docutils literal">Py_TYPE()</tt> to <tt class="docutils literal">Doc/data/refcounts.dat</tt>: file listing how C
+functions handle references, it's maintained manually.</p>
+<p>Now I'm working on adding <strong>PyDict_GetItemRef()</strong> but the API and the function
+name are causing more frictions: see the <a class="reference external" href="https://github.com/python/cpython/pull/106005">pull request</a>. Recently,
+PyDict_GetItemRef() API was raised to the Steering Council:
+<a class="reference external" href="https://github.com/python/steering-council/issues/201">decision: Should we add non-borrowed-ref public C APIs, if so, is there a
+naming convention?</a></p>
+</div>
+<div class="section" id="c-api-pylist-set-item">
+<h2>C API: PyList_SET_ITEM()</h2>
+<p><strong>tl;dr In Python 3.13, PyList_SET_ITEM() and PyTuple_SET_ITEM() now checks
+index bounds.</strong></p>
+<p>In Python 3.9, <tt class="docutils literal">Include/cpython/listobject.h</tt> was created for the PyList API
+excluded from the limited C API. <tt class="docutils literal">PyList_SET_ITEM()</tt> was implemented as:</p>
+<pre class="literal-block">
+#define PyList_SET_ITEM(op, i, v) (_PyList_CAST(op)-&gt;ob_item[i] = (v))
+</pre>
+<p>In Python 3.10, the <a class="reference external" href="https://github.com/python/cpython/issues/74644">return value was removed to fix as bug</a> by adding <tt class="docutils literal">(void)</tt> cast:</p>
+<pre class="literal-block">
+#define PyList_SET_ITEM(op, i, v) ((void)(_PyList_CAST(op)-&gt;ob_item[i] = (v)))
+</pre>
+<p>In Python 3.11, <a class="reference external" href="https://peps.python.org/pep-0670/">PEP 670: Convert macros to functions in the Python C API</a> was accepted and I converted the macro to
+a static inline function:</p>
+<pre class="literal-block">
+static inline void
+PyList_SET_ITEM(PyObject *op, Py_ssize_t index, PyObject *value) {
+    PyListObject *list = _PyList_CAST(op);
+    list-&gt;ob_item[index] = value;
+}
+</pre>
+<p>I tried to add an assertion in <tt class="docutils literal">PyTuple_SET_ITEM()</tt> to check index bounds ,
+but I got assertion failures when running the Python test suite related to
+PyStructSequence which inherits from PyTuple.</p>
+<p>Recently, I tried again. I updated the PyStructSequence API to check the index
+bounds differently. The tricky part is that getting the number of fields of a
+PyStructSequence requires to get an item of dictionary, and
+<tt class="docutils literal">PyDict_GetItemWithError()</tt> can raise an exception. Moreover,
+<tt class="docutils literal">PyStructSequence_SET_ITEM()</tt> was still implemented as a macro in Python
+3.12:</p>
+<pre class="literal-block">
+#define PyStructSequence_SET_ITEM(op, i, v) PyTuple_SET_ITEM((op), (i), (v))
+</pre>
+<p>Old PyStructSequence_SetItem() implementation:</p>
+<pre class="literal-block">
+void
+PyStructSequence_SetItem(PyObject* op, Py_ssize_t i, PyObject* v)
+{
+    PyStructSequence_SET_ITEM(op, i, v);
+}
+</pre>
+<p>New implementation:</p>
+<pre class="literal-block">
+void
+PyStructSequence_SetItem(PyObject *op, Py_ssize_t index, PyObject *value)
+{
+    PyTupleObject *tuple = _PyTuple_CAST(op);
+    assert(0 &lt;= index);
+#ifndef NDEBUG
+    Py_ssize_t n_fields = REAL_SIZE(op);
+    assert(n_fields &gt;= 0);
+    assert(index &lt; n_fields);
+#endif
+    tuple-&gt;ob_item[index] = value;
+}
+</pre>
+<p>The <tt class="docutils literal">REAL_SIZE()</tt> macro is only available in <tt class="docutils literal">Objects/structseq.c</tt>.
+Exposing it in the public C API would be a bad idea.  So I just converted
+PyStructSequence_SET_ITEM() macro to an alias to PyStructSequence_SetItem():</p>
+<pre class="literal-block">
+#define PyStructSequence_SET_ITEM PyStructSequence_SetItem
+</pre>
+<p>This way, PyStructSequence_SET_ITEM() and PyStructSequence_SetItem() are
+implemented as opaque function calls.</p>
+<p>So it became possible to check index bounds in PyList_SET_ITEM():</p>
+<pre class="literal-block">
+static inline void
+PyList_SET_ITEM(PyObject *op, Py_ssize_t index, PyObject *value) {
+    PyListObject *list = _PyList_CAST(op);
+    assert(0 &lt;= index);
+    assert(index &lt; Py_SIZE(list));
+    list-&gt;ob_item[index] = value;
+}
+</pre>
+<p>I had to modify code calling PyList_SET_ITEM() <em>before</em> setting the list size:
+list_extend() and _PyList_AppendTakeRef() functions. The size is now set before
+calling PyList_SET_ITEM().</p>
+<p>I made a similar change to <tt class="docutils literal">PyTuple_SET_ITEM()</tt> to also checks the index.</p>
+<p>These bound checks are implemented with an assertion if Python is built in
+debug mode or if Python is built with assertions.</p>
+</div>
+<div class="section" id="c-api-python-3-12-py-incref">
+<h2>C API: Python 3.12 Py_INCREF()</h2>
+<p><strong>tl; dr I changed Py_INCREF() and Py_DECREF() implementation as opaque
+function calls in any version of the limited C API if Python is built in debug
+mode.</strong></p>
+<p>In Python 3.12, <a class="reference external" href="https://peps.python.org/pep-0683/">PEP 683 – Immortal Objects, Using a Fixed Refcount</a> was implemented. It made Py_INCREF() and
+Py_DECREF() static inline functions even more complicated than before. The
+implementation required to expose private <tt class="docutils literal">_Py_IncRefTotal_DO_NOT_USE_THIS()</tt>
+and <tt class="docutils literal">_Py_DecRefTotal_DO_NOT_USE_THIS()</tt> functions in the stable ABI, whereas
+the function names say &quot;DO NOT USE THIS&quot;, for debug builds of Python.</p>
+<p>In Python 3.10, I modified Py_INCREF() and Py_DECREF() to implement them as
+opaque function calls in the limited C API version 3.10 or newer if Python is
+built in debug mode (if <tt class="docutils literal">Py_REF_DEBUG</tt> macro is defined). Thanks to this
+change, the limited C API is supported if Python is built in debug mode since
+Python 3.10.</p>
+<p>In Python 3.12, I <strong>modified Py_INCREF() and Py_DECREF() to implement them as
+opaque function calls in all limited C API version</strong>, not only in the limited C
+API version 3.10 and newer, if Python is built in debug mode. This way,
+implementation details are now hidden and no longer leaked in the stable ABI. I
+removed <tt class="docutils literal">_Py_NegativeRefcount()</tt> in the limited C API and I removed
+<tt class="docutils literal">_Py_IncRefTotal_DO_NOT_USE_THIS()</tt> and <tt class="docutils literal">_Py_DecRefTotal_DO_NOT_USE_THIS()</tt>
+in the stable ABI.</p>
+<p>Later, I discovered that my fix broke backward compatibility with Python 3.9.
+My implementation used <tt class="docutils literal">_Py_IncRef()</tt> and <tt class="docutils literal">_Py_DecRef()</tt> that I added to
+Python 3.10. I updated the implementation to use <tt class="docutils literal">Py_IncRef()</tt> and
+<tt class="docutils literal">Py_DecRef()</tt> on Python 3.9 and older, these functions are available since
+Python 2.4.</p>
+</div>
+<div class="section" id="c-api-py-incref-opaque-function-call">
+<h2>C API: Py_INCREF() opaque function call</h2>
+<p><strong>tl; dr I changed Py_INCREF() and Py_DECREF() implementation as opaque
+function calls in the limited C API version 3.12.</strong> (also in the regular
+release build, not only in the debug build)</p>
+<p>In Python 3.8, I converted Py_INCREF() and Py_DECREF() macros to static inline
+functions. I already wanted to convert them as opaque function calls, but it
+can have an important cost on performance and so I left them as static inline
+functions.</p>
+<p>As a follow-up of my Python 3.12 Py_INCREF() fix for the debug build, I
+modified Py_INCREF() and Py_DECREF() in Python 3.12 to always implemented them
+as <strong>opaque function calls in the limited C API version 3.12</strong> and newer.</p>
+<ul class="simple">
+<li>Discussion: <a class="reference external" href="https://discuss.python.org/t/limited-c-api-implement-py-incref-and-py-decref-as-function-calls/27592">Limited C API: implement Py_INCREF() and Py_DECREF() as function calls</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/105388">Pull request</a></li>
+</ul>
+<p>For me, it's a <strong>major enhancement</strong> to make the stable ABI more <strong>future
+proof</strong> by leaking less implementation details.</p>
+<p><a class="reference external" href="https://github.com/python/cpython/blob/da98ed0aa040791ef08b24befab697038c8c9fd5/Include/object.h#L613-L622">Code</a>:</p>
+<pre class="literal-block">
+static inline Py_ALWAYS_INLINE void Py_INCREF(PyObject *op)
+{
+#if defined(Py_LIMITED_API) &amp;&amp; (Py_LIMITED_API+0 &gt;= 0x030c0000 || defined(Py_REF_DEBUG))
+    // Stable ABI implements Py_INCREF() as a function call on limited C API
+    // version 3.12 and newer, and on Python built in debug mode. _Py_IncRef()
+    // was added to Python 3.10.0a7, use Py_IncRef() on older Python versions.
+    // Py_IncRef() accepts NULL whereas _Py_IncRef() doesn't.
+#  if Py_LIMITED_API+0 &gt;= 0x030a00A7
+    _Py_IncRef(op);
+#  else
+    Py_IncRef(op);
+#  endif
+#else
+   ...
+#endif
+}
+</pre>
+</div>
+<div class="section" id="tests">
+<h2>Tests</h2>
+<p>The Python test runner <em>regrtest</em> has specific constraints because tests
+are run in subprocesses, on different platforms, with custom encodings
+and options. Over the last year, an annoying regrtest came and go: if
+a subprocess standard output (stdout) cannot be decoded, the test is treated
+as a success! I fixed <a class="reference external" href="https://github.com/python/cpython/issues/101634">the bug</a> and I made the code more
+reliable by marking this bug class as &quot;test failed&quot;.</p>
+<p>I fixed test_counter_optimizer() of test_capi when run twice: create a new
+function at each call, so each run starts in a known state. Previously, the
+second run was in a different state since the function was already optimized.</p>
+<p>I cleaned up old test_ctypes. My main goal was to remove <tt class="docutils literal">from ctypes import
+*</tt> to be able to use pyflakes on these tests. I found many skipped tests: I
+reenabled 3 of them, and removed the other ones. I also removed dead code.</p>
+<p>I removed test_xmlrpc_net: it was skipped since 2017. The public
+<tt class="docutils literal">buildbot.python.org</tt> server has no XML-RPC interface anymore, and no
+replacement public XML-RPC server was found in 6 years.</p>
+<p>I fixed dangling threads in <tt class="docutils literal">test_importlib.test_side_effect_import()</tt>: the
+import spawns threads, wait until they complete.</p>
+</div>
+<div class="section" id="c-api-deprecate">
+<h2>C API: Deprecate</h2>
+<p>I listed <a class="reference external" href="https://docs.python.org/dev/whatsnew/3.13.html#pending-removal-in-python-3-14">pending C API removals</a>
+in the What's New in Python 3.13 document.</p>
+<p>I deprecated multiple APIs:</p>
+<ul class="simple">
+<li>Py_UNICODE and PY_UNICODE_TYPE</li>
+<li>PyImport_ImportModuleNoBlock()</li>
+<li>Py_HasFileSystemDefaultEncoding</li>
+</ul>
+<p>I deprecated legacy Python initialization functions:</p>
+<ul class="simple">
+<li>PySys_ResetWarnOptions()</li>
+<li>Py_GetExecPrefix()</li>
+<li>Py_GetPath()</li>
+<li>Py_GetPrefix()</li>
+<li>Py_GetProgramFullPath()</li>
+<li>Py_GetProgramName()</li>
+<li>Py_GetPythonHome()</li>
+</ul>
+<p>I removed the PyArg_Parse() deprecation. In 2007, the deprecation was added as
+a comment to the documentation, but the function remains relevant in Python
+3.13 for some specific use cases.</p>
+</div>
+<div class="section" id="soft-deprecation">
+<h2>Soft Deprecation</h2>
+<p><strong>tl; dr The getopt module is now soft deprecated.</strong></p>
+<p>I updated <a class="reference external" href="https://peps.python.org/pep-0387/">PEP 387: Backwards Compatibility Policy</a> to add <a class="reference external" href="https://peps.python.org/pep-0387/#soft-deprecation">Soft Deprecation</a>:</p>
+<blockquote>
+<p>A soft deprecation can be used when using an API which should no longer be
+used to write new code, but it remains safe to continue using it in
+existing code. The API remains documented and tested, but will not be
+developed further (no enhancement).</p>
+<p>The main difference between a “soft” and a (regular) “hard” deprecation is
+that the soft deprecation does not imply scheduling the removal of the
+deprecated API.</p>
+</blockquote>
+<p>I converted <strong>optparse</strong> deprecation to a <strong>soft deprecation</strong>.</p>
+<p>I soft deprecated the <strong>getopt</strong> module: it remains available and maintained,
+but argparse should be preferred for new projects.</p>
+</div>
+<div class="section" id="deprecate">
+<h2>Deprecate</h2>
+<p>I deprecated the <tt class="docutils literal">getmark()</tt>, <tt class="docutils literal">setmark()</tt> and <tt class="docutils literal">getmarkers()</tt> methods of
+the Wave_read and Wave_write classes. These methods only existed for
+compatibility with the aifc module, but they did nothing or always failed, and
+the aifc module was removed in Python 3.13.</p>
+<p>I also deprecated <tt class="docutils literal">SetPointerType()</tt> and <tt class="docutils literal">ARRAY()</tt> functions of ctypes.</p>
+</div>
+<div class="section" id="c-api-remove">
+<h2>C API: Remove</h2>
+<ul class="simple">
+<li>I removed the following old functions to configure the Python initialization,
+that I deprecated in Python 3.11:<ul>
+<li>PySys_AddWarnOptionUnicode()</li>
+<li>PySys_AddWarnOption()</li>
+<li>PySys_AddXOption()</li>
+<li>PySys_HasWarnOptions()</li>
+<li>PySys_SetArgvEx()</li>
+<li>PySys_SetArgv()</li>
+<li>PySys_SetPath()</li>
+<li>Py_SetPath()</li>
+<li>Py_SetProgramName()</li>
+<li>Py_SetPythonHome()</li>
+<li>Py_SetStandardStreamEncoding()</li>
+<li>_Py_SetProgramFullPath()</li>
+</ul>
+</li>
+<li>I also deprecated removed &quot;call&quot; functions:<ul>
+<li>PyCFunction_Call()</li>
+<li>PyEval_CallFunction()</li>
+<li>PyEval_CallMethod()</li>
+<li>PyEval_CallObject()</li>
+<li>PyEval_CallObjectWithKeywords()</li>
+</ul>
+</li>
+<li>I removed deprecated PyEval_AcquireLock() and PyEval_InitThreads() functions.</li>
+<li>Remove old aliases which were kept backwards compatibility with Python 3.8:<ul>
+<li>_PyObject_CallMethodNoArgs()</li>
+<li>_PyObject_CallMethodOneArg()</li>
+<li>_PyObject_CallOneArg()</li>
+<li>_PyObject_FastCallDict()</li>
+<li>_PyObject_Vectorcall()</li>
+<li>_PyObject_VectorcallMethod()</li>
+<li>_PyVectorcall_Function()</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="remove">
+<h2>Remove</h2>
+<p>I removed <strong>locale.resetlocale()</strong> function, but I failed to remove
+locale.getdefaultlocale() in Python 3.13: INADA-san asked me to keep it.</p>
+<p>I removed the untested and not documented <strong>logging.Logger.warn()</strong> method.</p>
+<p>Oh, I forgot to remove <strong>cafile</strong>, <strong>capath</strong> and <strong>cadefault</strong> parameters of
+the <strong>urllib.request.urlopen()</strong> function: it's now also done in Python 3.13. I
+removed similar parameters in many other modules in Python 3.12.</p>
+</div>
+<div class="section" id="cleanup">
+<h2>Cleanup</h2>
+<p>As usual, I removed a bunch of unused imports (in the stdlib, tests and tools).</p>
+<p>I reimplemented xmlrpc.client <tt class="docutils literal">_iso8601_format()</tt> function with
+<tt class="docutils literal">datetime.datetime.isoformat()</tt>. The timezone is ignored on purpose: the
+XML-RPC specification doesn't explain how to handle it, many implementations
+ignore it.</p>
+</div>
+<div class="section" id="port-imp-code-to-importlib">
+<h2>Port imp code to importlib</h2>
+<p>The importlib module was added to Python 3.1 and it became the default
+in Python 3.3. The imp module was deprecated in Python 3.4 but was only removed
+in Python 3.12. Replacing imp code with importlib is not trivial: importlib
+has a different design and API.</p>
+<p>I wrote documentation on how to port imp code to importlib in <a class="reference external" href="https://docs.python.org/dev/whatsnew/3.12.html#removed">What's New in
+Python 3.12</a>.</p>
+<p>I proposed <a class="reference external" href="https://github.com/python/cpython/pull/105755">adding importlib.util.load_source_path() function</a>, but I understood that the
+devil is in details: it's hard to decide how to handle the <tt class="docutils literal">sys.modules</tt>
+cache. I gave up and instead added a recipe in the What's New in Python 3.12
+documentation:</p>
+<pre class="literal-block">
+import importlib.util
+import importlib.machinery
+
+def load_source(modname, filename):
+    loader = importlib.machinery.SourceFileLoader(modname, filename)
+    spec = importlib.util.spec_from_file_location(modname, filename, loader=loader)
+    module = importlib.util.module_from_spec(spec)
+    # The module is always executed and not cached in sys.modules.
+    # Uncomment the following line to cache the module.
+    # sys.modules[module.__name__] = module
+    loader.exec_module(module)
+    return module
+</pre>
+<p>There are many projects affected by the imp removal and porting them is not
+easy. See <a class="reference external" href="https://discuss.python.org/t/how-do-i-migrate-from-imp/27885">How do I migrate from imp?</a> discussion.</p>
+</div>
+<div class="section" id="c-api-remove-private-functions">
+<h2>C API: Remove private functions</h2>
+<p>Last but not least, in <a class="reference external" href="https://github.com/python/cpython/issues/106320">issue #106320</a>, I <strong>removed</strong> not less
+than <strong>181 private C API functions</strong>.</p>
+<p>As a reaction to my changes, a discussion was started to propose <a class="reference external" href="https://discuss.python.org/t/pssst-lets-treat-all-api-in-public-headers-as-public/28916">treating
+private functions as public functions</a>.</p>
+<p>I'm now working on identifying projects affected by these removals and on
+proposing solutions for the most commonly used removed functions like the
+<tt class="docutils literal">_PyObject_Vectorcall()</tt> alias.</p>
+<p>The list of the 181 removed private C API functions:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_PyArg_NoKwnames()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_Alloc()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_Dealloc()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_Finish()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_Init()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_Prepare()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_Resize()</tt></li>
+<li><tt class="docutils literal">_PyBytesWriter_WriteBytes()</tt></li>
+<li><tt class="docutils literal">_PyCodecInfo_GetIncrementalDecoder()</tt></li>
+<li><tt class="docutils literal">_PyCodecInfo_GetIncrementalEncoder()</tt></li>
+<li><tt class="docutils literal">_PyCodec_DecodeText()</tt></li>
+<li><tt class="docutils literal">_PyCodec_EncodeText()</tt></li>
+<li><tt class="docutils literal">_PyCodec_Forget()</tt></li>
+<li><tt class="docutils literal">_PyCodec_Lookup()</tt></li>
+<li><tt class="docutils literal">_PyCodec_LookupTextEncoding()</tt></li>
+<li><tt class="docutils literal">_PyComplex_FormatAdvancedWriter()</tt></li>
+<li><tt class="docutils literal">_PyDeadline_Get()</tt></li>
+<li><tt class="docutils literal">_PyDeadline_Init()</tt></li>
+<li><tt class="docutils literal">_PyErr_CheckSignals()</tt></li>
+<li><tt class="docutils literal">_PyErr_FormatFromCause()</tt></li>
+<li><tt class="docutils literal">_PyErr_GetExcInfo()</tt></li>
+<li><tt class="docutils literal">_PyErr_GetHandledException()</tt></li>
+<li><tt class="docutils literal">_PyErr_GetTopmostException()</tt></li>
+<li><tt class="docutils literal">_PyErr_ProgramDecodedTextObject()</tt></li>
+<li><tt class="docutils literal">_PyErr_SetHandledException()</tt></li>
+<li><tt class="docutils literal">_PyException_AddNote()</tt></li>
+<li><tt class="docutils literal">_PyImport_AcquireLock()</tt></li>
+<li><tt class="docutils literal">_PyImport_FixupBuiltin()</tt></li>
+<li><tt class="docutils literal">_PyImport_FixupExtensionObject()</tt></li>
+<li><tt class="docutils literal">_PyImport_GetModuleAttr()</tt></li>
+<li><tt class="docutils literal">_PyImport_GetModuleAttrString()</tt></li>
+<li><tt class="docutils literal">_PyImport_GetModuleId()</tt></li>
+<li><tt class="docutils literal">_PyImport_IsInitialized()</tt></li>
+<li><tt class="docutils literal">_PyImport_ReleaseLock()</tt></li>
+<li><tt class="docutils literal">_PyImport_SetModule()</tt></li>
+<li><tt class="docutils literal">_PyImport_SetModuleString()</tt></li>
+<li><tt class="docutils literal">_PyInterpreterState_Get()</tt></li>
+<li><tt class="docutils literal">_PyInterpreterState_GetConfig()</tt></li>
+<li><tt class="docutils literal">_PyInterpreterState_GetConfigCopy()</tt></li>
+<li><tt class="docutils literal">_PyInterpreterState_GetMainModule()</tt></li>
+<li><tt class="docutils literal">_PyInterpreterState_HasFeature()</tt></li>
+<li><tt class="docutils literal">_PyInterpreterState_SetConfig()</tt></li>
+<li><tt class="docutils literal">_PyLong_AsTime_t()</tt></li>
+<li><tt class="docutils literal">_PyLong_FromTime_t()</tt></li>
+<li><tt class="docutils literal">_PyModule_CreateInitialized()</tt></li>
+<li><tt class="docutils literal">_PyOS_URandom()</tt></li>
+<li><tt class="docutils literal">_PyOS_URandomNonblock()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethod()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethodId()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethodIdNoArgs()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethodIdObjArgs()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethodIdOneArg()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethodNoArgs()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallMethodOneArg()</tt></li>
+<li><tt class="docutils literal">_PyObject_CallOneArg()</tt></li>
+<li><tt class="docutils literal">_PyObject_FastCallDict()</tt></li>
+<li><tt class="docutils literal">_PyObject_HasLen()</tt></li>
+<li><tt class="docutils literal">_PyObject_MakeTpCall()</tt></li>
+<li><tt class="docutils literal">_PyObject_RealIsInstance()</tt></li>
+<li><tt class="docutils literal">_PyObject_RealIsSubclass()</tt></li>
+<li><tt class="docutils literal">_PyObject_Vectorcall()</tt></li>
+<li><tt class="docutils literal">_PyObject_VectorcallMethod()</tt></li>
+<li><tt class="docutils literal">_PyObject_VectorcallMethodId()</tt></li>
+<li><tt class="docutils literal">_PySequence_BytesToCharpArray()</tt></li>
+<li><tt class="docutils literal">_PySequence_IterSearch()</tt></li>
+<li><tt class="docutils literal">_PyStack_AsDict()</tt></li>
+<li><tt class="docutils literal">_PyThreadState_GetDict()</tt></li>
+<li><tt class="docutils literal">_PyThreadState_Prealloc()</tt></li>
+<li><tt class="docutils literal">_PyThread_CurrentExceptions()</tt></li>
+<li><tt class="docutils literal">_PyThread_CurrentFrames()</tt></li>
+<li><tt class="docutils literal">_PyTime_Add()</tt></li>
+<li><tt class="docutils literal">_PyTime_As100Nanoseconds()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsMicroseconds()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsMilliseconds()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsNanoseconds()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsNanosecondsObject()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsSecondsDouble()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsTimespec()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsTimespec_clamp()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsTimeval()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsTimevalTime_t()</tt></li>
+<li><tt class="docutils literal">_PyTime_AsTimeval_clamp()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromMicrosecondsClamp()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromMillisecondsObject()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromNanoseconds()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromNanosecondsObject()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromSeconds()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromSecondsObject()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromTimespec()</tt></li>
+<li><tt class="docutils literal">_PyTime_FromTimeval()</tt></li>
+<li><tt class="docutils literal">_PyTime_GetMonotonicClock()</tt></li>
+<li><tt class="docutils literal">_PyTime_GetMonotonicClockWithInfo()</tt></li>
+<li><tt class="docutils literal">_PyTime_GetPerfCounter()</tt></li>
+<li><tt class="docutils literal">_PyTime_GetPerfCounterWithInfo()</tt></li>
+<li><tt class="docutils literal">_PyTime_GetSystemClock()</tt></li>
+<li><tt class="docutils literal">_PyTime_GetSystemClockWithInfo()</tt></li>
+<li><tt class="docutils literal">_PyTime_MulDiv()</tt></li>
+<li><tt class="docutils literal">_PyTime_ObjectToTime_t()</tt></li>
+<li><tt class="docutils literal">_PyTime_ObjectToTimespec()</tt></li>
+<li><tt class="docutils literal">_PyTime_ObjectToTimeval()</tt></li>
+<li><tt class="docutils literal">_PyTime_gmtime()</tt></li>
+<li><tt class="docutils literal">_PyTime_localtime()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_ClearTraces()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_GetMemory()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_GetObjectTraceback()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_GetTraceback()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_GetTracebackLimit()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_GetTracedMemory()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_GetTraces()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_Init()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_IsTracing()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_ResetPeak()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_Start()</tt></li>
+<li><tt class="docutils literal">_PyTraceMalloc_Stop()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeTranslateError_Create()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_Dealloc()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_Finish()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_Init()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_PrepareInternal()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_PrepareKindInternal()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteASCIIString()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteChar()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteLatin1String()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteStr()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteSubstring()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_AsASCIIString()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_AsLatin1String()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_AsUTF8String()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_CheckConsistency()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_Copy()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_DecodeRawUnicodeEscapeStateful()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_DecodeUnicodeEscapeInternal()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_DecodeUnicodeEscapeStateful()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EQ()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EncodeCharmap()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EncodeUTF16()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EncodeUTF32()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EncodeUTF7()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_Equal()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EqualToASCIIId()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_EqualToASCIIString()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FastCopyCharacters()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FastFill()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FindMaxChar ()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FormatAdvancedWriter()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FormatLong()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FromASCII()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_FromId()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_InsertThousandsGrouping()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_JoinArray()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_ScanIdentifier()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_TransformDecimalAndSpaceToASCII()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_WideCharString_Converter()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_WideCharString_Opt_Converter()</tt></li>
+<li><tt class="docutils literal">_PyUnicode_XStrip()</tt></li>
+<li><tt class="docutils literal">_PyVectorcall_Function()</tt></li>
+<li><tt class="docutils literal">_Py_AtExit()</tt></li>
+<li><tt class="docutils literal">_Py_CheckFunctionResult()</tt></li>
+<li><tt class="docutils literal">_Py_CoerceLegacyLocale()</tt></li>
+<li><tt class="docutils literal">_Py_FatalErrorFormat()</tt></li>
+<li><tt class="docutils literal">_Py_FdIsInteractive()</tt></li>
+<li><tt class="docutils literal">_Py_FreeCharPArray()</tt></li>
+<li><tt class="docutils literal">_Py_GetConfig()</tt></li>
+<li><tt class="docutils literal">_Py_IsCoreInitialized()</tt></li>
+<li><tt class="docutils literal">_Py_IsFinalizing()</tt></li>
+<li><tt class="docutils literal">_Py_IsInterpreterFinalizing()</tt></li>
+<li><tt class="docutils literal">_Py_LegacyLocaleDetected()</tt></li>
+<li><tt class="docutils literal">_Py_RestoreSignals()</tt></li>
+<li><tt class="docutils literal">_Py_SetLocaleFromEnv()</tt></li>
+<li><tt class="docutils literal">_Py_VaBuildStack()</tt></li>
+<li><tt class="docutils literal">_Py_add_one_to_index_C()</tt></li>
+<li><tt class="docutils literal">_Py_add_one_to_index_F()</tt></li>
+<li><tt class="docutils literal">_Py_c_abs()</tt></li>
+<li><tt class="docutils literal">_Py_c_diff()</tt></li>
+<li><tt class="docutils literal">_Py_c_neg()</tt></li>
+<li><tt class="docutils literal">_Py_c_pow()</tt></li>
+<li><tt class="docutils literal">_Py_c_prod()</tt></li>
+<li><tt class="docutils literal">_Py_c_quot()</tt></li>
+<li><tt class="docutils literal">_Py_c_sum()</tt></li>
+<li><tt class="docutils literal">_Py_gitidentifier()</tt></li>
+<li><tt class="docutils literal">_Py_gitversion()</tt></li>
+</ul>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (19)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
