@@ -12,8 +12,65 @@ In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. Here I describe a few of the most important contributions that I made
 to Python 3.12 and Python 3.13 in these months.
 
+Summary
+=======
+
+Python 3.13:
+
+* Add PyImport_AddModuleRef() and PyWeakref_GetRef()
+* PyList_SET_ITEM() and PyTuple_SET_ITEM() checks index bounds
+* Remove 19 stdlib modules
+* Remove locale.resetlocale() and logging.Logger.warn()
+* Remove 181 private C API functions
+
+Python 3.12:
+
+* Py_INCREF() and Py_DECREF() as opaque function call in limited C API
+* Document how to replace imp with importlib
+
+Define "Soft Deprecation" in PEP 387; getopt and optparse are soft deprecated.
+
+PEP 594
+=======
+
+In Python 3.13, I removed 19 modules deprecated in Python 3.11 by PEP 594:
+
+* aifc
+* audioop
+* cgi
+* cgitb
+* chunk
+* crypt
+* imghdr
+* mailcap
+* nis
+* nntplib
+* ossaudiodev
+* pipes
+* sndhdr
+* spwd
+* sunau
+* telnetlib
+* uu
+* xdrlib
+
+*Zachary Ware* removed the last deprecated module, msilib, so the PEP 594 is
+now fully implemented in Python 3.13!
+
+I announced the change: `PEP 594 has been implemented: Python 3.13 removes 20
+stdlib modules
+<https://discuss.python.org/t/pep-594-has-been-implemented-python-3-13-removes-20-stdlib-modules/27124>`_.
+
+Removing imghdr caused me some troubles with building the Python documentation.
+Sphinx uses imghdr, but recent Sphinx versions no longer use it. I updated
+the Sphinx version to workaround this issue.
+
+
 C API: Strong reference
 =======================
+
+**tl; dr I added PyImport_AddModuleRef() and PyWeakref_GetRef() to Python 3.13
+to return strong references, instead of borrowed references.**
 
 When I `analyzed issues of Python C API
 <https://pythoncapi.readthedocs.io/>`_., I quickly identified that the usage of
@@ -22,8 +79,8 @@ updated the `list of the 41 functions returning borrowed refererences
 <https://pythoncapi.readthedocs.io/bad_api.html#functions>`_. This issue is
 also tracked as `Returning borrowed references is fundamentally unsafe
 <https://github.com/capi-workgroup/problems/issues/21>`_ in the recently
-created `C API workgroup: problems
-<https://github.com/capi-workgroup/problems/>`_ project.
+created `Problems <https://github.com/capi-workgroup/problems/>`_ project of
+the new C API workgroup.
 
 In Python 3.10, I added ``Py_NewRef()`` and ``Py_XNewRef()`` functions which
 have a better semantics: they create a new strong reference to a Python object.
@@ -32,20 +89,15 @@ I also added the ``PyModule_AddObjectRef()`` function, variant of
 `borrowed reference
 <https://docs.python.org/dev/glossary.html#term-borrowed-reference>`_ and
 `strong reference
-<https://docs.python.org/dev/glossary.html#term-strong-reference>`_ to the
-glossary.
+<https://docs.python.org/dev/glossary.html#term-strong-reference>`_ terms to
+the glossary.
 
 In Python 3.13, I added two functions:
 
-* ``PyImport_AddModuleRef()``: variant of ``PyImport_AddModule()``
-* ``PyWeakref_GetRef()``: variant of ``PyWeakref_GetObject()``.
-  By the way, I deprecated ``PyWeakref_GetObject()`` and
-  ``PyWeakref_GET_OBJECT()`` functions.
-
-``PyWeakref_GetRef()`` has an interesting API: ``int PyWeakref_GetRef(PyObject
-*ref, PyObject **pobj)``. It returns ``-1`` on error, and only set ``*pobj`` on
-success. If the reference is dead, ``*pobj`` is set to ``NULL``, whereas
-``PyWeakref_GetObject()`` returns ``Py_None`` in this case.
+* **PyImport_AddModuleRef()**: variant of ``PyImport_AddModule()``
+* **PyWeakref_GetRef()**: variant of ``PyWeakref_GetObject()``.
+  I also deprecated ``PyWeakref_GetObject()`` and ``PyWeakref_GET_OBJECT()``
+  functions.
 
 I updated pythoncapi-compat to `provide these functions to Python 3.12 and
 older
@@ -54,25 +106,32 @@ older
 I also added ``Py_TYPE()`` to ``Doc/data/refcounts.dat``: file listing how C
 functions handle references, it's maintained manually.
 
-I also want to `add PyDict_GetItemRef()
-<https://github.com/python/cpython/pull/106005>`_, but there is more friction
-around this API.
+Now I'm working on adding **PyDict_GetItemRef()** but the API and the function
+name are causing more frictions: see the `pull request
+<https://github.com/python/cpython/pull/106005>`__. Recently,
+PyDict_GetItemRef() API was raised to the Steering Council:
+`decision: Should we add non-borrowed-ref public C APIs, if so, is there a
+naming convention?  <https://github.com/python/steering-council/issues/201>`_
 
 C API: PyList_SET_ITEM()
 ========================
 
-In Python 3.9, ``Include/cpython/listobject.h`` was created: API excluded from
-the limited C API. ``PyList_SET_ITEM()`` was implemented as::
+**tl;dr In Python 3.13, PyList_SET_ITEM() and PyTuple_SET_ITEM() now checks
+index bounds.**
+
+In Python 3.9, ``Include/cpython/listobject.h`` was created for the PyList API
+excluded from the limited C API. ``PyList_SET_ITEM()`` was implemented as::
 
     #define PyList_SET_ITEM(op, i, v) (_PyList_CAST(op)->ob_item[i] = (v))
 
 In Python 3.10, the `return value was removed to fix as bug
-<https://github.com/python/cpython/issues/74644>`_::
+<https://github.com/python/cpython/issues/74644>`_ by adding ``(void)`` cast::
 
     #define PyList_SET_ITEM(op, i, v) ((void)(_PyList_CAST(op)->ob_item[i] = (v)))
 
-In Python 3.11, PEP 670 was accepted and I converted the macro to a static
-inline function::
+In Python 3.11, `PEP 670: Convert macros to functions in the Python C API
+<https://peps.python.org/pep-0670/>`_ was accepted and I converted the macro to
+a static inline function::
 
     static inline void
     PyList_SET_ITEM(PyObject *op, Py_ssize_t index, PyObject *value) {
@@ -80,13 +139,16 @@ inline function::
         list->ob_item[index] = value;
     }
 
-I tried to add an assertion to check bounds of the index, but I got assertion
-failures when running the Python test suite. Recently, I tried again and I
-updated the PyStructSequence API to check the bounds differently. The tricky
-part is that getting the number of fields of a PyStructSequence requires to get
-an item of dictionary, and ``PyDict_GetItemWithError()`` can raise an
-exception. Moreover, ``PyStructSequence_SET_ITEM()`` was still implemented as
-a macro in Python 3.12::
+I tried to add an assertion in ``PyTuple_SET_ITEM()`` to check index bounds ,
+but I got assertion failures when running the Python test suite related to
+PyStructSequence which inherits from PyTuple.
+
+Recently, I tried again. I updated the PyStructSequence API to check the index
+bounds differently. The tricky part is that getting the number of fields of a
+PyStructSequence requires to get an item of dictionary, and
+``PyDict_GetItemWithError()`` can raise an exception. Moreover,
+``PyStructSequence_SET_ITEM()`` was still implemented as a macro in Python
+3.12::
 
     #define PyStructSequence_SET_ITEM(op, i, v) PyTuple_SET_ITEM((op), (i), (v))
 
@@ -114,16 +176,15 @@ New implementation::
     }
 
 The ``REAL_SIZE()`` macro is only available in ``Objects/structseq.c``.
-Exposing it in the public C API would be a bad idea since it can fail.  So I
-just converted PyStructSequence_SET_ITEM() macro to an alias to
-PyStructSequence_SetItem()::
+Exposing it in the public C API would be a bad idea.  So I just converted
+PyStructSequence_SET_ITEM() macro to an alias to PyStructSequence_SetItem()::
 
     #define PyStructSequence_SET_ITEM PyStructSequence_SetItem
 
 This way, PyStructSequence_SET_ITEM() and PyStructSequence_SetItem() are
 implemented as opaque function calls.
 
-So it became possible to check bounds in PyList_SET_ITEM()::
+So it became possible to check index bounds in PyList_SET_ITEM()::
 
     static inline void
     PyList_SET_ITEM(PyObject *op, Py_ssize_t index, PyObject *value) {
@@ -146,24 +207,30 @@ debug mode or if Python is built with assertions.
 C API: Python 3.12 Py_INCREF()
 ==============================
 
-`PEP 683 – Immortal Objects, Using a Fixed Refcount
-<https://peps.python.org/pep-0683/>`_ was accepted and implemented in Python
-3.12. It made Py_INCREF() and Py_DECREF() static inline functions even more
-complicated than before. The implementation required to expose private
-``_Py_IncRefTotal_DO_NOT_USE_THIS()`` and ``_Py_DecRefTotal_DO_NOT_USE_THIS()``
-functions in the stable ABI, whereas the function names say "DO NOT USE THIS".
+**tl; dr I changed Py_INCREF() and Py_DECREF() implementation as opaque
+function calls in any version of the limited C API if Python is built in debug
+mode.**
+
+In Python 3.12, `PEP 683 – Immortal Objects, Using a Fixed Refcount
+<https://peps.python.org/pep-0683/>`_ was implemented. It made Py_INCREF() and
+Py_DECREF() static inline functions even more complicated than before. The
+implementation required to expose private ``_Py_IncRefTotal_DO_NOT_USE_THIS()``
+and ``_Py_DecRefTotal_DO_NOT_USE_THIS()`` functions in the stable ABI, whereas
+the function names say "DO NOT USE THIS", for debug builds of Python.
 
 In Python 3.10, I modified Py_INCREF() and Py_DECREF() to implement them as
 opaque function calls in the limited C API version 3.10 or newer if Python is
 built in debug mode (if ``Py_REF_DEBUG`` macro is defined). Thanks to this
-change, the limited C API is now supported if Python is built in debug mode.
+change, the limited C API is supported if Python is built in debug mode since
+Python 3.10.
 
-In Python 3.12, I modified Py_INCREF() and Py_DECREF() to implement them as
-opaque function calls in any limited C API version, not only in the limited C
-API version 3.10 and newer. This way, implementation details are now hidden and
-no longer leaked in the stable ABI. I removed ``_Py_NegativeRefcount()`` in the
-limited C API and I removed ``_Py_IncRefTotal_DO_NOT_USE_THIS()`` and
-``_Py_DecRefTotal_DO_NOT_USE_THIS()`` in the stable ABI.
+In Python 3.12, I **modified Py_INCREF() and Py_DECREF() to implement them as
+opaque function calls in all limited C API version**, not only in the limited C
+API version 3.10 and newer, if Python is built in debug mode. This way,
+implementation details are now hidden and no longer leaked in the stable ABI. I
+removed ``_Py_NegativeRefcount()`` in the limited C API and I removed
+``_Py_IncRefTotal_DO_NOT_USE_THIS()`` and ``_Py_DecRefTotal_DO_NOT_USE_THIS()``
+in the stable ABI.
 
 Later, I discovered that my fix broke backward compatibility with Python 3.9.
 My implementation used ``_Py_IncRef()`` and ``_Py_DecRef()`` that I added to
@@ -174,21 +241,45 @@ Python 2.4.
 C API: Py_INCREF() opaque function call
 =======================================
 
+**tl; dr I changed Py_INCREF() and Py_DECREF() implementation as opaque
+function calls in the limited C API version 3.12.** (also in the regular
+release build, not only in the debug build)
+
+
 In Python 3.8, I converted Py_INCREF() and Py_DECREF() macros to static inline
 functions. I already wanted to convert them as opaque function calls, but it
 can have an important cost on performance and so I left them as static inline
 functions.
 
 As a follow-up of my Python 3.12 Py_INCREF() fix for the debug build, I
-modified Py_INCREF() and Py_DECREF() to always implemented them as **opaque
-function calls in the limited C API version 3.12** and newer.
+modified Py_INCREF() and Py_DECREF() in Python 3.12 to always implemented them
+as **opaque function calls in the limited C API version 3.12** and newer.
 
 * Discussion: `Limited C API: implement Py_INCREF() and Py_DECREF() as function calls
   <https://discuss.python.org/t/limited-c-api-implement-py-incref-and-py-decref-as-function-calls/27592>`_
-* `Pull request <https://github.com/python/cpython/pull/105388>`_
+* `Pull request <https://github.com/python/cpython/pull/105388>`__
 
 For me, it's a **major enhancement** to make the stable ABI more **future
 proof** by leaking less implementation details.
+
+`Code <https://github.com/python/cpython/blob/da98ed0aa040791ef08b24befab697038c8c9fd5/Include/object.h#L613-L622>`__::
+
+    static inline Py_ALWAYS_INLINE void Py_INCREF(PyObject *op)
+    {
+    #if defined(Py_LIMITED_API) && (Py_LIMITED_API+0 >= 0x030c0000 || defined(Py_REF_DEBUG))
+        // Stable ABI implements Py_INCREF() as a function call on limited C API
+        // version 3.12 and newer, and on Python built in debug mode. _Py_IncRef()
+        // was added to Python 3.10.0a7, use Py_IncRef() on older Python versions.
+        // Py_IncRef() accepts NULL whereas _Py_IncRef() doesn't.
+    #  if Py_LIMITED_API+0 >= 0x030a00A7
+        _Py_IncRef(op);
+    #  else
+        Py_IncRef(op);
+    #  endif
+    #else
+       ...
+    #endif
+    }
 
 
 Tests
@@ -198,10 +289,9 @@ The Python test runner *regrtest* has specific constraints because tests
 are run in subprocesses, on different platforms, with custom encodings
 and options. Over the last year, an annoying regrtest came and go: if
 a subprocess standard output (stdout) cannot be decoded, the test is treated
-as a success!
-
-I fixed the bug and I made the code more reliable by marking this bug class as
-"test failed".
+as a success! I fixed `the bug
+<https://github.com/python/cpython/issues/101634>`_ and I made the code more
+reliable by marking this bug class as "test failed".
 
 I fixed test_counter_optimizer() of test_capi when run twice: create a new
 function at each call, so each run starts in a known state. Previously, the
@@ -222,33 +312,35 @@ import spawns threads, wait until they complete.
 C API: Deprecate
 ================
 
-* gh-105373: Doc lists pending C API removals (#106537)
+I listed `pending C API removals
+<https://docs.python.org/dev/whatsnew/3.13.html#pending-removal-in-python-3-14>`_
+in the What's New in Python 3.13 document.
 
-* Deprecate the old Py_UNICODE and PY_UNICODE_TYPE types in the C API: use
-  wchar_t instead. I modified Python code base to avoid this type as well: use
-  "wchar_t" instead.
+I deprecated multiple APIs:
 
-* Deprecate old Python initialization functions:
+* Py_UNICODE and PY_UNICODE_TYPE
+* PyImport_ImportModuleNoBlock()
+* Py_HasFileSystemDefaultEncoding
 
-  * PySys_ResetWarnOptions()
-  * Py_GetExecPrefix()
-  * Py_GetPath()
-  * Py_GetPrefix()
-  * Py_GetProgramFullPath()
-  * Py_GetProgramName()
-  * Py_GetPythonHome()
+I deprecated legacy Python initialization functions:
 
-* Deprecate PyImport_ImportModuleNoBlock() function.
+* PySys_ResetWarnOptions()
+* Py_GetExecPrefix()
+* Py_GetPath()
+* Py_GetPrefix()
+* Py_GetProgramFullPath()
+* Py_GetProgramName()
+* Py_GetPythonHome()
 
-* Deprecate Py_HasFileSystemDefaultEncoding.
-
-The PyArg_Parse() function is no longer deprecated. In 2007, the deprecation
-was added as a comment to the documentation, but the function remains relevant
-in Python 3.13 for some specific use cases.
+I removed the PyArg_Parse() deprecation. In 2007, the deprecation was added as
+a comment to the documentation, but the function remains relevant in Python
+3.13 for some specific use cases.
 
 
 Soft Deprecation
 ================
+
+**tl; dr The getopt module is now soft deprecated.**
 
 I updated `PEP 387: Backwards Compatibility Policy
 <https://peps.python.org/pep-0387/>`_ to add `Soft Deprecation <https://peps.python.org/pep-0387/#soft-deprecation>`_:
@@ -262,9 +354,9 @@ I updated `PEP 387: Backwards Compatibility Policy
     that the soft deprecation does not imply scheduling the removal of the
     deprecated API.
 
-I converted optparse deprecation to a soft deprecation.
+I converted **optparse** deprecation to a **soft deprecation**.
 
-I soft deprecated the getopt module: it remains available and maintained,
+I soft deprecated the **getopt** module: it remains available and maintained,
 but argparse should be preferred for new projects.
 
 
@@ -273,10 +365,10 @@ Deprecate
 
 I deprecated the ``getmark()``, ``setmark()`` and ``getmarkers()`` methods of
 the Wave_read and Wave_write classes. These methods only existed for
-compatibility with the aifc module, but they did nothing and the aifc module
-was removed in Python 3.13.
+compatibility with the aifc module, but they did nothing or always failed, and
+the aifc module was removed in Python 3.13.
 
-I also deprecated ``SetPointerType()`` and ``ARRAY()`` functins of ctypes.
+I also deprecated ``SetPointerType()`` and ``ARRAY()`` functions of ctypes.
 
 
 C API: Remove
@@ -318,8 +410,80 @@ C API: Remove
   * _PyObject_VectorcallMethod()
   * _PyVectorcall_Function()
 
-In `issue #106320 <https://github.com/python/cpython/issues/106320>`_, I removed
-181 private C API functions:
+Remove
+======
+
+I removed **locale.resetlocale()** function, but I failed to remove
+locale.getdefaultlocale() in Python 3.13: INADA-san asked me to keep it.
+
+I removed the untested and not documented **logging.Logger.warn()** method.
+
+Oh, I forgot to remove **cafile**, **capath** and **cadefault** parameters of
+the **urllib.request.urlopen()** function: it's now also done in Python 3.13. I
+removed similar parameters in many other modules in Python 3.12.
+
+
+Cleanup
+=======
+
+As usual, I removed a bunch of unused imports (in the stdlib, tests and tools).
+
+I reimplemented xmlrpc.client ``_iso8601_format()`` function with
+``datetime.datetime.isoformat()``. The timezone is ignored on purpose: the
+XML-RPC specification doesn't explain how to handle it, many implementations
+ignore it.
+
+Port imp code to importlib
+==========================
+
+The importlib module was added to Python 3.1 and it became the default
+in Python 3.3. The imp module was deprecated in Python 3.4 but was only removed
+in Python 3.12. Replacing imp code with importlib is not trivial: importlib
+has a different design and API.
+
+I wrote documentation on how to port imp code to importlib in `What's New in
+Python 3.12 <https://docs.python.org/dev/whatsnew/3.12.html#removed>`_.
+
+I proposed `adding importlib.util.load_source_path() function
+<https://github.com/python/cpython/pull/105755>`_, but I understood that the
+devil is in details: it's hard to decide how to handle the ``sys.modules``
+cache. I gave up and instead added a recipe in the What's New in Python 3.12
+documentation::
+
+    import importlib.util
+    import importlib.machinery
+
+    def load_source(modname, filename):
+        loader = importlib.machinery.SourceFileLoader(modname, filename)
+        spec = importlib.util.spec_from_file_location(modname, filename, loader=loader)
+        module = importlib.util.module_from_spec(spec)
+        # The module is always executed and not cached in sys.modules.
+        # Uncomment the following line to cache the module.
+        # sys.modules[module.__name__] = module
+        loader.exec_module(module)
+        return module
+
+There are many projects affected by the imp removal and porting them is not
+easy. See `How do I migrate from imp?
+<https://discuss.python.org/t/how-do-i-migrate-from-imp/27885>`_ discussion.
+
+
+C API: Remove private functions
+===============================
+
+Last but not least, in `issue #106320
+<https://github.com/python/cpython/issues/106320>`_, I **removed** not less
+than **181 private C API functions**.
+
+As a reaction to my changes, a discussion was started to propose `treating
+private functions as public functions
+<https://discuss.python.org/t/pssst-lets-treat-all-api-in-public-headers-as-public/28916>`_.
+
+I'm now working on identifying projects affected by these removals and on
+proposing solutions for the most commonly used removed functions like the
+``_PyObject_Vectorcall()`` alias.
+
+The list of the 181 removed private C API functions:
 
 * ``_PyArg_NoKwnames()``
 * ``_PyBytesWriter_Alloc()``
@@ -502,105 +666,3 @@ In `issue #106320 <https://github.com/python/cpython/issues/106320>`_, I removed
 * ``_Py_c_sum()``
 * ``_Py_gitidentifier()``
 * ``_Py_gitversion()``
-
-A discussion was started to propose `treating private functions as public
-functions
-<https://discuss.python.org/t/pssst-lets-treat-all-api-in-public-headers-as-public/28916>`_.
-
-I'm now working on identifying projects affected by these removals and on
-proposing solutions for the most commonly used removed functions like the
-``_PyObject_Vectorcall()`` alias.
-
-
-PEP 594
-=======
-
-I removed 19 modules deprecated in Python 3.11 by PEP 594:
-
-* aifc
-* audioop
-* cgi
-* cgitb
-* chunk
-* crypt
-* imghdr
-* mailcap
-* nis
-* nntplib
-* ossaudiodev
-* pipes
-* sndhdr
-* spwd
-* sunau
-* telnetlib
-* uu
-* xdrlib
-
-Zachary Ware removed msilib, so the PEP 594 was fully implemented in Python
-3.13.
-
-I announced the change: `PEP 594 has been implemented: Python 3.13 removes 20
-stdlib modules
-<https://discuss.python.org/t/pep-594-has-been-implemented-python-3-13-removes-20-stdlib-modules/27124>`_.
-
-Removing imghdr caused me some troubles with building the Python documentation.
-Sphinx uses imghdr, but recent Sphinx versions no longer use it. I updated
-the Sphinx version to workaround this issue.
-
-
-Remove
-======
-
-I removed locale.resetlocale() function, but I failed to remove
-locale.getdefaultlocale() in Python 3.13: INADA-san asked me to keep it.
-
-I removed the untested and not documented logging.Logger.warn() method.
-
-Oh, I forgot to remove cafile, capath and cadefault parameters of the
-urllib.request.urlopen() function: it's now also done in Python 3.13. I removed
-similar parameters in many other modules in Python 3.12.
-
-
-Cleanup
-=======
-
-As usual, I removed a bunch of unused imports (in the stdlib, tests and tools).
-
-I reimplemented xmlrpc.client ``_iso8601_format()`` function with
-``datetime.datetime.isoformat()``. The function ignores the timezone on
-purpose: the XML-RPC specification doesn't explain how to handle it, many
-implementations ignore it.
-
-Port imp code to importlib
-==========================
-
-The importlib module was added to Python 3.1 and it became the default
-in Python 3.3. The imp module was deprecated in Python 3.4 but was only removed
-in Python 3.12. Replacing imp code with importlib is not trivial: importlib
-has a different design and API.
-
-I wrote documentation on how to port imp code to importlib in `What's New in
-Python 3.12 <https://docs.python.org/dev/whatsnew/3.12.html#removed>`_.
-
-I proposed `adding importlib.util.load_source_path() function
-<https://github.com/python/cpython/pull/105755>`_, but I understood that the
-devil is in details: it's hard to decide how to handle the ``sys.modules``
-cache. I gave up and instead proposed a recipe in the What's New in Python 3.12
-documentation::
-
-    import importlib.util
-    import importlib.machinery
-
-    def load_source(modname, filename):
-        loader = importlib.machinery.SourceFileLoader(modname, filename)
-        spec = importlib.util.spec_from_file_location(modname, filename, loader=loader)
-        module = importlib.util.module_from_spec(spec)
-        # The module is always executed and not cached in sys.modules.
-        # Uncomment the following line to cache the module.
-        # sys.modules[module.__name__] = module
-        loader.exec_module(module)
-        return module
-
-There are many projects affected by the imp removal and porting them is not
-easy. See `How do I migrate from imp?
-<https://discuss.python.org/t/how-do-i-migrate-from-imp/27885>`_ discussion.
