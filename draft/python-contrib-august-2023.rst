@@ -7,7 +7,27 @@ My contributions to Python: August 2023
 PyDict_GetItemRef
 =================
 
-API added XXX, no complain, start to use it.
+API added at July 21 by `PR #106005
+<https://github.com/python/cpython/pull/106005>`_ (`commit
+<https://github.com/python/cpython/commit/41ca16455188db806bfc7037058e8ecff2755e6c>`__).
+Documentation: `PyDict_GetItemRef()
+<https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemRef>`_.
+
+The change was controversial for different reasons:
+
+* My first version returned 0 if the key was present or missing. Mark Shannon
+  asked to distinguish the two cases. A `guideline is being discussion in the
+  devguide <https://github.com/python/devguide/issues/1121>`_.
+* Argument type: ``PyObject *dict`` or ``PyDictObject *dict``? Erlend E.
+  Aasland open a `discussion about it
+  <https://github.com/python/devguide/issues/1127>`_. I chose ``PyObject*``
+  type for consistency with existing PyDict APIs.
+* Obviously, the function name was an important question. I created
+  `Naming convention for new C API functions
+  <https://github.com/capi-workgroup/problems/issues/52>`_ but no clear
+  guideline was decided yet.
+
+Changes:
 
 * f5559f38d9 gh-108308: Replace PyDict_GetItem() with PyDict_GetItemRef() (#108309)
 * ec3527d196 gh-108308: config_dict_get() uses PyDict_GetItemRef() (#108371)
@@ -18,7 +38,11 @@ API added XXX, no complain, start to use it.
 C API removal
 =============
 
-Plan published at XXX: XXX
+`Main issue <https://github.com/python/cpython/issues/106320>`_
+
+`C API: My plan to clarify private vs public functions in Python 3.13
+<https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131>`_
+(July 23).
 
 * 615f6e946d gh-106320: Remove _PyDict_GetItemStringWithError() function (#108313)
 * c55e73112c gh-106320: Remove private PyLong C API functions (#108429)
