@@ -102,3 +102,11 @@ div.collapseheader {
 	cursor: pointer;
 	font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
 }
+
+/* Victor's edits */
+body{ font-size: 18px; }
+img { margin: 1em; }
+li { margin-top: 1ex; margin-bottom: 1ex; }
+blockquote { margin-top: 2ex; margin-bottom: 3ex; }
+h2 { margin-top: 3ex; margin-bottom: 1ex; }
+p { margin-bottom: 1ex; }
