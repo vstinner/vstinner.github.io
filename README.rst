@@ -23,7 +23,6 @@ Publish
 
 Command to publish the HTML output::
 
-    (cd pelican-themes/; git fetch && git merge --ff)
     make github
 
 
