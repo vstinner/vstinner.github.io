@@ -1,6 +1,6 @@
-+++++++++++++++++++
-PyDict_GetItemRef()
-+++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++
+Design the API of a new PyDict_GetItemRef() function
+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2023-11-16 20:00
 :tags: c-api, cpython
@@ -9,7 +9,9 @@ PyDict_GetItemRef()
 :authors: Victor Stinner
 
 Last June, I proposed adding a new ``PyDict_GetItemRef()`` function to Python
-3.13 C API. Every aspect of the API design was discussed in length.
+3.13 C API. Every aspect of the API design was discussed in length. I will
+explain how the API was designed, to finish with the future creation of C API
+Working Group.
 
 .. image:: {static}/images/amour_psychee.jpg
    :alt: Psyche Revived by Cupid's Kiss
@@ -50,9 +52,9 @@ similar to ``PyWeakref_GetObject()``, but returns a strong reference instead of
 a borrowed reference.
 
 Since I listed `Bad C API
-<https://pythoncapi.readthedocs.io/bad_api.html#borrowed-references>`_ in 2018,
-I am now fighting against borrowed references since they cause multiple issues
-such as:
+<https://pythoncapi.readthedocs.io/bad_api.html#borrowed-references>`_ in my
+"Design a new better C API for Python" project in 2018, I am now fighting
+against borrowed references since they cause multiple issues such as:
 
 * Subtle crashes in C extensions.
 * Make the C API implementation in PyPy more complicated: see
@@ -74,19 +76,20 @@ Since it went well (quick discussion, no major disagreement) to add
 ``PyImport_AddModuleRef()`` and ``PyWeakref_GetRef()`` functions, I felt lucky and
 proposed `adding a new PyDict_GetItemRef() function
 <https://github.com/python/cpython/issues/106004>`_. It should be easy as well,
-right? The discussion started and the issue and continued in the associated
+right? The discussion started in the issue and continued in the associated
 `pull request <https://github.com/python/cpython/pull/106005>`_.
 
-The idea to replace the ``PyDict_GetItem()`` function which returns a borrowed reference
-and ignore all errors: ``hash(key)`` error, ``key == key2`` comparison error,
-``KeyboardInterrupt``, etc.
+The idea of ``PyDict_GetItemRef()`` is to replace the ``PyDict_GetItem()``
+function which returns a borrowed reference and ignore all errors:
+``hash(key)`` error, ``key == key2`` comparison error, ``KeyboardInterrupt``,
+etc.
 
-There is also the ``PyDict_GetItemWithError()`` function which reports errors.
-But this API has a different API: when it returns ``NULL``, the caller must
-check ``PyErr_Occurred()`` to know if an exception is set, or if the key is
-missing. This problem was the `very first issue
-<https://github.com/capi-workgroup/problems/issues/1>`_ created in the Problems
-project of the C API Working Group.
+There is already the ``PyDict_GetItemWithError()`` function which reports
+errors.  But it returns a borrowed reference and its API has an issue: when it
+returns ``NULL``, the caller must check ``PyErr_Occurred()`` to know if an
+exception is set, or if the key is missing. This problem was the `very first
+issue <https://github.com/capi-workgroup/problems/issues/1>`_ created in the
+Problems project of the C API Working Group.
 
 This Problems project is a collaborative work to collect C API issues. By the
 way, the `PEP 733 – An Evaluation of Python’s Public C API
@@ -99,10 +102,10 @@ PyDict_GetItemRef(): API version 1
 
 I proposed the API::
 
-    int PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **pvalue);
-    int PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **pvalue);
+    int PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **pvalue)
+    int PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **pvalue)
 
-Return 0 on success, or -1 on error.
+Return ``0`` on success, or ``-1`` on error. Simple, right?
 
 **Gregory Smith** was supportive:
 
@@ -125,32 +128,27 @@ API version 2: Change the Return Value
 **Mark Shannon** asked:
 
     What's the rationale for not distinguishing between found and not found in
-    the return value? See `Document the preferred style for API functions with
+    the return value? See: `Document the preferred style for API functions with
     three, four or five-way returns
     <https://github.com/python/devguide/issues/1121>`_.
 
-I modified the API to return 1 if the key is present. API version 2::
-
-    PyObject *value;
-    int res = PyDict_GetItemRef(dict, key, &value);
-    if (res < 0) ... error ...
-    else if (res == 0) ... missing key ...
-    else ... present key
+I modified the API to return ``1`` if the key is present and return ``0`` if
+the key is missing.
 
 By the way, **Erlend Aasland** added `C API guidelines
 <https://devguide.python.org/developer-workflow/c-api/index.html#guidelines-for-expanding-changing-the-public-api>`_
-in the Python Developer Guide (devguide) about function return value.
+in the Python Developer Guide (devguide) about function return values.
 
 
-Naming
-======
+Function Name
+=============
 
 **Serhiy Storchaka** had concerns about the name:
 
     The only problem is that functions with so similar names have completely
     different interface. It is pretty confusing. Would not be better to name it
-    ``PyDict_LookupItem`` or like? It may be worth to add also ``PyMapping_LookupItem``
-    for convenience.
+    ``PyDict_LookupItem`` or like? It may be worth to add also
+    ``PyMapping_LookupItem`` for convenience.
 
 **Mark Shannon** added:
 
@@ -162,24 +160,6 @@ Naming
     Obviously, the ideal name [``PyDict_GetItem()``] is already taken. Anyone
     have any suggestions for a better name?
 
-I created `Naming convention for new C API functions
-<https://github.com/capi-workgroup/problems/issues/52>`_ to discuss the ``Ref``
-suffix for new functions returning a strong refererence.
-
-PEP 703 proposes ``PyDict_FetchItem()`` name.
-
-
-First Argument Type
-===================
-
-**Mark Shannon** had concerned about the type of the first argument:
-
-    Using ``PyObject*`` is needlessly throwing away type information.
-
-**Erlend Aasland** added:
-
-    Why not strongly typed, since it is a ``PyDict_`` API?
-
 **Sam Gross** wrote:
 
     In the context of PEP 703, I think it would be better to have variations
@@ -190,9 +170,27 @@ First Argument Type
     ``PyDict_FetchItem`` for ``PyDict_GetItem`` and
     ``PyDict_FetchItemWIthError`` for ``PyDict_GetItemWithError``.
 
+I created `Naming convention for new C API functions
+<https://github.com/capi-workgroup/problems/issues/52>`_ to discuss the ``Ref``
+suffix for new functions returning a strong refererence.
 
-Pull Request Approvals and Naming Strikes Back
-==============================================
+PEP 703 proposes ``PyDict_FetchItem()`` name.
+
+
+First Argument Type
+===================
+
+**Mark Shannon** had concerns about the first argument type:
+
+    Using ``PyObject*`` is needlessly throwing away type information.
+
+**Erlend Aasland** added:
+
+    Why not strongly typed, since it is a ``PyDict_`` API?
+
+
+Pull Request Approvals And The Function Name Strikes Back
+=========================================================
 
 **Erlend** and **Gregory** approved my pull request.
 
@@ -201,13 +199,13 @@ Pull Request Approvals and Naming Strikes Back
     I'm approving this. A new naming scheme makes sense for a new API; I'm not
     sure it makes sense to try and enforce a new scheme in the current API. For
     now, there is already precedence of the ``Ref`` suffix in the current API;
-    I'm ok with that. Also, the current API uses ``PyObject *`` all over the
+    I'm ok with that. Also, the current API uses ``PyObject*`` all over the
     place. If we are to change this, we practically will end up with a
     completely new API; AFAICS, there is no problem with sticking to the
     current practice.
 
 Then the discussion about the function name came back. So **Gregory** asked the
-Steering Council: `decision: Should we add non-borrowed-ref public C APIs, if
+Steering Council: `Should we add non-borrowed-ref public C APIs, if
 so, is there a naming convention?
 <https://github.com/python/steering-council/issues/201>`_. He asked two
 questions:
@@ -237,20 +235,18 @@ When I asked again **Mark** his opinion on the API, he wrote:
     I'm opposed because making ad-hoc changes like this is going to make the
     C-API worse, not better.
 
-I ended by changing my pull request to propose an API version 3::
+I made the change asked by **Mark**, change the first parameter type from
+``PyObject*`` to ``PyDictObject*``. API version 3::
 
     int PyDict_GetItemRef(PyDictObject *op, PyObject *key, PyObject **pvalue)
 
-Change the first parameter type from ``PyObject*`` to ``PyDictObject*``, as
-asked by **Mark**.
 
-
-Disagreement on using PyDictObject type
-=======================================
+Disagreement On The PyDictObject Type
+=====================================
 
 **Serhiy** was against the change:
 
-    I am dislike using concrete struct types instead of ``PyObject*`` in API,
+    I dislike using concrete struct types instead of ``PyObject*`` in API,
     especially in public API. Isn't there a rule forbidding this?
 
 In May, **Mark** created `The C API is weakly typed
@@ -280,15 +276,15 @@ There are two questions:
 
 **Gregory** added:
 
-    Our C API only accepts plain ``PyObject *`` as input to all our public
+    Our C API only accepts plain ``PyObject*`` as input to all our public
     APIs. Otherwise user code will be littered with typecasts all over the
     place.
 
-**Gregory** also removed his approval.
+**Gregory** removed his approval.
 
 
-Revert to API version 2 with PyObject type
-==========================================
+Revert: Back To PyObject Type (API Version 2)
+=============================================
 
 Since **Serhiy** and **Gregory** were against the change, I reverted it to move
 back to the ``PyObject*`` type. **Serhiy** and **Erlend** confirmed their
@@ -298,7 +294,7 @@ I created the issue `Design a brand new C API with new PyCAPI_ prefix where all
 functions respect new guidelines
 <https://github.com/capi-workgroup/problems/issues/55>`_ in the Problems
 project to discuss the creation of a branch new API. I suggested **Mark** to
-only consider changing "weakly type" ``PyObject*`` type to strongly typed
+only consider changing weakly type ``PyObject*`` type to strongly typed
 ``PyDictObject*`` in such new API.
 
 
@@ -312,14 +308,18 @@ More changes? API version 4
     convention of how to turn a get operation into a membership test. (And the
     Lookup name would fit that better.)
 
-**Mark Shannon**:
+I didn't take **Petr**'s suggestion since **Serhiy** pointed out that there is
+already the ``PyDict_Contains()`` function to test is a dictionary contains a
+key.
 
-    If this function is to take ``PyObject *``, as **Erlend** seems to insist,
+**Mark Shannon** wrote:
+
+    If this function is to take ``PyObject*``, as **Erlend** seems to insist,
     then it shouldn't raise a ``SystemError`` when passed something other than
     a dict. It should raise a ``TypeError``.
 
 I modified the API (version 4) to raise ``SystemError`` if the first argument
-is not a dictionary instead of ``TypeError``.
+is not a dictionary, instead raising ``TypeError``.
 
 
 Merge The Change
@@ -333,6 +333,20 @@ with `a summary of the discussion
 
 I also `added the function to pythoncapi-compat project
 <https://github.com/python/pythoncapi-compat/commit/eaff3c172f94ed32ac38860c38d7a8fa27483e57>`_.
+
+Final API::
+
+    int PyDict_GetItemRef(PyObject *p, PyObject *key, PyObject **result)
+    int PyDict_GetItemStringRef(PyObject *p, const char *key, PyObject **result)
+
+Documentation:
+
+* `PyDict_GetItemRef <https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemRef>`_
+* `PyDict_GetItemStringRef <https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemStringRef>`_
+
+Using the `pythoncapi-compat project
+<https://pythoncapi-compat.readthedocs.io/>`_, you can use this new API right
+now on all Python versions!
 
 
 How To Take Decisions?
@@ -352,15 +366,17 @@ The discussion was heated. **Erlend** decided to take a break:
     this PR for now
 
 While the change was approved by 3 core developers, there was not strictly a
-consensus since **Mark** did not formally approve the change. Multiple persons
-asked to first define some general guidelines for new APIs **before** making
-further C API changes.
+consensus since **Mark** did not formally approve the change. Some people asked
+to wait until some general guidelines for new APIs are decided, **before**
+making further C API changes.
 
-**Gregory** opened an Steering Council issue at July 2. I asked for an update
+**Gregory** opened a Steering Council issue at July 2. I asked for an update
 at July 17. Three meetings later, they didn't have the opportunity to visit the
-question. They were busy on discussing the heavy `PEP 703 – Making the Global
-Interpreter Lock Optional in CPython <https://peps.python.org/pep-0703/>`__. At July 25,
-**Gregory** replied in the name of the Steering Council:
+question. They were busy discussing the heavy `PEP 703 – Making the Global
+Interpreter Lock Optional in CPython <https://peps.python.org/pep-0703/>`__. I
+merged my changed before the Steering Council spoke up. I proposed to revert
+the change if needed. At July 25, **Gregory** replied in the name of the
+Steering Council:
 
     The steering council chatted about non-borrowed-ref and naming conventions
     today. We want to **delegate** this to the **C API working group** to come
@@ -372,23 +388,32 @@ Interpreter Lock Optional in CPython <https://peps.python.org/pep-0703/>`__. At 
 The problem was that the C API Working Group was just a GitHub organization, it
 was not an organized group with designated members.
 
-`Stay tuned for the creation a formal C API Working Group
+
+C API Working Group
+===================
+
+From October 9 to 14, there was a Core Dev Sprint at Brno (Czech Republic). I
+gave a talk about the C API status and my C API agenda: `slides of my C API
+talk
+<https://github.com/vstinner/talks/blob/main/2023-CoreDevSprint-Brno/c-api.pdf>`_.
+At the end, I called to create a formal C API Working Group to unblock the
+situation.
+
+During the sprint, after my talk, **Guido van Rossum** wrote `PEP 731 – C API
+Working Group Charter <https://peps.python.org/pep-0731/>`_ with 5 members:
+
+* **Steve Dower**
+* **Irit Katriel**
+* **Guido van Rossum**
+* **Victor Stinner** (me)
+* **Petr Viktorin**
+
+Once the PEP was published, it was `discussed on discuss.python.org
+<https://discuss.python.org/t/pep-731-c-api-working-group-charter/36117>`_.
+Two weeks later, **Guido** submitted the PEP to the Steering Council: `PEP 731
+-- C API Working Group Charter
 <https://github.com/python/steering-council/issues/210>`_.
 
-
-Final API
-=========
-
-API::
-
-    int PyDict_GetItemRef(PyObject *p, PyObject *key, PyObject **result)
-    int PyDict_GetItemStringRef(PyObject *p, const char *key, PyObject **result)
-
-Documentation:
-
-* `PyDict_GetItemRef <https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemRef>`_
-* `PyDict_GetItemStringRef <https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemStringRef>`_
-
-Using the `pythoncapi-compat project
-<https://pythoncapi-compat.readthedocs.io/>`_, you can use this new API right
-now on all Python versions!
+The Steering Council didn't take a decision yet. Previously, the Steering
+Council expressed their desire to delegate some C API decisions to a C API
+Working Group.
