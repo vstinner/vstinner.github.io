@@ -12,6 +12,13 @@ This article is about the intense API design discussion when I proposed adding
 the ``PyDict_GetItemRef()`` function to Python 3.13 C API, between June and
 July 2023.
 
+.. image:: {static}/images/amour_psychee.jpg
+   :alt: Psyche Revived by Cupid's Kiss
+
+Photo: *Psyche Revived by Cupid's Kiss* sculpture by Antonio Canova.
+
+
+
 Add PyImport_AddModuleRef() function
 ====================================
 
