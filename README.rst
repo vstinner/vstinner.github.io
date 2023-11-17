@@ -39,4 +39,5 @@ Requirements:
 Command::
 
     python3 -m pip install --user --upgrade pelican ghp-import
-    git clone --depth=1 https://github.com/getpelican/pelican-themes
+
+The aboutwilson theme comes from: https://github.com/getpelican/pelican-themes/tree/master/aboutwilson
