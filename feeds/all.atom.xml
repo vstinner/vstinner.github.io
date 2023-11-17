@@ -1,5 +1,329 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2023-07-08T23:00:00+02:00</updated><entry><title>My contributions to Python (July 2023)</title><link href="https://vstinner.github.io/contrib-python-july-2023.html" rel="alternate"></link><published>2023-07-08T23:00:00+02:00</published><updated>2023-07-08T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-07-08:/contrib-python-july-2023.html</id><summary type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2023-11-16T20:00:00+01:00</updated><entry><title>Design the API of a new PyDict_GetItemRef() function</title><link href="https://vstinner.github.io/c-api-dict-getitemref.html" rel="alternate"></link><published>2023-11-16T20:00:00+01:00</published><updated>2023-11-16T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-11-16:/c-api-dict-getitemref.html</id><summary type="html">&lt;p&gt;Last June, I proposed adding a new &lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt; function to Python
+3.13 C API. Every aspect of the API design was discussed in length. I will
+explain how the API was designed, to finish with the future creation of C API
+Working Group.&lt;/p&gt;
+&lt;img alt="Psyche Revived by Cupid's Kiss" src="https://vstinner.github.io/images/amour_psychee.jpg" /&gt;
+&lt;p&gt;Photo: &lt;em&gt;Psyche Revived by Cupid's Kiss …&lt;/em&gt;&lt;/p&gt;</summary><content type="html">&lt;p&gt;Last June, I proposed adding a new &lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt; function to Python
+3.13 C API. Every aspect of the API design was discussed in length. I will
+explain how the API was designed, to finish with the future creation of C API
+Working Group.&lt;/p&gt;
+&lt;img alt="Psyche Revived by Cupid's Kiss" src="https://vstinner.github.io/images/amour_psychee.jpg" /&gt;
+&lt;p&gt;Photo: &lt;em&gt;Psyche Revived by Cupid's Kiss&lt;/em&gt; sculpture by Antonio Canova.&lt;/p&gt;
+&lt;div class="section" id="add-pyimport-addmoduleref-function"&gt;
+&lt;h2&gt;Add PyImport_AddModuleRef() function&lt;/h2&gt;
+&lt;p&gt;In June, while reading Python C code, I found a &lt;a class="reference external" href="https://github.com/python/cpython/blob/8cd70eefc7f3363cfa0d43f34522c3072fa9e160/Python/import.c#L345-L369"&gt;surprising code&lt;/a&gt;:
+the &lt;tt class="docutils literal"&gt;PyImport_AddModuleObject()&lt;/tt&gt; function creates a &lt;strong&gt;weak reference&lt;/strong&gt; on the
+module returned by &lt;tt class="docutils literal"&gt;import_add_module()&lt;/tt&gt;, call &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; on the module,
+and then try to get the module back from the weak reference: it can be NULL if
+the reference count was one. I expected to have just &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;, but no,
+complicated code involving a weak reference is needed to prevent a crash.&lt;/p&gt;
+&lt;p&gt;So I &lt;a class="reference external" href="https://github.com/python/cpython/issues/105922"&gt;added&lt;/a&gt; the new
+&lt;a class="reference external" href="https://docs.python.org/dev/c-api/import.html#c.PyImport_AddModuleRef"&gt;PyImport_AddModuleRef() function&lt;/a&gt; to
+return directly the strong reference, and avoid having to create a temporary
+weak reference.&lt;/p&gt;
+&lt;p&gt;Note: The API of the new PyImport_AddModuleObject() function is &lt;a class="reference external" href="https://github.com/python/cpython/issues/106915"&gt;still being
+discussed and may change in the near future&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-pyweakref-getref-function"&gt;
+&lt;h2&gt;Add PyWeakref_GetRef() function&lt;/h2&gt;
+&lt;p&gt;Shortly after, I &lt;a class="reference external" href="https://github.com/python/cpython/issues/105927"&gt;added&lt;/a&gt; the
+new &lt;a class="reference external" href="https://docs.python.org/dev/c-api/weakref.html#c.PyWeakref_GetRef"&gt;PyWeakref_GetRef() function&lt;/a&gt;. It is
+similar to &lt;tt class="docutils literal"&gt;PyWeakref_GetObject()&lt;/tt&gt;, but returns a strong reference instead of
+a borrowed reference.&lt;/p&gt;
+&lt;p&gt;Since I listed &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/bad_api.html#borrowed-references"&gt;Bad C API&lt;/a&gt; in my
+&amp;quot;Design a new better C API for Python&amp;quot; project in 2018, I am now fighting
+against borrowed references since they cause multiple issues such as:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Subtle crashes in C extensions.&lt;/li&gt;
+&lt;li&gt;Make the C API implementation in PyPy more complicated: see
+&lt;a class="reference external" href="https://www.pypy.org/posts/2018/09/inside-cpyext-why-emulating-cpython-c-8083064623681286567.html"&gt;Inside cpyext: Why emulating CPython C API is so Hard&lt;/a&gt;
+(2018) by Antonio Cuni.&lt;/li&gt;
+&lt;li&gt;Unknown objects lifetime preventing optimization opportunities.&lt;/li&gt;
+&lt;li&gt;Make the C API less regular and harder to use: some functions return a new
+reference, others return borrowed reference.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In 2020, my first attempt to &lt;a class="reference external" href="https://github.com/python/cpython/issues/86460"&gt;add a new PyTuple_GetItemRef() function&lt;/a&gt; was rejected.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pydict-getitemref-easy"&gt;
+&lt;h2&gt;PyDict_GetItemRef(): easy!&lt;/h2&gt;
+&lt;p&gt;Since it went well (quick discussion, no major disagreement) to add
+&lt;tt class="docutils literal"&gt;PyImport_AddModuleRef()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyWeakref_GetRef()&lt;/tt&gt; functions, I felt lucky and
+proposed &lt;a class="reference external" href="https://github.com/python/cpython/issues/106004"&gt;adding a new PyDict_GetItemRef() function&lt;/a&gt;. It should be easy as well,
+right? The discussion started in the issue and continued in the associated
+&lt;a class="reference external" href="https://github.com/python/cpython/pull/106005"&gt;pull request&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The idea of &lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt; is to replace the &lt;tt class="docutils literal"&gt;PyDict_GetItem()&lt;/tt&gt;
+function which returns a borrowed reference and ignore all errors:
+&lt;tt class="docutils literal"&gt;hash(key)&lt;/tt&gt; error, &lt;tt class="docutils literal"&gt;key == key2&lt;/tt&gt; comparison error, &lt;tt class="docutils literal"&gt;KeyboardInterrupt&lt;/tt&gt;,
+etc.&lt;/p&gt;
+&lt;p&gt;There is already the &lt;tt class="docutils literal"&gt;PyDict_GetItemWithError()&lt;/tt&gt; function which reports
+errors.  But it returns a borrowed reference and its API has an issue: when it
+returns &lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt;, the caller must check &lt;tt class="docutils literal"&gt;PyErr_Occurred()&lt;/tt&gt; to know if an
+exception is set, or if the key is missing. This problem was the &lt;a class="reference external" href="https://github.com/capi-workgroup/problems/issues/1"&gt;very first
+issue&lt;/a&gt; created in the
+Problems project of the C API Working Group.&lt;/p&gt;
+&lt;p&gt;This Problems project is a collaborative work to collect C API issues. By the
+way, the &lt;a class="reference external" href="https://peps.python.org/pep-0733/"&gt;PEP 733 – An Evaluation of Python’s Public C API&lt;/a&gt; was published at October 16: summary of
+these problems.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pydict-getitemref-api-version-1"&gt;
+&lt;h2&gt;PyDict_GetItemRef(): API version 1&lt;/h2&gt;
+&lt;p&gt;I proposed the API:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **pvalue)
+int PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **pvalue)
+&lt;/pre&gt;
+&lt;p&gt;Return &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; on success, or &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-1&lt;/span&gt;&lt;/tt&gt; on error. Simple, right?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Gregory Smith&lt;/strong&gt; was supportive:&lt;/p&gt;
+&lt;blockquote&gt;
+I'm in favor of this because I don't think we should have public APIs that
+(a) require a value check + &lt;tt class="docutils literal"&gt;PyErr_Occurred()&lt;/tt&gt; call pattern - a frequent
+source of lurking bugs - or (b) return borrowed references. Yes I know we
+already have them, that's missing the point. The point is that with these
+in place, we can promote their use over the others because these are better
+in all respects.&lt;/blockquote&gt;
+&lt;p&gt;Later, I discovered that the draft &lt;a class="reference external" href="https://peps.python.org/pep-0703/"&gt;PEP 703 – Making the Global Interpreter
+Lock Optional in CPython&lt;/a&gt; proposed adding
+a &lt;tt class="docutils literal"&gt;PyDict_FetchItem()&lt;/tt&gt; similar to my proposed &lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt;
+function.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-version-2-change-the-return-value"&gt;
+&lt;h2&gt;API version 2: Change the Return Value&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Mark Shannon&lt;/strong&gt; asked:&lt;/p&gt;
+&lt;blockquote&gt;
+What's the rationale for not distinguishing between found and not found in
+the return value? See: &lt;a class="reference external" href="https://github.com/python/devguide/issues/1121"&gt;Document the preferred style for API functions with
+three, four or five-way returns&lt;/a&gt;.&lt;/blockquote&gt;
+&lt;p&gt;I modified the API to return &lt;tt class="docutils literal"&gt;1&lt;/tt&gt; if the key is present and return &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; if
+the key is missing.&lt;/p&gt;
+&lt;p&gt;By the way, &lt;strong&gt;Erlend Aasland&lt;/strong&gt; added &lt;a class="reference external" href="https://devguide.python.org/developer-workflow/c-api/index.html#guidelines-for-expanding-changing-the-public-api"&gt;C API guidelines&lt;/a&gt;
+in the Python Developer Guide (devguide) about function return values.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="function-name"&gt;
+&lt;h2&gt;Function Name&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; had concerns about the name:&lt;/p&gt;
+&lt;blockquote&gt;
+The only problem is that functions with so similar names have completely
+different interface. It is pretty confusing. Would not be better to name it
+&lt;tt class="docutils literal"&gt;PyDict_LookupItem&lt;/tt&gt; or like? It may be worth to add also
+&lt;tt class="docutils literal"&gt;PyMapping_LookupItem&lt;/tt&gt; for convenience.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Mark Shannon&lt;/strong&gt; added:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Can we come up with a better name than &lt;tt class="docutils literal"&gt;PyDict_GetItemRef&lt;/tt&gt;?
+I see why you are adding &lt;tt class="docutils literal"&gt;Ref&lt;/tt&gt; to the end, but all API functions should
+return new references, so it is a bit like calling the function
+PyDict_GetItemNotWrong.&lt;/p&gt;
+&lt;p&gt;Obviously, the ideal name [&lt;tt class="docutils literal"&gt;PyDict_GetItem()&lt;/tt&gt;] is already taken. Anyone
+have any suggestions for a better name?&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Sam Gross&lt;/strong&gt; wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In the context of PEP 703, I think it would be better to have variations
+that only change one axis of the semantics (e.g., new vs. borrowed, error
+vs. no error) and have the naming reflect that. For example, PEP 703
+proposes:&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyDict_FetchItem&lt;/tt&gt; for &lt;tt class="docutils literal"&gt;PyDict_GetItem&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;PyDict_FetchItemWIthError&lt;/tt&gt; for &lt;tt class="docutils literal"&gt;PyDict_GetItemWithError&lt;/tt&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I created &lt;a class="reference external" href="https://github.com/capi-workgroup/problems/issues/52"&gt;Naming convention for new C API functions&lt;/a&gt; to discuss the &lt;tt class="docutils literal"&gt;Ref&lt;/tt&gt;
+suffix for new functions returning a strong refererence.&lt;/p&gt;
+&lt;p&gt;PEP 703 proposes &lt;tt class="docutils literal"&gt;PyDict_FetchItem()&lt;/tt&gt; name.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="first-argument-type"&gt;
+&lt;h2&gt;First Argument Type&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Mark Shannon&lt;/strong&gt; had concerns about the first argument type:&lt;/p&gt;
+&lt;blockquote&gt;
+Using &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; is needlessly throwing away type information.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Erlend Aasland&lt;/strong&gt; added:&lt;/p&gt;
+&lt;blockquote&gt;
+Why not strongly typed, since it is a &lt;tt class="docutils literal"&gt;PyDict_&lt;/tt&gt; API?&lt;/blockquote&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pull-request-approvals-and-the-function-name-strikes-back"&gt;
+&lt;h2&gt;Pull Request Approvals And The Function Name Strikes Back&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Erlend&lt;/strong&gt; and &lt;strong&gt;Gregory&lt;/strong&gt; approved my pull request.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Erlend&lt;/strong&gt; wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+I'm approving this. A new naming scheme makes sense for a new API; I'm not
+sure it makes sense to try and enforce a new scheme in the current API. For
+now, there is already precedence of the &lt;tt class="docutils literal"&gt;Ref&lt;/tt&gt; suffix in the current API;
+I'm ok with that. Also, the current API uses &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; all over the
+place. If we are to change this, we practically will end up with a
+completely new API; AFAICS, there is no problem with sticking to the
+current practice.&lt;/blockquote&gt;
+&lt;p&gt;Then the discussion about the function name came back. So &lt;strong&gt;Gregory&lt;/strong&gt; asked the
+Steering Council: &lt;a class="reference external" href="https://github.com/python/steering-council/issues/201"&gt;Should we add non-borrowed-ref public C APIs, if
+so, is there a naming convention?&lt;/a&gt;. He asked two
+questions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Q1: Should we add non-borrowed-reference public C APIs where only
+borrowed-reference ones exist.&lt;/li&gt;
+&lt;li&gt;Q2: if yes to Q1, is there a preferred naming convention to use for new
+public C APIs that return a strong reference when the earlier APIs these
+would be parallel versions of only returned a borrowed reference.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Later, &lt;strong&gt;Serhiy Storchaka&lt;/strong&gt; also approved the pull request:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;In general, I support adding this function. The benefits:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Returns a strong reference. It will save from some errors and may be
+better for PyPy.&lt;/li&gt;
+&lt;li&gt;Save CPU time for calling PyErr Occurred().&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The PR had a total of 3 approvals.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-version-3-use-pydictobject"&gt;
+&lt;h2&gt;API version 3: use PyDictObject&lt;/h2&gt;
+&lt;p&gt;When I asked again &lt;strong&gt;Mark&lt;/strong&gt; his opinion on the API, he wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+I'm opposed because making ad-hoc changes like this is going to make the
+C-API worse, not better.&lt;/blockquote&gt;
+&lt;p&gt;I made the change asked by &lt;strong&gt;Mark&lt;/strong&gt;, change the first parameter type from
+&lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;PyDictObject*&lt;/tt&gt;. API version 3:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int PyDict_GetItemRef(PyDictObject *op, PyObject *key, PyObject **pvalue)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="disagreement-on-the-pydictobject-type"&gt;
+&lt;h2&gt;Disagreement On The PyDictObject Type&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Serhiy&lt;/strong&gt; was against the change:&lt;/p&gt;
+&lt;blockquote&gt;
+I dislike using concrete struct types instead of &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; in API,
+especially in public API. Isn't there a rule forbidding this?&lt;/blockquote&gt;
+&lt;p&gt;In May, &lt;strong&gt;Mark&lt;/strong&gt; created &lt;a class="reference external" href="https://github.com/capi-workgroup/problems/issues/31"&gt;The C API is weakly typed&lt;/a&gt; discussion in the
+Problems project.&lt;/p&gt;
+&lt;p&gt;During the discussion, &lt;strong&gt;Erlend&lt;/strong&gt; created &lt;a class="reference external" href="https://github.com/python/devguide/issues/1127"&gt;Document guidelines for when to use
+dynamically typed APIs&lt;/a&gt; in
+the devguide to try to find a consensus regarding guidelines for weakly/stronly
+typed APIs.&lt;/p&gt;
+&lt;p&gt;There are two questions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Use &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;PyDictObject*&lt;/tt&gt; type for the parameter.&lt;/li&gt;
+&lt;li&gt;Check the type at runtime, or don't check for best performance (use an
+assertion in debug mode).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Serhiy&lt;/strong&gt; wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;It is not about runtime checking.&lt;/p&gt;
+&lt;p&gt;It is about requiring to cast the argument to &lt;tt class="docutils literal"&gt;PyDictObject*&lt;/tt&gt; every time
+you use the function: &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;PyDict_GetItemRef((PyDictObject*)foo,&lt;/span&gt; bar, &amp;amp;baz)&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;It is tiresome, and it is unsafe, because the compiler will not reject the
+code if &lt;tt class="docutils literal"&gt;foo&lt;/tt&gt; is &lt;tt class="docutils literal"&gt;int&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;const char*&lt;/tt&gt;.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Gregory&lt;/strong&gt; added:&lt;/p&gt;
+&lt;blockquote&gt;
+Our C API only accepts plain &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; as input to all our public
+APIs. Otherwise user code will be littered with typecasts all over the
+place.&lt;/blockquote&gt;
+&lt;p&gt;&lt;strong&gt;Gregory&lt;/strong&gt; removed his approval.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="revert-back-to-pyobject-type-api-version-2"&gt;
+&lt;h2&gt;Revert: Back To PyObject Type (API Version 2)&lt;/h2&gt;
+&lt;p&gt;Since &lt;strong&gt;Serhiy&lt;/strong&gt; and &lt;strong&gt;Gregory&lt;/strong&gt; were against the change, I reverted it to move
+back to the &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; type. &lt;strong&gt;Serhiy&lt;/strong&gt; and &lt;strong&gt;Erlend&lt;/strong&gt; confirmed their
+approval.&lt;/p&gt;
+&lt;p&gt;I created the issue &lt;a class="reference external" href="https://github.com/capi-workgroup/problems/issues/55"&gt;Design a brand new C API with new PyCAPI_ prefix where all
+functions respect new guidelines&lt;/a&gt; in the Problems
+project to discuss the creation of a branch new API. I suggested &lt;strong&gt;Mark&lt;/strong&gt; to
+only consider changing weakly type &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; type to strongly typed
+&lt;tt class="docutils literal"&gt;PyDictObject*&lt;/tt&gt; in such new API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="more-changes-api-version-4"&gt;
+&lt;h2&gt;More changes? API version 4&lt;/h2&gt;
+&lt;p&gt;&lt;strong&gt;Petr Viktorin&lt;/strong&gt; joined the discussion and proposed a late change:&lt;/p&gt;
+&lt;blockquote&gt;
+FWIW, here's a possible new variant: you could set result to &lt;tt class="docutils literal"&gt;NULL&lt;/tt&gt; in
+which case the result isn't stored/incref'd. And that would start a
+convention of how to turn a get operation into a membership test. (And the
+Lookup name would fit that better.)&lt;/blockquote&gt;
+&lt;p&gt;I didn't take &lt;strong&gt;Petr&lt;/strong&gt;'s suggestion since &lt;strong&gt;Serhiy&lt;/strong&gt; pointed out that there is
+already the &lt;tt class="docutils literal"&gt;PyDict_Contains()&lt;/tt&gt; function to test is a dictionary contains a
+key.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Mark Shannon&lt;/strong&gt; wrote:&lt;/p&gt;
+&lt;blockquote&gt;
+If this function is to take &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt;, as &lt;strong&gt;Erlend&lt;/strong&gt; seems to insist,
+then it shouldn't raise a &lt;tt class="docutils literal"&gt;SystemError&lt;/tt&gt; when passed something other than
+a dict. It should raise a &lt;tt class="docutils literal"&gt;TypeError&lt;/tt&gt;.&lt;/blockquote&gt;
+&lt;p&gt;I modified the API (version 4) to raise &lt;tt class="docutils literal"&gt;SystemError&lt;/tt&gt; if the first argument
+is not a dictionary, instead raising &lt;tt class="docutils literal"&gt;TypeError&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="merge-the-change"&gt;
+&lt;h2&gt;Merge The Change&lt;/h2&gt;
+&lt;p&gt;After around 1 month of intense discussions, I merged my change adding the
+&lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt; function (&lt;a class="reference external" href="https://github.com/python/cpython/commit/41ca16455188db806bfc7037058e8ecff2755e6c"&gt;commit&lt;/a&gt;)
+with &lt;a class="reference external" href="https://github.com/python/cpython/pull/106005#issuecomment-1646249360"&gt;a summary of the discussion&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I also &lt;a class="reference external" href="https://github.com/python/pythoncapi-compat/commit/eaff3c172f94ed32ac38860c38d7a8fa27483e57"&gt;added the function to pythoncapi-compat project&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Final API:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int PyDict_GetItemRef(PyObject *p, PyObject *key, PyObject **result)
+int PyDict_GetItemStringRef(PyObject *p, const char *key, PyObject **result)
+&lt;/pre&gt;
+&lt;p&gt;Documentation:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemRef"&gt;PyDict_GetItemRef&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemStringRef"&gt;PyDict_GetItemStringRef&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Using the &lt;a class="reference external" href="https://pythoncapi-compat.readthedocs.io/"&gt;pythoncapi-compat project&lt;/a&gt;, you can use this new API right
+now on all Python versions!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="how-to-take-decisions"&gt;
+&lt;h2&gt;How To Take Decisions?&lt;/h2&gt;
+&lt;p&gt;The discussions occurred at many multiple places:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;My Python issue&lt;/li&gt;
+&lt;li&gt;My Python pull request&lt;/li&gt;
+&lt;li&gt;Multiple Problems issues&lt;/li&gt;
+&lt;li&gt;Multiple devguide issues&lt;/li&gt;
+&lt;li&gt;Steering Council issue&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The discussion was heated. &lt;strong&gt;Erlend&lt;/strong&gt; decided to take a break:&lt;/p&gt;
+&lt;blockquote&gt;
+I'm taking a break from the C API discussions; I'm removing myself from
+this PR for now&lt;/blockquote&gt;
+&lt;p&gt;While the change was approved by 3 core developers, there was not strictly a
+consensus since &lt;strong&gt;Mark&lt;/strong&gt; did not formally approve the change. Some people asked
+to wait until some general guidelines for new APIs are decided, &lt;strong&gt;before&lt;/strong&gt;
+making further C API changes.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Gregory&lt;/strong&gt; opened a Steering Council issue at July 2. I asked for an update
+at July 17. Three meetings later, they didn't have the opportunity to visit the
+question. They were busy discussing the heavy &lt;a class="reference external" href="https://peps.python.org/pep-0703/"&gt;PEP 703 – Making the Global
+Interpreter Lock Optional in CPython&lt;/a&gt;. I
+merged my changed before the Steering Council spoke up. I proposed to revert
+the change if needed. At July 25, &lt;strong&gt;Gregory&lt;/strong&gt; replied in the name of the
+Steering Council:&lt;/p&gt;
+&lt;blockquote&gt;
+The steering council chatted about non-borrowed-ref and naming conventions
+today. We want to &lt;strong&gt;delegate&lt;/strong&gt; this to the &lt;strong&gt;C API working group&lt;/strong&gt; to come
+back with a broader recommendation. &lt;strong&gt;Irit Katriel&lt;/strong&gt; has put together the
+initial draft of &lt;a class="reference external" href="https://github.com/capi-workgroup/problems/blob/main/capi_problems.rst"&gt;An Evaluation of Python's Public C API&lt;/a&gt;
+for example.&lt;/blockquote&gt;
+&lt;p&gt;The problem was that the C API Working Group was just a GitHub organization, it
+was not an organized group with designated members.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="c-api-working-group"&gt;
+&lt;h2&gt;C API Working Group&lt;/h2&gt;
+&lt;p&gt;From October 9 to 14, there was a Core Dev Sprint at Brno (Czech Republic). I
+gave a talk about the C API status and my C API agenda: &lt;a class="reference external" href="https://github.com/vstinner/talks/blob/main/2023-CoreDevSprint-Brno/c-api.pdf"&gt;slides of my C API
+talk&lt;/a&gt;.
+At the end, I called to create a formal C API Working Group to unblock the
+situation.&lt;/p&gt;
+&lt;p&gt;During the sprint, after my talk, &lt;strong&gt;Guido van Rossum&lt;/strong&gt; wrote &lt;a class="reference external" href="https://peps.python.org/pep-0731/"&gt;PEP 731 – C API
+Working Group Charter&lt;/a&gt; with 5 members:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;strong&gt;Steve Dower&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Irit Katriel&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Guido van Rossum&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Victor Stinner&lt;/strong&gt; (me)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Petr Viktorin&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Once the PEP was published, it was &lt;a class="reference external" href="https://discuss.python.org/t/pep-731-c-api-working-group-charter/36117"&gt;discussed on discuss.python.org&lt;/a&gt;.
+Two weeks later, &lt;strong&gt;Guido&lt;/strong&gt; submitted the PEP to the Steering Council: &lt;a class="reference external" href="https://github.com/python/steering-council/issues/210"&gt;PEP 731
+-- C API Working Group Charter&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The Steering Council didn't take a decision yet. Previously, the Steering
+Council expressed their desire to delegate some C API decisions to a C API
+Working Group.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>My contributions to Python (July 2023)</title><link href="https://vstinner.github.io/contrib-python-july-2023.html" rel="alternate"></link><published>2023-07-08T23:00:00+02:00</published><updated>2023-07-08T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-07-08:/contrib-python-july-2023.html</id><summary type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. In this article, I describe the most important Python contributions
 that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;&lt;/a&gt;
@@ -1797,15 +2121,15 @@ grep -E 'PyAPI_(FUNC|DATA)' Include/*.h Include/cpython/*.h|grep -v ' _Py'|wc -l
 &lt;/ol&gt;
 &lt;p&gt;The intent is to help developers to think about if their additions must be part
 of the limited C API, the CPython C API or the internal C API.&lt;/p&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="python-3-7-1"&gt;
 &lt;h3&gt;Python 3.7&lt;/h3&gt;
 &lt;p&gt;Creation on the &lt;tt class="docutils literal"&gt;Include/internal/&lt;/tt&gt; directory.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id2"&gt;
+&lt;div class="section" id="python-3-8-1"&gt;
 &lt;h3&gt;Python 3.8&lt;/h3&gt;
 &lt;p&gt;Creation on the &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt; directory.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id3"&gt;
+&lt;div class="section" id="python-3-10-1"&gt;
 &lt;h3&gt;Python 3.10&lt;/h3&gt;
 &lt;p&gt;Move 8 header files from &lt;tt class="docutils literal"&gt;Include/&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;Include/cpython/&lt;/tt&gt;:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1824,7 +2148,7 @@ new functions in the public C API must not steal references nor return borrowed
 references. In the meanwhile, this documentation moved to the devguide:
 &lt;a class="reference external" href="https://devguide.python.org/c-api/"&gt;Changing Python’s C API&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id5"&gt;
+&lt;div class="section" id="statistics-1"&gt;
 &lt;h3&gt;Statistics&lt;/h3&gt;
 &lt;p&gt;Number of C API line numbers per Python version:&lt;/p&gt;
 &lt;table border="1" class="docutils"&gt;
@@ -1901,7 +2225,7 @@ structure is opaque in the limited C API.&lt;/p&gt;
 functions have been added to the limited C API. In Python 3.8, they were
 defined as macros accessing directly PyThreadState members. In Python 3.9, they
 became opaque function calls and so are now compatible with the stable ABI.&lt;/p&gt;
-&lt;div class="section" id="id6"&gt;
+&lt;div class="section" id="python-3-9-1"&gt;
 &lt;h3&gt;Python 3.9&lt;/h3&gt;
 &lt;p&gt;Add 3 functions to the limited C API:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -1927,7 +2251,7 @@ became opaque function calls and so are now compatible with the stable ABI.&lt;/
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_ForgetReference()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id7"&gt;
+&lt;div class="section" id="python-3-10-2"&gt;
 &lt;h3&gt;Python 3.10&lt;/h3&gt;
 &lt;p&gt;Add 1 function to the limited C API:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -2355,7 +2679,7 @@ static inline void _Py_INCREF(PyObject *op)
 &lt;/div&gt;
 &lt;div class="section" id="convert-macros-to-regular-functions-in-python-3-9"&gt;
 &lt;h2&gt;Convert macros to regular functions in Python 3.9&lt;/h2&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="converted-macros-1"&gt;
 &lt;h3&gt;Converted macros&lt;/h3&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;PyIndex_Check()&lt;/li&gt;
@@ -2366,7 +2690,7 @@ static inline void _Py_INCREF(PyObject *op)
 &lt;li&gt;PyObject_NEW_VAR(): alias to PyObjectVar_New()&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id2"&gt;
+&lt;div class="section" id="performance-1"&gt;
 &lt;h3&gt;Performance&lt;/h3&gt;
 &lt;p&gt;PyType_HasFeature() was modified to always call PyType_GetFlags() function,
 rather than accessing directly &lt;tt class="docutils literal"&gt;PyTypeObject.tp_flags&lt;/tt&gt;. The problem is that
@@ -3569,7 +3893,7 @@ subinterpreters:&lt;/p&gt;
 +    }
 &lt;/pre&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="threading-shutdown-race-condition-1"&gt;
 &lt;h3&gt;threading._shutdown() race condition&lt;/h3&gt;
 &lt;p&gt;&lt;tt class="docutils literal"&gt;threading._shutdown()&lt;/tt&gt; uses &lt;tt class="docutils literal"&gt;threading.enumerate()&lt;/tt&gt; which iterates on
 &lt;tt class="docutils literal"&gt;threading._active&lt;/tt&gt; dictionary.&lt;/p&gt;
@@ -4446,7 +4770,7 @@ about this technology.&lt;/p&gt;
 &lt;p&gt;This article is about the &lt;strong&gt;GNOME&lt;/strong&gt; desktop environment with &lt;strong&gt;Wayland&lt;/strong&gt;
 running on &lt;strong&gt;Fedora&lt;/strong&gt; 30, with Linux kernel &lt;strong&gt;vgaswitcheroo&lt;/strong&gt; in muxless mode
 (more about that above).&lt;/p&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="hybrid-graphics-1"&gt;
 &lt;h2&gt;Hybrid Graphics&lt;/h2&gt;
 &lt;p&gt;Hybrid Graphics are known under different names:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -8867,7 +9191,7 @@ previous proposal:&lt;/p&gt;
 &lt;div class="section" id="pep-383"&gt;
 &lt;h2&gt;PEP 383&lt;/h2&gt;
 &lt;p&gt;April 2009, Martin v. Löwis proposed again his idea, now as the well defined
-&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0383"&gt;PEP 383&lt;/a&gt;: &lt;strong&gt;Non-decodable Bytes in System Character Interfaces&lt;/strong&gt;. He &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/088919.html"&gt;posted
+&lt;a class="reference external" href="https://peps.python.org/pep-0383"&gt;PEP 383&lt;/a&gt;: &lt;strong&gt;Non-decodable Bytes in System Character Interfaces&lt;/strong&gt;. He &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2009-April/088919.html"&gt;posted
 his PEP to python-dev&lt;/a&gt; for
 comments.&lt;/p&gt;
 &lt;p&gt;Abstract:&lt;/p&gt;
@@ -9466,16 +9790,16 @@ Thanks to all developers who helped me to fix this bug!&lt;/p&gt;
 </content><category term="python"></category><category term="cpython"></category></entry><entry><title>Python 3.7 nanoseconds</title><link href="https://vstinner.github.io/python37-pep-564-nanoseconds.html" rel="alternate"></link><published>2018-03-06T16:30:00+01:00</published><updated>2018-03-06T16:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-06:/python37-pep-564-nanoseconds.html</id><summary type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
+&lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond …&lt;/p&gt;</summary><content type="html">&lt;p&gt;Thanks to my &lt;a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html"&gt;latest change on time.perf_counter()&lt;/a&gt;, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. While the PEP
+&lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. While the PEP
 was discussed, I also deprecated &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; and removed
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt;.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"&gt;&lt;img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /&gt;&lt;/a&gt;
 &lt;div class="section" id="time-clock"&gt;
 &lt;h2&gt;time.clock()&lt;/h2&gt;
-&lt;p&gt;Since I wrote the &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0418"&gt;PEP 418&lt;/a&gt; &amp;quot;Add monotonic time, performance counter, and
+&lt;p&gt;Since I wrote the &lt;a class="reference external" href="https://peps.python.org/pep-0418"&gt;PEP 418&lt;/a&gt; &amp;quot;Add monotonic time, performance counter, and
 process time functions&amp;quot; in 2012, I dislike &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt;. This clock is not
 portable: on Windows it mesures wall-clock, whereas it measures CPU time on
 Unix. Extract of &lt;a class="reference external" href="https://docs.python.org/dev/library/time.html#time.clock"&gt;time.clock() documentation&lt;/a&gt;:&lt;/p&gt;
@@ -9510,12 +9834,12 @@ it broke the &lt;tt class="docutils literal"&gt;logging&lt;/tt&gt; module, so I 
 &lt;/div&gt;
 &lt;div class="section" id="pep-564-time-time-ns"&gt;
 &lt;h2&gt;PEP 564: time.time_ns()&lt;/h2&gt;
-&lt;p&gt;Six years ago (2012), I wrote the &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0410"&gt;PEP 410&lt;/a&gt; &amp;quot;Use decimal.Decimal type for
+&lt;p&gt;Six years ago (2012), I wrote the &lt;a class="reference external" href="https://peps.python.org/pep-0410"&gt;PEP 410&lt;/a&gt; &amp;quot;Use decimal.Decimal type for
 timestamps&amp;quot; which proposes a large and complex change in all Python functions
 returning time to support nanosecond resolution using the &lt;tt class="docutils literal"&gt;decimal.Decimal&lt;/tt&gt;
 type.  The PEP was &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2012-February/116837.html"&gt;rejected for different reasons&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Since all clock now use nanoseconds internally in Python 3.7, I proposed a new
-&lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. Abstract:&lt;/p&gt;
+&lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. Abstract:&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;Add six new &amp;quot;nanosecond&amp;quot; variants of existing functions to the &lt;tt class="docutils literal"&gt;time&lt;/tt&gt;
 module: &lt;tt class="docutils literal"&gt;clock_gettime_ns()&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;clock_settime_ns()&lt;/tt&gt;,
@@ -9567,7 +9891,7 @@ wasn't tested at all!&lt;/p&gt;
 &lt;div class="section" id="conclusion"&gt;
 &lt;h2&gt;Conclusion&lt;/h2&gt;
 &lt;p&gt;I added 6 new functions to get time with a nanosecond resolution like
-&lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt; with my approved &lt;a class="reference external" href="http://www.python.org/dev/peps/pep-0564"&gt;PEP 564&lt;/a&gt;. I also modified
+&lt;tt class="docutils literal"&gt;time.time_ns()&lt;/tt&gt; with my approved &lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt;. I also modified
 &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; to emit a &lt;tt class="docutils literal"&gt;DeprecationWarning&lt;/tt&gt; and I removed the legacy
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt; function.&lt;/p&gt;
 &lt;/div&gt;
@@ -11897,7 +12221,7 @@ to cleanup threads.&lt;/li&gt;
 after removing it.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id2"&gt;
+&lt;div class="section" id="python-2-7-1"&gt;
 &lt;h2&gt;Python 2.7&lt;/h2&gt;
 &lt;p&gt;I wanted to fix &lt;em&gt;all&lt;/em&gt; buildbot issues of &lt;em&gt;all&lt;/em&gt; branches including 2.7, whereas
 I didn't touch much the Python 2.7 code base last months (last years???). The
@@ -12658,7 +12982,7 @@ duration, etc.&lt;/li&gt;
 &lt;li&gt;Fix regrtest -j0 -R output: write also dots into stderr, instead of stdout.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="bugfixes-1"&gt;
 &lt;h2&gt;Bugfixes&lt;/h2&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Issue #29140: Fix hash(datetime.time). Fix time_hash() function: replace
@@ -12822,7 +13146,7 @@ Python 3.7, the few remaining issues are still …&lt;/p&gt;</summary><content t
 2017-02-10 to implement my FASTCALL optimization. Most issues created in 2016
 are already part of Python 3.6.0, some are already merged into the future
 Python 3.7, the few remaining issues are still open.&lt;/p&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="fastcall-issues-1"&gt;
 &lt;h2&gt;27 FASTCALL issues&lt;/h2&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;2016-04-21: &lt;a class="reference external" href="http://bugs.python.org/issue26814"&gt;[WIP] Add a new _PyObject_FastCall() function which avoids the creation of a tuple or dict for arguments&lt;/a&gt;&lt;/li&gt;
@@ -15439,7 +15763,7 @@ CPU | POLL | C1-S | C1E- | C3-S | C6-S
 &lt;/pre&gt;
 &lt;p&gt;See also: &lt;a class="reference external" href="https://software.intel.com/en-us/articles/power-management-states-p-states-c-states-and-package-c-states"&gt;Power Management States: P-States, C-States, and Package C-States&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-&lt;div class="section" id="id1"&gt;
+&lt;div class="section" id="turbo-boost-1"&gt;
 &lt;h2&gt;Turbo Boost&lt;/h2&gt;
 &lt;p&gt;In 2005, Intel introduced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/SpeedStep"&gt;SpeedStep&lt;/a&gt;, a serie of dynamic frequency
 scaling technologies to reduce the power consumption of laptop CPUs. Turbo

@@ -27,10 +27,42 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/subinterpreter-leaks.html">
+		<h2 itemprop="name headline">Leaks discovered by subinterpreters</h2>
+	</a>
+	<time datetime="2020-12-23T14:00:00+01:00" itemprop="datePublished">Wed 23 December 2020</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><p>This article is about old reference leaks discovered or caused by the work on
+isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
+_signal, _ast and _thread).</p>
+<img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" />
+<div class="section" id="refleaks-buildbot-failures">
+<h2>Refleaks buildbot failures</h2>
+<p>With my work on isolating subinterpreters, old bugs about Python objects leaked
+at Python exit are suddenly becoming blocker …</p></div></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/subinterpreters.html" rel="tag">subinterpreters</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html">
 		<h2 itemprop="name headline">GIL bugfixes for daemon threads in Python 3.9</h2>
 	</a>
-	<time datetime="2020-04-04T22:00:00+02:00" itemprop="datePublished">sam. 04 avril 2020</time>
+	<time datetime="2020-04-04T22:00:00+02:00" itemprop="datePublished">Sat 04 April 2020</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -60,7 +92,7 @@ Python 3.9, between …</p></div>
 	<a href="https://vstinner.github.io/threading-shutdown-race-condition.html">
 		<h2 itemprop="name headline">Threading shutdown race condition</h2>
 	</a>
-	<time datetime="2020-04-03T20:00:00+02:00" itemprop="datePublished">ven. 03 avril 2020</time>
+	<time datetime="2020-04-03T20:00:00+02:00" itemprop="datePublished">Fri 03 April 2020</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -93,7 +125,7 @@ subinterpreters to fix another related bug.</p>
 	<a href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">
 		<h2 itemprop="name headline">Daemon threads and the Python finalization in Python 3.2 and 3.3</h2>
 	</a>
-	<time datetime="2020-03-26T22:00:00+01:00" itemprop="datePublished">jeu. 26 mars 2020</time>
+	<time datetime="2020-03-26T22:00:00+01:00" itemprop="datePublished">Thu 26 March 2020</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -123,7 +155,7 @@ They are causing race conditions and tricky bugs in the Python finalization.</p>
 	<a href="https://vstinner.github.io/python37-dev-mode.html">
 		<h2 itemprop="name headline">Python 3.7 Development Mode</h2>
 	</a>
-	<time datetime="2020-01-16T12:00:00+01:00" itemprop="datePublished">jeu. 16 janvier 2020</time>
+	<time datetime="2020-01-16T12:00:00+01:00" itemprop="datePublished">Thu 16 January 2020</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -150,7 +182,7 @@ enabled by default. It can be enabled by <tt class="docutils literal">python3 <s
 	<a href="https://vstinner.github.io/cpython-pass-tstate.html">
 		<h2 itemprop="name headline">Pass the Python thread state explicitly</h2>
 	</a>
-	<time datetime="2020-01-08T15:00:00+01:00" itemprop="datePublished">mer. 08 janvier 2020</time>
+	<time datetime="2020-01-08T15:00:00+01:00" itemprop="datePublished">Wed 08 January 2020</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -179,7 +211,7 @@ Present and Future&quot;: <a class="reference external" href="https://github.com
 	<a href="https://vstinner.github.io/graphics-bugs-firefox-gnome.html">
 		<h2 itemprop="name headline">Graphics bugs in Firefox and GNOME</h2>
 	</a>
-	<time datetime="2019-10-10T17:00:00+02:00" itemprop="datePublished">jeu. 10 octobre 2019</time>
+	<time datetime="2019-10-10T17:00:00+02:00" itemprop="datePublished">Thu 10 October 2019</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -207,7 +239,7 @@ that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
 	<a href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">
 		<h2 itemprop="name headline">Debug Hybrid Graphics issues on Linux</h2>
 	</a>
-	<time datetime="2019-09-11T15:50:00+02:00" itemprop="datePublished">mer. 11 septembre 2019</time>
+	<time datetime="2019-09-11T15:50:00+02:00" itemprop="datePublished">Wed 11 September 2019</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -235,7 +267,7 @@ laptop …</p></div>
 	<a href="https://vstinner.github.io/split-include-directory-python38.html">
 		<h2 itemprop="name headline">Split Include/ directory in Python 3.8</h2>
 	</a>
-	<time datetime="2019-06-19T12:00:00+02:00" itemprop="datePublished">mer. 19 juin 2019</time>
+	<time datetime="2019-06-19T12:00:00+02:00" itemprop="datePublished">Wed 19 June 2019</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -265,7 +297,7 @@ prevent to optimize Python …</p></div>
 	<a href="https://vstinner.github.io/sys-unraisablehook-python38.html">
 		<h2 itemprop="name headline">Python 3.8 sys.unraisablehook</h2>
 	</a>
-	<time datetime="2019-06-15T01:00:00+02:00" itemprop="datePublished">sam. 15 juin 2019</time>
+	<time datetime="2019-06-15T01:00:00+02:00" itemprop="datePublished">Sat 15 June 2019</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -288,33 +320,6 @@ it to the caller. Examples …</p></div>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html">
-		<h2 itemprop="name headline">asyncio WSASend() memory leak</h2>
-	</a>
-	<time datetime="2019-03-06T20:00:00+01:00" itemprop="datePublished">mer. 06 mars 2019</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
-<p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
-still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
-haunt me for 1 year in 2018...</p>
-<p><strong>Yet another example of a test failure which looks harmless but hides a
-critical bug.</strong> The bug is that sending a …</p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/author/victor-stinner.html">&larr; Previous</a></li>
@@ -326,6 +331,7 @@ critical bug.</strong> The bug is that sending a …</p></div>
     <li class=""><a href="https://vstinner.github.io/author/victor-stinner5.html">5</a></li>
     <li class=""><a href="https://vstinner.github.io/author/victor-stinner6.html">6</a></li>
     <li class=""><a href="https://vstinner.github.io/author/victor-stinner7.html">7</a></li>
+    <li class=""><a href="https://vstinner.github.io/author/victor-stinner8.html">8</a></li>
 
     <li class="next"><a href="https://vstinner.github.io/author/victor-stinner3.html">Next &rarr;</a></li>
 
@@ -355,7 +361,7 @@ critical bug.</strong> The bug is that sending a …</p></div>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (19)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (20)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

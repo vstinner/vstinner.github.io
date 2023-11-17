@@ -27,10 +27,40 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/pep-383.html">
+		<h2 itemprop="name headline">Python 3.1 surrogateescape error handler (PEP 383)</h2>
+	</a>
+	<time datetime="2018-03-15T18:00:00+01:00" itemprop="datePublished">Thu 15 March 2018</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><p>In my previous article, I wrote that <tt class="docutils literal">os.listdir(str)</tt> ignored silently
+undecodable filenames in Python 3.0 and that lying on the real content of a
+directory looks like a very bad idea.</p>
+<p><strong>Martin v. Löwis</strong> found a very smart solution to this problem: the
+<tt class="docutils literal">surrogateescape</tt> error handler.</p>
+<p><strong>This …</strong></p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/unicode.html" rel="tag">unicode</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/python30-listdir-undecodable-filenames.html">
 		<h2 itemprop="name headline">Python 3.0 listdir() Bug on Undecodable Filenames</h2>
 	</a>
-	<time datetime="2018-03-09T13:00:00+01:00" itemprop="datePublished">ven. 09 mars 2018</time>
+	<time datetime="2018-03-09T13:00:00+01:00" itemprop="datePublished">Fri 09 March 2018</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -69,7 +99,7 @@ $ python3.0
 	<a href="https://vstinner.github.io/python37-gil-change.html">
 		<h2 itemprop="name headline">How I fixed a very old GIL race condition in Python 3.7</h2>
 	</a>
-	<time datetime="2018-03-08T10:00:00+01:00" itemprop="datePublished">jeu. 08 mars 2018</time>
+	<time datetime="2018-03-08T10:00:00+01:00" itemprop="datePublished">Thu 08 March 2018</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -94,7 +124,7 @@ this time, <em>threads were …</em></p></div>
 	<a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">
 		<h2 itemprop="name headline">Python 3.7 nanoseconds</h2>
 	</a>
-	<time datetime="2018-03-06T16:30:00+01:00" itemprop="datePublished">mar. 06 mars 2018</time>
+	<time datetime="2018-03-06T16:30:00+01:00" itemprop="datePublished">Tue 06 March 2018</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -102,7 +132,7 @@ this time, <em>threads were …</em></p></div>
 	<div class="summary"><p>Thanks to my <a class="reference external" href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">latest change on time.perf_counter()</a>, all Python 3.7 clocks now use
 nanoseconds as integer internally. It became possible to propose again my old
 idea of getting time as nanoseconds at Python level and so I wrote a new
-<a class="reference external" href="http://www.python.org/dev/peps/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond …</p></div>
+<a class="reference external" href="https://peps.python.org/pep-0564">PEP 564</a> &quot;Add new time functions with nanosecond …</p></div>
 	Category:
 	<span itemprop="articleSection">
 		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
@@ -119,7 +149,7 @@ idea of getting time as nanoseconds at Python level and so I wrote a new
 	<a href="https://vstinner.github.io/python37-perf-counter-nanoseconds.html">
 		<h2 itemprop="name headline">Python 3.7 perf_counter() nanoseconds</h2>
 	</a>
-	<time datetime="2018-03-06T15:00:00+01:00" itemprop="datePublished">mar. 06 mars 2018</time>
+	<time datetime="2018-03-06T15:00:00+01:00" itemprop="datePublished">Tue 06 March 2018</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -146,7 +176,7 @@ for me to have a new look on a tricky integer overflow issue.</p>
 	<a href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">
 		<h2 itemprop="name headline">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</h2>
 	</a>
-	<time datetime="2017-10-19T16:00:00+02:00" itemprop="datePublished">jeu. 19 octobre 2017</time>
+	<time datetime="2017-10-19T16:00:00+02:00" itemprop="datePublished">Thu 19 October 2017</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -182,7 +212,7 @@ threads)</a>.</p>
 	<a href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">
 		<h2 itemprop="name headline">My contributions to CPython during 2017 Q3: Part 2 (dangling threads)</h2>
 	</a>
-	<time datetime="2017-10-19T15:00:00+02:00" itemprop="datePublished">jeu. 19 octobre 2017</time>
+	<time datetime="2017-10-19T15:00:00+02:00" itemprop="datePublished">Thu 19 October 2017</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -215,7 +245,7 @@ threads)</a>.</p>
 	<a href="https://vstinner.github.io/contrib-cpython-2017q3-part1.html">
 		<h2 itemprop="name headline">My contributions to CPython during 2017 Q3: Part 1</h2>
 	</a>
-	<time datetime="2017-10-18T15:00:00+02:00" itemprop="datePublished">mer. 18 octobre 2017</time>
+	<time datetime="2017-10-18T15:00:00+02:00" itemprop="datePublished">Wed 18 October 2017</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -249,7 +279,7 @@ threads)</a>.</li>
 	<a href="https://vstinner.github.io/python-security.html">
 		<h2 itemprop="name headline">Python Security</h2>
 	</a>
-	<time datetime="2017-09-15T22:00:00+02:00" itemprop="datePublished">ven. 15 septembre 2017</time>
+	<time datetime="2017-09-15T22:00:00+02:00" itemprop="datePublished">Fri 15 September 2017</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -280,7 +310,7 @@ is …</p></div></div>
 	<a href="https://vstinner.github.io/new-python-c-api.html">
 		<h2 itemprop="name headline">A New C API for CPython</h2>
 	</a>
-	<time datetime="2017-09-07T18:00:00+02:00" itemprop="datePublished">jeu. 07 septembre 2017</time>
+	<time datetime="2017-09-07T18:00:00+02:00" itemprop="datePublished">Thu 07 September 2017</time>
 	&nbsp;—&nbsp;
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
@@ -309,38 +339,6 @@ macros with function calls.</p>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/contrib-cpython-2017q2-part3.html">
-		<h2 itemprop="name headline">My contributions to CPython during 2017 Q2 (part 3)</h2>
-	</a>
-	<time datetime="2017-07-13T17:00:00+02:00" itemprop="datePublished">jeu. 13 juillet 2017</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><p>This is the third part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
-<ul class="simple">
-<li>Security</li>
-<li>Trick bug: Clang 4.0, dtoa and strict aliasing</li>
-<li>sigwaitinfo() race condition in test_eintr</li>
-<li>FreeBSD test_subprocess core dump</li>
-</ul>
-<p>Previous reports:</p>
-<ul class="simple">
-<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">My contributions to CPython during 2017 Q2 (part 1)</a>.</li>
-<li><a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q2-part2.html">My contributions to CPython …</a></li></ul></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/author/victor-stinner3.html">&larr; Previous</a></li>
@@ -352,6 +350,7 @@ macros with function calls.</p>
     <li class=""><a href="https://vstinner.github.io/author/victor-stinner5.html">5</a></li>
     <li class=""><a href="https://vstinner.github.io/author/victor-stinner6.html">6</a></li>
     <li class=""><a href="https://vstinner.github.io/author/victor-stinner7.html">7</a></li>
+    <li class=""><a href="https://vstinner.github.io/author/victor-stinner8.html">8</a></li>
 
     <li class="next"><a href="https://vstinner.github.io/author/victor-stinner5.html">Next &rarr;</a></li>
 
@@ -381,7 +380,7 @@ macros with function calls.</p>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (19)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (20)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

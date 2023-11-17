@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Design the API of a new PyDict_GetItemRef() function — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Design the API of a new PyDict_GetItemRef() function; Date: 2023-11-16; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Design the API of a new PyDict_GetItemRef() function</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2023-11-16T20:00:00+01:00" itemprop="datePublished">Thu 16 November 2023</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><p>Last June, I proposed adding a new <tt class="docutils literal">PyDict_GetItemRef()</tt> function to Python
+3.13 C API. Every aspect of the API design was discussed in length. I will
+explain how the API was designed, to finish with the future creation of C API
+Working Group.</p>
+<img alt="Psyche Revived by Cupid's Kiss" src="https://vstinner.github.io/images/amour_psychee.jpg" />
+<p>Photo: <em>Psyche Revived by Cupid's Kiss</em> sculpture by Antonio Canova.</p>
+<div class="section" id="add-pyimport-addmoduleref-function">
+<h2>Add PyImport_AddModuleRef() function</h2>
+<p>In June, while reading Python C code, I found a <a class="reference external" href="https://github.com/python/cpython/blob/8cd70eefc7f3363cfa0d43f34522c3072fa9e160/Python/import.c#L345-L369">surprising code</a>:
+the <tt class="docutils literal">PyImport_AddModuleObject()</tt> function creates a <strong>weak reference</strong> on the
+module returned by <tt class="docutils literal">import_add_module()</tt>, call <tt class="docutils literal">Py_DECREF()</tt> on the module,
+and then try to get the module back from the weak reference: it can be NULL if
+the reference count was one. I expected to have just <tt class="docutils literal">Py_DECREF()</tt>, but no,
+complicated code involving a weak reference is needed to prevent a crash.</p>
+<p>So I <a class="reference external" href="https://github.com/python/cpython/issues/105922">added</a> the new
+<a class="reference external" href="https://docs.python.org/dev/c-api/import.html#c.PyImport_AddModuleRef">PyImport_AddModuleRef() function</a> to
+return directly the strong reference, and avoid having to create a temporary
+weak reference.</p>
+<p>Note: The API of the new PyImport_AddModuleObject() function is <a class="reference external" href="https://github.com/python/cpython/issues/106915">still being
+discussed and may change in the near future</a>.</p>
+</div>
+<div class="section" id="add-pyweakref-getref-function">
+<h2>Add PyWeakref_GetRef() function</h2>
+<p>Shortly after, I <a class="reference external" href="https://github.com/python/cpython/issues/105927">added</a> the
+new <a class="reference external" href="https://docs.python.org/dev/c-api/weakref.html#c.PyWeakref_GetRef">PyWeakref_GetRef() function</a>. It is
+similar to <tt class="docutils literal">PyWeakref_GetObject()</tt>, but returns a strong reference instead of
+a borrowed reference.</p>
+<p>Since I listed <a class="reference external" href="https://pythoncapi.readthedocs.io/bad_api.html#borrowed-references">Bad C API</a> in my
+&quot;Design a new better C API for Python&quot; project in 2018, I am now fighting
+against borrowed references since they cause multiple issues such as:</p>
+<ul class="simple">
+<li>Subtle crashes in C extensions.</li>
+<li>Make the C API implementation in PyPy more complicated: see
+<a class="reference external" href="https://www.pypy.org/posts/2018/09/inside-cpyext-why-emulating-cpython-c-8083064623681286567.html">Inside cpyext: Why emulating CPython C API is so Hard</a>
+(2018) by Antonio Cuni.</li>
+<li>Unknown objects lifetime preventing optimization opportunities.</li>
+<li>Make the C API less regular and harder to use: some functions return a new
+reference, others return borrowed reference.</li>
+</ul>
+<p>In 2020, my first attempt to <a class="reference external" href="https://github.com/python/cpython/issues/86460">add a new PyTuple_GetItemRef() function</a> was rejected.</p>
+</div>
+<div class="section" id="pydict-getitemref-easy">
+<h2>PyDict_GetItemRef(): easy!</h2>
+<p>Since it went well (quick discussion, no major disagreement) to add
+<tt class="docutils literal">PyImport_AddModuleRef()</tt> and <tt class="docutils literal">PyWeakref_GetRef()</tt> functions, I felt lucky and
+proposed <a class="reference external" href="https://github.com/python/cpython/issues/106004">adding a new PyDict_GetItemRef() function</a>. It should be easy as well,
+right? The discussion started in the issue and continued in the associated
+<a class="reference external" href="https://github.com/python/cpython/pull/106005">pull request</a>.</p>
+<p>The idea of <tt class="docutils literal">PyDict_GetItemRef()</tt> is to replace the <tt class="docutils literal">PyDict_GetItem()</tt>
+function which returns a borrowed reference and ignore all errors:
+<tt class="docutils literal">hash(key)</tt> error, <tt class="docutils literal">key == key2</tt> comparison error, <tt class="docutils literal">KeyboardInterrupt</tt>,
+etc.</p>
+<p>There is already the <tt class="docutils literal">PyDict_GetItemWithError()</tt> function which reports
+errors.  But it returns a borrowed reference and its API has an issue: when it
+returns <tt class="docutils literal">NULL</tt>, the caller must check <tt class="docutils literal">PyErr_Occurred()</tt> to know if an
+exception is set, or if the key is missing. This problem was the <a class="reference external" href="https://github.com/capi-workgroup/problems/issues/1">very first
+issue</a> created in the
+Problems project of the C API Working Group.</p>
+<p>This Problems project is a collaborative work to collect C API issues. By the
+way, the <a class="reference external" href="https://peps.python.org/pep-0733/">PEP 733 – An Evaluation of Python’s Public C API</a> was published at October 16: summary of
+these problems.</p>
+</div>
+<div class="section" id="pydict-getitemref-api-version-1">
+<h2>PyDict_GetItemRef(): API version 1</h2>
+<p>I proposed the API:</p>
+<pre class="literal-block">
+int PyDict_GetItemRef(PyObject *mp, PyObject *key, PyObject **pvalue)
+int PyDict_GetItemStringRef(PyObject *mp, const char *key, PyObject **pvalue)
+</pre>
+<p>Return <tt class="docutils literal">0</tt> on success, or <tt class="docutils literal"><span class="pre">-1</span></tt> on error. Simple, right?</p>
+<p><strong>Gregory Smith</strong> was supportive:</p>
+<blockquote>
+I'm in favor of this because I don't think we should have public APIs that
+(a) require a value check + <tt class="docutils literal">PyErr_Occurred()</tt> call pattern - a frequent
+source of lurking bugs - or (b) return borrowed references. Yes I know we
+already have them, that's missing the point. The point is that with these
+in place, we can promote their use over the others because these are better
+in all respects.</blockquote>
+<p>Later, I discovered that the draft <a class="reference external" href="https://peps.python.org/pep-0703/">PEP 703 – Making the Global Interpreter
+Lock Optional in CPython</a> proposed adding
+a <tt class="docutils literal">PyDict_FetchItem()</tt> similar to my proposed <tt class="docutils literal">PyDict_GetItemRef()</tt>
+function.</p>
+</div>
+<div class="section" id="api-version-2-change-the-return-value">
+<h2>API version 2: Change the Return Value</h2>
+<p><strong>Mark Shannon</strong> asked:</p>
+<blockquote>
+What's the rationale for not distinguishing between found and not found in
+the return value? See: <a class="reference external" href="https://github.com/python/devguide/issues/1121">Document the preferred style for API functions with
+three, four or five-way returns</a>.</blockquote>
+<p>I modified the API to return <tt class="docutils literal">1</tt> if the key is present and return <tt class="docutils literal">0</tt> if
+the key is missing.</p>
+<p>By the way, <strong>Erlend Aasland</strong> added <a class="reference external" href="https://devguide.python.org/developer-workflow/c-api/index.html#guidelines-for-expanding-changing-the-public-api">C API guidelines</a>
+in the Python Developer Guide (devguide) about function return values.</p>
+</div>
+<div class="section" id="function-name">
+<h2>Function Name</h2>
+<p><strong>Serhiy Storchaka</strong> had concerns about the name:</p>
+<blockquote>
+The only problem is that functions with so similar names have completely
+different interface. It is pretty confusing. Would not be better to name it
+<tt class="docutils literal">PyDict_LookupItem</tt> or like? It may be worth to add also
+<tt class="docutils literal">PyMapping_LookupItem</tt> for convenience.</blockquote>
+<p><strong>Mark Shannon</strong> added:</p>
+<blockquote>
+<p>Can we come up with a better name than <tt class="docutils literal">PyDict_GetItemRef</tt>?
+I see why you are adding <tt class="docutils literal">Ref</tt> to the end, but all API functions should
+return new references, so it is a bit like calling the function
+PyDict_GetItemNotWrong.</p>
+<p>Obviously, the ideal name [<tt class="docutils literal">PyDict_GetItem()</tt>] is already taken. Anyone
+have any suggestions for a better name?</p>
+</blockquote>
+<p><strong>Sam Gross</strong> wrote:</p>
+<blockquote>
+<p>In the context of PEP 703, I think it would be better to have variations
+that only change one axis of the semantics (e.g., new vs. borrowed, error
+vs. no error) and have the naming reflect that. For example, PEP 703
+proposes:</p>
+<p><tt class="docutils literal">PyDict_FetchItem</tt> for <tt class="docutils literal">PyDict_GetItem</tt> and
+<tt class="docutils literal">PyDict_FetchItemWIthError</tt> for <tt class="docutils literal">PyDict_GetItemWithError</tt>.</p>
+</blockquote>
+<p>I created <a class="reference external" href="https://github.com/capi-workgroup/problems/issues/52">Naming convention for new C API functions</a> to discuss the <tt class="docutils literal">Ref</tt>
+suffix for new functions returning a strong refererence.</p>
+<p>PEP 703 proposes <tt class="docutils literal">PyDict_FetchItem()</tt> name.</p>
+</div>
+<div class="section" id="first-argument-type">
+<h2>First Argument Type</h2>
+<p><strong>Mark Shannon</strong> had concerns about the first argument type:</p>
+<blockquote>
+Using <tt class="docutils literal">PyObject*</tt> is needlessly throwing away type information.</blockquote>
+<p><strong>Erlend Aasland</strong> added:</p>
+<blockquote>
+Why not strongly typed, since it is a <tt class="docutils literal">PyDict_</tt> API?</blockquote>
+</div>
+<div class="section" id="pull-request-approvals-and-the-function-name-strikes-back">
+<h2>Pull Request Approvals And The Function Name Strikes Back</h2>
+<p><strong>Erlend</strong> and <strong>Gregory</strong> approved my pull request.</p>
+<p><strong>Erlend</strong> wrote:</p>
+<blockquote>
+I'm approving this. A new naming scheme makes sense for a new API; I'm not
+sure it makes sense to try and enforce a new scheme in the current API. For
+now, there is already precedence of the <tt class="docutils literal">Ref</tt> suffix in the current API;
+I'm ok with that. Also, the current API uses <tt class="docutils literal">PyObject*</tt> all over the
+place. If we are to change this, we practically will end up with a
+completely new API; AFAICS, there is no problem with sticking to the
+current practice.</blockquote>
+<p>Then the discussion about the function name came back. So <strong>Gregory</strong> asked the
+Steering Council: <a class="reference external" href="https://github.com/python/steering-council/issues/201">Should we add non-borrowed-ref public C APIs, if
+so, is there a naming convention?</a>. He asked two
+questions:</p>
+<ul class="simple">
+<li>Q1: Should we add non-borrowed-reference public C APIs where only
+borrowed-reference ones exist.</li>
+<li>Q2: if yes to Q1, is there a preferred naming convention to use for new
+public C APIs that return a strong reference when the earlier APIs these
+would be parallel versions of only returned a borrowed reference.</li>
+</ul>
+<p>Later, <strong>Serhiy Storchaka</strong> also approved the pull request:</p>
+<blockquote>
+<p>In general, I support adding this function. The benefits:</p>
+<ul class="simple">
+<li>Returns a strong reference. It will save from some errors and may be
+better for PyPy.</li>
+<li>Save CPU time for calling PyErr Occurred().</li>
+</ul>
+</blockquote>
+<p>The PR had a total of 3 approvals.</p>
+</div>
+<div class="section" id="api-version-3-use-pydictobject">
+<h2>API version 3: use PyDictObject</h2>
+<p>When I asked again <strong>Mark</strong> his opinion on the API, he wrote:</p>
+<blockquote>
+I'm opposed because making ad-hoc changes like this is going to make the
+C-API worse, not better.</blockquote>
+<p>I made the change asked by <strong>Mark</strong>, change the first parameter type from
+<tt class="docutils literal">PyObject*</tt> to <tt class="docutils literal">PyDictObject*</tt>. API version 3:</p>
+<pre class="literal-block">
+int PyDict_GetItemRef(PyDictObject *op, PyObject *key, PyObject **pvalue)
+</pre>
+</div>
+<div class="section" id="disagreement-on-the-pydictobject-type">
+<h2>Disagreement On The PyDictObject Type</h2>
+<p><strong>Serhiy</strong> was against the change:</p>
+<blockquote>
+I dislike using concrete struct types instead of <tt class="docutils literal">PyObject*</tt> in API,
+especially in public API. Isn't there a rule forbidding this?</blockquote>
+<p>In May, <strong>Mark</strong> created <a class="reference external" href="https://github.com/capi-workgroup/problems/issues/31">The C API is weakly typed</a> discussion in the
+Problems project.</p>
+<p>During the discussion, <strong>Erlend</strong> created <a class="reference external" href="https://github.com/python/devguide/issues/1127">Document guidelines for when to use
+dynamically typed APIs</a> in
+the devguide to try to find a consensus regarding guidelines for weakly/stronly
+typed APIs.</p>
+<p>There are two questions:</p>
+<ul class="simple">
+<li>Use <tt class="docutils literal">PyObject*</tt> or <tt class="docutils literal">PyDictObject*</tt> type for the parameter.</li>
+<li>Check the type at runtime, or don't check for best performance (use an
+assertion in debug mode).</li>
+</ul>
+<p><strong>Serhiy</strong> wrote:</p>
+<blockquote>
+<p>It is not about runtime checking.</p>
+<p>It is about requiring to cast the argument to <tt class="docutils literal">PyDictObject*</tt> every time
+you use the function: <tt class="docutils literal"><span class="pre">PyDict_GetItemRef((PyDictObject*)foo,</span> bar, &amp;baz)</tt>.</p>
+<p>It is tiresome, and it is unsafe, because the compiler will not reject the
+code if <tt class="docutils literal">foo</tt> is <tt class="docutils literal">int</tt> or <tt class="docutils literal">const char*</tt>.</p>
+</blockquote>
+<p><strong>Gregory</strong> added:</p>
+<blockquote>
+Our C API only accepts plain <tt class="docutils literal">PyObject*</tt> as input to all our public
+APIs. Otherwise user code will be littered with typecasts all over the
+place.</blockquote>
+<p><strong>Gregory</strong> removed his approval.</p>
+</div>
+<div class="section" id="revert-back-to-pyobject-type-api-version-2">
+<h2>Revert: Back To PyObject Type (API Version 2)</h2>
+<p>Since <strong>Serhiy</strong> and <strong>Gregory</strong> were against the change, I reverted it to move
+back to the <tt class="docutils literal">PyObject*</tt> type. <strong>Serhiy</strong> and <strong>Erlend</strong> confirmed their
+approval.</p>
+<p>I created the issue <a class="reference external" href="https://github.com/capi-workgroup/problems/issues/55">Design a brand new C API with new PyCAPI_ prefix where all
+functions respect new guidelines</a> in the Problems
+project to discuss the creation of a branch new API. I suggested <strong>Mark</strong> to
+only consider changing weakly type <tt class="docutils literal">PyObject*</tt> type to strongly typed
+<tt class="docutils literal">PyDictObject*</tt> in such new API.</p>
+</div>
+<div class="section" id="more-changes-api-version-4">
+<h2>More changes? API version 4</h2>
+<p><strong>Petr Viktorin</strong> joined the discussion and proposed a late change:</p>
+<blockquote>
+FWIW, here's a possible new variant: you could set result to <tt class="docutils literal">NULL</tt> in
+which case the result isn't stored/incref'd. And that would start a
+convention of how to turn a get operation into a membership test. (And the
+Lookup name would fit that better.)</blockquote>
+<p>I didn't take <strong>Petr</strong>'s suggestion since <strong>Serhiy</strong> pointed out that there is
+already the <tt class="docutils literal">PyDict_Contains()</tt> function to test is a dictionary contains a
+key.</p>
+<p><strong>Mark Shannon</strong> wrote:</p>
+<blockquote>
+If this function is to take <tt class="docutils literal">PyObject*</tt>, as <strong>Erlend</strong> seems to insist,
+then it shouldn't raise a <tt class="docutils literal">SystemError</tt> when passed something other than
+a dict. It should raise a <tt class="docutils literal">TypeError</tt>.</blockquote>
+<p>I modified the API (version 4) to raise <tt class="docutils literal">SystemError</tt> if the first argument
+is not a dictionary, instead raising <tt class="docutils literal">TypeError</tt>.</p>
+</div>
+<div class="section" id="merge-the-change">
+<h2>Merge The Change</h2>
+<p>After around 1 month of intense discussions, I merged my change adding the
+<tt class="docutils literal">PyDict_GetItemRef()</tt> function (<a class="reference external" href="https://github.com/python/cpython/commit/41ca16455188db806bfc7037058e8ecff2755e6c">commit</a>)
+with <a class="reference external" href="https://github.com/python/cpython/pull/106005#issuecomment-1646249360">a summary of the discussion</a>.</p>
+<p>I also <a class="reference external" href="https://github.com/python/pythoncapi-compat/commit/eaff3c172f94ed32ac38860c38d7a8fa27483e57">added the function to pythoncapi-compat project</a>.</p>
+<p>Final API:</p>
+<pre class="literal-block">
+int PyDict_GetItemRef(PyObject *p, PyObject *key, PyObject **result)
+int PyDict_GetItemStringRef(PyObject *p, const char *key, PyObject **result)
+</pre>
+<p>Documentation:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemRef">PyDict_GetItemRef</a></li>
+<li><a class="reference external" href="https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemStringRef">PyDict_GetItemStringRef</a></li>
+</ul>
+<p>Using the <a class="reference external" href="https://pythoncapi-compat.readthedocs.io/">pythoncapi-compat project</a>, you can use this new API right
+now on all Python versions!</p>
+</div>
+<div class="section" id="how-to-take-decisions">
+<h2>How To Take Decisions?</h2>
+<p>The discussions occurred at many multiple places:</p>
+<ul class="simple">
+<li>My Python issue</li>
+<li>My Python pull request</li>
+<li>Multiple Problems issues</li>
+<li>Multiple devguide issues</li>
+<li>Steering Council issue</li>
+</ul>
+<p>The discussion was heated. <strong>Erlend</strong> decided to take a break:</p>
+<blockquote>
+I'm taking a break from the C API discussions; I'm removing myself from
+this PR for now</blockquote>
+<p>While the change was approved by 3 core developers, there was not strictly a
+consensus since <strong>Mark</strong> did not formally approve the change. Some people asked
+to wait until some general guidelines for new APIs are decided, <strong>before</strong>
+making further C API changes.</p>
+<p><strong>Gregory</strong> opened a Steering Council issue at July 2. I asked for an update
+at July 17. Three meetings later, they didn't have the opportunity to visit the
+question. They were busy discussing the heavy <a class="reference external" href="https://peps.python.org/pep-0703/">PEP 703 – Making the Global
+Interpreter Lock Optional in CPython</a>. I
+merged my changed before the Steering Council spoke up. I proposed to revert
+the change if needed. At July 25, <strong>Gregory</strong> replied in the name of the
+Steering Council:</p>
+<blockquote>
+The steering council chatted about non-borrowed-ref and naming conventions
+today. We want to <strong>delegate</strong> this to the <strong>C API working group</strong> to come
+back with a broader recommendation. <strong>Irit Katriel</strong> has put together the
+initial draft of <a class="reference external" href="https://github.com/capi-workgroup/problems/blob/main/capi_problems.rst">An Evaluation of Python's Public C API</a>
+for example.</blockquote>
+<p>The problem was that the C API Working Group was just a GitHub organization, it
+was not an organized group with designated members.</p>
+</div>
+<div class="section" id="c-api-working-group">
+<h2>C API Working Group</h2>
+<p>From October 9 to 14, there was a Core Dev Sprint at Brno (Czech Republic). I
+gave a talk about the C API status and my C API agenda: <a class="reference external" href="https://github.com/vstinner/talks/blob/main/2023-CoreDevSprint-Brno/c-api.pdf">slides of my C API
+talk</a>.
+At the end, I called to create a formal C API Working Group to unblock the
+situation.</p>
+<p>During the sprint, after my talk, <strong>Guido van Rossum</strong> wrote <a class="reference external" href="https://peps.python.org/pep-0731/">PEP 731 – C API
+Working Group Charter</a> with 5 members:</p>
+<ul class="simple">
+<li><strong>Steve Dower</strong></li>
+<li><strong>Irit Katriel</strong></li>
+<li><strong>Guido van Rossum</strong></li>
+<li><strong>Victor Stinner</strong> (me)</li>
+<li><strong>Petr Viktorin</strong></li>
+</ul>
+<p>Once the PEP was published, it was <a class="reference external" href="https://discuss.python.org/t/pep-731-c-api-working-group-charter/36117">discussed on discuss.python.org</a>.
+Two weeks later, <strong>Guido</strong> submitted the PEP to the Steering Council: <a class="reference external" href="https://github.com/python/steering-council/issues/210">PEP 731
+-- C API Working Group Charter</a>.</p>
+<p>The Steering Council didn't take a decision yet. Previously, the Steering
+Council expressed their desire to delegate some C API decisions to a C API
+Working Group.</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (20)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
