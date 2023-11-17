@@ -21,12 +21,13 @@ Photo: *Psyche Revived by Cupid's Kiss* sculpture by Antonio Canova.
 Add PyImport_AddModuleRef() function
 ====================================
 
-In June, while reading Python C code, I found a surprising code: the
-``PyImport_AddModuleObject()`` creates a weak reference on the module returned
-by ``import_add_module()``, call ``Py_DECREF()`` on the module, and then try to
-get the module back from the weak reference: it can be NULL if the reference
-count was one. I expected to have just ``Py_DECREF()``, but no, complicated code
-involving a weak reference is needed to prevent a crash.
+In June, while reading Python C code, I found a `surprising code
+<https://github.com/python/cpython/blob/8cd70eefc7f3363cfa0d43f34522c3072fa9e160/Python/import.c#L345-L369>`_:
+the ``PyImport_AddModuleObject()`` function creates a **weak reference** on the
+module returned by ``import_add_module()``, call ``Py_DECREF()`` on the module,
+and then try to get the module back from the weak reference: it can be NULL if
+the reference count was one. I expected to have just ``Py_DECREF()``, but no,
+complicated code involving a weak reference is needed to prevent a crash.
 
 So I `added <https://github.com/python/cpython/issues/105922>`__ the new
 `PyImport_AddModuleRef() function
@@ -54,7 +55,7 @@ I am now fighting against borrowed references since they cause multiple issues
 such as:
 
 * Subtle crashes in C extensions.
-* Make the C API implementation in PyPy more complicated:
+* Make the C API implementation in PyPy more complicated: see
   `Inside cpyext: Why emulating CPython C API is so Hard
   <https://www.pypy.org/posts/2018/09/inside-cpyext-why-emulating-cpython-c-8083064623681286567.html>`_
   (2018) by Antonio Cuni.
