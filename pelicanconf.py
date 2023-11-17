@@ -29,5 +29,9 @@ DEFAULT_PAGINATION = 10
 # Uncomment following line if you want document-relative URLs when developing
 RELATIVE_URLS = True
 
+# Fork of:
 # https://github.com/getpelican/pelican-themes/tree/master/aboutwilson
-THEME = "pelican-themes/aboutwilson"
+# Modify the CSS:
+#   - remove <p> margin.
+#   - set font size from 13px to 16px
+THEME = "aboutwilson"
