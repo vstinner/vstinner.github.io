@@ -5,12 +5,11 @@ PyDict_GetItemRef()
 :date: 2023-11-16 20:00
 :tags: c-api, cpython
 :category: cpython
-:slug: c-api-abstract-pyobject
+:slug: c-api-dict-getitemref
 :authors: Victor Stinner
 
-This article is about the intense API design discussion when I proposed adding
-the ``PyDict_GetItemRef()`` function to Python 3.13 C API, between June and
-July 2023.
+Last June, I proposed adding a new ``PyDict_GetItemRef()`` function to Python
+3.13 C API. Every aspect of the API design was discussed in length.
 
 .. image:: {static}/images/amour_psychee.jpg
    :alt: Psyche Revived by Cupid's Kiss
@@ -22,14 +21,14 @@ Photo: *Psyche Revived by Cupid's Kiss* sculpture by Antonio Canova.
 Add PyImport_AddModuleRef() function
 ====================================
 
-In June, while reading a change, I found surprising code: the
+In June, while reading Python C code, I found a surprising code: the
 ``PyImport_AddModuleObject()`` creates a weak reference on the module returned
 by ``import_add_module()``, call ``Py_DECREF()`` on the module, and then try to
 get the module back from the weak reference: it can be NULL if the reference
-count was 1. I expected to have just ``Py_DECREF()``, but no, complicated code
+count was one. I expected to have just ``Py_DECREF()``, but no, complicated code
 involving a weak reference is needed to prevent a crash.
 
-So I `added <https://github.com/python/cpython/issues/105922>`_ the new
+So I `added <https://github.com/python/cpython/issues/105922>`__ the new
 `PyImport_AddModuleRef() function
 <https://docs.python.org/dev/c-api/import.html#c.PyImport_AddModuleRef>`_ to
 return directly the strong reference, and avoid having to create a temporary
@@ -43,7 +42,7 @@ discussed and may change in the near future
 Add PyWeakref_GetRef() function
 ===============================
 
-Shortly after, I `added <https://github.com/python/cpython/issues/105927>`_ the
+Shortly after, I `added <https://github.com/python/cpython/issues/105927>`__ the
 new `PyWeakref_GetRef() function
 <https://docs.python.org/dev/c-api/weakref.html#c.PyWeakref_GetRef>`_. It is
 similar to ``PyWeakref_GetObject()``, but returns a strong reference instead of
@@ -374,3 +373,21 @@ was not an organized group with designated members.
 
 `Stay tuned for the creation a formal C API Working Group
 <https://github.com/python/steering-council/issues/210>`_.
+
+
+Final API
+=========
+
+API::
+
+    int PyDict_GetItemRef(PyObject *p, PyObject *key, PyObject **result)
+    int PyDict_GetItemStringRef(PyObject *p, const char *key, PyObject **result)
+
+Documentation:
+
+* `PyDict_GetItemRef <https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemRef>`_
+* `PyDict_GetItemStringRef <https://docs.python.org/dev/c-api/dict.html#c.PyDict_GetItemStringRef>`_
+
+Using the `pythoncapi-compat project
+<https://pythoncapi-compat.readthedocs.io/>`_, you can use this new API right
+now on all Python versions!
