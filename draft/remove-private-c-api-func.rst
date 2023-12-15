@@ -14,45 +14,165 @@ Remove private C API functions
 
 At the end of June, I created `issue gh-106084
 <https://github.com/python/cpython/issues/106084>`_: "Remove private C API
-functions from abstract.h". Soon after that, I created a more generic `issue
-gh-106320 <https://github.com/python/cpython/issues/106320>`_: "Remove private
-C API functions".
+functions from abstract.h".
 
-On Discourse, Petr proposed `(pssst) Let's treat all API in public headers as public
+Soon after that, I created a more generic `issue gh-106320
+<https://github.com/python/cpython/issues/106320>`_: "Remove private C API
+functions". The issue has 63 pull requests (a lot!), 53 comments and more than
+300 events (created by commits and pull requests) which make the issue hard
+to navigate.
+
+At July 3, Petr shared his concerns:
+
+    Please be careful about assuming that the underscore means a function is
+    private. AFAIK, that rule first appears for `3.10
+    <https://docs.python.org/3.10/c-api/stable.html#stable>`_, and was only
+    properly formalized in `PEP 689 <https://peps.python.org/pep-0689/>`_, for
+    Python 3.12.
+
+    For older functions, please consider if they should be added to the
+    unstable API. IMO it's better to call them “underscored” than “private”.
+
+    See also: historical note in the `devguide <https://devguide.python.org/developer-workflow/c-api/index.html#private-names>`_.
+
+At July 4, Petr posted on Discourse: `(pssst) Let's treat all API in
+public headers as public
 <https://discuss.python.org/t/pssst-lets-treat-all-api-in-public-headers-as-public/28916>`_.
 
-I proposed the opposite: `C API: My plan to clarify private vs public functions
-in Python 3.13
+At July 4, I removed `181 private functions
+<https://github.com/python/cpython/issues/106320#issuecomment-1620749616>`_ so
+far.
+
+At July 4, I identified that `34 projects
+<https://github.com/python/cpython/issues/106320#issuecomment-1620773057>`_ on
+PyPI top 5,000 are affected by these removals.
+
+At July 7, I `added PyObject_Vectorcall()
+<https://github.com/python/pythoncapi-compat/pull/62>`_ to the
+pythoncapi-compat project.
+
+At July 9, I started the discussion:
+`C API: How much private is the private _Py_IDENTIFIER() API?
+<https://discuss.python.org/t/c-api-how-much-private-is-the-private-py-identifier-api/29190>`_.
+
+At July 13, I asked if `the PyComplex API
+<https://github.com/python/cpython/issues/106320#issuecomment-1633302147>`_
+should be made private or not. Petr noticed that this API was documented.
+
+At July 23, I tried to build numpy, but I was blocked by Cython which was broken by my
+changes. I created the `issue gh-107076
+<https://github.com/python/cpython/issues/107076>`_: "C API: Cython 3.0 uses
+private functions removed in Python 3.13 (numpy 1.25.1 fails to build)".
+
+At July 23, I found that the private ``_PyTuple_Resize()`` function is documented. I
+proposed `adding a new internal _PyTupleBuilder API
+<https://github.com/python/cpython/pull/107139>`_ to replace
+``_PyTuple_Resize()``.
+
+At July 23, I proposed:
+`C API: My plan to clarify private vs public functions in Python 3.13
 <https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131>`_.
 
-At the beginning of September, `I declared
+At July 24, I created the PR `Remove private _PyCrossInterpreterData API
+<https://github.com/python/cpython/pull/107068>`_, but Eric Snow asked me
+to keep this private API since it's used by 3rd party C extensions.
+
+At August 24, I created `issue gh-108444
+<https://github.com/python/cpython/issues/108444>`_ to add ``PyLong_AsInt()``
+public function, replacing removed ``_PyLong_AsInt()`` function.
+
+At September 4, I looked at the ``_PyArg`` API:
+
+    Removing the private _PyArg C API is complicated. Iit's used by Argument
+    Clinic. I modified Argument Clinic to generate pycore_modsupport.h
+    includes, but then Modules/_csv.h fails to build because it uses the
+    internal C API. I don't want to force a C extension to use the internal C
+    API if it's not used yet.
+
+I started the discussion: `Use the limited C API for some of our stdlib C extensions
+<https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465>`_.
+
+At September 4, `I declared
 <https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/8>`_:
 
     I declare that the Python 3.13 season of “removing as many private C API as
     possible” ended! I stop here until Python 3.14.
 
-Python 3.12 exports 385 private functions. After the cleanup, Python 3.13
-only exported 86 private functions: I removed 299 functions.
+Python 3.12 exports **385** private functions. After the cleanup, Python 3.13
+only exported **86** private functions: I removed 299 functions. I closed the
+issue.
 
-Python 3.13 alpha1 and revert
-=============================
 
-At October 13, Python 3.13 alpha1 was released with my changes removed many
-private C API functions.
+Python 3.13 alpha 1 negative feedback
+=====================================
+
+At October 13, Python 3.13 **alpha 1** was **released** with my changes
+removing around 300 private C API functions.
+
+At October 14, Guido `asked
+<https://github.com/python/cpython/issues/106320#issuecomment-1762755146>`_:
+
+    Thanks for the list. Should we encourage various projects to test 3.13a1,
+    which just came out? Is there a way we can encourage them more?
 
 At October 30, Stefan Behnel creator and maintainer of Cython posted the
 message: `Python 3.13 alpha 1 contains breaking changes, what's the plan?
 <https://discuss.python.org/t/python-3-13-alpha-1-contains-breaking-changes-whats-the-plan/37490>`_.
+He also `commented the issue <https://github.com/python/cpython/issues/106320#issuecomment-1772735064>`_.
+Extract:
 
-My colleague Karolina did a great bug triage work on counting build failures
-per C API issue by recompiling 4000+ Python packages in Fedora with Python
-3.13.  At November 7, she posted a report:
-`Ongoing packages' rebuild with Python 3.13 in Fedora
+    I just came across this issue. Let me express my general disapproval
+    regarding deliberate breakage, which this issue appears to be entirely
+    about. As far as I can see, none of these removals was motivated. The mere
+    idea of removing existing API "because we can" is entirely foreign to me.
+
+At October 31, Petr asked the Steering Council:
+`Is it OK to remove _PyObject_Vectorcall? <https://github.com/python/steering-council/issues/212>`_
+about the removal of old aliases with underscore, such as
+``_PyObject_Vectorcall`` and ``_Py_TPFLAGS_HAVE_VECTORCALL``: aliases
+to public ``PyObject_Vectorcall`` and ``Py_TPFLAGS_HAVE_VECTORCALL``.
+I didn't know that these names were part of `PEP 590 – Vectorcall: a fast
+calling protocol for CPython <https://peps.python.org/pep-0590/>`_, nothing was
+written about that in the header files.
+
+At November 2, Guido `wrote
+<https://github.com/python/cpython/issues/106320#issuecomment-1790832433>`_:
+
+    We can talk till we’re blue in the face but please no more action (i.e., no
+    more moving/removing APIs) until the full WG has had a chance to discuss
+    this and make a decision.
+
+    (Restoring removed APIs at users’ requests is fine.)
+
+At November 3, Gregory `wrote
+<https://github.com/python/cpython/issues/111481#issuecomment-1794211126>`__:
+
+    I'd much prefer 'revert' for any API anyone is found using in 3.13.
+
+    We need to treat 3.13 as a more special than usual release and aim to
+    minimize compatibility headaches for existing project code. That way more
+    things that build and run on 3.12 build can run on 3.13 as is or with
+    minimal work.
+
+    This will enable ecosystem code owners to focus on the bigger picture task
+    of enabling existing code to be built and tested on an experimental pep703
+    free-threading build rather than having a pile of unrelated cleanup trivia
+    blocking that.
+
+At November 7, my colleague Karolina posted a report: `Ongoing packages'
+rebuild with Python 3.13 in Fedora
 <https://discuss.python.org/t/ongoing-packages-rebuild-with-python-3-13-in-fedora/38134>`_.
+She did a great bug triage work on counting build failures per C API issue by
+recompiling 4000+ Python packages in Fedora with Python 3.13.
+
+At November 13, Petr also identified that the private PyComplex API, such as
+``_Py_c_sum()`` function, was documented. Moreover, the `issue gh-112019
+<https://github.com/python/cpython/issues/112019>`_ was created to ask to
+revert these APIs.
 
 
-Restore removed functions causing most problems
-===============================================
+Revert in Python 3.13 alpha 2
+=============================
 
 At November 13, I created `issue gh-112026
 <https://github.com/python/cpython/issues/112026>`_: "[C API] Revert of private
@@ -71,23 +191,23 @@ cffi built successfully with a minor change that I reported upstream:
 
 In total, I restored `50 private functions
 <https://github.com/python/cpython/issues/112026#issuecomment-1813191948>`_.
-At November 22, Python 3.13 alpha2 was released with these restored functions.
+At November 22, Python 3.13 alpha 2 was released with these restored functions.
 It seems like the situation is more quiet now.
 
 Reverting was part of my initial plan, it was clearly announced. But I didn't
-expect that so many people would test Python 3.13 alpha1! I `posted a message
+expect that so many people would test Python 3.13 alpha 1! I `posted a message
 to apologize
 <https://discuss.python.org/t/python-3-13-alpha-1-contains-breaking-changes-whats-the-plan/37490/29>`_
 and to give the context of this work. Extract:
 
     Following the announced plan 22, I reverted 50 private APIs 20 which were
-    removed in Python 3.13 alpha1. These APIs will be available again in the
-    incoming Python 3.13 alpha2 (scheduled next Tuesday).
+    removed in Python 3.13 alpha 1. These APIs will be available again in the
+    incoming Python 3.13 alpha 2 (scheduled next Tuesday).
 
     I planned to make Cython, numpy and cffi compatible with Python 3.13
-    alpha1. Well, I missed this release. With reverted changes, numpy 1.26.2
+    alpha 1. Well, I missed this release. With reverted changes, numpy 1.26.2
     can be built successfully, and cffi 1.16.0 just requires a single change
-    13. So we should be good (or almost good) for Python 3.13 alpha2.
+    13. So we should be good (or almost good) for Python 3.13 alpha 2.
 
     (...)
 
@@ -120,4 +240,3 @@ I have many open pull requests to add more public functions.
 Adding new functions is slower than what I expected. The good part is that many
 people review the API and the new API is way better than the old one. At least,
 it is moving steadily, functions are added one by one.
-
