@@ -12,7 +12,7 @@ Remove private C API functions
 Remove private functions
 ========================
 
-At June 25th, I created `issue gh-106084
+On June 25th, I created `issue gh-106084
 <https://github.com/python/cpython/issues/106084>`_: "Remove private C API
 functions from abstract.h".
 
@@ -20,13 +20,13 @@ functions from abstract.h".
     **public** C API in abstract.h header file. I propose to remove them: move
     them to the **internal** C API.
 
-At July 1st, I created a more generic `issue gh-106320
+On July 1st, I created a more generic `issue gh-106320
 <https://github.com/python/cpython/issues/106320>`_: "Remove private C API
 functions". The issue has 63 pull requests (a lot!), 53 comments and more than
 300 events (created by commits and pull requests) which make the issue hard
 to navigate.
 
-At July 3rd, **Petr Viktorin** shared his concerns:
+On July 3rd, **Petr Viktorin** shared his concerns:
 
     Please be careful about assuming that the underscore means a function is
     private. AFAIK, that rule first appears for `3.10
@@ -39,56 +39,56 @@ At July 3rd, **Petr Viktorin** shared his concerns:
 
     See also: historical note in the `devguide <https://devguide.python.org/developer-workflow/c-api/index.html#private-names>`_.
 
-At July 4th, **Petr** posted on Discourse: `(pssst) Let's treat all API in
+On July 4th, **Petr** posted on Discourse: `(pssst) Let's treat all API in
 public headers as public
 <https://discuss.python.org/t/pssst-lets-treat-all-api-in-public-headers-as-public/28916>`_.
 
 Remove more private functions
 =============================
 
-At July 4th, I removed `181 private functions
+On July 4th, I removed `181 private functions
 <https://github.com/python/cpython/issues/106320#issuecomment-1620749616>`_ so
 far.
 
-At July 4th, I identified that `34 projects
+On July 4th, I identified that `34 projects
 <https://github.com/python/cpython/issues/106320#issuecomment-1620773057>`_ on
 PyPI top 5,000 are affected by these removals.
 
-At July 7th, I `added PyObject_Vectorcall()
+On July 7th, I `added PyObject_Vectorcall()
 <https://github.com/python/pythoncapi-compat/pull/62>`_ to the
 pythoncapi-compat project.
 
-At July 9th, I started the discussion:
+On July 9th, I started the discussion:
 `C API: How much private is the private _Py_IDENTIFIER() API?
 <https://discuss.python.org/t/c-api-how-much-private-is-the-private-py-identifier-api/29190>`_.
 
-At July 13th, I asked if `the PyComplex API
+On July 13th, I asked if `the PyComplex API
 <https://github.com/python/cpython/issues/106320#issuecomment-1633302147>`_
 should be made private or not. Petr noticed that this API was documented.
 
-At July 23th, I tried to build numpy, but I was blocked by Cython which was broken by my
+On July 23th, I tried to build numpy, but I was blocked by Cython which was broken by my
 changes. I created the `issue gh-107076
 <https://github.com/python/cpython/issues/107076>`_: "C API: Cython 3.0 uses
 private functions removed in Python 3.13 (numpy 1.25.1 fails to build)".
 
-At July 23th, I found that the private ``_PyTuple_Resize()`` function is documented. I
+On July 23th, I found that the private ``_PyTuple_Resize()`` function is documented. I
 proposed `adding a new internal _PyTupleBuilder API
 <https://github.com/python/cpython/pull/107139>`_ to replace
 ``_PyTuple_Resize()``.
 
-At July 23th, I proposed:
+On July 23th, I proposed:
 `C API: My plan to clarify private vs public functions in Python 3.13
 <https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131>`_.
 
-At July 24th, I created the PR `Remove private _PyCrossInterpreterData API
+On July 24th, I created the PR `Remove private _PyCrossInterpreterData API
 <https://github.com/python/cpython/pull/107068>`_, but Eric Snow asked me
 to keep this private API since it's used by 3rd party C extensions.
 
-At August 24th, I created `issue gh-108444
+On August 24th, I created `issue gh-108444
 <https://github.com/python/cpython/issues/108444>`_ to add ``PyLong_AsInt()``
 public function, replacing removed ``_PyLong_AsInt()`` function.
 
-At September 4th, I looked at the ``_PyArg`` API:
+On September 4th, I looked at the ``_PyArg`` API:
 
     Removing the private _PyArg C API is complicated. Iit's used by Argument
     Clinic. I modified Argument Clinic to generate pycore_modsupport.h
@@ -99,7 +99,7 @@ At September 4th, I looked at the ``_PyArg`` API:
 I started the discussion: `Use the limited C API for some of our stdlib C extensions
 <https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465>`_.
 
-At September 4th, `I declared
+On September 4th, `I declared
 <https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/8>`_:
 
     I declare that the Python 3.13 season of “removing as many private C API as
@@ -113,16 +113,16 @@ issue.
 Python 3.13 alpha 1 negative feedback
 =====================================
 
-At October 13th, Python 3.13 **alpha 1** was **released** with my changes
+On October 13th, Python 3.13 **alpha 1** was **released** with my changes
 removing around 300 private C API functions.
 
-At October 14th, **Guido van Rossum** `asked
+On October 14th, **Guido van Rossum** `asked
 <https://github.com/python/cpython/issues/106320#issuecomment-1762755146>`_:
 
     Thanks for the list. Should we encourage various projects to test 3.13a1,
     which just came out? Is there a way we can encourage them more?
 
-At October 30th, **Stefan Behnel**, Cython creator, posted the message:
+On October 30th, **Stefan Behnel**, Cython creator, posted the message:
 `Python 3.13 alpha 1 contains breaking changes, what's the plan?
 <https://discuss.python.org/t/python-3-13-alpha-1-contains-breaking-changes-whats-the-plan/37490>`_.
 He also `commented the issue <https://github.com/python/cpython/issues/106320#issuecomment-1772735064>`_.
@@ -133,7 +133,7 @@ Extract:
     about. As far as I can see, none of these removals was motivated. The mere
     idea of removing existing API "because we can" is entirely foreign to me.
 
-At October 31th, **Petr** asked the Steering Council:
+On October 31th, **Petr** asked the Steering Council:
 `Is it OK to remove _PyObject_Vectorcall? <https://github.com/python/steering-council/issues/212>`_
 about the removal of old aliases with underscore, such as
 ``_PyObject_Vectorcall`` and ``_Py_TPFLAGS_HAVE_VECTORCALL``: aliases
@@ -142,7 +142,7 @@ I didn't know that these names were part of `PEP 590 – Vectorcall: a fast
 calling protocol for CPython <https://peps.python.org/pep-0590/>`_, nothing was
 written about that in the header files.
 
-At November 2nd, **Guido** `wrote
+On November 2nd, **Guido** `wrote
 <https://github.com/python/cpython/issues/106320#issuecomment-1790832433>`_:
 
     We can talk till we’re blue in the face but please no more action (i.e., no
@@ -151,7 +151,7 @@ At November 2nd, **Guido** `wrote
 
     (Restoring removed APIs at users’ requests is fine.)
 
-At November 3rd, **Gregory P. Smith** `wrote
+On November 3rd, **Gregory P. Smith** `wrote
 <https://github.com/python/cpython/issues/111481#issuecomment-1794211126>`__:
 
     I'd much prefer 'revert' for any API anyone is found using in 3.13.
@@ -166,13 +166,13 @@ At November 3rd, **Gregory P. Smith** `wrote
     free-threading build rather than having a pile of unrelated cleanup trivia
     blocking that.
 
-At November 7th, my colleague **Karolina Surma** posted a report: `Ongoing packages'
+On November 7th, my colleague **Karolina Surma** posted a report: `Ongoing packages'
 rebuild with Python 3.13 in Fedora
 <https://discuss.python.org/t/ongoing-packages-rebuild-with-python-3-13-in-fedora/38134>`_.
 She did a great bug triage work on counting build failures per C API issue by
 recompiling 4000+ Python packages in Fedora with Python 3.13.
 
-At November 13th, **Petr** also identified that the private PyComplex API, such as
+On November 13th, **Petr** also identified that the private PyComplex API, such as
 ``_Py_c_sum()`` function, was documented. Moreover, the `issue gh-112019
 <https://github.com/python/cpython/issues/112019>`_ was created to ask to
 revert these APIs.
@@ -181,7 +181,7 @@ revert these APIs.
 Revert in Python 3.13 alpha 2
 =============================
 
-At November 13th, I created `issue gh-112026
+On November 13th, I created `issue gh-112026
 <https://github.com/python/cpython/issues/112026>`_: "[C API] Revert of private
 functions removed in Python 3.13 causing most problems". I made 4 changes:
 
@@ -198,7 +198,7 @@ cffi built successfully with a minor change that I reported upstream:
 
 In total, I restored `50 private functions
 <https://github.com/python/cpython/issues/112026#issuecomment-1813191948>`_.
-At November 22th, Python 3.13 alpha 2 was released with these restored functions.
+On November 22th, Python 3.13 alpha 2 was released with these restored functions.
 It seems like the situation is more quiet now.
 
 Reverting was part of my initial plan, it was clearly announced. But I didn't
@@ -228,7 +228,7 @@ and to give the context of this work. Extract:
 Add public functions
 ====================
 
-At October 30th, I created `issue gh-111481
+On October 30th, I created `issue gh-111481
 <https://github.com/python/cpython/issues/111481>`_: "[C API] Meta issue: add
 new public functions with doc+tests to replace removed private functions".
 
