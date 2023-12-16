@@ -113,7 +113,7 @@ On September 4th, I looked at the ``_PyArg`` API. I started the discussion:
 <https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465>`_.
 
 On September 4th, `I declared
-<https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/8>`_:
+<https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/9>`_:
 
     I declare that the Python 3.13 **season of “removing as many private C API
     as possible” ended**! I stop here until Python 3.14.
@@ -261,7 +261,7 @@ So far, I added 7 public functions to Python 3.13:
 * ``Py_HashPointer()``
 * ``Py_IsFinalizing()``
 
-More functions are coming soon, I have many open pull requests.
+More functions are coming soon, I have many open pull requests!
 
 Adding new functions is slower than what I expected. The good part is that many
 people are reviewing the APIs, and that the new public APIs are way better than
