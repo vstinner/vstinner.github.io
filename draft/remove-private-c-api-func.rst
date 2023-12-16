@@ -20,7 +20,7 @@ functions from abstract.h".
     **public** C API in abstract.h header file. I propose to remove them: move
     them to the **internal** C API.
 
-On July 1st, I created a more generic `issue gh-106320
+On July 1st, I created the meta `issue gh-106320
 <https://github.com/python/cpython/issues/106320>`_: "Remove private C API
 functions". The issue has 63 pull requests (a lot!), 53 comments and more than
 300 events (created by commits and pull requests) which make the issue hard
@@ -28,8 +28,8 @@ to navigate.
 
 On July 3rd, **Petr Viktorin** shared his concerns:
 
-    Please be careful about assuming that the underscore means a function is
-    private. AFAIK, that rule first appears for `3.10
+    Please be careful about assuming that the **underscore** means a function
+    is **private**. AFAIK, that rule first appears for `3.10
     <https://docs.python.org/3.10/c-api/stable.html#stable>`_, and was only
     properly formalized in `PEP 689 <https://peps.python.org/pep-0689/>`_, for
     Python 3.12.
@@ -60,7 +60,7 @@ pythoncapi-compat project.
 
 On July 9th, I started the discussion:
 `C API: How much private is the private _Py_IDENTIFIER() API?
-<https://discuss.python.org/t/c-api-how-much-private-is-the-private-py-identifier-api/29190>`_.
+<https://discuss.python.org/t/c-api-how-much-private-is-the-private-py-identifier-api/29190>`_
 
 On July 13th, I asked if `the PyComplex API
 <https://github.com/python/cpython/issues/106320#issuecomment-1633302147>`_
@@ -80,30 +80,32 @@ On July 23th, I proposed:
 `C API: My plan to clarify private vs public functions in Python 3.13
 <https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131>`_.
 
+    Private API has multiple issues: they are usually **not documented**, **not
+    tested**, and so their **behavior may change** without any warning or
+    anything.  Also, they can be **removed anytime** without any notice.
+
+* Phase 1: Remove as many private API as possible
+* Phase 2 (Python 3.13 alpha 1): revert removals if needed to make sure that Cython, numpy and pip
+  work.
+* Phase 3 (Python 3.13 beta 1): consider reverting more removals if needed.
+
 On July 24th, I created the PR `Remove private _PyCrossInterpreterData API
-<https://github.com/python/cpython/pull/107068>`_, but Eric Snow asked me
+<https://github.com/python/cpython/pull/107068>`_. **Eric Snow** asked me
 to keep this private API since it's used by 3rd party C extensions.
 
 On August 24th, I created `issue gh-108444
 <https://github.com/python/cpython/issues/108444>`_ to add ``PyLong_AsInt()``
-public function, replacing removed ``_PyLong_AsInt()`` function.
+public function, replacing the removed ``_PyLong_AsInt()`` function.
 
-On September 4th, I looked at the ``_PyArg`` API:
-
-    Removing the private _PyArg C API is complicated. Iit's used by Argument
-    Clinic. I modified Argument Clinic to generate pycore_modsupport.h
-    includes, but then Modules/_csv.h fails to build because it uses the
-    internal C API. I don't want to force a C extension to use the internal C
-    API if it's not used yet.
-
-I started the discussion: `Use the limited C API for some of our stdlib C extensions
+On September 4th, I looked at the ``_PyArg`` API. I started the discussion:
+`Use the limited C API for some of our stdlib C extensions
 <https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465>`_.
 
 On September 4th, `I declared
 <https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/8>`_:
 
-    I declare that the Python 3.13 season of “removing as many private C API as
-    possible” ended! I stop here until Python 3.14.
+    I declare that the Python 3.13 **season of “removing as many private C API
+    as possible” ended**! I stop here until Python 3.14.
 
 Python 3.12 exports **385** private functions. After the cleanup, Python 3.13
 only exported **86** private functions: I removed 299 functions. I closed the
@@ -113,14 +115,14 @@ issue.
 Python 3.13 alpha 1 negative feedback
 =====================================
 
-On October 13th, Python 3.13 **alpha 1** was **released** with my changes
+On October 13th, **Python 3.13 alpha 1 was released** with my changes
 removing around 300 private C API functions.
 
 On October 14th, **Guido van Rossum** `asked
 <https://github.com/python/cpython/issues/106320#issuecomment-1762755146>`_:
 
-    Thanks for the list. Should we encourage various projects to test 3.13a1,
-    which just came out? Is there a way we can encourage them more?
+    Thanks for the list. Should we **encourage** various **projects to test
+    3.13a1**, which just came out? Is there a way we can encourage them more?
 
 On October 30th, **Stefan Behnel**, Cython creator, posted the message:
 `Python 3.13 alpha 1 contains breaking changes, what's the plan?
@@ -136,14 +138,14 @@ Extract:
 On October 31th, **Petr** asked the Steering Council:
 `Is it OK to remove _PyObject_Vectorcall? <https://github.com/python/steering-council/issues/212>`_
 about the removal of old aliases with underscore, such as
-``_PyObject_Vectorcall`` and ``_Py_TPFLAGS_HAVE_VECTORCALL``: aliases
-to public ``PyObject_Vectorcall`` and ``Py_TPFLAGS_HAVE_VECTORCALL``.
+``_PyObject_Vectorcall``.
 I didn't know that these names were part of `PEP 590 – Vectorcall: a fast
 calling protocol for CPython <https://peps.python.org/pep-0590/>`_, nothing was
 written about that in the header files.
 
 On November 2nd, **Guido** `wrote
-<https://github.com/python/cpython/issues/106320#issuecomment-1790832433>`_:
+<https://github.com/python/cpython/issues/106320#issuecomment-1790832433>`_
+(where WG stands for C API Working Group):
 
     We can talk till we’re blue in the face but please no more action (i.e., no
     more moving/removing APIs) until the full WG has had a chance to discuss
@@ -190,20 +192,25 @@ functions removed in Python 3.13 causing most problems". I made 4 changes:
 * Restore removed _PyDict_GetItemStringWithError()
 * Add again _PyThreadState_UncheckedGet() function
 
-I selected functions by looking at bug reports, Karolina's report, and by
-trying to build numpy and cffi. With my reverts, numpy successfully, and
-cffi built successfully with a minor change that I reported upstream:
-`cffi: Use PyErr_FormatUnraisable() on Python 3.13
-<https://github.com/python-cffi/cffi/pull/34>`_.
+I selected functions by looking at bug reports, **Karolina**'s report, and by
+trying to build numpy and cffi. With my reverts, numpy built successfully, and
+cffi built successfully with a minor change that I reported upstream
+(`cffi: Use PyErr_FormatUnraisable() on Python 3.13
+<https://github.com/python-cffi/cffi/pull/34>`_).
 
 In total, I restored `50 private functions
 <https://github.com/python/cpython/issues/112026#issuecomment-1813191948>`_.
-On November 22th, Python 3.13 alpha 2 was released with these restored functions.
-It seems like the situation is more quiet now.
 
-Reverting was part of my initial plan, it was clearly announced. But I didn't
-expect that so many people would test Python 3.13 alpha 1! I `posted a message
-to apologize
+On November 22th, **Python 3.13 alpha 2 was released** with these restored
+functions.  It seems like the situation is calmer now.
+
+Reverting was part of my initial plan, it was clearly announced since the
+beginning. But I didn't expect that so many people would test Python 3.13 alpha
+1 as soon as it was released (October)! Usually, we only start to get feedback
+around beta 1 (May). I had like **2 weeks to fix most issues instead of 7
+months**. It was really stressful for me.
+
+I `posted a message to apologize
 <https://discuss.python.org/t/python-3-13-alpha-1-contains-breaking-changes-whats-the-plan/37490/29>`_
 and to give the context of this work. Extract:
 
@@ -211,10 +218,11 @@ and to give the context of this work. Extract:
     removed in Python 3.13 alpha 1. These APIs will be available again in the
     incoming Python 3.13 alpha 2 (scheduled next Tuesday).
 
-    I planned to make Cython, numpy and cffi compatible with Python 3.13
-    alpha 1. Well, I missed this release. With reverted changes, numpy 1.26.2
-    can be built successfully, and cffi 1.16.0 just requires a single change
-    13. So we should be good (or almost good) for Python 3.13 alpha 2.
+    I **planned to make Cython, numpy and cffi compatible**  with Python 3.13
+    **alpha 1**. Well, I missed this release. With reverted changes, numpy
+    1.26.2 can be built successfully, and cffi 1.16.0 just requires a single
+    change 13. So we should be good (or almost good) for Python 3.13
+    **alpha 2**.
 
     (...)
 
@@ -232,7 +240,7 @@ On October 30th, I created `issue gh-111481
 <https://github.com/python/cpython/issues/111481>`_: "[C API] Meta issue: add
 new public functions with doc+tests to replace removed private functions".
 
-So far, I added the following functions to Python 3.13:
+So far, I added 7 public functions to Python 3.13:
 
 * ``PyDict_Pop()``
 * ``PyDict_PopString()``
@@ -242,8 +250,10 @@ So far, I added the following functions to Python 3.13:
 * ``Py_HashPointer()``
 * ``Py_IsFinalizing()``
 
-I have many open pull requests to add more public functions.
+More functions are coming soon, I have many open pull requests.
 
 Adding new functions is slower than what I expected. The good part is that many
-people review the API and the new API is way better than the old one. At least,
-it is moving steadily, functions are added one by one.
+people are reviewing the APIs, and that the new public APIs are way better than
+the old private ones: less error prone, can be more efficient, etc. At least,
+the conversion of private to public is moving steadily, functions are added one
+by one.
