@@ -5,7 +5,7 @@ Remove private C API functions
 :date: 2023-12-15 23:00
 :tags: c-api, cpython
 :category: cpython
-:slug: limited-c-api-dec-2023
+:slug: remove-c-api-funcs-313
 :authors: Victor Stinner
 
 In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
