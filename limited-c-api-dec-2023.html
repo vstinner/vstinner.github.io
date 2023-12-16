@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Remove private C API functions — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Remove private C API functions; Date: 2023-12-15; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Remove private C API functions</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2023-12-15T23:00:00+01:00" itemprop="datePublished">Fri 15 December 2023</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><p>In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
+if I announced my plan early in July, users didn't &quot;embrace&quot; my plan and didn't
+agree with the rationale. I reverted 50 functions in the alpha 2 release to
+calm down the situation and have more time to replace private functions with
+public functions.</p>
+<a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"><img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /></a>
+<p><em>Painting: The Seasons by Czech visual artist Alphonse Mucha (1900)</em></p>
+<div class="section" id="remove-private-functions">
+<h2>Remove private functions</h2>
+<p>On June 25th, I created <a class="reference external" href="https://github.com/python/cpython/issues/106084">issue gh-106084</a>: &quot;Remove private C API
+functions from abstract.h&quot;.</p>
+<blockquote>
+Over the years, we accumulated many <strong>private</strong> functions as part of the
+<strong>public</strong> C API in abstract.h header file. I propose to remove them: move
+them to the <strong>internal</strong> C API.</blockquote>
+<p>On July 1st, I created the meta <a class="reference external" href="https://github.com/python/cpython/issues/106320">issue gh-106320</a>: &quot;Remove private C API
+functions&quot;. The issue has 63 pull requests (a lot!), 53 comments and more than
+300 events (created by commits and pull requests) which make the issue hard
+to navigate.</p>
+<p>On July 3rd, <strong>Petr Viktorin</strong> shared his concerns:</p>
+<blockquote>
+<p>Please be careful about assuming that the <strong>underscore</strong> means a function
+is <strong>private</strong>. AFAIK, that rule first appears for <a class="reference external" href="https://docs.python.org/3.10/c-api/stable.html#stable">3.10</a>, and was only
+properly formalized in <a class="reference external" href="https://peps.python.org/pep-0689/">PEP 689</a>, for
+Python 3.12.</p>
+<p>For older functions, please consider if they should be added to the
+unstable API. IMO it's better to call them “underscored” than “private”.</p>
+<p>See also: historical note in the <a class="reference external" href="https://devguide.python.org/developer-workflow/c-api/index.html#private-names">devguide</a>.</p>
+</blockquote>
+<p>On July 4th, <strong>Petr</strong> posted on Discourse: <a class="reference external" href="https://discuss.python.org/t/pssst-lets-treat-all-api-in-public-headers-as-public/28916">(pssst) Let's treat all API in
+public headers as public</a>.</p>
+</div>
+<div class="section" id="remove-more-private-functions">
+<h2>Remove more private functions</h2>
+<p>On July 4th, I removed <a class="reference external" href="https://github.com/python/cpython/issues/106320#issuecomment-1620749616">181 private functions</a> so
+far.</p>
+<p>On July 4th, I identified that <a class="reference external" href="https://github.com/python/cpython/issues/106320#issuecomment-1620773057">34 projects</a> on
+PyPI top 5,000 are affected by these removals.</p>
+<p>On July 7th, I <a class="reference external" href="https://github.com/python/pythoncapi-compat/pull/62">added PyObject_Vectorcall()</a> to the
+pythoncapi-compat project.</p>
+<p>On July 9th, I started the discussion:
+<a class="reference external" href="https://discuss.python.org/t/c-api-how-much-private-is-the-private-py-identifier-api/29190">C API: How much private is the private _Py_IDENTIFIER() API?</a></p>
+<p>On July 13th, I asked if <a class="reference external" href="https://github.com/python/cpython/issues/106320#issuecomment-1633302147">the PyComplex API</a>
+should be made private or not. Petr noticed that this API was documented.</p>
+<p>On July 23th, I tried to build numpy, but I was blocked by Cython which was broken by my
+changes. I created the <a class="reference external" href="https://github.com/python/cpython/issues/107076">issue gh-107076</a>: &quot;C API: Cython 3.0 uses
+private functions removed in Python 3.13 (numpy 1.25.1 fails to build)&quot;.</p>
+<p>On July 23th, I found that the private <tt class="docutils literal">_PyTuple_Resize()</tt> function is documented. I
+proposed <a class="reference external" href="https://github.com/python/cpython/pull/107139">adding a new internal _PyTupleBuilder API</a> to replace
+<tt class="docutils literal">_PyTuple_Resize()</tt>.</p>
+<p>On July 23th, I proposed:
+<a class="reference external" href="https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131">C API: My plan to clarify private vs public functions in Python 3.13</a>.</p>
+<blockquote>
+Private API has multiple issues: they are usually <strong>not documented</strong>, <strong>not
+tested</strong>, and so their <strong>behavior may change</strong> without any warning or
+anything.  Also, they can be <strong>removed anytime</strong> without any notice.</blockquote>
+<ul class="simple">
+<li>Phase 1: Remove as many private API as possible</li>
+<li>Phase 2 (Python 3.13 alpha 1): revert removals if needed to make sure that Cython, numpy and pip
+work.</li>
+<li>Phase 3 (Python 3.13 beta 1): consider reverting more removals if needed.</li>
+</ul>
+<p>On July 24th, I created the PR <a class="reference external" href="https://github.com/python/cpython/pull/107068">Remove private _PyCrossInterpreterData API</a>. <strong>Eric Snow</strong> asked me
+to keep this private API since it's used by 3rd party C extensions.</p>
+<p>On August 24th, I created <a class="reference external" href="https://github.com/python/cpython/issues/108444">issue gh-108444</a> to add <tt class="docutils literal">PyLong_AsInt()</tt>
+public function, replacing the removed <tt class="docutils literal">_PyLong_AsInt()</tt> function.</p>
+<p>On September 4th, I looked at the <tt class="docutils literal">_PyArg</tt> API. I started the discussion:
+<a class="reference external" href="https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465">Use the limited C API for some of our stdlib C extensions</a>.</p>
+<p>On September 4th, <a class="reference external" href="https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/8">I declared</a>:</p>
+<blockquote>
+I declare that the Python 3.13 <strong>season of “removing as many private C API
+as possible” ended</strong>! I stop here until Python 3.14.</blockquote>
+<p>Python 3.12 exports <strong>385</strong> private functions. After the cleanup, Python 3.13
+only exported <strong>86</strong> private functions: I removed 299 functions. I closed the
+issue.</p>
+</div>
+<div class="section" id="python-3-13-alpha-1-negative-feedback">
+<h2>Python 3.13 alpha 1 negative feedback</h2>
+<p>On October 13th, <strong>Python 3.13 alpha 1 was released</strong> with my changes
+removing around 300 private C API functions.</p>
+<p>On October 14th, <strong>Guido van Rossum</strong> <a class="reference external" href="https://github.com/python/cpython/issues/106320#issuecomment-1762755146">asked</a>:</p>
+<blockquote>
+Thanks for the list. Should we <strong>encourage</strong> various <strong>projects to test
+3.13a1</strong>, which just came out? Is there a way we can encourage them more?</blockquote>
+<p>On October 30th, <strong>Stefan Behnel</strong>, Cython creator, posted the message:
+<a class="reference external" href="https://discuss.python.org/t/python-3-13-alpha-1-contains-breaking-changes-whats-the-plan/37490">Python 3.13 alpha 1 contains breaking changes, what's the plan?</a>.
+He also <a class="reference external" href="https://github.com/python/cpython/issues/106320#issuecomment-1772735064">commented the issue</a>.
+Extract:</p>
+<blockquote>
+I just came across this issue. Let me express my general disapproval
+regarding deliberate breakage, which this issue appears to be entirely
+about. As far as I can see, none of these removals was motivated. The mere
+idea of removing existing API &quot;because we can&quot; is entirely foreign to me.</blockquote>
+<p>On October 31th, <strong>Petr</strong> asked the Steering Council:
+<a class="reference external" href="https://github.com/python/steering-council/issues/212">Is it OK to remove _PyObject_Vectorcall?</a>
+about the removal of old aliases with underscore, such as
+<tt class="docutils literal">_PyObject_Vectorcall</tt>.
+I didn't know that these names were part of <a class="reference external" href="https://peps.python.org/pep-0590/">PEP 590 – Vectorcall: a fast
+calling protocol for CPython</a>, nothing was
+written about that in the header files.</p>
+<p>On November 2nd, <strong>Guido</strong> <a class="reference external" href="https://github.com/python/cpython/issues/106320#issuecomment-1790832433">wrote</a>
+(where WG stands for C API Working Group):</p>
+<blockquote>
+<p>We can talk till we’re blue in the face but please no more action (i.e., no
+more moving/removing APIs) until the full WG has had a chance to discuss
+this and make a decision.</p>
+<p>(Restoring removed APIs at users’ requests is fine.)</p>
+</blockquote>
+<p>On November 3rd, <strong>Gregory P. Smith</strong> <a class="reference external" href="https://github.com/python/cpython/issues/111481#issuecomment-1794211126">wrote</a>:</p>
+<blockquote>
+<p>I'd much prefer 'revert' for any API anyone is found using in 3.13.</p>
+<p>We need to treat 3.13 as a more special than usual release and aim to
+minimize compatibility headaches for existing project code. That way more
+things that build and run on 3.12 build can run on 3.13 as is or with
+minimal work.</p>
+<p>This will enable ecosystem code owners to focus on the bigger picture task
+of enabling existing code to be built and tested on an experimental pep703
+free-threading build rather than having a pile of unrelated cleanup trivia
+blocking that.</p>
+</blockquote>
+<p>On November 7th, my colleague <strong>Karolina Surma</strong> posted a report: <a class="reference external" href="https://discuss.python.org/t/ongoing-packages-rebuild-with-python-3-13-in-fedora/38134">Ongoing packages'
+rebuild with Python 3.13 in Fedora</a>.
+She did a great bug triage work on counting build failures per C API issue by
+recompiling 4000+ Python packages in Fedora with Python 3.13.</p>
+<p>On November 13th, <strong>Petr</strong> also identified that the private PyComplex API, such as
+<tt class="docutils literal">_Py_c_sum()</tt> function, was documented. Moreover, the <a class="reference external" href="https://github.com/python/cpython/issues/112019">issue gh-112019</a> was created to ask to
+revert these APIs.</p>
+</div>
+<div class="section" id="revert-in-python-3-13-alpha-2">
+<h2>Revert in Python 3.13 alpha 2</h2>
+<p>On November 13th, I created <a class="reference external" href="https://github.com/python/cpython/issues/112026">issue gh-112026</a>: &quot;[C API] Revert of private
+functions removed in Python 3.13 causing most problems&quot;. I made 4 changes:</p>
+<ul class="simple">
+<li>Add again <tt class="docutils literal">&lt;unistd.h&gt;</tt> include in Python.h</li>
+<li>Restore removed private C API</li>
+<li>Restore removed _PyDict_GetItemStringWithError()</li>
+<li>Add again _PyThreadState_UncheckedGet() function</li>
+</ul>
+<p>I selected functions by looking at bug reports, <strong>Karolina</strong>'s report, and by
+trying to build numpy and cffi. With my reverts, numpy built successfully, and
+cffi built successfully with a minor change that I reported upstream
+(<a class="reference external" href="https://github.com/python-cffi/cffi/pull/34">cffi: Use PyErr_FormatUnraisable() on Python 3.13</a>).</p>
+<p>In total, I restored <a class="reference external" href="https://github.com/python/cpython/issues/112026#issuecomment-1813191948">50 private functions</a>.</p>
+<p>On November 22th, <strong>Python 3.13 alpha 2 was released</strong> with these restored
+functions.  It seems like the situation is calmer now.</p>
+<p>Reverting was part of my initial plan, it was clearly announced since the
+beginning. But I didn't expect that so many people would test Python 3.13 alpha
+1 as soon as it was released (October)! Usually, we only start to get feedback
+around beta 1 (May). I had like <strong>2 weeks to fix most issues instead of 7
+months</strong>. It was really stressful for me.</p>
+<p>I <a class="reference external" href="https://discuss.python.org/t/python-3-13-alpha-1-contains-breaking-changes-whats-the-plan/37490/29">posted a message to apologize</a>
+and to give the context of this work. Extract:</p>
+<blockquote>
+<p>Following the announced plan 22, I reverted 50 private APIs 20 which were
+removed in Python 3.13 alpha 1. These APIs will be available again in the
+incoming Python 3.13 alpha 2 (scheduled next Tuesday).</p>
+<p>I <strong>planned to make Cython, numpy and cffi compatible</strong>  with Python 3.13
+<strong>alpha 1</strong>. Well, I missed this release. With reverted changes, numpy
+1.26.2 can be built successfully, and cffi 1.16.0 just requires a single
+change 13. So we should be good (or almost good) for Python 3.13
+<strong>alpha 2</strong>.</p>
+<p>(...)</p>
+<p>I’m sorry if some people felt that this C API work was forced on them and
+their opinion was not taken in account. We heard you and we took your
+feedback in account. It took me time to adjust my plan according to early
+received feedback. I expected to have 6 months to work step by step. Well,
+I had 2 weeks instead 🙂</p>
+</blockquote>
+</div>
+<div class="section" id="add-public-functions">
+<h2>Add public functions</h2>
+<p>On October 30th, I created <a class="reference external" href="https://github.com/python/cpython/issues/111481">issue gh-111481</a>: &quot;[C API] Meta issue: add
+new public functions with doc+tests to replace removed private functions&quot;.</p>
+<p>So far, I added 7 public functions to Python 3.13:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyDict_Pop()</tt></li>
+<li><tt class="docutils literal">PyDict_PopString()</tt></li>
+<li><tt class="docutils literal">PyList_Clear()</tt></li>
+<li><tt class="docutils literal">PyList_Extend()</tt></li>
+<li><tt class="docutils literal">PyLong_AsInt()</tt></li>
+<li><tt class="docutils literal">Py_HashPointer()</tt></li>
+<li><tt class="docutils literal">Py_IsFinalizing()</tt></li>
+</ul>
+<p>More functions are coming soon, I have many open pull requests.</p>
+<p>Adding new functions is slower than what I expected. The good part is that many
+people are reviewing the APIs, and that the new public APIs are way better than
+the old private ones: less error prone, can be more efficient, etc. At least,
+the conversion of private to public is moving steadily, functions are added one
+by one.</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (21)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
