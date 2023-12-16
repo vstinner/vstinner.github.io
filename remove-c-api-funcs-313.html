@@ -116,7 +116,7 @@ to keep this private API since it's used by 3rd party C extensions.</p>
 public function, replacing the removed <tt class="docutils literal">_PyLong_AsInt()</tt> function.</p>
 <p>On September 4th, I looked at the <tt class="docutils literal">_PyArg</tt> API. I started the discussion:
 <a class="reference external" href="https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465">Use the limited C API for some of our stdlib C extensions</a>.</p>
-<p>On September 4th, <a class="reference external" href="https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/8">I declared</a>:</p>
+<p>On September 4th, <a class="reference external" href="https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131/9">I declared</a>:</p>
 <blockquote>
 I declare that the Python 3.13 <strong>season of “removing as many private C API
 as possible” ended</strong>! I stop here until Python 3.14.</blockquote>
@@ -231,7 +231,7 @@ new public functions with doc+tests to replace removed private functions&quot;.<
 <li><tt class="docutils literal">Py_HashPointer()</tt></li>
 <li><tt class="docutils literal">Py_IsFinalizing()</tt></li>
 </ul>
-<p>More functions are coming soon, I have many open pull requests.</p>
+<p>More functions are coming soon, I have many open pull requests!</p>
 <p>Adding new functions is slower than what I expected. The good part is that many
 people are reviewing the APIs, and that the new public APIs are way better than
 the old private ones: less error prone, can be more efficient, etc. At least,
