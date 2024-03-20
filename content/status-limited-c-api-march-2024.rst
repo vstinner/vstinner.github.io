@@ -8,54 +8,56 @@ Status of the Python Limited C API (March 2024)
 :slug: status-limited-c-api-march-2024
 :authors: Victor Stinner
 
-In Python 3.13, I made many multiple enhancements to make the limited C API
-more usable:
-
-* Argument Clinic can now generates code using the limited C API;
-* It's now possible to easily format a type name using the limited C
-  API;
-* 16 stdlib extensions are now built with the limited C API.
-
-Stable ABI in Python 3.2
-========================
-
-In 2009, Martin von Löwis wrote `PEP 384 <https://peps.python.org/pep-0384/>`_
-"Defining a Stable ABI" and implemented in Python 3.2. It is made in two parts:
-
-* A **limited** C API: subset of the regular C API.
-* The **stable** ABI: binary interface guaranteed to be supported by future
-  Python versions.
-
-The pitch is to build a C extension once, distribute this binary on PyPI,
-and then forget since it will work on Python 3.2 and newer versions.
-
 .. image:: {static}/images/ghibli-spyrited-away.jpg
    :alt: Ghibli - Spirited Away
    :target: https://danielazconegui.com/en/prints/ghibli-spyrited-away.html
 
+In Python 3.13, I made multiple enhancements to make the limited C API more
+usable:
+
+* Argument Clinic can now generates C code using the limited C API.
+* It's now possible to easily format a type fully qualified name using the
+  limited C API.
+* I added 14 functions to the limited C API.
+* I made the special debug build ``Py_TRACE_REFS`` compatible with the limited
+  C API.
+* 16 stdlib extensions are now built with the limited C API.
+
 *Drawing: Ghibli - Spirited Away by Daniel Azconegui.*
 
+New Functions
+=============
 
-Test Limited C API in Python 3.10
-=================================
+I added 14 functions to the limited C API:
 
-`PEP 652 <https://peps.python.org/pep-0652/>`_ "Maintaining the Stable ABI"
-by Petr Viktorin in Python 3.10.
+* ``PyDict_GetItemRef()``
+* ``PyDict_GetItemStringRef()``
+* ``PyImport_AddModuleRef()``
+* ``PyLong_AsInt()``
+* ``PyMem_RawCalloc()``
+* ``PyMem_RawFree()``
+* ``PyMem_RawMalloc()``
+* ``PyMem_RawRealloc()``
+* ``PySys_Audit()``
+* ``PySys_AuditTuple()``
+* ``PyType_GetFullyQualifiedName()``
+* ``PyType_GetModuleName()``
+* ``PyWeakref_GetRef()``
+* ``Py_IsFinalizing()``
 
-Add:
+It makes more code using these functions compatible with the limited C API.
 
-* ``Misc/stable_abi.toml``: declaration of the stable ABI.
-* ``test_stable_abi_ctypes`` test.
-* ``make check-limited-abi`` test.
 
-Limited C API Enhancements in Python 3.12
-=========================================
+Py_TRACE_REFS
+=============
 
-`PEP 697 <https://peps.python.org/pep-0697/>`_ "Limited C API for Extending
-Opaque Types" by Petr Viktorin in Python 3.12. It adds functions such as
-`PyObject_GetTypeData <https://docs.python.org/3.12/c-api/object.html#c.PyObject_GetTypeData>`_
-and
-`PyObject_GetItemData <https://docs.python.org/3.12/c-api/object.html#c.PyObject_GetItemData>`_.
+The debug build ``Py_TRACE_REFS`` is now ABI compatible with the limited C API.
+Instead of adding two members to ``PyObject`` to create a linked list of all
+objects, an hash table is now used to track all objects.
+
+Since the ``PyObject`` structure is no longer modified, this special debug
+build is now ABI compatible with the release build! Moreover, it also becomes
+compatible with the limited C API!
 
 
 Argument Clinic

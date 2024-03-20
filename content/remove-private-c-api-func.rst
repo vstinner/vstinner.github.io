@@ -8,15 +8,15 @@ Remove private C API functions
 :slug: remove-c-api-funcs-313
 :authors: Victor Stinner
 
+.. image:: {static}/images/mucha_seasons.jpg
+   :alt: Mucha paintaing: the 4 seasons
+   :target: https://en.wikipedia.org/wiki/The_Seasons_(Mucha)
+
 In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
 if I announced my plan early in July, users didn't "embrace" my plan and didn't
 agree with the rationale. I reverted 50 functions in the alpha 2 release to
 calm down the situation and have more time to replace private functions with
 public functions.
-
-.. image:: {static}/images/mucha_seasons.jpg
-   :alt: Mucha paintaing: the 4 seasons
-   :target: https://en.wikipedia.org/wiki/The_Seasons_(Mucha)
 
 *Painting: The Seasons by Czech visual artist Alphonse Mucha (1900)*
 
