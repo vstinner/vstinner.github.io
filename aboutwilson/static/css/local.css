@@ -104,10 +104,13 @@ div.collapseheader {
 }
 
 /* Victor's edits */
-body{ font-size: 18px; }
+body{ font-size: 18px; font-weight: normal; }
 img { margin: 1em; }
 li { margin-top: 1ex; margin-bottom: 1ex; }
+ul { margin-bottom: 2ex; }
 blockquote { margin-top: 2ex; margin-bottom: 3ex; }
 h2 { margin-top: 3ex; margin-bottom: 1ex; }
-p { margin-bottom: 1ex; }
+h3 { margin-top: 2ex; margin-bottom: 1ex; }
+p { margin-bottom: 2ex; }
 tt { background: #f5f5f5; }
+
