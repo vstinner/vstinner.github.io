@@ -1,13 +1,236 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2023-12-15T23:00:00+01:00</updated><entry><title>Remove private C API functions</title><link href="https://vstinner.github.io/remove-c-api-funcs-313.html" rel="alternate"></link><published>2023-12-15T23:00:00+01:00</published><updated>2023-12-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-12-15:/remove-c-api-funcs-313.html</id><summary type="html">&lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2024-03-20T17:00:00+01:00</updated><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"></link><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In Python 3.13, I made multiple enhancements to make the limited C API more
+usable:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add 14 functions to the limited C API.&lt;/li&gt;
+&lt;li&gt;Make the special debug build &lt;tt class="docutils literal"&gt;Py_TRACE_REFS&lt;/tt&gt; compatible with the limited
+C API.&lt;/li&gt;
+&lt;li&gt;Enhance Argument Clinic to generate C code using the limited C API.&lt;/li&gt;
+&lt;li&gt;Add an …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In Python 3.13, I made multiple enhancements to make the limited C API more
+usable:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add 14 functions to the limited C API.&lt;/li&gt;
+&lt;li&gt;Make the special debug build &lt;tt class="docutils literal"&gt;Py_TRACE_REFS&lt;/tt&gt; compatible with the limited
+C API.&lt;/li&gt;
+&lt;li&gt;Enhance Argument Clinic to generate C code using the limited C API.&lt;/li&gt;
+&lt;li&gt;Add an convenient API to format a type fully qualified name using the limited
+C API (PEP 737).&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;_testlimitedcapi&lt;/tt&gt; extension.&lt;/li&gt;
+&lt;li&gt;Convert 16 stdlib extensions to the limited C API.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;What's Next?&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;PEP 741: Python Configuration C API.&lt;/li&gt;
+&lt;li&gt;Py_GetConstant().&lt;/li&gt;
+&lt;li&gt;Cython and PyO3.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;em&gt;Drawing: Ghibli - Spirited Away by Daniel Azconegui.&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="new-functions"&gt;
+&lt;h2&gt;New Functions&lt;/h2&gt;
+&lt;p&gt;I added 14 functions to the limited C API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyDict_GetItemStringRef()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyImport_AddModuleRef()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyLong_AsInt()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyMem_RawCalloc()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyMem_RawFree()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyMem_RawMalloc()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyMem_RawRealloc()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PySys_Audit()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PySys_AuditTuple()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyType_GetFullyQualifiedName()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyType_GetModuleName()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyWeakref_GetRef()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_IsFinalizing()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It makes code using these functions &lt;strong&gt;compatible with the limited C API&lt;/strong&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-trace-refs"&gt;
+&lt;h2&gt;Py_TRACE_REFS&lt;/h2&gt;
+&lt;p&gt;I modified the special debug build &lt;tt class="docutils literal"&gt;Py_TRACE_REFS&lt;/tt&gt;. Instead of adding two
+members to &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; to create a double linked list of all objects, I added
+an hash table to track all objects.&lt;/p&gt;
+&lt;p&gt;Since the &lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; structure is no longer modified, this special debug
+build is now &lt;strong&gt;ABI compatible&lt;/strong&gt; with the &lt;strong&gt;release build&lt;/strong&gt;! Moreover, it also
+becomes compatible with the &lt;strong&gt;limited C API&lt;/strong&gt;!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="argument-clinic"&gt;
+&lt;h2&gt;Argument Clinic&lt;/h2&gt;
+&lt;p&gt;I modified Argument Clinic (AC) to generate C code compatible with the limited
+C API.&lt;/p&gt;
+&lt;p&gt;First, I moved private functions used by Argument Clinic to the internal C API
+and modified Argument Clinic to generate &lt;tt class="docutils literal"&gt;#include&lt;/tt&gt; to get these functions.
+Then I modified Argument Clinic to use only the limited C API and to not
+generate these &lt;tt class="docutils literal"&gt;#include&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;At the beginning, only some converteres were supported and only the slower
+&lt;tt class="docutils literal"&gt;METH_VARARGS&lt;/tt&gt; calling convention was supported.&lt;/p&gt;
+&lt;p&gt;Now, more and more converters and formats are supported, and the regular
+efficient &lt;tt class="docutils literal"&gt;METH_FASTCALL&lt;/tt&gt; calling convention is used.&lt;/p&gt;
+&lt;div class="section" id="example"&gt;
+&lt;h3&gt;Example&lt;/h3&gt;
+&lt;p&gt;Example from the &lt;tt class="docutils literal"&gt;grp&lt;/tt&gt; extension:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+/*[clinic input]
+grp.getgrgid
+
+    id: object
+
+Return the group database entry for the given numeric group ID.
+&lt;/pre&gt;
+&lt;p&gt;Python 3.12 uses the &lt;strong&gt;private&lt;/strong&gt; &lt;tt class="docutils literal"&gt;_PyArg_UnpackKeywords()&lt;/tt&gt; functions:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &amp;amp;_parser, 1, 1, 0, argsbuf);
+if (!args) {
+    goto exit;
+}
+id = args[0];
+return_value = grp_getgrgid_impl(module, id);
+&lt;/pre&gt;
+&lt;p&gt;Python 3.13 now uses the public &lt;tt class="docutils literal"&gt;PyArg_ParseTupleAndKeywords()&lt;/tt&gt; function of
+the &lt;strong&gt;limited C API&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if (!PyArg_ParseTupleAndKeywords(args, kwargs, &amp;quot;O:getgrgid&amp;quot;, _keywords,
+    &amp;amp;id))
+    goto exit;
+return_value = grp_getgrgid_impl(module, id);
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-737-format-type-name"&gt;
+&lt;h2&gt;PEP 737: Format Type Name&lt;/h2&gt;
+&lt;p&gt;One issue that I had with Argument Clinic was to &lt;strong&gt;format an error message&lt;/strong&gt;
+with the limited C API. I cannot use the private &lt;tt class="docutils literal"&gt;_PyArg_BadArgument()&lt;/tt&gt;
+function, nor access to &lt;tt class="docutils literal"&gt;PyTypeObject.tp_name&lt;/tt&gt; (opaque structure in the
+limited C API) to format a type name. While the limited C API provides
+&lt;tt class="docutils literal"&gt;PyType_GetName()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyType_GetQualName()&lt;/tt&gt;, it's still different than
+how Python formats type names in error messages.&lt;/p&gt;
+&lt;p&gt;I proposed different APIs but there was no agreement. So I decided to write
+&lt;a class="reference external" href="https://peps.python.org/pep-0737/"&gt;PEP 737&lt;/a&gt; &amp;quot;C API to format a type fully
+qualified name&amp;quot;.&lt;/p&gt;
+&lt;p&gt;After four months of discussions, the &lt;strong&gt;Steering Council&lt;/strong&gt; decided to accept it
+in Python 3.13.&lt;/p&gt;
+&lt;p&gt;Changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;PyType_GetFullyQualifiedName()&lt;/tt&gt; function.&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;PyType_GetModuleName()&lt;/tt&gt; function.&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;%T&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;%#T&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;%N&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;%#N&lt;/tt&gt; formats to
+&lt;tt class="docutils literal"&gt;PyUnicode_FromFormat()&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I also proposed adding a new &lt;tt class="docutils literal"&gt;type.__fully_qualified_name__&lt;/tt&gt; attribute, and a
+few methods to format a the fully qualified name of type in Python. But the
+Steering Council was not convinced and asked me to &lt;strong&gt;remove these Python
+changes&lt;/strong&gt; until someone comes with a strong use case for this attribute and
+methods.&lt;/p&gt;
+&lt;p&gt;In &lt;strong&gt;2018&lt;/strong&gt;, I made a &lt;strong&gt;first attempt&lt;/strong&gt;: I made a similar change, but I had to
+revert it. I created a discussion on the python-dev mailing list, but we failed
+to reach a consensus.&lt;/p&gt;
+&lt;p&gt;In &lt;strong&gt;2011&lt;/strong&gt;, I already asked to stop the &lt;strong&gt;cargo cult&lt;/strong&gt; of truncating type
+names, but I didn't implement my idea by proactively stop truncating type
+names.&lt;/p&gt;
+&lt;div class="section" id="example-1"&gt;
+&lt;h3&gt;Example&lt;/h3&gt;
+&lt;p&gt;Example of the code generating an error message in the &lt;tt class="docutils literal"&gt;pwd&lt;/tt&gt; extension.&lt;/p&gt;
+&lt;p&gt;Python 3.12 uses the &lt;strong&gt;private&lt;/strong&gt; &lt;tt class="docutils literal"&gt;_PyArg_BadArgument()&lt;/tt&gt; private:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+_PyArg_BadArgument(&amp;quot;getpwnam&amp;quot;, &amp;quot;argument&amp;quot;, &amp;quot;str&amp;quot;, arg);
+&lt;/pre&gt;
+&lt;p&gt;Python 3.13 now uses the new &lt;tt class="docutils literal"&gt;%T&lt;/tt&gt; format (PEP 737) of the &lt;strong&gt;limited C API&lt;/strong&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyErr_Format(PyExc_TypeError,
+             &amp;quot;getpwnam() argument must be str, not %T&amp;quot;,
+             arg);
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-testlimitedcapi-extension"&gt;
+&lt;h2&gt;Add _testlimitedcapi extension&lt;/h2&gt;
+&lt;p&gt;In Python 3.12, C API tests are splitted in two categories:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_testcapi&lt;/tt&gt;: public C API&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_testinternalcapi&lt;/tt&gt;: internal C API (&lt;tt class="docutils literal"&gt;Py_BUILD_CORE&lt;/tt&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I added a third &lt;tt class="docutils literal"&gt;_testlimitedcapi&lt;/tt&gt; extension to test the limited C API
+(&lt;tt class="docutils literal"&gt;Py_LIMITED_API&lt;/tt&gt;). I moved tests using the limited C C API from
+&lt;tt class="docutils literal"&gt;_testcapi&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;_testlimitedcapi&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The difference between &lt;tt class="docutils literal"&gt;_testcapi&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;_testlimitedcapi&lt;/tt&gt; is that the
+&lt;tt class="docutils literal"&gt;_testlimitedcapi&lt;/tt&gt; extension is built with the &lt;tt class="docutils literal"&gt;Py_LIMITED_API&lt;/tt&gt; macro
+defined, and so can only access the internal C API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="convert-stdlib-extensions-to-the-limited-c-api"&gt;
+&lt;h2&gt;Convert stdlib extensions to the limited C API&lt;/h2&gt;
+&lt;p&gt;At August 2023, I proposed to:
+&lt;a class="reference external" href="https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465"&gt;Use the limited C API for some of our stdlib C extensions&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In March 2024, there are now &lt;strong&gt;16&lt;/strong&gt; C extensions built with the limited C API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_ctypes_test&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_multiprocessing.posixshmem&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_scproxy&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_stat&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_statistics&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_testimportmultiple&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_testlimitedcapi&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_uuid&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;errno&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;fcntl&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;grp&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;md5&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;pwd&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;resource&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;termios&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;winsound&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Other stdlib C extensions use the internal C API for various reasons or are
+using functions which are missing in the limited C API. Remaining issues should
+be analyzed on a case by case basis.&lt;/p&gt;
+&lt;p&gt;This work shows that non-trivial C extensions can be written using only the
+limited C API version 3.13.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="what-s-next"&gt;
+&lt;h2&gt;What's Next?&lt;/h2&gt;
+&lt;div class="section" id="pep-741-python-configuration-c-api"&gt;
+&lt;h3&gt;PEP 741: Python Configuration C API&lt;/h3&gt;
+&lt;p&gt;In Python 3.8, I added the &lt;tt class="docutils literal"&gt;PyConfig&lt;/tt&gt; API to configure the Python
+initialization. Problem: it has no stable ABI and is excluded from the limited
+C API.&lt;/p&gt;
+&lt;p&gt;Recently, I proposed &lt;a class="reference external" href="https://peps.python.org/pep-0741/"&gt;PEP 741: Python Configuration C API&lt;/a&gt; which is built on top of the
+&lt;tt class="docutils literal"&gt;PyConfig&lt;/tt&gt;, provides a stable ABI, and is compatible with the limited C API. I
+submitted PEP 741 to the Steering Council.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-getconstant"&gt;
+&lt;h3&gt;Py_GetConstant()&lt;/h3&gt;
+&lt;p&gt;Accessing constants reads private ABI symbols. For example, &lt;tt class="docutils literal"&gt;Py_None&lt;/tt&gt; API
+reads the private &lt;tt class="docutils literal"&gt;_Py_NoneStruct&lt;/tt&gt; symbol at the stable ABI level.&lt;/p&gt;
+&lt;p&gt;I &lt;a class="reference external" href="https://github.com/python/cpython/pull/116883"&gt;proposed&lt;/a&gt; to change the
+constant implementations to use function calls instead.  For example, reading
+&lt;tt class="docutils literal"&gt;Py_None&lt;/tt&gt; would call &lt;tt class="docutils literal"&gt;Py_GetConstant(Py_CONSTANT_NONE)&lt;/tt&gt;.  The advantage is
+that it adds 5 more constants: zero, one, empty string, empty bytes string, and
+empty tuple. For example, &lt;tt class="docutils literal"&gt;Py_GetConstant(Py_CONSTANT_ZERO)&lt;/tt&gt; gives the number
+&lt;tt class="docutils literal"&gt;0&lt;/tt&gt; and the function cannot fail.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="cython-and-pyo3"&gt;
+&lt;h3&gt;Cython and PyO3&lt;/h3&gt;
+&lt;p&gt;Cython and PyO3 projects are two big consumers of the C API.&lt;/p&gt;
+&lt;p&gt;While Cython has an experimental build mode for the limited C API, it's still
+incomplete. It would be nice to complete it to cover more use cases and more
+APIs.&lt;/p&gt;
+&lt;p&gt;PyO3 can use the limited API but can still use the non-limited API for some use
+cases. It would be interersting to only use the limited C API. The PEP 741 to
+embed Python in Rust would be interesting for that.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Remove private C API functions</title><link href="https://vstinner.github.io/remove-c-api-funcs-313.html" rel="alternate"></link><published>2023-12-15T23:00:00+01:00</published><updated>2023-12-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-12-15:/remove-c-api-funcs-313.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
 if I announced my plan early in July, users didn't &amp;quot;embrace&amp;quot; my plan and didn't
 agree with the rationale. I reverted 50 functions in the alpha 2 release to
-calm down the situation and …&lt;/p&gt;</summary><content type="html">&lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
+calm down the situation and …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
 if I announced my plan early in July, users didn't &amp;quot;embrace&amp;quot; my plan and didn't
 agree with the rationale. I reverted 50 functions in the alpha 2 release to
 calm down the situation and have more time to replace private functions with
 public functions.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Painting: The Seasons by Czech visual artist Alphonse Mucha (1900)&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="remove-private-functions"&gt;
 &lt;h2&gt;Remove private functions&lt;/h2&gt;

@@ -27,6 +27,39 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/status-limited-c-api-march-2024.html">
+		<h2 itemprop="name headline">Status of the Python Limited C API (March 2024)</h2>
+	</a>
+	<time datetime="2024-03-20T17:00:00+01:00" itemprop="datePublished">Wed 20 March 2024</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"><img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /></a>
+<p>In Python 3.13, I made multiple enhancements to make the limited C API more
+usable:</p>
+<ul class="simple">
+<li>Add 14 functions to the limited C API.</li>
+<li>Make the special debug build <tt class="docutils literal">Py_TRACE_REFS</tt> compatible with the limited
+C API.</li>
+<li>Enhance Argument Clinic to generate C code using the limited C API.</li>
+<li>Add an …</li></ul></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/remove-c-api-funcs-313.html">
 		<h2 itemprop="name headline">Remove private C API functions</h2>
 	</a>
@@ -35,7 +68,8 @@
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><p>In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
+	<div class="summary"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"><img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /></a>
+<p>In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
 if I announced my plan early in July, users didn't &quot;embrace&quot; my plan and didn't
 agree with the rationale. I reverted 50 functions in the alpha 2 release to
 calm down the situation and …</p></div>
@@ -298,36 +332,6 @@ to my <a class="reference external" href="https://www.python.org/dev/peps/pep-06
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/isolate-subinterpreters.html">
-		<h2 itemprop="name headline">Isolate Python Subinterpreters</h2>
-	</a>
-	<time datetime="2020-12-27T22:00:00+01:00" itemprop="datePublished">Sun 27 December 2020</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" />
-<p>This article is about the work done in Python in 2019 and 2020 to better
-isolate subinterpreters. Static types are converted to heap types, extension
-modules are converted to use the new multiphase initialization API (PEP 489),
-caches, states, singletons and free lists are made per-interpreter, many bugs
-have been …</p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/subinterpreters.html" rel="tag">subinterpreters</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev disabled"><a href="#">&larr; Previous</a></li>
@@ -369,7 +373,7 @@ have been …</p></div>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (21)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (22)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

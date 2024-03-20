@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Status of the Python Limited C API (March 2024) — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Status of the Python Limited C API (March 2024); Date: 2024-03-20; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Status of the Python Limited C API (March 2024)</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2024-03-20T17:00:00+01:00" itemprop="datePublished">Wed 20 March 2024</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"><img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /></a>
+<p>In Python 3.13, I made multiple enhancements to make the limited C API more
+usable:</p>
+<ul class="simple">
+<li>Add 14 functions to the limited C API.</li>
+<li>Make the special debug build <tt class="docutils literal">Py_TRACE_REFS</tt> compatible with the limited
+C API.</li>
+<li>Enhance Argument Clinic to generate C code using the limited C API.</li>
+<li>Add an convenient API to format a type fully qualified name using the limited
+C API (PEP 737).</li>
+<li>Add <tt class="docutils literal">_testlimitedcapi</tt> extension.</li>
+<li>Convert 16 stdlib extensions to the limited C API.</li>
+</ul>
+<p>What's Next?</p>
+<ul class="simple">
+<li>PEP 741: Python Configuration C API.</li>
+<li>Py_GetConstant().</li>
+<li>Cython and PyO3.</li>
+</ul>
+<p><em>Drawing: Ghibli - Spirited Away by Daniel Azconegui.</em></p>
+<div class="section" id="new-functions">
+<h2>New Functions</h2>
+<p>I added 14 functions to the limited C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyDict_GetItemRef()</tt></li>
+<li><tt class="docutils literal">PyDict_GetItemStringRef()</tt></li>
+<li><tt class="docutils literal">PyImport_AddModuleRef()</tt></li>
+<li><tt class="docutils literal">PyLong_AsInt()</tt></li>
+<li><tt class="docutils literal">PyMem_RawCalloc()</tt></li>
+<li><tt class="docutils literal">PyMem_RawFree()</tt></li>
+<li><tt class="docutils literal">PyMem_RawMalloc()</tt></li>
+<li><tt class="docutils literal">PyMem_RawRealloc()</tt></li>
+<li><tt class="docutils literal">PySys_Audit()</tt></li>
+<li><tt class="docutils literal">PySys_AuditTuple()</tt></li>
+<li><tt class="docutils literal">PyType_GetFullyQualifiedName()</tt></li>
+<li><tt class="docutils literal">PyType_GetModuleName()</tt></li>
+<li><tt class="docutils literal">PyWeakref_GetRef()</tt></li>
+<li><tt class="docutils literal">Py_IsFinalizing()</tt></li>
+</ul>
+<p>It makes code using these functions <strong>compatible with the limited C API</strong>.</p>
+</div>
+<div class="section" id="py-trace-refs">
+<h2>Py_TRACE_REFS</h2>
+<p>I modified the special debug build <tt class="docutils literal">Py_TRACE_REFS</tt>. Instead of adding two
+members to <tt class="docutils literal">PyObject</tt> to create a double linked list of all objects, I added
+an hash table to track all objects.</p>
+<p>Since the <tt class="docutils literal">PyObject</tt> structure is no longer modified, this special debug
+build is now <strong>ABI compatible</strong> with the <strong>release build</strong>! Moreover, it also
+becomes compatible with the <strong>limited C API</strong>!</p>
+</div>
+<div class="section" id="argument-clinic">
+<h2>Argument Clinic</h2>
+<p>I modified Argument Clinic (AC) to generate C code compatible with the limited
+C API.</p>
+<p>First, I moved private functions used by Argument Clinic to the internal C API
+and modified Argument Clinic to generate <tt class="docutils literal">#include</tt> to get these functions.
+Then I modified Argument Clinic to use only the limited C API and to not
+generate these <tt class="docutils literal">#include</tt>.</p>
+<p>At the beginning, only some converteres were supported and only the slower
+<tt class="docutils literal">METH_VARARGS</tt> calling convention was supported.</p>
+<p>Now, more and more converters and formats are supported, and the regular
+efficient <tt class="docutils literal">METH_FASTCALL</tt> calling convention is used.</p>
+<div class="section" id="example">
+<h3>Example</h3>
+<p>Example from the <tt class="docutils literal">grp</tt> extension:</p>
+<pre class="literal-block">
+/*[clinic input]
+grp.getgrgid
+
+    id: object
+
+Return the group database entry for the given numeric group ID.
+</pre>
+<p>Python 3.12 uses the <strong>private</strong> <tt class="docutils literal">_PyArg_UnpackKeywords()</tt> functions:</p>
+<pre class="literal-block">
+args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &amp;_parser, 1, 1, 0, argsbuf);
+if (!args) {
+    goto exit;
+}
+id = args[0];
+return_value = grp_getgrgid_impl(module, id);
+</pre>
+<p>Python 3.13 now uses the public <tt class="docutils literal">PyArg_ParseTupleAndKeywords()</tt> function of
+the <strong>limited C API</strong>:</p>
+<pre class="literal-block">
+if (!PyArg_ParseTupleAndKeywords(args, kwargs, &quot;O:getgrgid&quot;, _keywords,
+    &amp;id))
+    goto exit;
+return_value = grp_getgrgid_impl(module, id);
+</pre>
+</div>
+</div>
+<div class="section" id="pep-737-format-type-name">
+<h2>PEP 737: Format Type Name</h2>
+<p>One issue that I had with Argument Clinic was to <strong>format an error message</strong>
+with the limited C API. I cannot use the private <tt class="docutils literal">_PyArg_BadArgument()</tt>
+function, nor access to <tt class="docutils literal">PyTypeObject.tp_name</tt> (opaque structure in the
+limited C API) to format a type name. While the limited C API provides
+<tt class="docutils literal">PyType_GetName()</tt> and <tt class="docutils literal">PyType_GetQualName()</tt>, it's still different than
+how Python formats type names in error messages.</p>
+<p>I proposed different APIs but there was no agreement. So I decided to write
+<a class="reference external" href="https://peps.python.org/pep-0737/">PEP 737</a> &quot;C API to format a type fully
+qualified name&quot;.</p>
+<p>After four months of discussions, the <strong>Steering Council</strong> decided to accept it
+in Python 3.13.</p>
+<p>Changes:</p>
+<ul class="simple">
+<li>Add <tt class="docutils literal">PyType_GetFullyQualifiedName()</tt> function.</li>
+<li>Add <tt class="docutils literal">PyType_GetModuleName()</tt> function.</li>
+<li>Add <tt class="docutils literal">%T</tt>, <tt class="docutils literal">%#T</tt>, <tt class="docutils literal">%N</tt> and <tt class="docutils literal">%#N</tt> formats to
+<tt class="docutils literal">PyUnicode_FromFormat()</tt>.</li>
+</ul>
+<p>I also proposed adding a new <tt class="docutils literal">type.__fully_qualified_name__</tt> attribute, and a
+few methods to format a the fully qualified name of type in Python. But the
+Steering Council was not convinced and asked me to <strong>remove these Python
+changes</strong> until someone comes with a strong use case for this attribute and
+methods.</p>
+<p>In <strong>2018</strong>, I made a <strong>first attempt</strong>: I made a similar change, but I had to
+revert it. I created a discussion on the python-dev mailing list, but we failed
+to reach a consensus.</p>
+<p>In <strong>2011</strong>, I already asked to stop the <strong>cargo cult</strong> of truncating type
+names, but I didn't implement my idea by proactively stop truncating type
+names.</p>
+<div class="section" id="example-1">
+<h3>Example</h3>
+<p>Example of the code generating an error message in the <tt class="docutils literal">pwd</tt> extension.</p>
+<p>Python 3.12 uses the <strong>private</strong> <tt class="docutils literal">_PyArg_BadArgument()</tt> private:</p>
+<pre class="literal-block">
+_PyArg_BadArgument(&quot;getpwnam&quot;, &quot;argument&quot;, &quot;str&quot;, arg);
+</pre>
+<p>Python 3.13 now uses the new <tt class="docutils literal">%T</tt> format (PEP 737) of the <strong>limited C API</strong>:</p>
+<pre class="literal-block">
+PyErr_Format(PyExc_TypeError,
+             &quot;getpwnam() argument must be str, not %T&quot;,
+             arg);
+</pre>
+</div>
+</div>
+<div class="section" id="add-testlimitedcapi-extension">
+<h2>Add _testlimitedcapi extension</h2>
+<p>In Python 3.12, C API tests are splitted in two categories:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_testcapi</tt>: public C API</li>
+<li><tt class="docutils literal">_testinternalcapi</tt>: internal C API (<tt class="docutils literal">Py_BUILD_CORE</tt>)</li>
+</ul>
+<p>I added a third <tt class="docutils literal">_testlimitedcapi</tt> extension to test the limited C API
+(<tt class="docutils literal">Py_LIMITED_API</tt>). I moved tests using the limited C C API from
+<tt class="docutils literal">_testcapi</tt> to <tt class="docutils literal">_testlimitedcapi</tt>.</p>
+<p>The difference between <tt class="docutils literal">_testcapi</tt> and <tt class="docutils literal">_testlimitedcapi</tt> is that the
+<tt class="docutils literal">_testlimitedcapi</tt> extension is built with the <tt class="docutils literal">Py_LIMITED_API</tt> macro
+defined, and so can only access the internal C API.</p>
+</div>
+<div class="section" id="convert-stdlib-extensions-to-the-limited-c-api">
+<h2>Convert stdlib extensions to the limited C API</h2>
+<p>At August 2023, I proposed to:
+<a class="reference external" href="https://discuss.python.org/t/use-the-limited-c-api-for-some-of-our-stdlib-c-extensions/32465">Use the limited C API for some of our stdlib C extensions</a>.</p>
+<p>In March 2024, there are now <strong>16</strong> C extensions built with the limited C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_ctypes_test</tt></li>
+<li><tt class="docutils literal">_multiprocessing.posixshmem</tt></li>
+<li><tt class="docutils literal">_scproxy</tt></li>
+<li><tt class="docutils literal">_stat</tt></li>
+<li><tt class="docutils literal">_statistics</tt></li>
+<li><tt class="docutils literal">_testimportmultiple</tt></li>
+<li><tt class="docutils literal">_testlimitedcapi</tt></li>
+<li><tt class="docutils literal">_uuid</tt></li>
+<li><tt class="docutils literal">errno</tt></li>
+<li><tt class="docutils literal">fcntl</tt></li>
+<li><tt class="docutils literal">grp</tt></li>
+<li><tt class="docutils literal">md5</tt></li>
+<li><tt class="docutils literal">pwd</tt></li>
+<li><tt class="docutils literal">resource</tt></li>
+<li><tt class="docutils literal">termios</tt></li>
+<li><tt class="docutils literal">winsound</tt></li>
+</ul>
+<p>Other stdlib C extensions use the internal C API for various reasons or are
+using functions which are missing in the limited C API. Remaining issues should
+be analyzed on a case by case basis.</p>
+<p>This work shows that non-trivial C extensions can be written using only the
+limited C API version 3.13.</p>
+</div>
+<div class="section" id="what-s-next">
+<h2>What's Next?</h2>
+<div class="section" id="pep-741-python-configuration-c-api">
+<h3>PEP 741: Python Configuration C API</h3>
+<p>In Python 3.8, I added the <tt class="docutils literal">PyConfig</tt> API to configure the Python
+initialization. Problem: it has no stable ABI and is excluded from the limited
+C API.</p>
+<p>Recently, I proposed <a class="reference external" href="https://peps.python.org/pep-0741/">PEP 741: Python Configuration C API</a> which is built on top of the
+<tt class="docutils literal">PyConfig</tt>, provides a stable ABI, and is compatible with the limited C API. I
+submitted PEP 741 to the Steering Council.</p>
+</div>
+<div class="section" id="py-getconstant">
+<h3>Py_GetConstant()</h3>
+<p>Accessing constants reads private ABI symbols. For example, <tt class="docutils literal">Py_None</tt> API
+reads the private <tt class="docutils literal">_Py_NoneStruct</tt> symbol at the stable ABI level.</p>
+<p>I <a class="reference external" href="https://github.com/python/cpython/pull/116883">proposed</a> to change the
+constant implementations to use function calls instead.  For example, reading
+<tt class="docutils literal">Py_None</tt> would call <tt class="docutils literal">Py_GetConstant(Py_CONSTANT_NONE)</tt>.  The advantage is
+that it adds 5 more constants: zero, one, empty string, empty bytes string, and
+empty tuple. For example, <tt class="docutils literal">Py_GetConstant(Py_CONSTANT_ZERO)</tt> gives the number
+<tt class="docutils literal">0</tt> and the function cannot fail.</p>
+</div>
+<div class="section" id="cython-and-pyo3">
+<h3>Cython and PyO3</h3>
+<p>Cython and PyO3 projects are two big consumers of the C API.</p>
+<p>While Cython has an experimental build mode for the limited C API, it's still
+incomplete. It would be nice to complete it to cover more use cases and more
+APIs.</p>
+<p>PyO3 can use the limited API but can still use the non-limited API for some use
+cases. It would be interersting to only use the limited C API. The PEP 741 to
+embed Python in Rust would be interesting for that.</p>
+</div>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (22)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
