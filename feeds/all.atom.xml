@@ -1,5 +1,177 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2024-03-20T17:00:00+01:00</updated><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"></link><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2024-07-04T18:00:00+02:00</updated><entry><title>Add PyUnicodeWriter C API</title><link href="https://vstinner.github.io/pyunicodewriter-c-api.html" rel="alternate"></link><published>2024-07-04T18:00:00+02:00</published><updated>2024-07-04T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-07-04:/pyunicodewriter-c-api.html</id><summary type="html">&lt;img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" /&gt;
+&lt;p&gt;In May, I designed a new C API to build a Python str object: the
+&lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter"&gt;PyUnicodeWriter API&lt;/a&gt;.
+Many people were involved in the design and the discussion
+was quite long. The C API Working Group helped to design a better and more
+convenient API. It took me basically a whole …&lt;/p&gt;</summary><content type="html">&lt;img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" /&gt;
+&lt;p&gt;In May, I designed a new C API to build a Python str object: the
+&lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter"&gt;PyUnicodeWriter API&lt;/a&gt;.
+Many people were involved in the design and the discussion
+was quite long. The C API Working Group helped to design a better and more
+convenient API. It took me basically a whole month to get the design done
+and fully implement the API.&lt;/p&gt;
+&lt;p&gt;Painting: &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Dance_(Matisse)"&gt;La Danse&lt;/a&gt; by
+Matisse (1910).&lt;/p&gt;
+&lt;div class="section" id="initial-api"&gt;
+&lt;h2&gt;Initial API&lt;/h2&gt;
+&lt;p&gt;Building a Python &lt;tt class="docutils literal"&gt;str&lt;/tt&gt; object in C is not easy. I wrote the private
+&lt;tt class="docutils literal"&gt;_PyUnicodeWriter&lt;/tt&gt; C API 9 years ago (see &lt;a class="reference external" href="https://vstinner.github.io/pybyteswriter.html"&gt;my previous article&lt;/a&gt;), but it's not usable outside Python since
+it's a private API. So I proposed to make it public.&lt;/p&gt;
+&lt;p&gt;On May 19, I create &lt;a class="reference external" href="https://github.com/python/cpython/issues/119182"&gt;an issue&lt;/a&gt; and &lt;a class="reference external" href="https://github.com/python/cpython/pull/119184"&gt;a pull request&lt;/a&gt; to discuss the API. The
+initial API was:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;typedef&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;struct&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nc"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Create&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;void&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;void&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Free&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyObject&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Finish&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;void&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_SetOverallocate&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="kt"&gt;int&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;overallocate&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_WriteChar&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;Py_UCS4&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;ch&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_WriteStr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyObject&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;str&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_WriteSubstring&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyObject&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;str&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;Py_ssize_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;start&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;Py_ssize_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;stop&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;int&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_WriteASCIIString&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;const&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kt"&gt;char&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;ascii&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;Py_ssize_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;len&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-changes"&gt;
+&lt;h2&gt;API changes&lt;/h2&gt;
+&lt;div class="section" id="pyunicodewriter-writeutf8"&gt;
+&lt;h3&gt;PyUnicodeWriter_WriteUTF8()&lt;/h3&gt;
+&lt;p&gt;My first implementation made the assumption that the caller would only pass
+ASCII characters to &lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteASCIIString()&lt;/tt&gt; which is a bold
+assumption.  It would crash if non-ASCII characters would be passed by
+mistake. UTF-8 is more common and Python has a fast UTF-8 decoder. The first
+change was to replace &lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteASCIIString()&lt;/tt&gt; with
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteUTF8()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter-writestr"&gt;
+&lt;h3&gt;PyUnicodeWriter_WriteStr()&lt;/h3&gt;
+&lt;p&gt;I really wanted &lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteStr()&lt;/tt&gt; to only accept a Python str
+object. Others insisted to accept any Python object and write &lt;tt class="docutils literal"&gt;str(obj)&lt;/tt&gt;
+instead. I changed &lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteStr()&lt;/tt&gt; to implement that.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter-writerepr"&gt;
+&lt;h3&gt;PyUnicodeWriter_WriteRepr()&lt;/h3&gt;
+&lt;p&gt;Since &lt;tt class="docutils literal"&gt;str(obj)&lt;/tt&gt; was there, &lt;tt class="docutils literal"&gt;repr(obj)&lt;/tt&gt; becomes the next question: should
+we added it? It was decided to add &lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteRepr(obj)&lt;/tt&gt; to write
+&lt;tt class="docutils literal"&gt;repr(obj)&lt;/tt&gt;. It's convenient to use.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter-format"&gt;
+&lt;h3&gt;PyUnicodeWriter_Format()&lt;/h3&gt;
+&lt;p&gt;While discussing, it was proposed to add many functions to write various
+formats.  I proposed to add &lt;tt class="docutils literal"&gt;PyUnicodeWriter_FromFormat(format, &lt;span class="pre"&gt;...)&lt;/span&gt;&lt;/tt&gt;
+similiar to &lt;tt class="docutils literal"&gt;PyUnicode_FromFormat()&lt;/tt&gt;. It was decided to add it under the name:
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter_Format()&lt;/tt&gt;. Its implementation is efficient since multiple
+formats write directly into the writer, without having to create a temporary
+string object.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter-create"&gt;
+&lt;h3&gt;PyUnicodeWriter_Create()&lt;/h3&gt;
+&lt;p&gt;The initial version of &lt;tt class="docutils literal"&gt;PyUnicodeWriter_Create()&lt;/tt&gt; had no argument. It was
+asked to add a size parameter to preallocate the internal buffer:
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter_Create(size)&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="remove-pyunicodewriter-setoverallocate"&gt;
+&lt;h3&gt;Remove PyUnicodeWriter_SetOverallocate()&lt;/h3&gt;
+&lt;p&gt;I tried to justify that calling &lt;tt class="docutils literal"&gt;PyUnicodeWriter_SetOverallocate(0)&lt;/tt&gt; before
+the last write was a killer feature for performance, but it looked too
+complicated to others and it was decided to simply remove this API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="c-api-working-group-discussion"&gt;
+&lt;h2&gt;C API Working Group discussion&lt;/h2&gt;
+&lt;p&gt;On May 24, once most of the API was stable, I created a &lt;a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/27"&gt;decision issue&lt;/a&gt; for the API to the C
+API Working Group.&lt;/p&gt;
+&lt;p&gt;On June 7, the API was approved by a majority vote.&lt;/p&gt;
+&lt;p&gt;On June 10, Marc-Andre Lemburg reopened the issue since he had concerns about
+the incomplete UTF-8 Decoder API and the fact that the functions were not
+atomic: on error, the behavior was undefined.&lt;/p&gt;
+&lt;p&gt;I modified my implementation to make all functions atomic: either the whole
+string is written, or nothing is written (restore the writer to its previous
+state).&lt;/p&gt;
+&lt;p&gt;I also proposed to extend the &lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; API once we agreed on an
+minimum API.&lt;/p&gt;
+&lt;p&gt;On June 17, issue was closed again and I merged my implementation.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="extensions"&gt;
+&lt;h2&gt;Extensions&lt;/h2&gt;
+&lt;div class="section" id="pyunicodewriter-writewidechar"&gt;
+&lt;h3&gt;PyUnicodeWriter_WriteWideChar()&lt;/h3&gt;
+&lt;p&gt;I added a function to write wide strings (&lt;tt class="docutils literal"&gt;wchar_t*&lt;/tt&gt;) which are common on
+Windows.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter-decodeutf8stateful"&gt;
+&lt;h3&gt;PyUnicodeWriter_DecodeUTF8Stateful()&lt;/h3&gt;
+&lt;p&gt;I added a stateful UTF-8 decoder as an answer to Marc-Andre's request. API:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int PyUnicodeWriter_DecodeUTF8Stateful(
+    PyUnicodeWriter *writer,
+    const char *string,
+    Py_ssize_t length,
+    const char *errors,
+    Py_ssize_t *consumed);
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter-writeucs4"&gt;
+&lt;h3&gt;PyUnicodeWriter_WriteUCS4()&lt;/h3&gt;
+&lt;p&gt;While less common, UCS-4 strings are convenient to manipulate Unicode code
+points. I added an API to support natively this string format.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="documentation"&gt;
+&lt;h2&gt;Documentation&lt;/h2&gt;
+&lt;p&gt;Read the &lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter"&gt;PyUnicodeWriter API documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="example-of-contextvar-tp-repr"&gt;
+&lt;h2&gt;Example of contextvar_tp_repr()&lt;/h2&gt;
+&lt;p&gt;Simplified code:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;static&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyObject&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;
+&lt;span class="nf"&gt;contextvar_tp_repr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyContextVar&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// &amp;quot;&amp;lt;ContextVar name=&amp;#39;a&amp;#39; at 0x1234567812345678&amp;gt;&amp;quot;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;Py_ssize_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;estimate&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;43&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Create&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;estimate&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;==&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nb"&gt;NULL&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="k"&gt;return&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nb"&gt;NULL&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_WriteUTF8&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s"&gt;&amp;quot;&amp;lt;ContextVar name=&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;17&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="k"&gt;goto&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;error&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_WriteRepr&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;var_name&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="k"&gt;goto&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;error&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Format&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="s"&gt;&amp;quot; at %p&amp;gt;&amp;quot;&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;&amp;lt;&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="k"&gt;goto&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;error&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;return&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Finish&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+
+&lt;span class="nl"&gt;error&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;PyUnicodeWriter_Discard&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;writer&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;return&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nb"&gt;NULL&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Thanks for great discussions, the final &lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; API is better, more
+convenient, less error-prone, and maybe even a little bit more efficient!&lt;/p&gt;
+&lt;p&gt;Thanks to everyone who was involved in these discussions!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"></link><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;In Python 3.13, I made multiple enhancements to make the limited C API more
 usable:&lt;/p&gt;
 &lt;ul class="simple"&gt;

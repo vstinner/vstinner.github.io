@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Add PyUnicodeWriter C API — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Add PyUnicodeWriter C API; Date: 2024-07-04; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Add PyUnicodeWriter C API</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2024-07-04T18:00:00+02:00" itemprop="datePublished">Thu 04 July 2024</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" />
+<p>In May, I designed a new C API to build a Python str object: the
+<a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter">PyUnicodeWriter API</a>.
+Many people were involved in the design and the discussion
+was quite long. The C API Working Group helped to design a better and more
+convenient API. It took me basically a whole month to get the design done
+and fully implement the API.</p>
+<p>Painting: <a class="reference external" href="https://en.wikipedia.org/wiki/Dance_(Matisse)">La Danse</a> by
+Matisse (1910).</p>
+<div class="section" id="initial-api">
+<h2>Initial API</h2>
+<p>Building a Python <tt class="docutils literal">str</tt> object in C is not easy. I wrote the private
+<tt class="docutils literal">_PyUnicodeWriter</tt> C API 9 years ago (see <a class="reference external" href="https://vstinner.github.io/pybyteswriter.html">my previous article</a>), but it's not usable outside Python since
+it's a private API. So I proposed to make it public.</p>
+<p>On May 19, I create <a class="reference external" href="https://github.com/python/cpython/issues/119182">an issue</a> and <a class="reference external" href="https://github.com/python/cpython/pull/119184">a pull request</a> to discuss the API. The
+initial API was:</p>
+<div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">PyUnicodeWriter</span><span class="w"> </span><span class="n">PyUnicodeWriter</span><span class="p">;</span>
+
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="n">PyUnicodeWriter</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_Create</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_Free</span><span class="p">(</span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">);</span>
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="n">PyObject</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_Finish</span><span class="p">(</span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">);</span>
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_SetOverallocate</span><span class="p">(</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">overallocate</span><span class="p">);</span>
+
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_WriteChar</span><span class="p">(</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Py_UCS4</span><span class="w"> </span><span class="n">ch</span><span class="p">);</span>
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_WriteStr</span><span class="p">(</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span>
+<span class="w">    </span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">str</span><span class="p">);</span>
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_WriteSubstring</span><span class="p">(</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span>
+<span class="w">    </span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">str</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">start</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">stop</span><span class="p">);</span>
+<span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">PyUnicodeWriter_WriteASCIIString</span><span class="p">(</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">ascii</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="section" id="api-changes">
+<h2>API changes</h2>
+<div class="section" id="pyunicodewriter-writeutf8">
+<h3>PyUnicodeWriter_WriteUTF8()</h3>
+<p>My first implementation made the assumption that the caller would only pass
+ASCII characters to <tt class="docutils literal">PyUnicodeWriter_WriteASCIIString()</tt> which is a bold
+assumption.  It would crash if non-ASCII characters would be passed by
+mistake. UTF-8 is more common and Python has a fast UTF-8 decoder. The first
+change was to replace <tt class="docutils literal">PyUnicodeWriter_WriteASCIIString()</tt> with
+<tt class="docutils literal">PyUnicodeWriter_WriteUTF8()</tt>.</p>
+</div>
+<div class="section" id="pyunicodewriter-writestr">
+<h3>PyUnicodeWriter_WriteStr()</h3>
+<p>I really wanted <tt class="docutils literal">PyUnicodeWriter_WriteStr()</tt> to only accept a Python str
+object. Others insisted to accept any Python object and write <tt class="docutils literal">str(obj)</tt>
+instead. I changed <tt class="docutils literal">PyUnicodeWriter_WriteStr()</tt> to implement that.</p>
+</div>
+<div class="section" id="pyunicodewriter-writerepr">
+<h3>PyUnicodeWriter_WriteRepr()</h3>
+<p>Since <tt class="docutils literal">str(obj)</tt> was there, <tt class="docutils literal">repr(obj)</tt> becomes the next question: should
+we added it? It was decided to add <tt class="docutils literal">PyUnicodeWriter_WriteRepr(obj)</tt> to write
+<tt class="docutils literal">repr(obj)</tt>. It's convenient to use.</p>
+</div>
+<div class="section" id="pyunicodewriter-format">
+<h3>PyUnicodeWriter_Format()</h3>
+<p>While discussing, it was proposed to add many functions to write various
+formats.  I proposed to add <tt class="docutils literal">PyUnicodeWriter_FromFormat(format, <span class="pre">...)</span></tt>
+similiar to <tt class="docutils literal">PyUnicode_FromFormat()</tt>. It was decided to add it under the name:
+<tt class="docutils literal">PyUnicodeWriter_Format()</tt>. Its implementation is efficient since multiple
+formats write directly into the writer, without having to create a temporary
+string object.</p>
+</div>
+<div class="section" id="pyunicodewriter-create">
+<h3>PyUnicodeWriter_Create()</h3>
+<p>The initial version of <tt class="docutils literal">PyUnicodeWriter_Create()</tt> had no argument. It was
+asked to add a size parameter to preallocate the internal buffer:
+<tt class="docutils literal">PyUnicodeWriter_Create(size)</tt>.</p>
+</div>
+<div class="section" id="remove-pyunicodewriter-setoverallocate">
+<h3>Remove PyUnicodeWriter_SetOverallocate()</h3>
+<p>I tried to justify that calling <tt class="docutils literal">PyUnicodeWriter_SetOverallocate(0)</tt> before
+the last write was a killer feature for performance, but it looked too
+complicated to others and it was decided to simply remove this API.</p>
+</div>
+</div>
+<div class="section" id="c-api-working-group-discussion">
+<h2>C API Working Group discussion</h2>
+<p>On May 24, once most of the API was stable, I created a <a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/27">decision issue</a> for the API to the C
+API Working Group.</p>
+<p>On June 7, the API was approved by a majority vote.</p>
+<p>On June 10, Marc-Andre Lemburg reopened the issue since he had concerns about
+the incomplete UTF-8 Decoder API and the fact that the functions were not
+atomic: on error, the behavior was undefined.</p>
+<p>I modified my implementation to make all functions atomic: either the whole
+string is written, or nothing is written (restore the writer to its previous
+state).</p>
+<p>I also proposed to extend the <tt class="docutils literal">PyUnicodeWriter</tt> API once we agreed on an
+minimum API.</p>
+<p>On June 17, issue was closed again and I merged my implementation.</p>
+</div>
+<div class="section" id="extensions">
+<h2>Extensions</h2>
+<div class="section" id="pyunicodewriter-writewidechar">
+<h3>PyUnicodeWriter_WriteWideChar()</h3>
+<p>I added a function to write wide strings (<tt class="docutils literal">wchar_t*</tt>) which are common on
+Windows.</p>
+</div>
+<div class="section" id="pyunicodewriter-decodeutf8stateful">
+<h3>PyUnicodeWriter_DecodeUTF8Stateful()</h3>
+<p>I added a stateful UTF-8 decoder as an answer to Marc-Andre's request. API:</p>
+<pre class="literal-block">
+int PyUnicodeWriter_DecodeUTF8Stateful(
+    PyUnicodeWriter *writer,
+    const char *string,
+    Py_ssize_t length,
+    const char *errors,
+    Py_ssize_t *consumed);
+</pre>
+</div>
+<div class="section" id="pyunicodewriter-writeucs4">
+<h3>PyUnicodeWriter_WriteUCS4()</h3>
+<p>While less common, UCS-4 strings are convenient to manipulate Unicode code
+points. I added an API to support natively this string format.</p>
+</div>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation</h2>
+<p>Read the <a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter">PyUnicodeWriter API documentation</a>.</p>
+</div>
+<div class="section" id="example-of-contextvar-tp-repr">
+<h2>Example of contextvar_tp_repr()</h2>
+<p>Simplified code:</p>
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span>
+<span class="nf">contextvar_tp_repr</span><span class="p">(</span><span class="n">PyContextVar</span><span class="w"> </span><span class="o">*</span><span class="n">self</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// &quot;&lt;ContextVar name=&#39;a&#39; at 0x1234567812345678&gt;&quot;</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">estimate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">43</span><span class="p">;</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyUnicodeWriter_Create</span><span class="p">(</span><span class="n">estimate</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PyUnicodeWriter_WriteUTF8</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;ContextVar name=&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">17</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">error</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PyUnicodeWriter_WriteRepr</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">self</span><span class="o">-&gt;</span><span class="n">var_name</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">error</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PyUnicodeWriter_Format</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="s">&quot; at %p&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">self</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">goto</span><span class="w"> </span><span class="n">error</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">PyUnicodeWriter_Finish</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+
+<span class="nl">error</span><span class="p">:</span>
+<span class="w">    </span><span class="n">PyUnicodeWriter_Discard</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>Thanks for great discussions, the final <tt class="docutils literal">PyUnicodeWriter</tt> API is better, more
+convenient, less error-prone, and maybe even a little bit more efficient!</p>
+<p>Thanks to everyone who was involved in these discussions!</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (23)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
