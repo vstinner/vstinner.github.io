@@ -1,5 +1,267 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2024-07-04T18:00:00+02:00</updated><entry><title>Add PyUnicodeWriter C API</title><link href="https://vstinner.github.io/pyunicodewriter-c-api.html" rel="alternate"></link><published>2024-07-04T18:00:00+02:00</published><updated>2024-07-04T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-07-04:/pyunicodewriter-c-api.html</id><summary type="html">&lt;img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" /&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2024-09-24T17:00:00+02:00</updated><entry><title>PEP 741: C API to configure Python initialization</title><link href="https://vstinner.github.io/pyconfig-pep-741.html" rel="alternate"></link><published>2024-09-24T17:00:00+02:00</published><updated>2024-09-24T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-09-24:/pyconfig-pep-741.html</id><summary type="html">&lt;div class="section" id="pep-741-story"&gt;
+&lt;h2&gt;PEP 741 story&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Sometimes, writing a PEP can be a wild ride. It took two whole years
+between the early discussions and getting &lt;a class="reference external" href="https://peps.python.org/pep-0741/"&gt;PEP 741&lt;/a&gt; eventually accepted by
+the Steering Council. The API is only made of 18 functions, but it took
+more than 200 messages to design properly these …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="pep-741-story"&gt;
+&lt;h2&gt;PEP 741 story&lt;/h2&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Sometimes, writing a PEP can be a wild ride. It took two whole years
+between the early discussions and getting &lt;a class="reference external" href="https://peps.python.org/pep-0741/"&gt;PEP 741&lt;/a&gt; eventually accepted by
+the Steering Council. The API is only made of 18 functions, but it took
+more than 200 messages to design properly these functions!&lt;/p&gt;
+&lt;p&gt;PEP 741 is new C API to configure the Python initialization using
+strings for option names. It also provides a new API to get the current
+runtime Python configuration.&lt;/p&gt;
+&lt;p&gt;In 2019, I wrote &lt;a class="reference external" href="https://peps.python.org/pep-0587/"&gt;PEP 587 – Python Initialization Configuration&lt;/a&gt;. It was supposed to be the only
+API replacing all scattered existing APIs. Well, it seems like it wasn't
+complete enough and its design shown some issues since I decided to
+write a new PEP 741!&lt;/p&gt;
+&lt;p&gt;Painting: &lt;em&gt;The Starry Night (1889) by Vincent Van Gogh&lt;/em&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="august-2022-cve-2020-10735-fix"&gt;
+&lt;h2&gt;August 2022: CVE-2020-10735 fix&lt;/h2&gt;
+&lt;p&gt;In August 2022, Gregory P. Smith opened
+&lt;a class="reference external" href="https://discuss.python.org/t/fr-allow-private-runtime-config-to-enable-extending-without-breaking-the-pyconfig-abi/18004"&gt;FR: Allow private runtime config to enable extending without breaking the PyConfig ABI&lt;/a&gt;
+discussion to propose supporting configuration as text. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+check_hash_pycs_mode=always
+unknownok:avoid_medusas_gaze=yes
+&lt;/pre&gt;
+&lt;p&gt;The need was to add a new option to fix CVE-2020-10735 vulnerability. It
+will become &lt;tt class="docutils literal"&gt;PyConfig.int_max_str_digits&lt;/tt&gt; in Python 3.12. The problem
+is to add a new &lt;tt class="docutils literal"&gt;PyConfig&lt;/tt&gt; member without breaking the ABI in stable
+Python versions (such as Python 3.11). At the end, the problem was
+worked around by adding a separated global variable
+(&lt;tt class="docutils literal"&gt;_Py_global_config_int_max_str_digits&lt;/tt&gt;).&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="august-2023-first-implementation"&gt;
+&lt;h2&gt;August 2023: First implementation&lt;/h2&gt;
+&lt;p&gt;In August 2023, I created &lt;a class="reference external" href="https://github.com/python/cpython/issues/107954"&gt;an issue&lt;/a&gt; to implement
+Gregory's idea. I wrote a proof-of-concept to accept configuration as
+text in a format similar to TOML. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+# int
+bytes_warning = 2
+
+# string
+filesystem_encoding = &amp;quot;utf8&amp;quot;   # comment
+
+# list
+argv = ['python', '-c', 'code']
+
+# you can put comments for the fun
+verbose = 1  # comment here as well
+# after, anywhere!
+&lt;/pre&gt;
+&lt;p&gt;Quickly, I ran into parsing issues with quotes and escaping characters
+such newlines and quotes.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="october-2023"&gt;
+&lt;h2&gt;October 2023&lt;/h2&gt;
+&lt;div class="section" id="rewrite"&gt;
+&lt;h3&gt;Rewrite&lt;/h3&gt;
+&lt;p&gt;I decided to write a new implementation using configuration option names
+as strings and values as integer, string, or string list. Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if (PyInitConfig_SetInt(config, &amp;quot;dev_mode&amp;quot;, 1) &amp;lt; 0) {
+    goto error;
+}
+&lt;/pre&gt;
+&lt;p&gt;The Python initialization is a complex beast. How to allocate memory
+when the memory allocator is not configured yet? Which encoding should
+be used, knowing that the locale encoding is not configured yet?&lt;/p&gt;
+&lt;p&gt;I started with wide string (&lt;tt class="docutils literal"&gt;wchar_t*&lt;/tt&gt;) and bytes string (&lt;tt class="docutils literal"&gt;char*&lt;/tt&gt;).
+The bytes strings should be decoded from the locale encoding which
+requires to preinitialize Python to configure the locale encoding.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="getter-functions"&gt;
+&lt;h3&gt;Getter functions&lt;/h3&gt;
+&lt;p&gt;I was asked to add getter functions such as &lt;tt class="docutils literal"&gt;PyInitConfig_GetInt()&lt;/tt&gt;
+and &lt;tt class="docutils literal"&gt;PyInitConfig_GetStr()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="current-configuration"&gt;
+&lt;h3&gt;Current configuration&lt;/h3&gt;
+&lt;p&gt;I was also asked to add functions to get the current runtime
+configuration. I proposed the following API:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+int PyConfig_GetInt(const char *key, int64_t *value);
+int PyConfig_GetStr(const char *key, PyObject **value);
+int PyConfig_GetStrList(const char *key, PyObject **value);
+&lt;/pre&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Raise &lt;tt class="docutils literal"&gt;ValueError&lt;/tt&gt; if the key doesn't exist.&lt;/li&gt;
+&lt;li&gt;Raise &lt;tt class="docutils literal"&gt;TypeError&lt;/tt&gt; if it's the wrong type.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyConfig_GetInt()&lt;/tt&gt; raises OverflowError if the value doesn’t fit
+into &lt;tt class="docutils literal"&gt;int64_t&lt;/tt&gt;. It cannot happen with the current implementation.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;I wrote &lt;a class="reference external" href="https://github.com/python/cpython/pull/112609"&gt;an implementation&lt;/a&gt; to play with the API.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="custom-options"&gt;
+&lt;h3&gt;Custom options&lt;/h3&gt;
+&lt;p&gt;With my proposed &lt;tt class="docutils literal"&gt;PyInitConfig&lt;/tt&gt; API, we can accept custom options and
+store them in a separated hash table, and later expose them as a dict.&lt;/p&gt;
+&lt;p&gt;Example:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyInitConfig_SetInt(&amp;quot;accept_custom_options&amp;quot;, 1);
+PyInitConfig_SetStr(&amp;quot;my_custom_key&amp;quot;, &amp;quot;value&amp;quot;);
+&lt;/pre&gt;
+&lt;p&gt;And later retrieve it in Python:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+my_custom_key = sys.get_config()['my_custom_key']  # str
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="january-2024-create-pep-741"&gt;
+&lt;h2&gt;January 2024: Create PEP 741&lt;/h2&gt;
+&lt;p&gt;In January 2024, I decide to write &lt;a class="reference external" href="https://peps.python.org/pep-0741/"&gt;PEP 741 – Python Configuration C API&lt;/a&gt; since it became
+difficult to follow the discussion which has a long history (since
+August 2022). I &lt;a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api/43637"&gt;announced PEP 741&lt;/a&gt;
+and the discussion continued there.&lt;/p&gt;
+&lt;div class="section" id="specification"&gt;
+&lt;h3&gt;Specification&lt;/h3&gt;
+&lt;p&gt;First proposed API.&lt;/p&gt;
+&lt;p&gt;C API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig&lt;/tt&gt; structure&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_Python_New()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_Isolated_New()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_Free(config)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_SetInt(config, name, value)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_SetStr(config, name, value)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_SetWStr(config, name, value)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_SetStrList(config, name, length, items)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_SetWStrList(config, name, length, items)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_InitializeFromInitConfig(config)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_Exception(config)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_GetError(config, &amp;amp;err_msg)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyInitConfig_GetExitCode(config, &amp;amp;exitcode)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_ExitWithInitConfig(config)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyConfig_Get(name)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyConfig_GetInt(name, &amp;amp;value)&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Python API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;sys.get_config(name)&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="discussions"&gt;
+&lt;h3&gt;Discussions&lt;/h3&gt;
+&lt;p&gt;It was proposed to switch to UTF-8 for strings, instead of using the
+locale encoding.&lt;/p&gt;
+&lt;p&gt;It was asked to not add PEP 741 API to the limited C API, whereas it has
+been asked by multiple users.&lt;/p&gt;
+&lt;p&gt;It was asked to get rid of the preinitialization which causes tricky
+implementation issues with the locale encoding and the memory allocator.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="february-2024-second-version-of-pep-741"&gt;
+&lt;h2&gt;February 2024: Second version of PEP 741&lt;/h2&gt;
+&lt;div class="section" id="second-version"&gt;
+&lt;h3&gt;Second version&lt;/h3&gt;
+&lt;p&gt;In February 2024, I wrote a major second version:
+&lt;a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403"&gt;PEP 741: Python Configuration C API (second version)&lt;/a&gt;.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Use UTF-8 for strings, instead of the locale encoding.&lt;/li&gt;
+&lt;li&gt;Add locale encoding strings, such as &lt;tt class="docutils literal"&gt;PyInitConfig_SetStrLocale()&lt;/tt&gt;.
+So the API now has 3 kinds of strings.&lt;/li&gt;
+&lt;li&gt;Remove support for custom configuration options.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-to-set-the-current-runtime-configuration"&gt;
+&lt;h3&gt;API to set the current runtime configuration&lt;/h3&gt;
+&lt;p&gt;I decided to add &lt;tt class="docutils literal"&gt;PyConfig_Set()&lt;/tt&gt; to &lt;strong&gt;set&lt;/strong&gt; configuration options at
+runtime:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Return &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; on success.&lt;/li&gt;
+&lt;li&gt;Set an error in config and return &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-1&lt;/span&gt;&lt;/tt&gt; on error.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The problem was to decide which options should be read-only and which
+options can be modified.&lt;/p&gt;
+&lt;p&gt;I decided to allow modifying options which can already be modified with
+an existing API. For example, the &lt;tt class="docutils literal"&gt;argv&lt;/tt&gt; option is read from
+&lt;tt class="docutils literal"&gt;sys.argv&lt;/tt&gt; which can modified. So this option can be modified with
+&lt;tt class="docutils literal"&gt;PyConfig_Set()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;I also decided to allow modifying some &lt;tt class="docutils literal"&gt;sys.flags&lt;/tt&gt; flags, but not
+all of them. For example, it becomes possible to modify
+&lt;tt class="docutils literal"&gt;bytes_warning&lt;/tt&gt; which gets &lt;tt class="docutils literal"&gt;sys.flags.bytes_warning&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="april-2024-steering-council-feedback"&gt;
+&lt;h2&gt;April 2024: Steering Council feedback&lt;/h2&gt;
+&lt;p&gt;In April 2024, the Steering Council wrote that &lt;a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403/38"&gt;they had is having a
+tough time evaluating PEP 741&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Their main concerns were:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;The number of string types (3).&lt;/li&gt;
+&lt;li&gt;The stable ABI.&lt;/li&gt;
+&lt;li&gt;The locale encoding.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="may-2024-third-pep-version"&gt;
+&lt;h2&gt;May 2024: Third PEP version&lt;/h2&gt;
+&lt;p&gt;I &lt;a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403/62"&gt;rewrote PEP 741 (3rd major version)&lt;/a&gt;
+to make it the most likely to be accepted the Steering Council:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Remove string types other than UTF-8 (1 string type instead of 3).&lt;/li&gt;
+&lt;li&gt;Exclude the API from the limited C API.&lt;/li&gt;
+&lt;li&gt;Remove the explicit preconfiguration.&lt;/li&gt;
+&lt;li&gt;Remove the rationale about the limited C API / stable ABI.&lt;/li&gt;
+&lt;li&gt;Remove the &amp;quot;Python Configuration&amp;quot;, only keep the &amp;quot;Isolated
+Configuration&amp;quot;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="august-2024-pep-approved"&gt;
+&lt;h2&gt;August 2024: PEP approved&lt;/h2&gt;
+&lt;p&gt;In August 2024, the Steering Council eventually &lt;a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403/88"&gt;accepted PEP 741&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Once it was approved, I merged PEP 741 implementation. It's now
+available for testing in the future Python 3.14 version!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="example"&gt;
+&lt;h2&gt;Example&lt;/h2&gt;
+&lt;p&gt;It becomes possible to modify some &lt;tt class="docutils literal"&gt;sys.flags&lt;/tt&gt; which were read-only
+previously. Example on Python 3.14 using the &lt;tt class="docutils literal"&gt;_testcapi&lt;/tt&gt; (which must
+not be used in production, using for testing!):&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ ./python
+&amp;gt;&amp;gt;&amp;gt; import sys
+&amp;gt;&amp;gt;&amp;gt; import _testcapi
+
+# BytesWarning is disabled by default
+&amp;gt;&amp;gt;&amp;gt; b'bytes' == 'unicode'
+False
+&amp;gt;&amp;gt;&amp;gt; _testcapi.config_get('bytes_warning')
+0
+&amp;gt;&amp;gt;&amp;gt; sys.flags.bytes_warning
+0
+
+# Set bytes_warning option
+&amp;gt;&amp;gt;&amp;gt; _testcapi.config_set('bytes_warning', 1)
+&amp;gt;&amp;gt;&amp;gt; _testcapi.config_get('bytes_warning')
+1
+&amp;gt;&amp;gt;&amp;gt; sys.flags.bytes_warning
+1
+
+# Comparison now emits BytesWarning
+&amp;gt;&amp;gt;&amp;gt; b'bytes' == 'unicode'
+&amp;lt;python-input-8&amp;gt;:1: BytesWarning: Comparison between bytes and string
+  b'bytes' == 'unicode'
+False
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="statistics"&gt;
+&lt;h2&gt;Statistics&lt;/h2&gt;
+&lt;p&gt;Statistics on Discourse threads:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;First thread: 62 messages&lt;/li&gt;
+&lt;li&gt;Second thread: 55 messages&lt;/li&gt;
+&lt;li&gt;Third thread: 89 messages&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Total: &lt;strong&gt;206&lt;/strong&gt; messages!&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Add PyUnicodeWriter C API</title><link href="https://vstinner.github.io/pyunicodewriter-c-api.html" rel="alternate"></link><published>2024-07-04T18:00:00+02:00</published><updated>2024-07-04T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-07-04:/pyunicodewriter-c-api.html</id><summary type="html">&lt;img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" /&gt;
 &lt;p&gt;In May, I designed a new C API to build a Python str object: the
 &lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter"&gt;PyUnicodeWriter API&lt;/a&gt;.
 Many people were involved in the design and the discussion

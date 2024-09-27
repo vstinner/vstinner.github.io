@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>PEP 741: C API to configure Python initialization — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: PEP 741: C API to configure Python initialization; Date: 2024-09-24; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">PEP 741: C API to configure Python initialization</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2024-09-24T17:00:00+02:00" itemprop="datePublished">Tue 24 September 2024</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><div class="section" id="pep-741-story">
+<h2>PEP 741 story</h2>
+<a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"><img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /></a>
+<p>Sometimes, writing a PEP can be a wild ride. It took two whole years
+between the early discussions and getting <a class="reference external" href="https://peps.python.org/pep-0741/">PEP 741</a> eventually accepted by
+the Steering Council. The API is only made of 18 functions, but it took
+more than 200 messages to design properly these functions!</p>
+<p>PEP 741 is new C API to configure the Python initialization using
+strings for option names. It also provides a new API to get the current
+runtime Python configuration.</p>
+<p>In 2019, I wrote <a class="reference external" href="https://peps.python.org/pep-0587/">PEP 587 – Python Initialization Configuration</a>. It was supposed to be the only
+API replacing all scattered existing APIs. Well, it seems like it wasn't
+complete enough and its design shown some issues since I decided to
+write a new PEP 741!</p>
+<p>Painting: <em>The Starry Night (1889) by Vincent Van Gogh</em>.</p>
+</div>
+<div class="section" id="august-2022-cve-2020-10735-fix">
+<h2>August 2022: CVE-2020-10735 fix</h2>
+<p>In August 2022, Gregory P. Smith opened
+<a class="reference external" href="https://discuss.python.org/t/fr-allow-private-runtime-config-to-enable-extending-without-breaking-the-pyconfig-abi/18004">FR: Allow private runtime config to enable extending without breaking the PyConfig ABI</a>
+discussion to propose supporting configuration as text. Example:</p>
+<pre class="literal-block">
+check_hash_pycs_mode=always
+unknownok:avoid_medusas_gaze=yes
+</pre>
+<p>The need was to add a new option to fix CVE-2020-10735 vulnerability. It
+will become <tt class="docutils literal">PyConfig.int_max_str_digits</tt> in Python 3.12. The problem
+is to add a new <tt class="docutils literal">PyConfig</tt> member without breaking the ABI in stable
+Python versions (such as Python 3.11). At the end, the problem was
+worked around by adding a separated global variable
+(<tt class="docutils literal">_Py_global_config_int_max_str_digits</tt>).</p>
+</div>
+<div class="section" id="august-2023-first-implementation">
+<h2>August 2023: First implementation</h2>
+<p>In August 2023, I created <a class="reference external" href="https://github.com/python/cpython/issues/107954">an issue</a> to implement
+Gregory's idea. I wrote a proof-of-concept to accept configuration as
+text in a format similar to TOML. Example:</p>
+<pre class="literal-block">
+# int
+bytes_warning = 2
+
+# string
+filesystem_encoding = &quot;utf8&quot;   # comment
+
+# list
+argv = ['python', '-c', 'code']
+
+# you can put comments for the fun
+verbose = 1  # comment here as well
+# after, anywhere!
+</pre>
+<p>Quickly, I ran into parsing issues with quotes and escaping characters
+such newlines and quotes.</p>
+</div>
+<div class="section" id="october-2023">
+<h2>October 2023</h2>
+<div class="section" id="rewrite">
+<h3>Rewrite</h3>
+<p>I decided to write a new implementation using configuration option names
+as strings and values as integer, string, or string list. Example:</p>
+<pre class="literal-block">
+if (PyInitConfig_SetInt(config, &quot;dev_mode&quot;, 1) &lt; 0) {
+    goto error;
+}
+</pre>
+<p>The Python initialization is a complex beast. How to allocate memory
+when the memory allocator is not configured yet? Which encoding should
+be used, knowing that the locale encoding is not configured yet?</p>
+<p>I started with wide string (<tt class="docutils literal">wchar_t*</tt>) and bytes string (<tt class="docutils literal">char*</tt>).
+The bytes strings should be decoded from the locale encoding which
+requires to preinitialize Python to configure the locale encoding.</p>
+</div>
+<div class="section" id="getter-functions">
+<h3>Getter functions</h3>
+<p>I was asked to add getter functions such as <tt class="docutils literal">PyInitConfig_GetInt()</tt>
+and <tt class="docutils literal">PyInitConfig_GetStr()</tt>.</p>
+</div>
+<div class="section" id="current-configuration">
+<h3>Current configuration</h3>
+<p>I was also asked to add functions to get the current runtime
+configuration. I proposed the following API:</p>
+<pre class="literal-block">
+int PyConfig_GetInt(const char *key, int64_t *value);
+int PyConfig_GetStr(const char *key, PyObject **value);
+int PyConfig_GetStrList(const char *key, PyObject **value);
+</pre>
+<ul class="simple">
+<li>Raise <tt class="docutils literal">ValueError</tt> if the key doesn't exist.</li>
+<li>Raise <tt class="docutils literal">TypeError</tt> if it's the wrong type.</li>
+<li><tt class="docutils literal">PyConfig_GetInt()</tt> raises OverflowError if the value doesn’t fit
+into <tt class="docutils literal">int64_t</tt>. It cannot happen with the current implementation.</li>
+</ul>
+<p>I wrote <a class="reference external" href="https://github.com/python/cpython/pull/112609">an implementation</a> to play with the API.</p>
+</div>
+<div class="section" id="custom-options">
+<h3>Custom options</h3>
+<p>With my proposed <tt class="docutils literal">PyInitConfig</tt> API, we can accept custom options and
+store them in a separated hash table, and later expose them as a dict.</p>
+<p>Example:</p>
+<pre class="literal-block">
+PyInitConfig_SetInt(&quot;accept_custom_options&quot;, 1);
+PyInitConfig_SetStr(&quot;my_custom_key&quot;, &quot;value&quot;);
+</pre>
+<p>And later retrieve it in Python:</p>
+<pre class="literal-block">
+my_custom_key = sys.get_config()['my_custom_key']  # str
+</pre>
+</div>
+</div>
+<div class="section" id="january-2024-create-pep-741">
+<h2>January 2024: Create PEP 741</h2>
+<p>In January 2024, I decide to write <a class="reference external" href="https://peps.python.org/pep-0741/">PEP 741 – Python Configuration C API</a> since it became
+difficult to follow the discussion which has a long history (since
+August 2022). I <a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api/43637">announced PEP 741</a>
+and the discussion continued there.</p>
+<div class="section" id="specification">
+<h3>Specification</h3>
+<p>First proposed API.</p>
+<p>C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyInitConfig</tt> structure</li>
+<li><tt class="docutils literal">PyInitConfig_Python_New()</tt></li>
+<li><tt class="docutils literal">PyInitConfig_Isolated_New()</tt></li>
+<li><tt class="docutils literal">PyInitConfig_Free(config)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_SetInt(config, name, value)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_SetStr(config, name, value)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_SetWStr(config, name, value)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_SetStrList(config, name, length, items)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_SetWStrList(config, name, length, items)</tt></li>
+<li><tt class="docutils literal">Py_InitializeFromInitConfig(config)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_Exception(config)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_GetError(config, &amp;err_msg)</tt></li>
+<li><tt class="docutils literal">PyInitConfig_GetExitCode(config, &amp;exitcode)</tt></li>
+<li><tt class="docutils literal">Py_ExitWithInitConfig(config)</tt></li>
+<li><tt class="docutils literal">PyConfig_Get(name)</tt></li>
+<li><tt class="docutils literal">PyConfig_GetInt(name, &amp;value)</tt></li>
+</ul>
+<p>Python API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">sys.get_config(name)</tt></li>
+</ul>
+</div>
+<div class="section" id="discussions">
+<h3>Discussions</h3>
+<p>It was proposed to switch to UTF-8 for strings, instead of using the
+locale encoding.</p>
+<p>It was asked to not add PEP 741 API to the limited C API, whereas it has
+been asked by multiple users.</p>
+<p>It was asked to get rid of the preinitialization which causes tricky
+implementation issues with the locale encoding and the memory allocator.</p>
+</div>
+</div>
+<div class="section" id="february-2024-second-version-of-pep-741">
+<h2>February 2024: Second version of PEP 741</h2>
+<div class="section" id="second-version">
+<h3>Second version</h3>
+<p>In February 2024, I wrote a major second version:
+<a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403">PEP 741: Python Configuration C API (second version)</a>.</p>
+<ul class="simple">
+<li>Use UTF-8 for strings, instead of the locale encoding.</li>
+<li>Add locale encoding strings, such as <tt class="docutils literal">PyInitConfig_SetStrLocale()</tt>.
+So the API now has 3 kinds of strings.</li>
+<li>Remove support for custom configuration options.</li>
+</ul>
+</div>
+<div class="section" id="api-to-set-the-current-runtime-configuration">
+<h3>API to set the current runtime configuration</h3>
+<p>I decided to add <tt class="docutils literal">PyConfig_Set()</tt> to <strong>set</strong> configuration options at
+runtime:</p>
+<ul class="simple">
+<li>Return <tt class="docutils literal">0</tt> on success.</li>
+<li>Set an error in config and return <tt class="docutils literal"><span class="pre">-1</span></tt> on error.</li>
+</ul>
+<p>The problem was to decide which options should be read-only and which
+options can be modified.</p>
+<p>I decided to allow modifying options which can already be modified with
+an existing API. For example, the <tt class="docutils literal">argv</tt> option is read from
+<tt class="docutils literal">sys.argv</tt> which can modified. So this option can be modified with
+<tt class="docutils literal">PyConfig_Set()</tt>.</p>
+<p>I also decided to allow modifying some <tt class="docutils literal">sys.flags</tt> flags, but not
+all of them. For example, it becomes possible to modify
+<tt class="docutils literal">bytes_warning</tt> which gets <tt class="docutils literal">sys.flags.bytes_warning</tt>.</p>
+</div>
+</div>
+<div class="section" id="april-2024-steering-council-feedback">
+<h2>April 2024: Steering Council feedback</h2>
+<p>In April 2024, the Steering Council wrote that <a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403/38">they had is having a
+tough time evaluating PEP 741</a>.</p>
+<p>Their main concerns were:</p>
+<ul class="simple">
+<li>The number of string types (3).</li>
+<li>The stable ABI.</li>
+<li>The locale encoding.</li>
+</ul>
+</div>
+<div class="section" id="may-2024-third-pep-version">
+<h2>May 2024: Third PEP version</h2>
+<p>I <a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403/62">rewrote PEP 741 (3rd major version)</a>
+to make it the most likely to be accepted the Steering Council:</p>
+<ul class="simple">
+<li>Remove string types other than UTF-8 (1 string type instead of 3).</li>
+<li>Exclude the API from the limited C API.</li>
+<li>Remove the explicit preconfiguration.</li>
+<li>Remove the rationale about the limited C API / stable ABI.</li>
+<li>Remove the &quot;Python Configuration&quot;, only keep the &quot;Isolated
+Configuration&quot;.</li>
+</ul>
+</div>
+<div class="section" id="august-2024-pep-approved">
+<h2>August 2024: PEP approved</h2>
+<p>In August 2024, the Steering Council eventually <a class="reference external" href="https://discuss.python.org/t/pep-741-python-configuration-c-api-second-version/45403/88">accepted PEP 741</a>.</p>
+<p>Once it was approved, I merged PEP 741 implementation. It's now
+available for testing in the future Python 3.14 version!</p>
+</div>
+<div class="section" id="example">
+<h2>Example</h2>
+<p>It becomes possible to modify some <tt class="docutils literal">sys.flags</tt> which were read-only
+previously. Example on Python 3.14 using the <tt class="docutils literal">_testcapi</tt> (which must
+not be used in production, using for testing!):</p>
+<pre class="literal-block">
+$ ./python
+&gt;&gt;&gt; import sys
+&gt;&gt;&gt; import _testcapi
+
+# BytesWarning is disabled by default
+&gt;&gt;&gt; b'bytes' == 'unicode'
+False
+&gt;&gt;&gt; _testcapi.config_get('bytes_warning')
+0
+&gt;&gt;&gt; sys.flags.bytes_warning
+0
+
+# Set bytes_warning option
+&gt;&gt;&gt; _testcapi.config_set('bytes_warning', 1)
+&gt;&gt;&gt; _testcapi.config_get('bytes_warning')
+1
+&gt;&gt;&gt; sys.flags.bytes_warning
+1
+
+# Comparison now emits BytesWarning
+&gt;&gt;&gt; b'bytes' == 'unicode'
+&lt;python-input-8&gt;:1: BytesWarning: Comparison between bytes and string
+  b'bytes' == 'unicode'
+False
+</pre>
+</div>
+<div class="section" id="statistics">
+<h2>Statistics</h2>
+<p>Statistics on Discourse threads:</p>
+<ul class="simple">
+<li>First thread: 62 messages</li>
+<li>Second thread: 55 messages</li>
+<li>Third thread: 89 messages</li>
+</ul>
+<p>Total: <strong>206</strong> messages!</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (24)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
