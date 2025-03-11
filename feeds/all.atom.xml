@@ -1,5 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2024-09-24T17:00:00+02:00</updated><entry><title>PEP 741: C API to configure Python initialization</title><link href="https://vstinner.github.io/pyconfig-pep-741.html" rel="alternate"></link><published>2024-09-24T17:00:00+02:00</published><updated>2024-09-24T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-09-24:/pyconfig-pep-741.html</id><summary type="html">&lt;div class="section" id="pep-741-story"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2025-03-11T15:00:00+01:00</updated><entry><title>My Python commits: February 2025</title><link href="https://vstinner.github.io/python-commits-february-2025.html" rel="alternate"></link><published>2025-03-11T15:00:00+01:00</published><updated>2025-03-11T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-03-11:/python-commits-february-2025.html</id><summary type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Reorganize C API tests&lt;/li&gt;
+&lt;li&gt;Use PyErr_FormatUnraisable()&lt;/li&gt;
+&lt;li&gt;Reorganize includes&lt;/li&gt;
+&lt;li&gt;C API: Remove PySequence_Fast()&lt;/li&gt;
+&lt;li&gt;C API: Fix function signatures&lt;/li&gt;
+&lt;li&gt;C API: Deprecate private _PyUnicodeWriter&lt;/li&gt;
+&lt;li&gt;Documentation&lt;/li&gt;
+&lt;li&gt;Misc changes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"&gt;&lt;img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Painting: &lt;em&gt;Le Déjeuner des Canotiers&lt;/em&gt; (1881) by &lt;em&gt;Auguste Renoir&lt;/em&gt;.&lt;/p&gt;
+&lt;div class="section" id="gh-93649-reorganize-c-api-tests"&gt;
+&lt;h2&gt;gh-93649: Reorganize …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Reorganize C API tests&lt;/li&gt;
+&lt;li&gt;Use PyErr_FormatUnraisable()&lt;/li&gt;
+&lt;li&gt;Reorganize includes&lt;/li&gt;
+&lt;li&gt;C API: Remove PySequence_Fast()&lt;/li&gt;
+&lt;li&gt;C API: Fix function signatures&lt;/li&gt;
+&lt;li&gt;C API: Deprecate private _PyUnicodeWriter&lt;/li&gt;
+&lt;li&gt;Documentation&lt;/li&gt;
+&lt;li&gt;Misc changes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"&gt;&lt;img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;Painting: &lt;em&gt;Le Déjeuner des Canotiers&lt;/em&gt; (1881) by &lt;em&gt;Auguste Renoir&lt;/em&gt;.&lt;/p&gt;
+&lt;div class="section" id="gh-93649-reorganize-c-api-tests"&gt;
+&lt;h2&gt;gh-93649: Reorganize C API tests&lt;/h2&gt;
+&lt;p&gt;Tests on the C API are written in Python and C. The C part is made of a big
+file &lt;tt class="docutils literal"&gt;Modules/_testcapimodule.c&lt;/tt&gt; (4,410 lines) and 37 C files in the
+&lt;tt class="docutils literal"&gt;Modules/_testcapi/&lt;/tt&gt; directory. At the beginning, &lt;tt class="docutils literal"&gt;_testcapimodule.c&lt;/tt&gt; was
+the only file and there is a work-in-progress to split it into smaller files.&lt;/p&gt;
+&lt;p&gt;I moved more codes from &lt;tt class="docutils literal"&gt;_testcapimodule.c&lt;/tt&gt; into sub-files:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;Modules/_testcapi/frame.c&lt;/tt&gt; file.&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;Modules/_testcapi/type.c&lt;/tt&gt; file.&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;Modules/_testcapi/function.c&lt;/tt&gt; file.&lt;/li&gt;
+&lt;li&gt;Move &lt;tt class="docutils literal"&gt;_testcapi&lt;/tt&gt; tests to specific files.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_testcapimodule.c&lt;/tt&gt; size before/after my changes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Before: &lt;strong&gt;4,410&lt;/strong&gt; lines&lt;/li&gt;
+&lt;li&gt;After: &lt;strong&gt;3,375 lines&lt;/strong&gt; (-1,035 lines: 23% smaller)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gh-129354-use-pyerr-formatunraisable"&gt;
+&lt;h2&gt;gh-129354: Use PyErr_FormatUnraisable()&lt;/h2&gt;
+&lt;p&gt;When an error occurs, Python usually raises an exception to let the developer
+decides how to handle the error. In some rare cases, exceptions cannot be
+raised and &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; is called
+instead.&lt;/p&gt;
+&lt;p&gt;Before, many of these &amp;quot;unraisable exceptions&amp;quot; were logged with limited or no
+context. I modified these functions to explain why these errors were logged.&lt;/p&gt;
+&lt;p&gt;Example of change:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+-            PyErr_WriteUnraisable(self);
++            PyErr_FormatUnraisable(&amp;quot;Exception ignored &amp;quot;
++                                   &amp;quot;while finalizing file %R&amp;quot;, self);
+&lt;/pre&gt;
+&lt;p&gt;Before, only the &lt;em&gt;self&lt;/em&gt; object was logged with a generic error message. Now
+the &amp;quot;Exception ignored while finalizing file&amp;quot; specific message is logged which
+explains where the error comes from.&lt;/p&gt;
+&lt;p&gt;I replaced &lt;tt class="docutils literal"&gt;PyErr_FormatUnraisable()&lt;/tt&gt; with &lt;tt class="docutils literal"&gt;PyErr_FormatUnraisable()&lt;/tt&gt; in
+20 C files. And I had to update 7 related Python test files.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gh-129539-reorganize-includes"&gt;
+&lt;h2&gt;gh-129539: Reorganize includes&lt;/h2&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://github.com/python/cpython/blob/052cb717f5f97d08d2074f4118fd2c21224d3015/Modules/posixmodule.c"&gt;posixmodule.c&lt;/a&gt;
+file is the biggest C file of the Python project: it is made of 18,206 lines
+of C code.&lt;/p&gt;
+&lt;p&gt;It starts with 600 lines of code to include 103 header files. These lines were
+not well organized leading to &lt;a class="reference external" href="https://github.com/python/cpython/issues/129539"&gt;a bug (EX_OK symbol)&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I &lt;a class="reference external" href="https://github.com/python/cpython/commit/df4a2f5bd74fc582d99e6a82e070058d7765f44d"&gt;reorganized these 600 lines&lt;/a&gt;
+to add sections, group similar includes, and add a comment explaining why each
+include is needed. For example, the &lt;tt class="docutils literal"&gt;&amp;lt;unistd.h&amp;gt;&lt;/tt&gt; header is needed to get the
+&lt;tt class="docutils literal"&gt;symlink()&lt;/tt&gt; function:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+#ifdef HAVE_UNISTD_H
+#  include &amp;lt;unistd.h&amp;gt;             // symlink()
+#endif
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gh-91417-c-api-remove-pysequence-fast"&gt;
+&lt;h2&gt;gh-91417, C API: Remove PySequence_Fast()&lt;/h2&gt;
+&lt;p&gt;While digging into &lt;a class="reference external" href="https://github.com/python/cpython/issues?q=state%3Aopen%20label%3A%22topic-C-API%22"&gt;open C API issues&lt;/a&gt;,
+I found an &lt;a class="reference external" href="https://github.com/python/cpython/issues/91417"&gt;old bug&lt;/a&gt; (2022)
+about the &lt;tt class="docutils literal"&gt;PySequence_Fast()&lt;/tt&gt; function in the limited C API.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PySequence_Fast()&lt;/tt&gt; function should be used with
+&lt;tt class="docutils literal"&gt;PySequence_Fast_GET_SIZE()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PySequence_Fast_GET_ITEM()&lt;/tt&gt; macros, but
+these macros don't work in the limited C API.&lt;/p&gt;
+&lt;p&gt;I decided to &lt;a class="reference external" href="https://github.com/python/cpython/commit/2ad069d906c6952250dabbffbcb882676011b310"&gt;remove PySequence_Fast()&lt;/a&gt;
+and these macros from the limited C API.
+The function never worked with the limited C API. It was added by mistake.&lt;/p&gt;
+&lt;p&gt;Sadly, one month later, my colleague Karolina Surma &lt;a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=2345504"&gt;discovered&lt;/a&gt; that &lt;a class="reference external" href="https://github.com/python/cpython/issues/130947"&gt;PyQt6 is broken
+by Python 3.14a5&lt;/a&gt;: PyQt6
+uses the removed &lt;tt class="docutils literal"&gt;PySequence_Fast()&lt;/tt&gt;! I'm &lt;a class="reference external" href="https://github.com/python/cpython/pull/130948"&gt;working on adding the function
+back&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gh-111178-c-api-fix-function-signatures"&gt;
+&lt;h2&gt;gh-111178, C API: Fix function signatures&lt;/h2&gt;
+&lt;p&gt;When Python is built with &lt;tt class="docutils literal"&gt;clang &lt;span class="pre"&gt;-fsanitize=undefined&lt;/span&gt;&lt;/tt&gt;, Python fails quickly
+on calling functions with the wrong ABI. For example, the &lt;tt class="docutils literal"&gt;tp_dealloc&lt;/tt&gt; ABI
+is:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+void tp_dealloc(PyObject *self)
+&lt;/pre&gt;
+&lt;p&gt;whereas the built-in &lt;tt class="docutils literal"&gt;list&lt;/tt&gt; type used the ABI:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+void list_dealloc(PyListObject *op)
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyListObject*&lt;/tt&gt; are not the same type causing an
+&lt;a class="reference external" href="https://en.wikipedia.org/wiki/Undefined_behavior"&gt;undefined behavior&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The correct function signature is:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+void list_dealloc(PyObject *op)
+&lt;/pre&gt;
+&lt;p&gt;In February, I fixed the function signature in 4 files:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;symtable.c&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;namespaceobject.c&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;instruction_sequence.c&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;sliceobject.c&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Since October 2023, there is a &lt;a class="reference external" href="https://github.com/python/cpython/issues/111178"&gt;long on-going work-in-progress&lt;/a&gt; to fix all function
+signatures. It's a lot of work. At the end of February 2025, 97 pull requests
+have already been merged to fix signatures.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gh-128863-c-api-deprecate-private-pyunicodewriter"&gt;
+&lt;h2&gt;gh-128863, C API: Deprecate private _PyUnicodeWriter&lt;/h2&gt;
+&lt;p&gt;I added a &lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter"&gt;new public PyUnicodeWriter C API&lt;/a&gt; to Python
+3.14. So I deprecated the old private &lt;tt class="docutils literal"&gt;_PyUnicodeWriter&lt;/tt&gt; C API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_Init()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_Finish()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_Dealloc()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_WriteChar()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_WriteStr()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_WriteSubstring()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_WriteASCIIString()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyUnicodeWriter_WriteLatin1String()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This deprecation was controversial and has to go through a &lt;a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/57"&gt;C API Working
+Group decision&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="documentation"&gt;
+&lt;h2&gt;Documentation&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;gh-129342: &lt;a class="reference external" href="https://github.com/python/cpython/commit/632ca568219f86679661bc288f46fa5838102ede"&gt;Explain how to replace Py_GetProgramName() in C&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;gh-101944: &lt;a class="reference external" href="https://github.com/python/cpython/commit/04264a286e5ddfe8ac7423f7376ca34a2ca8b7ba"&gt;Clarify PyModule_AddObjectRef() documentation&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="misc-changes"&gt;
+&lt;h2&gt;Misc changes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;gh-128911: Use the new &lt;a class="reference external" href="https://docs.python.org/dev/c-api/import.html#c.PyImport_ImportModuleAttr"&gt;PyImport_ImportModuleAttr()&lt;/a&gt;
+function:&lt;ul&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;PyImport_ImportModule()&lt;/tt&gt; + &lt;tt class="docutils literal"&gt;PyObject_GetAttr()&lt;/tt&gt; with
+&lt;tt class="docutils literal"&gt;PyImport_ImportModuleAttr()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Replace &lt;tt class="docutils literal"&gt;PyImport_ImportModule()&lt;/tt&gt; + &lt;tt class="docutils literal"&gt;PyObject_GetAttrString()&lt;/tt&gt; with
+&lt;tt class="docutils literal"&gt;PyImport_ImportModuleAttrString()&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;gh-129363: &lt;a class="reference external" href="https://github.com/python/cpython/commit/f1b81c408fb83beeee519ae4fb9d3a36dd4522b3"&gt;Add colors to tests run in sequentially mode&lt;/a&gt;.
+First, write the test name without color. Then, write the test name
+and the result with color. Each test is displayed twice.&lt;/li&gt;
+&lt;li&gt;gh-109959: Remove &lt;tt class="docutils literal"&gt;test_glob.test_selflink()&lt;/tt&gt; test.
+The test is not reliable, &lt;a class="reference external" href="https://github.com/python/cpython/issues/109959#issuecomment-2577550700"&gt;it fails randomly on Linux&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>PEP 741: C API to configure Python initialization</title><link href="https://vstinner.github.io/pyconfig-pep-741.html" rel="alternate"></link><published>2024-09-24T17:00:00+02:00</published><updated>2024-09-24T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-09-24:/pyconfig-pep-741.html</id><summary type="html">&lt;div class="section" id="pep-741-story"&gt;
 &lt;h2&gt;PEP 741 story&lt;/h2&gt;
 &lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;&lt;/a&gt;
 &lt;p&gt;Sometimes, writing a PEP can be a wild ride. It took two whole years

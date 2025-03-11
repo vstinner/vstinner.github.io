@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>My Python commits: February 2025 — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: My Python commits: February 2025; Date: 2025-03-11; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">My Python commits: February 2025</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2025-03-11T15:00:00+01:00" itemprop="datePublished">Tue 11 March 2025</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><p>Here is a report on my 18 commits merged into Python in February 2025:</p>
+<ul class="simple">
+<li>Reorganize C API tests</li>
+<li>Use PyErr_FormatUnraisable()</li>
+<li>Reorganize includes</li>
+<li>C API: Remove PySequence_Fast()</li>
+<li>C API: Fix function signatures</li>
+<li>C API: Deprecate private _PyUnicodeWriter</li>
+<li>Documentation</li>
+<li>Misc changes</li>
+</ul>
+<a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"><img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /></a>
+<p>Painting: <em>Le Déjeuner des Canotiers</em> (1881) by <em>Auguste Renoir</em>.</p>
+<div class="section" id="gh-93649-reorganize-c-api-tests">
+<h2>gh-93649: Reorganize C API tests</h2>
+<p>Tests on the C API are written in Python and C. The C part is made of a big
+file <tt class="docutils literal">Modules/_testcapimodule.c</tt> (4,410 lines) and 37 C files in the
+<tt class="docutils literal">Modules/_testcapi/</tt> directory. At the beginning, <tt class="docutils literal">_testcapimodule.c</tt> was
+the only file and there is a work-in-progress to split it into smaller files.</p>
+<p>I moved more codes from <tt class="docutils literal">_testcapimodule.c</tt> into sub-files:</p>
+<ul class="simple">
+<li>Add <tt class="docutils literal">Modules/_testcapi/frame.c</tt> file.</li>
+<li>Add <tt class="docutils literal">Modules/_testcapi/type.c</tt> file.</li>
+<li>Add <tt class="docutils literal">Modules/_testcapi/function.c</tt> file.</li>
+<li>Move <tt class="docutils literal">_testcapi</tt> tests to specific files.</li>
+</ul>
+<p><tt class="docutils literal">_testcapimodule.c</tt> size before/after my changes:</p>
+<ul class="simple">
+<li>Before: <strong>4,410</strong> lines</li>
+<li>After: <strong>3,375 lines</strong> (-1,035 lines: 23% smaller)</li>
+</ul>
+</div>
+<div class="section" id="gh-129354-use-pyerr-formatunraisable">
+<h2>gh-129354: Use PyErr_FormatUnraisable()</h2>
+<p>When an error occurs, Python usually raises an exception to let the developer
+decides how to handle the error. In some rare cases, exceptions cannot be
+raised and <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> is called
+instead.</p>
+<p>Before, many of these &quot;unraisable exceptions&quot; were logged with limited or no
+context. I modified these functions to explain why these errors were logged.</p>
+<p>Example of change:</p>
+<pre class="literal-block">
+-            PyErr_WriteUnraisable(self);
++            PyErr_FormatUnraisable(&quot;Exception ignored &quot;
++                                   &quot;while finalizing file %R&quot;, self);
+</pre>
+<p>Before, only the <em>self</em> object was logged with a generic error message. Now
+the &quot;Exception ignored while finalizing file&quot; specific message is logged which
+explains where the error comes from.</p>
+<p>I replaced <tt class="docutils literal">PyErr_FormatUnraisable()</tt> with <tt class="docutils literal">PyErr_FormatUnraisable()</tt> in
+20 C files. And I had to update 7 related Python test files.</p>
+</div>
+<div class="section" id="gh-129539-reorganize-includes">
+<h2>gh-129539: Reorganize includes</h2>
+<p>The <a class="reference external" href="https://github.com/python/cpython/blob/052cb717f5f97d08d2074f4118fd2c21224d3015/Modules/posixmodule.c">posixmodule.c</a>
+file is the biggest C file of the Python project: it is made of 18,206 lines
+of C code.</p>
+<p>It starts with 600 lines of code to include 103 header files. These lines were
+not well organized leading to <a class="reference external" href="https://github.com/python/cpython/issues/129539">a bug (EX_OK symbol)</a>.</p>
+<p>I <a class="reference external" href="https://github.com/python/cpython/commit/df4a2f5bd74fc582d99e6a82e070058d7765f44d">reorganized these 600 lines</a>
+to add sections, group similar includes, and add a comment explaining why each
+include is needed. For example, the <tt class="docutils literal">&lt;unistd.h&gt;</tt> header is needed to get the
+<tt class="docutils literal">symlink()</tt> function:</p>
+<pre class="literal-block">
+#ifdef HAVE_UNISTD_H
+#  include &lt;unistd.h&gt;             // symlink()
+#endif
+</pre>
+</div>
+<div class="section" id="gh-91417-c-api-remove-pysequence-fast">
+<h2>gh-91417, C API: Remove PySequence_Fast()</h2>
+<p>While digging into <a class="reference external" href="https://github.com/python/cpython/issues?q=state%3Aopen%20label%3A%22topic-C-API%22">open C API issues</a>,
+I found an <a class="reference external" href="https://github.com/python/cpython/issues/91417">old bug</a> (2022)
+about the <tt class="docutils literal">PySequence_Fast()</tt> function in the limited C API.</p>
+<p>The <tt class="docutils literal">PySequence_Fast()</tt> function should be used with
+<tt class="docutils literal">PySequence_Fast_GET_SIZE()</tt> and <tt class="docutils literal">PySequence_Fast_GET_ITEM()</tt> macros, but
+these macros don't work in the limited C API.</p>
+<p>I decided to <a class="reference external" href="https://github.com/python/cpython/commit/2ad069d906c6952250dabbffbcb882676011b310">remove PySequence_Fast()</a>
+and these macros from the limited C API.
+The function never worked with the limited C API. It was added by mistake.</p>
+<p>Sadly, one month later, my colleague Karolina Surma <a class="reference external" href="https://bugzilla.redhat.com/show_bug.cgi?id=2345504">discovered</a> that <a class="reference external" href="https://github.com/python/cpython/issues/130947">PyQt6 is broken
+by Python 3.14a5</a>: PyQt6
+uses the removed <tt class="docutils literal">PySequence_Fast()</tt>! I'm <a class="reference external" href="https://github.com/python/cpython/pull/130948">working on adding the function
+back</a>.</p>
+</div>
+<div class="section" id="gh-111178-c-api-fix-function-signatures">
+<h2>gh-111178, C API: Fix function signatures</h2>
+<p>When Python is built with <tt class="docutils literal">clang <span class="pre">-fsanitize=undefined</span></tt>, Python fails quickly
+on calling functions with the wrong ABI. For example, the <tt class="docutils literal">tp_dealloc</tt> ABI
+is:</p>
+<pre class="literal-block">
+void tp_dealloc(PyObject *self)
+</pre>
+<p>whereas the built-in <tt class="docutils literal">list</tt> type used the ABI:</p>
+<pre class="literal-block">
+void list_dealloc(PyListObject *op)
+</pre>
+<p><tt class="docutils literal">PyObject*</tt> and <tt class="docutils literal">PyListObject*</tt> are not the same type causing an
+<a class="reference external" href="https://en.wikipedia.org/wiki/Undefined_behavior">undefined behavior</a>.</p>
+<p>The correct function signature is:</p>
+<pre class="literal-block">
+void list_dealloc(PyObject *op)
+</pre>
+<p>In February, I fixed the function signature in 4 files:</p>
+<ul class="simple">
+<li><tt class="docutils literal">symtable.c</tt></li>
+<li><tt class="docutils literal">namespaceobject.c</tt></li>
+<li><tt class="docutils literal">instruction_sequence.c</tt></li>
+<li><tt class="docutils literal">sliceobject.c</tt></li>
+</ul>
+<p>Since October 2023, there is a <a class="reference external" href="https://github.com/python/cpython/issues/111178">long on-going work-in-progress</a> to fix all function
+signatures. It's a lot of work. At the end of February 2025, 97 pull requests
+have already been merged to fix signatures.</p>
+</div>
+<div class="section" id="gh-128863-c-api-deprecate-private-pyunicodewriter">
+<h2>gh-128863, C API: Deprecate private _PyUnicodeWriter</h2>
+<p>I added a <a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter">new public PyUnicodeWriter C API</a> to Python
+3.14. So I deprecated the old private <tt class="docutils literal">_PyUnicodeWriter</tt> C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_PyUnicodeWriter_Init()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_Finish()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_Dealloc()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteChar()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteStr()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteSubstring()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteASCIIString()</tt></li>
+<li><tt class="docutils literal">_PyUnicodeWriter_WriteLatin1String()</tt></li>
+</ul>
+<p>This deprecation was controversial and has to go through a <a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/57">C API Working
+Group decision</a>.</p>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation</h2>
+<ul class="simple">
+<li>gh-129342: <a class="reference external" href="https://github.com/python/cpython/commit/632ca568219f86679661bc288f46fa5838102ede">Explain how to replace Py_GetProgramName() in C</a></li>
+<li>gh-101944: <a class="reference external" href="https://github.com/python/cpython/commit/04264a286e5ddfe8ac7423f7376ca34a2ca8b7ba">Clarify PyModule_AddObjectRef() documentation</a></li>
+</ul>
+</div>
+<div class="section" id="misc-changes">
+<h2>Misc changes</h2>
+<ul class="simple">
+<li>gh-128911: Use the new <a class="reference external" href="https://docs.python.org/dev/c-api/import.html#c.PyImport_ImportModuleAttr">PyImport_ImportModuleAttr()</a>
+function:<ul>
+<li>Replace <tt class="docutils literal">PyImport_ImportModule()</tt> + <tt class="docutils literal">PyObject_GetAttr()</tt> with
+<tt class="docutils literal">PyImport_ImportModuleAttr()</tt>.</li>
+<li>Replace <tt class="docutils literal">PyImport_ImportModule()</tt> + <tt class="docutils literal">PyObject_GetAttrString()</tt> with
+<tt class="docutils literal">PyImport_ImportModuleAttrString()</tt>.</li>
+</ul>
+</li>
+<li>gh-129363: <a class="reference external" href="https://github.com/python/cpython/commit/f1b81c408fb83beeee519ae4fb9d3a36dd4522b3">Add colors to tests run in sequentially mode</a>.
+First, write the test name without color. Then, write the test name
+and the result with color. Each test is displayed twice.</li>
+<li>gh-109959: Remove <tt class="docutils literal">test_glob.test_selflink()</tt> test.
+The test is not reliable, <a class="reference external" href="https://github.com/python/cpython/issues/109959#issuecomment-2577550700">it fails randomly on Linux</a>.</li>
+</ul>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (25)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>

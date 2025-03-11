@@ -27,6 +27,35 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/python3-locales-encodings.html">
+		<h2 itemprop="name headline">Python 3, locales and encodings</h2>
+	</a>
+	<time datetime="2018-09-06T16:00:00+02:00" itemprop="datePublished">Thu 06 September 2018</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" />
+<p>Recently, I worked on a change which looked simple: move the code to initialize
+the <tt class="docutils literal">sys.stdout</tt> encoding before <tt class="docutils literal">Py_Initialize()</tt>. While I was on it,
+I also decided to move the code which selects the Python &quot;filesystem encoding&quot;.
+I didn't expect that I would spend 2 weeks on these issues …</p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/unicode.html" rel="tag">unicode</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/locales.html" rel="tag">locales</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/python37-new-utf8-mode.html">
 		<h2 itemprop="name headline">Python 3.7 UTF-8 Mode</h2>
 	</a>
@@ -288,42 +317,6 @@ for me to have a new look on a tricky integer overflow issue.</p>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/contrib-cpython-2017q3-part3.html">
-		<h2 itemprop="name headline">My contributions to CPython during 2017 Q3: Part 3 (funny bugs)</h2>
-	</a>
-	<time datetime="2017-10-19T16:00:00+02:00" itemprop="datePublished">Thu 19 October 2017</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><p>My contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q3
-(july, august, september), Part 3 (funny bugs).</p>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html">My contributions to CPython during 2017 Q3: Part 2 (dangling
-threads)</a>.</p>
-<p>Summary:</p>
-<ul class="simple">
-<li>FreeBSD bug: minor() device regression</li>
-<li>regrtest snowball effect when hunting memory leaks</li>
-<li>Bugfixes</li>
-<li>Other Changes</li>
-</ul>
-<div class="section" id="freebsd-bug-minor-device-regression">
-<h2>FreeBSD bug: minor() device regression</h2>
-<a class="reference external image-reference" href="https://www.freebsd.org/"><img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /></a>
-<p><a class="reference external" href="https://bugs.python.org/issue31044">bpo-31044</a>: The …</p></div></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/author/victor-stinner3.html">&larr; Previous</a></li>
@@ -365,7 +358,7 @@ threads)</a>.</p>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (24)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (25)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>
