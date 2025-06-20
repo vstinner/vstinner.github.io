@@ -2,98 +2,82 @@
 PEP 757 – C API to import-export Python integers
 ************************************************
 
-Issue
-=====
-
-July 4, 2023. Mark Shannon.
-
-Issue #102471: The C-API for Python to C integer conversion is, to be frank, a mess.
+:date: 2025-06-20 14:00
+:tags: c-api, cpython
+:category: cpython
+:slug: pep-757-c-api-import-export-integers
+:authors: Victor Stinner
 
 Python 3.13 alpha 1 removes _PyLong_New()
 =========================================
 
-August 2023.
+In August 2023, I `removed
+<https://github.com/python/cpython/pull/108604>`__ the ``_PyLong_New()``
+function as part of `My plan to clarify private vs public C API
+functions in Python 3.13
+<https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131>`__.
+Python 3.13.0 alpha 1 released at October 13 includes this change.
 
-Pull request gh-106320: Remove private _PyLong_New() function.
+gmpy2 uses _PyLong_New()
+========================
 
-Release 3.13.0 alpha 1: Friday, 2023-10-13
+In October, two months later, after the alpha 1 release, Sergey B
+Kirpichev reported that the gmpy2 project uses ``_PyLong_New()`` and
+asked how to replace the removed function. He created `issue gh-111415
+<https://github.com/python/cpython/issues/111415>`_: Consider restoring
+_PyLong_New() function as public.
 
-The private function has been restored in 3.13 alpha 2.
+Python 3.13 alpha 2 restores _PyLong_New()
+==========================================
 
-Issue
-=====
-
-October 28, 2023. Sergey B Kirpichev.
-
-Consider restoring _PyLong_New() function as public
-https://github.com/python/cpython/issues/111415
+In November, the private ``_PyLong_New()`` function has been restored in
+Python 3.13 alpha 2 which was released at November 22.
 
 Add public function PyLong_GetDigits()
 ======================================
 
-July 2024. Sergey B Kirpichev.
+In June 2024, Sergey B Kirpichev opened the `decision issue #31
+<https://github.com/capi-workgroup/decisions/issues/31>`__: Add public
+function ``PyLong_GetDigits()``.
 
-Pull request #121339
-====================
+PyLong_Export() and PyLong_Import() functions
+=============================================
 
-July 3, 2024.
+In July, I created `gh-121339
+<https://github.com/python/cpython/pull/121339>`__: Add PyLong_Export()
+and PyLong_Import() functions and PyLong_LAYOUT structure.
 
-Pull request #121339
-
-C API Working Group decision issue #35
-======================================
-
-July 14, 2024.
-
-https://github.com/capi-workgroup/decisions/issues/35
+Later, I opened the `decision issue 35
+<https://github.com/capi-workgroup/decisions/issues/35>`__: Add
+import-export API for Python int objects.
 
 PEP 757
 =======
 
-September 2024.
+In September, Sergey and me wrote `PEP 757 – C API to import-export
+Python integers <https://peps.python.org/pep-0757/>`__.
 
-PEP 757 – C API to import-export Python integers
-https://peps.python.org/pep-0757/
+Discussion: `PEP 757 – C API to import-export Python integers
+<https://discuss.python.org/t/pep-757-c-api-to-import-export-python-integers/63895>`__.
 
-Discourse: PEP 757 – C API to import-export Python integers
-===========================================================
+There are two open questions:
 
-September 2024.
+* Should we add ``digits_order`` and ``endian`` members to
+  ``sys.int_info`` and remove ``PyLong_GetNativeLayout()``? The
+  ``PyLong_GetNativeLayout()`` function returns a C structure which is
+  more convenient to use in C than
+  ``sys.int_info`` which uses Python objects.
+* Should we use anonymous union.
 
-https://discuss.python.org/t/pep-757-c-api-to-import-export-python-integers/63895
+C API Working Group and Steering Council
+========================================
 
-Benchmarks
-==========
+In October, I opened a C API Working Group vote on PEP 757: `decision issue 45
+<https://github.com/capi-workgroup/decisions/issues/45>`__.
 
-xxx
+At November 28, 2024, the C API WG accepted the PEP and I `submitted the
+PEP <https://github.com/python/steering-council/issues/264>`_ to the
+Steering Council.
 
-Open Questions
-==============
-
-* Should we add digits_order and endian members to sys.int_info and
-  remove PyLong_GetNativeLayout()? The PyLong_GetNativeLayout() function
-  returns a C structure which is more convenient to use in C than
-  sys.int_info which uses Python objects.
-* Anonymous union.
-
-Vote on PEP 757 – C API to import-export Python integers #45
-============================================================
-
-https://github.com/capi-workgroup/decisions/issues/45
-
-November 28, 2024: I mark the PEP as Accepted and close the issue.
-
-Acceptance immediately reverted...
-
-Steering Council
-================
-
-https://github.com/python/steering-council/issues/264
-
-December 8, 2024: The steering council has decided to accept PEP 757.
-
-Implementation
-==============
-
-xxx
-
+One week later, at December 8, the steering council accepted PEP 757 as
+well!
