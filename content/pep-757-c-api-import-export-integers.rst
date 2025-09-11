@@ -8,6 +8,10 @@ PEP 757 – C API to import-export Python integers
 :slug: pep-757-c-api-import-export-integers
 :authors: Victor Stinner
 
+.. image:: {static}/images/ponyo.jpg
+   :alt: Ponyo movie
+   :target: https://en.wikipedia.org/wiki/Ponyo
+
 Design an API can take time. This article describes the design of the
 C API to import and export Python integers. It takes place between
 August 2023 and December 2024. In total, the discussions got more than
@@ -18,11 +22,7 @@ to access integer internals. The API has an O(1) complexity: in
 practice, no memory is copied (at least, in the current CPython
 implementation).
 
-.. image:: {static}/images/ponyo.jpg
-   :alt: Ponyo movie
-   :target: https://en.wikipedia.org/wiki/Ponyo
-
-Picture: *Ponyo movie*.
+Picture: *Ponyo movie by Hayao Miyazaki*.
 
 Python 3.13 alpha 1 removes _PyLong_New()
 =========================================
