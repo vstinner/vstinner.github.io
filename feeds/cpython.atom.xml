@@ -1,5 +1,189 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2025-03-11T15:00:00+01:00</updated><entry><title>My Python commits: February 2025</title><link href="https://vstinner.github.io/python-commits-february-2025.html" rel="alternate"></link><published>2025-03-11T15:00:00+01:00</published><updated>2025-03-11T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-03-11:/python-commits-february-2025.html</id><summary type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2025-09-11T16:00:00+02:00</updated><entry><title>PEP 757 – C API to import-export Python integers</title><link href="https://vstinner.github.io/pep-757-c-api-import-export-integers.html" rel="alternate"></link><published>2025-09-11T16:00:00+02:00</published><updated>2025-09-11T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-09-11:/pep-757-c-api-import-export-integers.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Ponyo"&gt;
+&lt;img alt="Ponyo movie" src="https://vstinner.github.io/images/ponyo.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;Design an API can take time. This article describes the design of the
+C API to import and export Python integers. It takes place between
+August 2023 and December 2024. In total, the discussions got more than
+448 messages!&lt;/p&gt;
+&lt;p&gt;The API is a thin abstraction on top of CPython implementation …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Ponyo"&gt;
+&lt;img alt="Ponyo movie" src="https://vstinner.github.io/images/ponyo.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;Design an API can take time. This article describes the design of the
+C API to import and export Python integers. It takes place between
+August 2023 and December 2024. In total, the discussions got more than
+448 messages!&lt;/p&gt;
+&lt;p&gt;The API is a thin abstraction on top of CPython implementation details
+to access integer internals. The API has an O(1) complexity: in
+practice, no memory is copied (at least, in the current CPython
+implementation).&lt;/p&gt;
+&lt;p&gt;Picture: &lt;em&gt;Ponyo movie by Hayao Miyazaki&lt;/em&gt;.&lt;/p&gt;
+&lt;div class="section" id="python-3-13-alpha-1-removes-pylong-new"&gt;
+&lt;h2&gt;Python 3.13 alpha 1 removes _PyLong_New()&lt;/h2&gt;
+&lt;p&gt;In August 2023, I &lt;a class="reference external" href="https://github.com/python/cpython/pull/108604"&gt;removed&lt;/a&gt; the &lt;tt class="docutils literal"&gt;_PyLong_New()&lt;/tt&gt;
+function as part of &lt;a class="reference external" href="https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131"&gt;My plan to clarify private vs public C API
+functions in Python 3.13&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In October, Python 3.13.0 alpha 1 was released without this function.
+&lt;strong&gt;Sergey B Kirpichev&lt;/strong&gt; reported that the gmpy2 project uses
+&lt;tt class="docutils literal"&gt;_PyLong_New()&lt;/tt&gt; and asked how to replace the removed function. He
+created &lt;a class="reference external" href="https://github.com/python/cpython/issues/111415"&gt;issue gh-111415&lt;/a&gt;: Consider restoring
+_PyLong_New() function as public.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-13-alpha-2-restores-pylong-new"&gt;
+&lt;h2&gt;Python 3.13 alpha 2 restores _PyLong_New()&lt;/h2&gt;
+&lt;p&gt;In November, the private &lt;tt class="docutils literal"&gt;_PyLong_New()&lt;/tt&gt; function has been restored in
+Python 3.13 alpha 2 which was released at November 22.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="add-public-function-pylong-getdigits"&gt;
+&lt;h2&gt;Add public function PyLong_GetDigits()&lt;/h2&gt;
+&lt;p&gt;In June 2024, &lt;strong&gt;Sergey B Kirpichev&lt;/strong&gt; opened the &lt;a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/31"&gt;[C API Working Group] decision issue #31&lt;/a&gt;: Add public
+function &lt;tt class="docutils literal"&gt;PyLong_GetDigits()&lt;/tt&gt;. API:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+const digits* PyLong_GetDigits(PyObject* obj, Py_ssize_t *ndigits)
+&lt;/pre&gt;
+&lt;p&gt;I disliked this API since it's too close to the exact implementation.
+The API cannot be implemented in an efficient way if implementation
+details change.&lt;/p&gt;
+&lt;p&gt;For example, in the future, CPython might adopt tagged pointers for
+small integers and so don't have a concrete array of digits.&lt;/p&gt;
+&lt;p&gt;There was a call for a different API to address these issues.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pylong-export-and-pylong-import-functions"&gt;
+&lt;h2&gt;PyLong_Export() and PyLong_Import() functions&lt;/h2&gt;
+&lt;div class="section" id="first-api"&gt;
+&lt;h3&gt;First API&lt;/h3&gt;
+&lt;p&gt;In July, I created &lt;a class="reference external" href="https://github.com/python/cpython/pull/121339"&gt;gh-121339&lt;/a&gt; pull request to propose a
+different API. Later, I opened the &lt;a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/35"&gt;[C API Working Group] decision issue
+#35&lt;/a&gt;
+(which got 51 messages): Add import-export API for Python int objects. API:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+// Layout API
+typedef struct PyLongLayout {
+    uint8_t bits_per_digit;
+    uint8_t digit_size;
+    int8_t word_endian;
+    int8_t array_endian;
+} PyLongLayout;
+
+const PyLongLayout PyLong_LAYOUT;
+
+// Export API
+typedef struct PyLong_DigitArray {
+    PyObject *obj;
+    int negative;
+    Py_ssize_t ndigits;
+    const Py_digit *digits;
+} PyLong_DigitArray;
+
+int PyLong_AsDigitArray(PyObject *obj, PyLong_DigitArray *array)
+void PyLong_FreeDigitArray(PyLong_DigitArray *array)
+
+// Import API
+PyLongWriter* PyLongWriter_Create(int negative, Py_ssize_t ndigits, Py_digit **digits)
+PyObject* PyLongWriter_Finish(PyLongWriter *writer)
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="api-changes"&gt;
+&lt;h3&gt;API changes&lt;/h3&gt;
+&lt;p&gt;The &lt;a class="reference external" href="https://github.com/python/cpython/pull/121339"&gt;pull request&lt;/a&gt; got
+277 messages (!) between July 2024 and February 2025. The API names were
+discussed in length, and better names have been proposed.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PyLong_LAYOUT&lt;/tt&gt; constant was replaced with the
+&lt;tt class="docutils literal"&gt;PyLong_GetNativeLayout()&lt;/tt&gt; function to have a better ABI.&lt;/p&gt;
+&lt;p&gt;The dependency to the &lt;tt class="docutils literal"&gt;Py_digit&lt;/tt&gt; type has been removed. The
+&lt;tt class="docutils literal"&gt;Py_digit*&lt;/tt&gt; type was replaced with &lt;tt class="docutils literal"&gt;void*&lt;/tt&gt; to support digit of
+arbitrary size.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyLong_Export.obj&lt;/tt&gt; became private: &lt;tt class="docutils literal"&gt;obj&lt;/tt&gt; was renamed to
+&lt;tt class="docutils literal"&gt;reserved&lt;/tt&gt;, and its specific type &lt;tt class="docutils literal"&gt;PyObject*&lt;/tt&gt; became the opaque
+&lt;tt class="docutils literal"&gt;Py_uintptr_t&lt;/tt&gt; type.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyLongWriter_Discard()&lt;/tt&gt; function was added to handle errors.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pep-757"&gt;
+&lt;h2&gt;PEP 757&lt;/h2&gt;
+&lt;p&gt;In September, &lt;strong&gt;Sergey&lt;/strong&gt; and me wrote &lt;a class="reference external" href="https://peps.python.org/pep-0757/"&gt;PEP 757 – C API to import-export
+Python integers&lt;/a&gt;: the &lt;a class="reference external" href="https://discuss.python.org/t/pep-757-c-api-to-import-export-python-integers/63895"&gt;discussion&lt;/a&gt;
+got 80 messages.&lt;/p&gt;
+&lt;p&gt;It was proposed to use an union for PyLongExport with a &lt;tt class="docutils literal"&gt;kind&lt;/tt&gt; member
+to select the format (small integer or digit array). The idea was
+abandonned in the meanwhile.&lt;/p&gt;
+&lt;p&gt;For small integers, there is no warranty that they will be stored as a
+digit array in the future. The &lt;tt class="docutils literal"&gt;PyLongExport.value&lt;/tt&gt; member
+(&lt;tt class="docutils literal"&gt;int64_t&lt;/tt&gt;) was added to store the value of small integers.&lt;/p&gt;
+&lt;p&gt;There were two open questions:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Should we add &lt;tt class="docutils literal"&gt;digits_order&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;endian&lt;/tt&gt; members to
+&lt;tt class="docutils literal"&gt;sys.int_info&lt;/tt&gt; and remove &lt;tt class="docutils literal"&gt;PyLong_GetNativeLayout()&lt;/tt&gt;? The
+&lt;tt class="docutils literal"&gt;PyLong_GetNativeLayout()&lt;/tt&gt; function returns a C structure which is
+more convenient to use in C than
+&lt;tt class="docutils literal"&gt;sys.int_info&lt;/tt&gt; which uses Python objects.&lt;/li&gt;
+&lt;li&gt;Should we use anonymous union.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It was decided to leave &lt;tt class="docutils literal"&gt;sys.int_info&lt;/tt&gt; unchanged and keep
+&lt;tt class="docutils literal"&gt;PyLong_GetNativeLayout()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;It was also decided to avoid anonymous union to avoid any risk of
+compatibility issue with old C versions.&lt;/p&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://peps.python.org/pep-0757/#benchmarks"&gt;Benchmarks&lt;/a&gt; measured
+the abstraction cost: it is between 1.04x slower and 1.27x faster. It
+means that the abstraction has no significant impact on the performance.
+In short (geometric mean):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Export: 1.05x faster&lt;/li&gt;
+&lt;li&gt;Import: 1.03x slower&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="overwhelmed"&gt;
+&lt;h2&gt;Overwhelmed&lt;/h2&gt;
+&lt;p&gt;After months of discussions and many back and forth on the API,
+&lt;a class="reference external" href="https://discuss.python.org/t/pep-757-c-api-to-import-export-python-integers/63895/66"&gt;I got overwhelmed&lt;/a&gt;
+and close to give up. Hopefully, I didn't give up.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="c-api-working-group-and-steering-council"&gt;
+&lt;h2&gt;C API Working Group and Steering Council&lt;/h2&gt;
+&lt;p&gt;In October, I opened a C API Working Group vote on PEP 757:
+&lt;a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/45"&gt;decision issue #45&lt;/a&gt;
+which got 40 messages.&lt;/p&gt;
+&lt;p&gt;At November 28, 2024, the C API WG accepted the PEP and I &lt;a class="reference external" href="https://github.com/python/steering-council/issues/264"&gt;submitted the
+PEP&lt;/a&gt; to the
+Steering Council.&lt;/p&gt;
+&lt;p&gt;One week later, at December 8, the Steering Council accepted PEP 757 as
+well!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="final-api"&gt;
+&lt;h2&gt;Final API&lt;/h2&gt;
+&lt;p&gt;After many iterations, the final API is:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+// Layout API
+typedef struct PyLongLayout {
+    uint8_t bits_per_digit;
+    uint8_t digit_size;
+    int8_t digits_order;
+    int8_t digit_endianness;
+} PyLongLayout;
+
+const PyLongLayout* PyLong_GetNativeLayout(void)
+
+// Export API
+typedef struct PyLongExport {
+    int64_t value;
+    uint8_t negative;
+    Py_ssize_t ndigits;
+    const void *digits;
+    Py_uintptr_t _reserved;
+} PyLongExport;
+
+int PyLong_Export(PyObject *obj, PyLongExport *export_long)
+void PyLong_FreeExport(PyLongExport *export_long)
+
+// Import API
+PyLongWriter* PyLongWriter_Create(int negative, Py_ssize_t ndigits, void **digits)
+PyObject* PyLongWriter_Finish(PyLongWriter *writer)
+void PyLongWriter_Discard(PyLongWriter *writer)
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;decimal&lt;/tt&gt; extension and &lt;tt class="docutils literal"&gt;Python/marshal.c&lt;/tt&gt; have been modified to
+use this API.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>My Python commits: February 2025</title><link href="https://vstinner.github.io/python-commits-february-2025.html" rel="alternate"></link><published>2025-03-11T15:00:00+01:00</published><updated>2025-03-11T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-03-11:/python-commits-february-2025.html</id><summary type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Reorganize C API tests&lt;/li&gt;
 &lt;li&gt;Use PyErr_FormatUnraisable()&lt;/li&gt;
@@ -10,7 +194,9 @@
 &lt;li&gt;Documentation&lt;/li&gt;
 &lt;li&gt;Misc changes&lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"&gt;&lt;img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"&gt;
+&lt;img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Painting: &lt;em&gt;Le Déjeuner des Canotiers&lt;/em&gt; (1881) by &lt;em&gt;Auguste Renoir&lt;/em&gt;.&lt;/p&gt;
 &lt;div class="section" id="gh-93649-reorganize-c-api-tests"&gt;
 &lt;h2&gt;gh-93649: Reorganize …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
@@ -24,7 +210,9 @@
 &lt;li&gt;Documentation&lt;/li&gt;
 &lt;li&gt;Misc changes&lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"&gt;&lt;img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luncheon_of_the_Boating_Party"&gt;
+&lt;img alt="Le Déjeuner des Canotiers by Auguste Renoir" src="https://vstinner.github.io/images/dejeuner_canotiers.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Painting: &lt;em&gt;Le Déjeuner des Canotiers&lt;/em&gt; (1881) by &lt;em&gt;Auguste Renoir&lt;/em&gt;.&lt;/p&gt;
 &lt;div class="section" id="gh-93649-reorganize-c-api-tests"&gt;
 &lt;h2&gt;gh-93649: Reorganize C API tests&lt;/h2&gt;
@@ -171,13 +359,17 @@ The test is not reliable, &lt;a class="reference external" href="https://github.
 &lt;/div&gt;
 </content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>PEP 741: C API to configure Python initialization</title><link href="https://vstinner.github.io/pyconfig-pep-741.html" rel="alternate"></link><published>2024-09-24T17:00:00+02:00</published><updated>2024-09-24T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-09-24:/pyconfig-pep-741.html</id><summary type="html">&lt;div class="section" id="pep-741-story"&gt;
 &lt;h2&gt;PEP 741 story&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;
+&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Sometimes, writing a PEP can be a wild ride. It took two whole years
 between the early discussions and getting &lt;a class="reference external" href="https://peps.python.org/pep-0741/"&gt;PEP 741&lt;/a&gt; eventually accepted by
 the Steering Council. The API is only made of 18 functions, but it took
 more than 200 messages to design properly these …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;div class="section" id="pep-741-story"&gt;
 &lt;h2&gt;PEP 741 story&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;
+&lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Sometimes, writing a PEP can be a wild ride. It took two whole years
 between the early discussions and getting &lt;a class="reference external" href="https://peps.python.org/pep-0741/"&gt;PEP 741&lt;/a&gt; eventually accepted by
 the Steering Council. The API is only made of 18 functions, but it took
@@ -603,7 +795,9 @@ points. I added an API to support natively this string format.&lt;/p&gt;
 convenient, less error-prone, and maybe even a little bit more efficient!&lt;/p&gt;
 &lt;p&gt;Thanks to everyone who was involved in these discussions!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"></link><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"></link><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;
+&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In Python 3.13, I made multiple enhancements to make the limited C API more
 usable:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -611,7 +805,9 @@ usable:&lt;/p&gt;
 &lt;li&gt;Make the special debug build &lt;tt class="docutils literal"&gt;Py_TRACE_REFS&lt;/tt&gt; compatible with the limited
 C API.&lt;/li&gt;
 &lt;li&gt;Enhance Argument Clinic to generate C code using the limited C API.&lt;/li&gt;
-&lt;li&gt;Add an …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;&lt;/a&gt;
+&lt;li&gt;Add an …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;
+&lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In Python 3.13, I made multiple enhancements to make the limited C API more
 usable:&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -825,11 +1021,15 @@ cases. It would be interersting to only use the limited C API. The PEP 741 to
 embed Python in Rust would be interesting for that.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Remove private C API functions</title><link href="https://vstinner.github.io/remove-c-api-funcs-313.html" rel="alternate"></link><published>2023-12-15T23:00:00+01:00</published><updated>2023-12-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-12-15:/remove-c-api-funcs-313.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Remove private C API functions</title><link href="https://vstinner.github.io/remove-c-api-funcs-313.html" rel="alternate"></link><published>2023-12-15T23:00:00+01:00</published><updated>2023-12-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-12-15:/remove-c-api-funcs-313.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;
+&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
 if I announced my plan early in July, users didn't &amp;quot;embrace&amp;quot; my plan and didn't
 agree with the rationale. I reverted 50 functions in the alpha 2 release to
-calm down the situation and …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;&lt;/a&gt;
+calm down the situation and …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;
+&lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
 if I announced my plan early in July, users didn't &amp;quot;embrace&amp;quot; my plan and didn't
 agree with the rationale. I reverted 50 functions in the alpha 2 release to
@@ -1346,7 +1546,9 @@ Working Group.&lt;/p&gt;
 </content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>My contributions to Python (July 2023)</title><link href="https://vstinner.github.io/contrib-python-july-2023.html" rel="alternate"></link><published>2023-07-08T23:00:00+02:00</published><updated>2023-07-08T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-07-08:/contrib-python-july-2023.html</id><summary type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. In this article, I describe the most important Python contributions
 that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;
+&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: Foxes in Love: Cuddle&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
@@ -1354,7 +1556,9 @@ that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;li&gt;Add PyImport_AddModuleRef() and …&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. In this article, I describe the most important Python contributions
 that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;
+&lt;img alt="Foxes in Love: Cuddle" src="https://vstinner.github.io/images/foxes_in_love_cuddle.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: Foxes in Love: Cuddle&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
@@ -1932,14 +2136,18 @@ proposing solutions for the most commonly used removed functions like the
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_gitversion()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Convert macros to functions in the Python C API</title><link href="https://vstinner.github.io/c-api-convert-macros-functions.html" rel="alternate"></link><published>2022-12-12T23:00:00+01:00</published><updated>2022-12-12T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-12-12:/c-api-convert-macros-functions.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"&gt;&lt;img alt="L'oeil du cyclone - Théo Grosjean" src="https://vstinner.github.io/images/loeil_cyclone.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Convert macros to functions in the Python C API</title><link href="https://vstinner.github.io/c-api-convert-macros-functions.html" rel="alternate"></link><published>2022-12-12T23:00:00+01:00</published><updated>2022-12-12T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-12-12:/c-api-convert-macros-functions.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"&gt;
+&lt;img alt="L'oeil du cyclone - Théo Grosjean" src="https://vstinner.github.io/images/loeil_cyclone.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: &amp;quot;L'oeil du cyclone&amp;quot; by Théo Grosjean.&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="convert-macros-to-functions"&gt;
 &lt;h2&gt;Convert macros to functions&lt;/h2&gt;
 &lt;p&gt;For 4 years, between Python 3.7 (2018) and Python 3.12 (2022), I made many
 changes on macros in the Python C API to make the API less error prone (avoid
 &lt;a class="reference external" href="https://gcc.gnu.org/onlinedocs/cpp/Macro-Pitfalls.html"&gt;macro pitfalls&lt;/a&gt;) and
-better define the API …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"&gt;&lt;img alt="L'oeil du cyclone - Théo Grosjean" src="https://vstinner.github.io/images/loeil_cyclone.jpg" /&gt;&lt;/a&gt;
+better define the API …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"&gt;
+&lt;img alt="L'oeil du cyclone - Théo Grosjean" src="https://vstinner.github.io/images/loeil_cyclone.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: &amp;quot;L'oeil du cyclone&amp;quot; by Théo Grosjean.&lt;/em&gt;&lt;/p&gt;
 &lt;div class="section" id="convert-macros-to-functions"&gt;
 &lt;h2&gt;Convert macros to functions&lt;/h2&gt;
@@ -2226,14 +2434,18 @@ count&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_CHECK_REFCNT()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Debug a Python reference leak</title><link href="https://vstinner.github.io/debug-python-refleak.html" rel="alternate"></link><published>2022-11-04T13:00:00+01:00</published><updated>2022-11-04T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-11-04:/debug-python-refleak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;&lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Debug a Python reference leak</title><link href="https://vstinner.github.io/debug-python-refleak.html" rel="alternate"></link><published>2022-11-04T13:00:00+01:00</published><updated>2022-11-04T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-11-04:/debug-python-refleak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;
+&lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This morning, I got &lt;a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&amp;#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/"&gt;this email&lt;/a&gt;
 from the buildbot-status mailing list:&lt;/p&gt;
 &lt;blockquote&gt;
 The Buildbot has detected a new failure on builder PPC64LE Fedora Rawhide
 &lt;strong&gt;Refleaks&lt;/strong&gt; 3.x while building Python.&lt;/blockquote&gt;
 &lt;p&gt;I get many of buildbot failures per month (by email), but I like to debug
-reference leaks: they are more challenging …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;&lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;&lt;/a&gt;
+reference leaks: they are more challenging …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;
+&lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This morning, I got &lt;a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&amp;#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/"&gt;this email&lt;/a&gt;
 from the buildbot-status mailing list:&lt;/p&gt;
 &lt;blockquote&gt;
@@ -2673,12 +2885,16 @@ taken by the issue&lt;/li&gt;
 &lt;p&gt;Oh by the way, while I finished my article, my PR got reviewed and I merged it:
 &lt;a class="reference external" href="https://github.com/python/cpython/commit/387f72588d538bc56669f0f28cc41df854fc5b43"&gt;my commit fixing the leak&lt;/a&gt;!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="refleak"></category><category term="cpython"></category></entry><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"></link><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="refleak"></category><category term="cpython"></category></entry><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"></link><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;
+&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;The PyObject structure prevents indirectly to optimize CPython. We will see why
 and how I prepared the C API to make this structure opaque. It took me 1 year
 and a half to add functions and to introduce &lt;strong&gt;incompatible C API changes&lt;/strong&gt;
 (fear!).&lt;/p&gt;
-&lt;p&gt;In February 2020, I started by adding …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;&lt;/a&gt;
+&lt;p&gt;In February 2020, I started by adding …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;
+&lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;The PyObject structure prevents indirectly to optimize CPython. We will see why
 and how I prepared the C API to make this structure opaque. It took me 1 year
 and a half to add functions and to introduce &lt;strong&gt;incompatible C API changes&lt;/strong&gt;
@@ -3287,12 +3503,16 @@ embedding Python is now explicitly defined. The &lt;a class="reference external"
 describes C API and ABI stability guarantees along with best practices for
 using the Stable ABI.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Creation of the pythoncapi_compat project</title><link href="https://vstinner.github.io/pythoncapi_compat.html" rel="alternate"></link><published>2021-03-30T20:00:00+02:00</published><updated>2021-03-30T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-30:/pythoncapi_compat.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;&lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Creation of the pythoncapi_compat project</title><link href="https://vstinner.github.io/pythoncapi_compat.html" rel="alternate"></link><published>2021-03-30T20:00:00+02:00</published><updated>2021-03-30T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-30:/pythoncapi_compat.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;
+&lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In 2020, I created a new &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat project&lt;/a&gt; to add Python 3.10 support
 to C extensions without losing support for old Python versions. It supports
 Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:&lt;/p&gt;
 &lt;ul class="simple"&gt;
-&lt;li&gt;&lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt;: Header file providing new C API …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;&lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;&lt;/a&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;pythoncapi_compat.h&lt;/tt&gt;: Header file providing new C API …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;
+&lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In 2020, I created a new &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat project&lt;/a&gt; to add Python 3.10 support
 to C extensions without losing support for old Python versions. It supports
 Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:&lt;/p&gt;
@@ -3552,11 +3772,15 @@ Python versions in a single code base.&lt;/p&gt;
 &lt;p&gt;The next steps is to get it adopted more widely and get it endorsed by the
 Python project, maybe by moving it under the PSF organization on GitHub.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;
+&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related
-to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;&lt;/a&gt;
+to my &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0620/"&gt;PEP 620 &amp;quot;Hide implementation …&lt;/a&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;
+&lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type"&gt;make structures opaque&lt;/a&gt;. These changes are related
@@ -4619,12 +4843,16 @@ converting extension modules to the multiphase initialization API (PEP 489) and
 by converting dozens of static types to heap types. We made huge progresses
 last months!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;
+&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
 &lt;p&gt;This article is about bugfixes of the infamous GIL (Global Interpreter Lock) in
-Python 3.9, between …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;&lt;/a&gt;
+Python 3.9, between …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;
+&lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.&lt;/p&gt;
@@ -4863,7 +5091,9 @@ PyEval_AcquireLock() and PyEval_AcquireThread() also exit if Python is finalizin
 </content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"></link><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;&lt;img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;
+&lt;img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;#CoronaMaison by Julien Neel&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="race-condition-in-threading-shutdown"&gt;
 &lt;h2&gt;Race condition in threading shutdown&lt;/h2&gt;
@@ -4871,7 +5101,9 @@ subinterpreters to fix another related bug.&lt;/p&gt;
 &lt;h3&gt;Random test failure noticed on FreeBSD buildbot …&lt;/h3&gt;&lt;/div&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;&lt;img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;
+&lt;img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Drawing: &lt;a class="reference external" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;#CoronaMaison by Julien Neel&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="race-condition-in-threading-shutdown"&gt;
 &lt;h2&gt;Race condition in threading shutdown&lt;/h2&gt;
@@ -5029,12 +5261,16 @@ non-daemon threads is deleted.&lt;/p&gt;
 &lt;p&gt;I also modified &lt;tt class="docutils literal"&gt;Thread.start()&lt;/tt&gt; to forbid spawning daemon threads in Python
 subinterpreters to fix a related issue.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;
+&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
 &lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
 They are causing race conditions and tricky bugs in the Python finalization.&lt;/p&gt;
-&lt;p&gt;This article covers bugs …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;&lt;/a&gt;
+&lt;p&gt;This article covers bugs …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;
+&lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
 &lt;tt class="docutils literal"&gt;__del__()&lt;/tt&gt; method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
@@ -5181,12 +5417,16 @@ daemon threads. The Python finalization became more reliable.&lt;/p&gt;
 &lt;p&gt;Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
 caused a regression which required to revert the bugfix in Python 2.7.9.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;
+&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Yet another example of a test failure which looks harmless but hides a
-critical bug.&lt;/strong&gt; The bug is that sending a …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;&lt;/a&gt;
+critical bug.&lt;/strong&gt; The bug is that sending a …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;
+&lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in &lt;tt class="docutils literal"&gt;test_asyncio&lt;/tt&gt; which will
 haunt me for 1 year in 2018...&lt;/p&gt;
@@ -5525,12 +5765,16 @@ tests make the difference.&lt;/p&gt;
 asyncio implementation is quite complex :-)&lt;/p&gt;
 &lt;p&gt;Ok, &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; should now have a few less memory leaks :-)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;
+&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
 function.&lt;/p&gt;
 &lt;p&gt;A newly added test failed on Windows. Later, the test started to fail
 randomly on Linux as well. In fact, it was a well hidden race condition in the
-asynchronous handshake of &lt;tt class="docutils literal"&gt;SSLProtocol&lt;/tt&gt; which will take 5 months of …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;&lt;/a&gt;
+asynchronous handshake of &lt;tt class="docutils literal"&gt;SSLProtocol&lt;/tt&gt; which will take 5 months of …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;
+&lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
 function.&lt;/p&gt;
 &lt;p&gt;A newly added test failed on Windows. Later, the test started to fail
@@ -5917,7 +6161,9 @@ Date:   Fri Jun 8 00:25:52 2018 +0200
 failure can hide a very severe bug.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;
+&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
 and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
@@ -5925,7 +6171,9 @@ and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;ConnectPipe()&lt;/tt&gt; Race Condition&lt;/li&gt;
 &lt;li&gt;Race Condition in &lt;tt class="docutils literal"&gt;BaseSubprocessTransport._try_finish()&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;Close the transport on failure: ResourceWarning&lt;/li&gt;
-&lt;li&gt;Cleanup code …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;&lt;/a&gt;
+&lt;li&gt;Cleanup code …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;
+&lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (&lt;a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html"&gt;Proactor Cancellation From Hell&lt;/a&gt;), I fixed more race conditions
 and bugs in &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt;:&lt;/p&gt;
@@ -6496,7 +6744,9 @@ into the overlapped memory.&lt;/li&gt;
 &lt;li&gt;The overlapped is destroyed: &lt;strong&gt;free&lt;/strong&gt; overlapped memory.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;&lt;/a&gt;
+</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;
+&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -6504,7 +6754,9 @@ into the overlapped memory.&lt;/li&gt;
 &lt;li&gt;Crash with non-ASCII decimal point&lt;/li&gt;
 &lt;li&gt;LC_NUMERIC encoding different than LC_CTYPE encoding&lt;/li&gt;
 &lt;li&gt;LC_MONETARY encoding different than LC_CTYPE encoding&lt;/li&gt;
-&lt;li&gt;Tests non-ASCII locales …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;&lt;/a&gt;
+&lt;li&gt;Tests non-ASCII locales …&lt;/li&gt;&lt;/ul&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;
+&lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
 (Python 3.3) and 2018 (Python 3.7):&lt;/p&gt;
 &lt;ul class="simple"&gt;

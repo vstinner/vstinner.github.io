@@ -75,7 +75,9 @@ after the  <a class="reference external" href="https://vstinner.github.io/cpytho
 better: <strong>13.4 ms</strong>. But suddenly, at september 19, it became much worse:
 <strong>22.8 ms</strong>. What happened?</p>
 <p>Timeline of Python startup performance on speed.python.org:</p>
-<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=python_startup&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of Python startup performance" src="https://vstinner.github.io/images/python_startup_regression.png" /></a>
+<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=python_startup&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on">
+<img alt="Timeline of Python startup performance" src="https://vstinner.github.io/images/python_startup_regression.png" />
+</a>
 <p>I looked at commits between September 15 and September 19, and I quickly
 identified the commit of the <a class="reference external" href="http://bugs.python.org/issue28082">convert re flags to (much
 friendlier) IntFlag constants (issue #28082)</a>. The <tt class="docutils literal">re</tt> module now imports the
@@ -108,7 +110,9 @@ was obvious (avoid an import at startup) and simple, it was quickly merged.</p>
 performance by default, the <tt class="docutils literal">enum</tt> change was restored at November 14.</p>
 <p>Sadly, the <tt class="docutils literal">enum</tt> change still have an impact on performance:
 <tt class="docutils literal">re.compile()</tt> became 1.2x slower (312 ms =&gt; 376 ms: +20%).</p>
-<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=regex_compile&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on"><img alt="Timeline of re.compile() performance" src="https://vstinner.github.io/images/regex_compile_perf.png" /></a>
+<a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;ben=regex_compile&amp;env=1&amp;revs=50&amp;equid=off&amp;quarts=on&amp;extr=on">
+<img alt="Timeline of re.compile() performance" src="https://vstinner.github.io/images/regex_compile_perf.png" />
+</a>
 <p>I think that it's ok since it is very easy to use precompiled regular
 expressions in an application: store and reuse the result of <tt class="docutils literal">re.compile()</tt>,
 instead of calling directly <tt class="docutils literal">re.match()</tt> for example.</p>
@@ -416,7 +420,7 @@ this is suboptimal. Update the documentation to suggest to reuse the
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (25)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (26)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-16T12:00:00+01:00</updated><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - python</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/python.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2020-01-16T12:00:00+01:00</updated><entry><title>Python 3.7 Development Mode</title><link href="https://vstinner.github.io/python37-dev-mode.html" rel="alternate"></link><published>2020-01-16T12:00:00+01:00</published><updated>2020-01-16T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-01-16:/python37-dev-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;
+&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
 (-X dev)&lt;/a&gt; that I &lt;strong&gt;added
 to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
 &lt;p&gt;The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;&lt;/a&gt;
+enabled by default. It can be enabled by &lt;tt class="docutils literal"&gt;python3 &lt;span class="pre"&gt;-X&lt;/span&gt; dev …&lt;/tt&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"&gt;
+&lt;img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;This article describes the discussion on the design of the &lt;a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5"&gt;development mode
 (-X dev)&lt;/a&gt; that I &lt;strong&gt;added
 to Python 3.7&lt;/strong&gt; and how it has been implemented.&lt;/p&gt;
@@ -412,12 +416,16 @@ and Py_Finalize() (create and finalize the &lt;strong&gt;main&lt;/strong&gt; int
 &lt;a class="reference external" href="https://bugs.python.org/issue38858"&gt;new_interpreter() should reuse more Py_InitializeFromConfig() code&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;They are still many issues to be fixed: &lt;strong&gt;it's moving slowly but steadily!&lt;/strong&gt;&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+</content><category term="python"></category><category term="cpython"></category></entry><entry><title>Split Include/ directory in Python 3.8</title><link href="https://vstinner.github.io/split-include-directory-python38.html" rel="alternate"></link><published>2019-06-19T12:00:00+02:00</published><updated>2019-06-19T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-19:/split-include-directory-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;
+&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;My analysis is that the C API leaks too many implementation details which
-prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;&lt;/a&gt;
+prevent to optimize Python …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"&gt;
+&lt;img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create &lt;a class="reference external" href="https://vstinner.github.io/new-python-c-api.html"&gt;A New C API for CPython&lt;/a&gt;.
 I'm still working on the Python C API at: &lt;a class="reference external" href="http://pythoncapi.readthedocs.io/"&gt;pythoncapi.readthedocs.io&lt;/a&gt;.&lt;/p&gt;
@@ -584,13 +592,17 @@ ABI), and were not documented.&lt;/p&gt;
 &lt;tt class="docutils literal"&gt;PyEval_ReInitThreads()&lt;/tt&gt; function. It should not be called explicitly: use
 &lt;tt class="docutils literal"&gt;PyOS_AfterFork_Child()&lt;/tt&gt; instead.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+</content><category term="python"></category><category term="python"></category><category term="c-api"></category></entry><entry><title>Python 3.8 sys.unraisablehook</title><link href="https://vstinner.github.io/sys-unraisablehook-python38.html" rel="alternate"></link><published>2019-06-15T01:00:00+02:00</published><updated>2019-06-15T01:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-06-15:/sys-unraisablehook-python38.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;
+&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
 released last week!&lt;/p&gt;
 &lt;p&gt;An &amp;quot;unraisable exception&amp;quot; is an error which happens when Python cannot report
-it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;&lt;/a&gt;
+it to the caller. Examples …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"&gt;
+&lt;img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;I added a new &lt;a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook"&gt;sys.unraisablehook&lt;/a&gt; function to
 allow to set a custom hook to control how &amp;quot;unraisable exceptions&amp;quot; are handled.
 It is already testable in &lt;a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html"&gt;Python 3.8 beta1&lt;/a&gt;,
@@ -1004,11 +1016,15 @@ old issue &lt;a class="reference external" href="https://bugs.python.org/issue12
 add &lt;a class="reference external" href="https://docs.python.org/dev/library/threading.html#threading.excepthook"&gt;threading.excepthook()&lt;/a&gt;,
 but that's a different story!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="python"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+</content><category term="python"></category><category term="python"></category></entry><entry><title>Python 3.7 UTF-8 Mode</title><link href="https://vstinner.github.io/python37-new-utf8-mode.html" rel="alternate"></link><published>2018-03-27T20:00:00+02:00</published><updated>2018-03-27T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-27:/python37-new-utf8-mode.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;
+&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
-still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;&lt;/a&gt;
+still not the best encoding …&lt;/strong&gt;&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/99444752&amp;#64;N06/9368903367/"&gt;
+&lt;img alt="Sunrise" src="https://vstinner.github.io/images/sunrise.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Since Python 3.0 was released in 2008, each time an user reported an encoding
 issue, someone showed up and asked why Python does not &amp;quot;simply&amp;quot; always use UTF-8.
 Well, it's not that easy. &lt;strong&gt;UTF-8 is the best encoding in most cases, but it is
@@ -1501,15 +1517,21 @@ variable to control UTF-8 Mode.&lt;/p&gt;
 &lt;div class="section" id="conclusion"&gt;
 &lt;h2&gt;Conclusion&lt;/h2&gt;
 &lt;p&gt;It's now time for a well deserved nap... until the next major Unicode issue in Python.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/manager_2000/2911858714/"&gt;
+&lt;img alt="Tiger nap" src="https://vstinner.github.io/images/tiger_nap.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;(I love tigers: my favorite animals!)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+</content><category term="python"></category><category term="cpython"></category><category term="unicode"></category></entry><entry><title>Python 3.7 and the POSIX locale</title><link href="https://vstinner.github.io/posix-locale.html" rel="alternate"></link><published>2018-03-23T13:00:00+01:00</published><updated>2018-03-23T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-03-23:/posix-locale.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;
+&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
 these reasons, when users complained about the Python behaviour with the POSIX
-locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;&lt;/a&gt;
+locale, bug reports were closed with a message like …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/rj65/15010849568/"&gt;
+&lt;img alt="Bee" src="https://vstinner.github.io/images/bee.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;During the childhood of Python 3, encodings issues were common, even on well
 configured systems. Python used UTF-8 rather than the locale encoding, and so
 commonly produced &lt;a class="reference external" href="https://en.wikipedia.org/wiki/Mojibake"&gt;mojibake&lt;/a&gt;. For
@@ -1746,7 +1768,9 @@ see &lt;a class="reference external" href="https://fedoraproject.org/wiki/Releas
 &lt;/div&gt;
 &lt;div class="section" id="pep-538-coercing-the-c-locale-to-a-utf-8-based-locale"&gt;
 &lt;h2&gt;PEP 538: Coercing the C locale to a UTF-8 based locale&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="http://www.curiousefficiency.org/"&gt;&lt;img alt="Nick Coghlan" src="https://vstinner.github.io/images/nick_coghlan.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://www.curiousefficiency.org/"&gt;
+&lt;img alt="Nick Coghlan" src="https://vstinner.github.io/images/nick_coghlan.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;December 2016, as a follow-up of &lt;a class="reference external" href="https://bugs.python.org/issue28180"&gt;bpo-28180&lt;/a&gt;, &lt;strong&gt;Nick Coghlan&lt;/strong&gt; wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0538/"&gt;PEP
 538: Coercing the legacy C locale to a UTF-8 based locale&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-ideas/2017-January/044130.html"&gt;posted it to python-ideas
 list&lt;/a&gt;
@@ -1816,7 +1840,9 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;p&gt;September 2016, &lt;strong&gt;Steve Dower&lt;/strong&gt;, who works for Microsoft, wrote the &lt;a class="reference external" href="https://www.python.org/dev/peps/pep-0529/"&gt;PEP 529:
 Change Windows filesystem encoding to UTF-8&lt;/a&gt; and &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146051.html"&gt;posted it to python-dev&lt;/a&gt; for
 comments.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="http://stevedower.id.au/blog/"&gt;&lt;img alt="Steve Dower" src="https://vstinner.github.io/images/steve_dower.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://stevedower.id.au/blog/"&gt;
+&lt;img alt="Steve Dower" src="https://vstinner.github.io/images/steve_dower.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Abstract:&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;&lt;strong&gt;Historically, Python uses the ANSI APIs&lt;/strong&gt; for interacting with the
@@ -1878,7 +1904,9 @@ Rossum&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;Even if I liked the idea of using UTF-8, I was still not fully confident that the
 change will not break the world. &lt;strong&gt;We agreed to try the change during Python
 3.6 beta phase&lt;/strong&gt;, but revert it if something bad happens.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;
+&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Following this talk, &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2016-September/146277.html"&gt;Guido accepted the PEP under conditions&lt;/a&gt;&lt;/p&gt;
 &lt;blockquote&gt;
 &lt;p&gt;I'm hijacking this thread to &lt;strong&gt;provisionally accept PEP 529&lt;/strong&gt;. (I'll also
@@ -1982,7 +2010,9 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/ol&gt;
 &lt;/li&gt;
 &lt;/ul&gt;
-&lt;a class="reference external image-reference" href="https://commons.wikimedia.org/wiki/File:Longleat-maze.jpg"&gt;&lt;img alt="Maze" src="https://vstinner.github.io/images/maze.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://commons.wikimedia.org/wiki/File:Longleat-maze.jpg"&gt;
+&lt;img alt="Maze" src="https://vstinner.github.io/images/maze.jpg" /&gt;
+&lt;/a&gt;
 &lt;div class="section" id="python-3-0-loves-utf-8"&gt;
 &lt;h2&gt;Python 3.0 loves UTF-8&lt;/h2&gt;
 &lt;p&gt;When Python 3.0 was released, it was unclear which encodings should be used
@@ -2440,7 +2470,9 @@ previous proposal:&lt;/p&gt;
 &lt;/ul&gt;
 &lt;/blockquote&gt;
 &lt;p&gt;&lt;strong&gt;But Martin's smart idea was lost&lt;/strong&gt; in the middle of long discussion.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://github.com/loewis"&gt;&lt;img alt="Martin v. Löwis" src="https://vstinner.github.io/images/martin_von_loewis.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://github.com/loewis"&gt;
+&lt;img alt="Martin v. Löwis" src="https://vstinner.github.io/images/martin_von_loewis.jpg" /&gt;
+&lt;/a&gt;
 &lt;/div&gt;
 &lt;div class="section" id="pep-383"&gt;
 &lt;h2&gt;PEP 383&lt;/h2&gt;
@@ -2571,7 +2603,9 @@ rationale of the Python 3 Unicode model for the operating system:&lt;/strong&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="the-os-walk-bug"&gt;
 &lt;h2&gt;The os.walk() bug&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html"&gt;&lt;img alt="Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston" src="https://vstinner.github.io/images/car_accident_hole.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://www.dailymail.co.uk/news/article-3592525/Classic-crashes-Incredible-black-white-photos-chaos-roads-early-days-automobile-beautiful-vintage-motors-smashing-trees-careering-canals-plummeting-bridges.html"&gt;
+&lt;img alt="Boston Herald-Traveler photographer Leslie Jones had an eye for a dramatic scene, including when this seven-tonne dump truck plunged through the Warren Avenue bridge, in Boston" src="https://vstinner.github.io/images/car_accident_hole.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue3187"&gt;bpo-3187&lt;/a&gt;, june 2008: &lt;strong&gt;Helmut
 Jarausch&lt;/strong&gt; tested the &lt;strong&gt;first beta release of Python 3.0&lt;/strong&gt; and reported a bug
 on &lt;tt class="docutils literal"&gt;os.walk()&lt;/tt&gt; when he tried to walk into his home directory:&lt;/p&gt;
@@ -2679,7 +2713,9 @@ using os.listdir() with a bytes argument&lt;/strong&gt;.&lt;/blockquote&gt;
 &lt;/div&gt;
 &lt;div class="section" id="emit-a-warning-on-undecodable-filename"&gt;
 &lt;h2&gt;Emit a warning on undecodable filename&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="http://www.unicode.org/"&gt;&lt;img alt="Warning: venoumous snakes" src="https://vstinner.github.io/images/warning_venomous_snakes.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://www.unicode.org/"&gt;
+&lt;img alt="Warning: venoumous snakes" src="https://vstinner.github.io/images/warning_venomous_snakes.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;As ignoring undecodable filenames in &lt;tt class="docutils literal"&gt;os.listdir(str)&lt;/tt&gt; slowly became the most
 popular option, &lt;strong&gt;Benjamin Peterson&lt;/strong&gt; &lt;a class="reference external" href="https://bugs.python.org/issue3187#msg71700"&gt;proposed to emit a warning&lt;/a&gt; if a filename cannot be decoded,
 to ease debugging:&lt;/p&gt;
@@ -2836,7 +2872,9 @@ will cause a fatal exit:&lt;/p&gt;
 &lt;p&gt;My first comment:&lt;/p&gt;
 &lt;blockquote&gt;
 IMO it's a bug in &lt;tt class="docutils literal"&gt;PyEval_InitThreads()&lt;/tt&gt;.&lt;/blockquote&gt;
-&lt;a class="reference external image-reference" href="https://twitter.com/kwinkunks/status/619496450834087938"&gt;&lt;img alt="Release the GIL!" src="https://vstinner.github.io/images/release_the_gil.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://twitter.com/kwinkunks/status/619496450834087938"&gt;
+&lt;img alt="Release the GIL!" src="https://vstinner.github.io/images/release_the_gil.png" /&gt;
+&lt;/a&gt;
 &lt;/div&gt;
 &lt;div class="section" id="pygilstate-ensure-fix"&gt;
 &lt;h2&gt;PyGILState_Ensure() fix&lt;/h2&gt;
@@ -2989,7 +3027,9 @@ I &lt;strong&gt;was not confortable to touch a critical part of Python&lt;/stron
 before leaving for two weeks. So I decided to skip &lt;tt class="docutils literal"&gt;test_bpo20891()&lt;/tt&gt; until
 I'm back.&lt;/p&gt;
 &lt;p&gt;No gift for you, Python 3.7.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://drawception.com/panel/drawing/0teL3336/charlie-brown-sad-about-small-christmas-tree/"&gt;&lt;img alt="Sad Christmas tree" src="https://vstinner.github.io/images/sad_christmas_tree.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://drawception.com/panel/drawing/0teL3336/charlie-brown-sad-about-small-christmas-tree/"&gt;
+&lt;img alt="Sad Christmas tree" src="https://vstinner.github.io/images/sad_christmas_tree.png" /&gt;
+&lt;/a&gt;
 &lt;/div&gt;
 &lt;div class="section" id="new-benchmark-run-and-second-fix-applied-to-master"&gt;
 &lt;h2&gt;New benchmark run and second fix applied to master&lt;/h2&gt;
@@ -3050,7 +3090,9 @@ idea of getting time as nanoseconds at Python level and so I wrote a new
 &lt;a class="reference external" href="https://peps.python.org/pep-0564"&gt;PEP 564&lt;/a&gt; &amp;quot;Add new time functions with nanosecond resolution&amp;quot;. While the PEP
 was discussed, I also deprecated &lt;tt class="docutils literal"&gt;time.clock()&lt;/tt&gt; and removed
 &lt;tt class="docutils literal"&gt;os.stat_float_times()&lt;/tt&gt;.&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"&gt;&lt;img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/dkalo/2909921582/"&gt;
+&lt;img alt="Old clock" src="https://vstinner.github.io/images/clock.jpg" /&gt;
+&lt;/a&gt;
 &lt;div class="section" id="time-clock"&gt;
 &lt;h2&gt;time.clock()&lt;/h2&gt;
 &lt;p&gt;Since I wrote the &lt;a class="reference external" href="https://peps.python.org/pep-0418"&gt;PEP 418&lt;/a&gt; &amp;quot;Add monotonic time, performance counter, and
@@ -3368,7 +3410,9 @@ threads)&lt;/a&gt;.&lt;/p&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="freebsd-bug-minor-device-regression"&gt;
 &lt;h2&gt;FreeBSD bug: minor() device regression&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://www.freebsd.org/"&gt;&lt;img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://www.freebsd.org/"&gt;
+&lt;img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31044"&gt;bpo-31044&lt;/a&gt;: The …&lt;/p&gt;&lt;/div&gt;</summary><content type="html">&lt;p&gt;My contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q3
 (july, august, september), Part 3 (funny bugs).&lt;/p&gt;
 &lt;p&gt;Previous report: &lt;a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q3-part2.html"&gt;My contributions to CPython during 2017 Q3: Part 2 (dangling
@@ -3382,7 +3426,9 @@ threads)&lt;/a&gt;.&lt;/p&gt;
 &lt;/ul&gt;
 &lt;div class="section" id="freebsd-bug-minor-device-regression"&gt;
 &lt;h2&gt;FreeBSD bug: minor() device regression&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://www.freebsd.org/"&gt;&lt;img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://www.freebsd.org/"&gt;
+&lt;img alt="Logo of the FreeBSD project" src="https://vstinner.github.io/images/freebsd.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;&lt;a class="reference external" href="https://bugs.python.org/issue31044"&gt;bpo-31044&lt;/a&gt;: The test_makedev() of
 test_posix started to fail in the build 632 (Wed Jul 26 10:47:01 2017) of AMD64
 FreeBSD CURRENT. The test failed on Debug, but also Non-Debug buildbots, in
@@ -3924,7 +3970,9 @@ it!?&lt;/p&gt;
 &lt;/div&gt;
 &lt;div class="section" id="removal-of-the-macos-job-of-travis-ci"&gt;
 &lt;h2&gt;Removal of the macOS job of Travis CI&lt;/h2&gt;
-&lt;a class="reference external image-reference" href="https://travis-ci.org/"&gt;&lt;img alt="call_method microbenchmark" class="align-right" src="https://vstinner.github.io/images/travis-ci.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://travis-ci.org/"&gt;
+&lt;img alt="call_method microbenchmark" class="align-right" src="https://vstinner.github.io/images/travis-ci.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;While the Linux jobs of Travis CI usually takes 15 minutes, up to 30 minutes in
 the worst case, the macOS job of Travis CI regulary took longer than 30
 minutes, sometimes longer than 1 hour.&lt;/p&gt;
@@ -4940,7 +4988,9 @@ you! Python moved from the 11th place to the 9th, before Elixir and Julia.&lt;/p
 &lt;p&gt;Ben Hoyt &lt;a class="reference external" href="https://www.reddit.com/r/Python/comments/6kg4w0/cpython_recently_moved_to_github_star_the_project/"&gt;posted it on reddit.com/r/Python&lt;/a&gt;,
 where it got a bit of traction. Terry Jan Reedy also &lt;a class="reference external" href="https://mail.python.org/pipermail/python-list/2017-July/723476.html"&gt;posted it on python-list&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Screenshot at 2017-07-13 showing Ruby, PHP and CPython:&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://github.com/showcases/programming-languages"&gt;&lt;img alt="GitHub showcase: Programming languages" src="https://vstinner.github.io/images/github_cpython_stars.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://github.com/showcases/programming-languages"&gt;
+&lt;img alt="GitHub showcase: Programming languages" src="https://vstinner.github.io/images/github_cpython_stars.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;CPython now has 11,512 stars, only 861 stars behind PHP ;-)&lt;/p&gt;
 &lt;/div&gt;
 </content><category term="python"></category><category term="cpython"></category></entry><entry><title>My contributions to CPython during 2017 Q2 (part 1)</title><link href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html" rel="alternate"></link><published>2017-07-13T16:00:00+02:00</published><updated>2017-07-13T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2017-07-13:/contrib-cpython-2017q2-part1.html</id><summary type="html">&lt;p&gt;This is the first part of my contributions to &lt;a class="reference external" href="https://www.python.org/"&gt;CPython&lt;/a&gt; during 2017 Q2 (april, may, june):&lt;/p&gt;
@@ -5244,7 +5294,9 @@ view of four Python branches: 2.7, 3.5, 3.6 and master (&amp;quot;3.x&amp;quot;)
 &lt;li&gt;&lt;a class="reference external" href="http://buildbot.python.org/all/waterfall?category=2.7.stable&amp;amp;category=2.7.unstable"&gt;Python 2.7&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Example of typical buildbot waterfall:&lt;/p&gt;
-&lt;a class="reference external image-reference" href="http://buildbot.python.org/all/waterfall?category=3.x.stable&amp;amp;category=3.x.unstable"&gt;&lt;img alt="Buildbot waterfall" src="https://vstinner.github.io/images/buildbot_waterfall.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://buildbot.python.org/all/waterfall?category=3.x.stable&amp;amp;category=3.x.unstable"&gt;
+&lt;img alt="Buildbot waterfall" src="https://vstinner.github.io/images/buildbot_waterfall.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;The screenshot is obviously truncated since the webpage is giant: I have to
 scroll in all directions... It's not convenient to check the status of all
 builds, detect random failures, etc.&lt;/p&gt;
@@ -6666,7 +6718,9 @@ after the  &lt;a class="reference external" href="https://vstinner.github.io/cpy
 better: &lt;strong&gt;13.4 ms&lt;/strong&gt;. But suddenly, at september 19, it became much worse:
 &lt;strong&gt;22.8 ms&lt;/strong&gt;. What happened?&lt;/p&gt;
 &lt;p&gt;Timeline of Python startup performance on speed.python.org:&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;amp;ben=python_startup&amp;amp;env=1&amp;amp;revs=50&amp;amp;equid=off&amp;amp;quarts=on&amp;amp;extr=on"&gt;&lt;img alt="Timeline of Python startup performance" src="https://vstinner.github.io/images/python_startup_regression.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;amp;ben=python_startup&amp;amp;env=1&amp;amp;revs=50&amp;amp;equid=off&amp;amp;quarts=on&amp;amp;extr=on"&gt;
+&lt;img alt="Timeline of Python startup performance" src="https://vstinner.github.io/images/python_startup_regression.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;I looked at commits between September 15 and September 19, and I quickly
 identified the commit of the &lt;a class="reference external" href="http://bugs.python.org/issue28082"&gt;convert re flags to (much
 friendlier) IntFlag constants (issue #28082)&lt;/a&gt;. The &lt;tt class="docutils literal"&gt;re&lt;/tt&gt; module now imports the
@@ -6699,7 +6753,9 @@ was obvious (avoid an import at startup) and simple, it was quickly merged.&lt;/
 performance by default, the &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; change was restored at November 14.&lt;/p&gt;
 &lt;p&gt;Sadly, the &lt;tt class="docutils literal"&gt;enum&lt;/tt&gt; change still have an impact on performance:
 &lt;tt class="docutils literal"&gt;re.compile()&lt;/tt&gt; became 1.2x slower (312 ms =&amp;gt; 376 ms: +20%).&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;amp;ben=regex_compile&amp;amp;env=1&amp;amp;revs=50&amp;amp;equid=off&amp;amp;quarts=on&amp;amp;extr=on"&gt;&lt;img alt="Timeline of re.compile() performance" src="https://vstinner.github.io/images/regex_compile_perf.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://speed.python.org/timeline/#/?exe=5&amp;amp;ben=regex_compile&amp;amp;env=1&amp;amp;revs=50&amp;amp;equid=off&amp;amp;quarts=on&amp;amp;extr=on"&gt;
+&lt;img alt="Timeline of re.compile() performance" src="https://vstinner.github.io/images/regex_compile_perf.png" /&gt;
+&lt;/a&gt;
 &lt;p&gt;I think that it's ok since it is very easy to use precompiled regular
 expressions in an application: store and reuse the result of &lt;tt class="docutils literal"&gt;re.compile()&lt;/tt&gt;,
 instead of calling directly &lt;tt class="docutils literal"&gt;re.match()&lt;/tt&gt; for example.&lt;/p&gt;
@@ -7297,19 +7353,25 @@ Python performance is too important. &lt;tt class="docutils literal"&gt;DEBUG_PY
 5-9, at Instagram office in California, USA. The sprint was sponsored by
 Instagram, Microsoft, and the PSF.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;First little game:&lt;/strong&gt; Many happy faces, but &lt;em&gt;Where is Victor?&lt;/em&gt;&lt;/p&gt;
-&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;
+&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;IMHO it was the most productive CPython week ever :-) Having …&lt;/p&gt;</summary><content type="html">&lt;p&gt;I was invited at my first CPython sprint in September! Five days, September
 5-9, at Instagram office in California, USA. The sprint was sponsored by
 Instagram, Microsoft, and the PSF.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;First little game:&lt;/strong&gt; Many happy faces, but &lt;em&gt;Where is Victor?&lt;/em&gt;&lt;/p&gt;
-&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="http://blog.python.org/2016/09/python-core-development-sprint-2016-36.html"&gt;
+&lt;img alt="CPython developers at the Facebook sprint" src="https://vstinner.github.io/images/cpython_sprint_2016_photo.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;IMHO it was the most productive CPython week ever :-) Having Guido van Rossum
 in a room helped to get many PEPs accepted. Having a lot of highly skilled
 reviewers in the same room helped to get many new features and many PEP
 implementations merged much faster than usual.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;Second little game:&lt;/strong&gt; try to spot the sprint on the CPython commit statistics of
 the last 12 months (Feb, 2016-Feb, 2017) ;-)&lt;/p&gt;
-&lt;a class="reference external image-reference" href="https://github.com/python/cpython/graphs/commit-activity"&gt;&lt;img alt="CPython commits statistics" src="https://vstinner.github.io/images/cpython_sprint_2016_commits.png" /&gt;&lt;/a&gt;
+&lt;a class="reference external image-reference" href="https://github.com/python/cpython/graphs/commit-activity"&gt;
+&lt;img alt="CPython commits statistics" src="https://vstinner.github.io/images/cpython_sprint_2016_commits.png" /&gt;
+&lt;/a&gt;
 &lt;div class="section" id="compact-dict"&gt;
 &lt;h2&gt;Compact dict&lt;/h2&gt;
 &lt;p&gt;Issue #27350: I reviewed and pushed the &amp;quot;compact dict&amp;quot; implementation which
@@ -8863,7 +8925,9 @@ locale timestamp for example. Timezones are still an hot topic: the
 enhance timezone support in Python.&lt;/p&gt;
 &lt;/div&gt;
 </content><category term="python"></category><category term="cpython"></category></entry><entry><title>Status of the FAT Python project, January 12, 2016</title><link href="https://vstinner.github.io/fat-python-status-janv12-2016.html" rel="alternate"></link><published>2016-01-12T13:42:00+01:00</published><updated>2016-01-12T13:42:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2016-01-12:/fat-python-status-janv12-2016.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, January 12, 2016&lt;/p&gt;
-</summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://vstinner.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;
+&lt;img alt="FAT Python project" class="align-right" src="https://vstinner.github.io/images/fat_python.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Previous status: &lt;a class="reference external" href="https://vstinner.github.io/fat-python-status-nov26-2015.html"&gt;Status of the FAT Python project, November 26, 2015&lt;/a&gt;.&lt;/p&gt;
 &lt;div class="section" id="summary"&gt;
 &lt;h2&gt;Summary&lt;/h2&gt;
@@ -9077,7 +9141,9 @@ reference to simplify the code&lt;/li&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 </content><category term="python"></category><category term="optimization"></category><category term="fatpython"></category></entry><entry><title>Status of the FAT Python project, November 26, 2015</title><link href="https://vstinner.github.io/fat-python-status-nov26-2015.html" rel="alternate"></link><published>2015-11-26T17:30:00+01:00</published><updated>2015-11-26T17:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2015-11-26:/fat-python-status-nov26-2015.html</id><summary type="html">&lt;p class="first last"&gt;Status of the FAT Python project, November 26, 2015&lt;/p&gt;
-</summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;&lt;img alt="FAT Python project" class="align-right" src="https://vstinner.github.io/images/fat_python.jpg" /&gt;&lt;/a&gt;
+</summary><content type="html">&lt;a class="reference external image-reference" href="http://faster-cpython.readthedocs.org/fat_python.html"&gt;
+&lt;img alt="FAT Python project" class="align-right" src="https://vstinner.github.io/images/fat_python.jpg" /&gt;
+&lt;/a&gt;
 &lt;p&gt;Previous status: [python-dev] &lt;a class="reference external" href="https://mail.python.org/pipermail/python-dev/2015-November/142113.html"&gt;Second milestone of FAT Python&lt;/a&gt;
 (Nov 4, 2015).&lt;/p&gt;
 &lt;div class="section" id="documentation"&gt;

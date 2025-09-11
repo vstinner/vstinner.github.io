@@ -27,6 +27,38 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/c-api-abstract-pyobject.html">
+		<h2 itemprop="name headline">Python C API: Add functions to access PyObject</h2>
+	</a>
+	<time datetime="2021-10-05T14:00:00+02:00" itemprop="datePublished">Tue 05 October 2021</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663">
+<img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" />
+</a>
+<p>The PyObject structure prevents indirectly to optimize CPython. We will see why
+and how I prepared the C API to make this structure opaque. It took me 1 year
+and a half to add functions and to introduce <strong>incompatible C API changes</strong>
+(fear!).</p>
+<p>In February 2020, I started by adding …</p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/c-api-python3_10-changes.html">
 		<h2 itemprop="name headline">C API changes between Python 3.5 to 3.10</h2>
 	</a>
@@ -64,7 +96,9 @@ API&quot;. I also deprecated and …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"><img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980">
+<img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" />
+</a>
 <p>In 2020, I created a new <a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat">pythoncapi_compat project</a> to add Python 3.10 support
 to C extensions without losing support for old Python versions. It supports
 Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:</p>
@@ -94,7 +128,9 @@ Python 2.7-3.10 and PyPy 2.7-3.7. The project is made of two parts:</p>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"><img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg">
+<img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" />
+</a>
 <p>This article is about changes that I made, with the help other developers, in
 the Python C API in Python 3.8, 3.9 and 3.10 to avoid accessing structures
 members: prepare the C API to <a class="reference external" href="https://en.wikipedia.org/wiki/Opaque_data_type">make structures opaque</a>. These changes are related
@@ -216,7 +252,9 @@ at Python exit are suddenly becoming blocker …</p></div></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"><img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401">
+<img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" />
+</a>
 <p>My previous article <a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html">Daemon threads and the Python finalization in Python 3.2 and 3.3</a> introduces
 issues caused by daemon threads in the Python finalization and past changes to
 make them work.</p>
@@ -249,7 +287,9 @@ Python 3.9, between …</p></div>
 	<div class="summary"><p>This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.</p>
-<a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"><img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" /></a>
+<a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464">
+<img alt="#CoronaMaison by Julien Neel" src="https://vstinner.github.io/images/coronamaison_jneel.jpg" />
+</a>
 <p>Drawing: <a class="reference external" href="https://twitter.com/neeljulien/status/1240292383369150464">#CoronaMaison by Julien Neel</a>.</p>
 <div class="section" id="race-condition-in-threading-shutdown">
 <h2>Race condition in threading shutdown</h2>
@@ -279,7 +319,9 @@ subinterpreters to fix another related bug.</p>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"><img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136">
+<img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" />
+</a>
 <p>At exit, the Python finalization calls Python objects finalizers (the
 <tt class="docutils literal">__del__()</tt> method) and deallocates memory.  The daemon threads are a special
 kind of threads which continue to run during and after the Python finalization.
@@ -296,33 +338,6 @@ They are causing race conditions and tricky bugs in the Python finalization.</p>
 	</span>
 	<span itemprop="keywords">
 		<a href="https://vstinner.github.io/tag/subinterpreters.html" rel="tag">subinterpreters</a>
-	</span>
-</div>
-<hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/python37-dev-mode.html">
-		<h2 itemprop="name headline">Python 3.7 Development Mode</h2>
-	</a>
-	<time datetime="2020-01-16T12:00:00+01:00" itemprop="datePublished">Thu 16 January 2020</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456"><img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" /></a>
-<p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
-(-X dev)</a> that I <strong>added
-to Python 3.7</strong> and how it has been implemented.</p>
-<p>The development mode enables runtime checks which are too expensive to be
-enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev …</tt></p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
 	</span>
 </div>
 <hr>
@@ -367,7 +382,7 @@ enabled by default. It can be enabled by <tt class="docutils literal">python3 <s
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (25)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (26)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

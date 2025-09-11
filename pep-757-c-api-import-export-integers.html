@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>PEP 757 – C API to import-export Python integers — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: PEP 757 – C API to import-export Python integers; Date: 2025-09-11; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">PEP 757 – C API to import-export Python integers</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2025-09-11T16:00:00+02:00" itemprop="datePublished">Thu 11 September 2025</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Ponyo">
+<img alt="Ponyo movie" src="https://vstinner.github.io/images/ponyo.jpg" />
+</a>
+<p>Design an API can take time. This article describes the design of the
+C API to import and export Python integers. It takes place between
+August 2023 and December 2024. In total, the discussions got more than
+448 messages!</p>
+<p>The API is a thin abstraction on top of CPython implementation details
+to access integer internals. The API has an O(1) complexity: in
+practice, no memory is copied (at least, in the current CPython
+implementation).</p>
+<p>Picture: <em>Ponyo movie by Hayao Miyazaki</em>.</p>
+<div class="section" id="python-3-13-alpha-1-removes-pylong-new">
+<h2>Python 3.13 alpha 1 removes _PyLong_New()</h2>
+<p>In August 2023, I <a class="reference external" href="https://github.com/python/cpython/pull/108604">removed</a> the <tt class="docutils literal">_PyLong_New()</tt>
+function as part of <a class="reference external" href="https://discuss.python.org/t/c-api-my-plan-to-clarify-private-vs-public-functions-in-python-3-13/30131">My plan to clarify private vs public C API
+functions in Python 3.13</a>.</p>
+<p>In October, Python 3.13.0 alpha 1 was released without this function.
+<strong>Sergey B Kirpichev</strong> reported that the gmpy2 project uses
+<tt class="docutils literal">_PyLong_New()</tt> and asked how to replace the removed function. He
+created <a class="reference external" href="https://github.com/python/cpython/issues/111415">issue gh-111415</a>: Consider restoring
+_PyLong_New() function as public.</p>
+</div>
+<div class="section" id="python-3-13-alpha-2-restores-pylong-new">
+<h2>Python 3.13 alpha 2 restores _PyLong_New()</h2>
+<p>In November, the private <tt class="docutils literal">_PyLong_New()</tt> function has been restored in
+Python 3.13 alpha 2 which was released at November 22.</p>
+</div>
+<div class="section" id="add-public-function-pylong-getdigits">
+<h2>Add public function PyLong_GetDigits()</h2>
+<p>In June 2024, <strong>Sergey B Kirpichev</strong> opened the <a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/31">[C API Working Group] decision issue #31</a>: Add public
+function <tt class="docutils literal">PyLong_GetDigits()</tt>. API:</p>
+<pre class="literal-block">
+const digits* PyLong_GetDigits(PyObject* obj, Py_ssize_t *ndigits)
+</pre>
+<p>I disliked this API since it's too close to the exact implementation.
+The API cannot be implemented in an efficient way if implementation
+details change.</p>
+<p>For example, in the future, CPython might adopt tagged pointers for
+small integers and so don't have a concrete array of digits.</p>
+<p>There was a call for a different API to address these issues.</p>
+</div>
+<div class="section" id="pylong-export-and-pylong-import-functions">
+<h2>PyLong_Export() and PyLong_Import() functions</h2>
+<div class="section" id="first-api">
+<h3>First API</h3>
+<p>In July, I created <a class="reference external" href="https://github.com/python/cpython/pull/121339">gh-121339</a> pull request to propose a
+different API. Later, I opened the <a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/35">[C API Working Group] decision issue
+#35</a>
+(which got 51 messages): Add import-export API for Python int objects. API:</p>
+<pre class="literal-block">
+// Layout API
+typedef struct PyLongLayout {
+    uint8_t bits_per_digit;
+    uint8_t digit_size;
+    int8_t word_endian;
+    int8_t array_endian;
+} PyLongLayout;
+
+const PyLongLayout PyLong_LAYOUT;
+
+// Export API
+typedef struct PyLong_DigitArray {
+    PyObject *obj;
+    int negative;
+    Py_ssize_t ndigits;
+    const Py_digit *digits;
+} PyLong_DigitArray;
+
+int PyLong_AsDigitArray(PyObject *obj, PyLong_DigitArray *array)
+void PyLong_FreeDigitArray(PyLong_DigitArray *array)
+
+// Import API
+PyLongWriter* PyLongWriter_Create(int negative, Py_ssize_t ndigits, Py_digit **digits)
+PyObject* PyLongWriter_Finish(PyLongWriter *writer)
+</pre>
+</div>
+<div class="section" id="api-changes">
+<h3>API changes</h3>
+<p>The <a class="reference external" href="https://github.com/python/cpython/pull/121339">pull request</a> got
+277 messages (!) between July 2024 and February 2025. The API names were
+discussed in length, and better names have been proposed.</p>
+<p>The <tt class="docutils literal">PyLong_LAYOUT</tt> constant was replaced with the
+<tt class="docutils literal">PyLong_GetNativeLayout()</tt> function to have a better ABI.</p>
+<p>The dependency to the <tt class="docutils literal">Py_digit</tt> type has been removed. The
+<tt class="docutils literal">Py_digit*</tt> type was replaced with <tt class="docutils literal">void*</tt> to support digit of
+arbitrary size.</p>
+<p><tt class="docutils literal">PyLong_Export.obj</tt> became private: <tt class="docutils literal">obj</tt> was renamed to
+<tt class="docutils literal">reserved</tt>, and its specific type <tt class="docutils literal">PyObject*</tt> became the opaque
+<tt class="docutils literal">Py_uintptr_t</tt> type.</p>
+<p><tt class="docutils literal">PyLongWriter_Discard()</tt> function was added to handle errors.</p>
+</div>
+</div>
+<div class="section" id="pep-757">
+<h2>PEP 757</h2>
+<p>In September, <strong>Sergey</strong> and me wrote <a class="reference external" href="https://peps.python.org/pep-0757/">PEP 757 – C API to import-export
+Python integers</a>: the <a class="reference external" href="https://discuss.python.org/t/pep-757-c-api-to-import-export-python-integers/63895">discussion</a>
+got 80 messages.</p>
+<p>It was proposed to use an union for PyLongExport with a <tt class="docutils literal">kind</tt> member
+to select the format (small integer or digit array). The idea was
+abandonned in the meanwhile.</p>
+<p>For small integers, there is no warranty that they will be stored as a
+digit array in the future. The <tt class="docutils literal">PyLongExport.value</tt> member
+(<tt class="docutils literal">int64_t</tt>) was added to store the value of small integers.</p>
+<p>There were two open questions:</p>
+<ul class="simple">
+<li>Should we add <tt class="docutils literal">digits_order</tt> and <tt class="docutils literal">endian</tt> members to
+<tt class="docutils literal">sys.int_info</tt> and remove <tt class="docutils literal">PyLong_GetNativeLayout()</tt>? The
+<tt class="docutils literal">PyLong_GetNativeLayout()</tt> function returns a C structure which is
+more convenient to use in C than
+<tt class="docutils literal">sys.int_info</tt> which uses Python objects.</li>
+<li>Should we use anonymous union.</li>
+</ul>
+<p>It was decided to leave <tt class="docutils literal">sys.int_info</tt> unchanged and keep
+<tt class="docutils literal">PyLong_GetNativeLayout()</tt>.</p>
+<p>It was also decided to avoid anonymous union to avoid any risk of
+compatibility issue with old C versions.</p>
+<p><a class="reference external" href="https://peps.python.org/pep-0757/#benchmarks">Benchmarks</a> measured
+the abstraction cost: it is between 1.04x slower and 1.27x faster. It
+means that the abstraction has no significant impact on the performance.
+In short (geometric mean):</p>
+<ul class="simple">
+<li>Export: 1.05x faster</li>
+<li>Import: 1.03x slower</li>
+</ul>
+</div>
+<div class="section" id="overwhelmed">
+<h2>Overwhelmed</h2>
+<p>After months of discussions and many back and forth on the API,
+<a class="reference external" href="https://discuss.python.org/t/pep-757-c-api-to-import-export-python-integers/63895/66">I got overwhelmed</a>
+and close to give up. Hopefully, I didn't give up.</p>
+</div>
+<div class="section" id="c-api-working-group-and-steering-council">
+<h2>C API Working Group and Steering Council</h2>
+<p>In October, I opened a C API Working Group vote on PEP 757:
+<a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/45">decision issue #45</a>
+which got 40 messages.</p>
+<p>At November 28, 2024, the C API WG accepted the PEP and I <a class="reference external" href="https://github.com/python/steering-council/issues/264">submitted the
+PEP</a> to the
+Steering Council.</p>
+<p>One week later, at December 8, the Steering Council accepted PEP 757 as
+well!</p>
+</div>
+<div class="section" id="final-api">
+<h2>Final API</h2>
+<p>After many iterations, the final API is:</p>
+<pre class="literal-block">
+// Layout API
+typedef struct PyLongLayout {
+    uint8_t bits_per_digit;
+    uint8_t digit_size;
+    int8_t digits_order;
+    int8_t digit_endianness;
+} PyLongLayout;
+
+const PyLongLayout* PyLong_GetNativeLayout(void)
+
+// Export API
+typedef struct PyLongExport {
+    int64_t value;
+    uint8_t negative;
+    Py_ssize_t ndigits;
+    const void *digits;
+    Py_uintptr_t _reserved;
+} PyLongExport;
+
+int PyLong_Export(PyObject *obj, PyLongExport *export_long)
+void PyLong_FreeExport(PyLongExport *export_long)
+
+// Import API
+PyLongWriter* PyLongWriter_Create(int negative, Py_ssize_t ndigits, void **digits)
+PyObject* PyLongWriter_Finish(PyLongWriter *writer)
+void PyLongWriter_Discard(PyLongWriter *writer)
+</pre>
+<p>The <tt class="docutils literal">decimal</tt> extension and <tt class="docutils literal">Python/marshal.c</tt> have been modified to
+use this API.</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (26)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>

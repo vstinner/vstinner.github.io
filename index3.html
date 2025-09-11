@@ -27,6 +27,35 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/python37-dev-mode.html">
+		<h2 itemprop="name headline">Python 3.7 Development Mode</h2>
+	</a>
+	<time datetime="2020-01-16T12:00:00+01:00" itemprop="datePublished">Thu 16 January 2020</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/guinoir/status/1217146968029331456">
+<img alt="Ready to race" src="https://vstinner.github.io/images/ready_to_race.jpg" />
+</a>
+<p>This article describes the discussion on the design of the <a class="reference external" href="https://docs.python.org/dev/using/cmdline.html#id5">development mode
+(-X dev)</a> that I <strong>added
+to Python 3.7</strong> and how it has been implemented.</p>
+<p>The development mode enables runtime checks which are too expensive to be
+enabled by default. It can be enabled by <tt class="docutils literal">python3 <span class="pre">-X</span> dev …</tt></p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/cpython-pass-tstate.html">
 		<h2 itemprop="name headline">Pass the Python thread state explicitly</h2>
 	</a>
@@ -67,7 +96,9 @@ Present and Future&quot;: <a class="reference external" href="https://github.com
 	<div class="summary"><p>After explaining how to <a class="reference external" href="https://vstinner.github.io/debug-hybrid-graphics-issues-linux.html">Debug Hybrid Graphics issues on Linux</a>, here is the story of four graphics bugs
 that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
 2019: bugs in gnome-shell, Gtk, Firefox and mutter.</p>
-<a class="reference external image-reference" href="https://www.flickr.com/photos/34298393&#64;N06/14488759356/"><img alt="Glitch" src="https://vstinner.github.io/images/glitch.jpg" /></a>
+<a class="reference external image-reference" href="https://www.flickr.com/photos/34298393&#64;N06/14488759356/">
+<img alt="Glitch" src="https://vstinner.github.io/images/glitch.jpg" />
+</a>
 <div class="section" id="gnome-shell-freezes">
 <h2>gnome-shell freezes</h2>
 <p>In May 2018, six months after …</p></div></div>
@@ -96,7 +127,9 @@ that I had in GNOME and Firefox on my Fedora 30 between May 2018 and September
 complex hardware and software solution to achieve longer laptop battery life:
 an <strong>integrated</strong> graphics device is used by default, and a <strong>discrete</strong>
 graphics device with higher graphics performances is enabled on demand.</p>
-<a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/"><img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" /></a>
+<a class="reference external image-reference" href="https://www.theregister.co.uk/2010/02/09/inside_nvidia_optimus/">
+<img alt="Hybrid Graphics" src="https://vstinner.github.io/images/hybrid_graphics.jpg" />
+</a>
 <p>If it is designed and implemented carefully, users should not notice that a
 laptop …</p></div>
 	Category:
@@ -120,7 +153,9 @@ laptop …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/"><img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/mortengade/2747989334/">
+<img alt="Private way. Trespassers and those disposing rubbish will be prosecuted." src="https://vstinner.github.io/images/private_way.jpg" />
+</a>
 <p>In September 2017, during the CPython sprint at Facebook, I proposed my
 idea to create <a class="reference external" href="https://vstinner.github.io/new-python-c-api.html">A New C API for CPython</a>.
 I'm still working on the Python C API at: <a class="reference external" href="http://pythoncapi.readthedocs.io/">pythoncapi.readthedocs.io</a>.</p>
@@ -150,7 +185,9 @@ prevent to optimize Python …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/"><img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/dawnmanser/8046201692/">
+<img alt="Hidden kitten" src="https://vstinner.github.io/images/hidden_kitten.jpg" />
+</a>
 <p>I added a new <a class="reference external" href="https://docs.python.org/dev/library/sys.html#sys.unraisablehook">sys.unraisablehook</a> function to
 allow to set a custom hook to control how &quot;unraisable exceptions&quot; are handled.
 It is already testable in <a class="reference external" href="https://pythoninsider.blogspot.com/2019/06/python-380b1-is-now-available-for.html">Python 3.8 beta1</a>,
@@ -178,7 +215,9 @@ it to the caller. Examples …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"><img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/">
+<img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" />
+</a>
 <p>I fixed multiple bugs in asyncio <tt class="docutils literal">ProactorEventLoop</tt> previously. But test_asyncio
 still failed sometimes. I noticed a memory leak in <tt class="docutils literal">test_asyncio</tt> which will
 haunt me for 1 year in 2018...</p>
@@ -205,7 +244,9 @@ critical bug.</strong> The bug is that sending a …</p></div>
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"><img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/">
+<img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" />
+</a>
 <p>In December 2017, <strong>Yury Selivanov</strong> pushed the long awaited <tt class="docutils literal">start_tls()</tt>
 function.</p>
 <p>A newly added test failed on Windows. Later, the test started to fail
@@ -232,7 +273,9 @@ asynchronous handshake of <tt class="docutils literal">SSLProtocol</tt> which wi
 	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
 		<span itemprop="name">Victor Stinner</span>
 	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"><img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /></a>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/">
+<img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" />
+</a>
 <p>Between December 2014 and January 2015, once I succeeded to fix the root issue
 of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
 and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
@@ -279,39 +322,6 @@ and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/locale-bugfixes-python3.html">
-		<h2 itemprop="name headline">Locale Bugfixes in Python 3</h2>
-	</a>
-	<time datetime="2019-01-09T00:30:00+01:00" itemprop="datePublished">Wed 09 January 2019</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"><img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /></a>
-<p>This article describes a few locales bugs that I fixed in Python 3 between 2012
-(Python 3.3) and 2018 (Python 3.7):</p>
-<ul class="simple">
-<li>Support non-ASCII decimal point and thousands separator</li>
-<li>Crash with non-ASCII decimal point</li>
-<li>LC_NUMERIC encoding different than LC_CTYPE encoding</li>
-<li>LC_MONETARY encoding different than LC_CTYPE encoding</li>
-<li>Tests non-ASCII locales …</li></ul></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/unicode.html" rel="tag">unicode</a>
-	</span>
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/locales.html" rel="tag">locales</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/index2.html">&larr; Previous</a></li>
@@ -353,7 +363,7 @@ and I was worried that test_asyncio <strong>randomly crashed</strong> on Windows
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (25)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (26)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>
