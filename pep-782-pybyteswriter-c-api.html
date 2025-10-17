@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>PEP 782 – Add PyBytesWriter C API — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: PEP 782 – Add PyBytesWriter C API; Date: 2025-10-17; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">PEP 782 – Add PyBytesWriter C API</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2025-10-17T13:00:00+02:00" itemprop="datePublished">Fri 17 October 2025</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Arrietty">
+<img alt="The Secret World of Arrietty" src="https://vstinner.github.io/images/arrietty.jpg" />
+</a>
+<p>In the Python C API, I dislike APIs modifying immutable objects such as
+<tt class="docutils literal">_PyBytes_Resize()</tt>. I designed a whole new <tt class="docutils literal">PyBytesWriter</tt> API to
+replace this <tt class="docutils literal">_PyBytes_Resize()</tt> function. As usual in Python, it took
+multiple iterations and one year to design the API and to reach an
+agreement.</p>
+<p>Picture: <em>The Secret World of Arrietty by Hayao Miyazaki</em>.</p>
+<div class="section" id="original-private-pybyteswriter-api">
+<h2>Original private _PyBytesWriter API</h2>
+<p>In 2016 (Python 3.6), I designed a private <tt class="docutils literal">_PyBytesWriter</tt> API to
+create <tt class="docutils literal">bytes</tt> objects in an efficient way, especially by
+overallocating a buffer. See my article <a class="reference external" href="https://vstinner.github.io/pybyteswriter.html">Fast _PyAccu, _PyUnicodeWriter
+and_PyBytesWriter APIs to produce strings in CPython</a> about this API (and
+other similar APIs).</p>
+<p>In July 2023 (Python 3.13), I moved the private <tt class="docutils literal">_PyBytesWriter</tt> API
+to the internal C API. See the article <a class="reference external" href="https://vstinner.github.io/remove-c-api-funcs-313.html">Remove private C API functions</a>.</p>
+</div>
+<div class="section" id="first-public-api-attempt">
+<h2>First public API attempt</h2>
+<p>In June 2024, Marc-Andre Lemburg <a class="reference external" href="https://github.com/capi-workgroup/problems/issues/70#issuecomment-2158541011">asked</a>
+to make the private <tt class="docutils literal">_PyBytesWriter</tt> API public.</p>
+<p>In July, I wrote a first public API attempt: <a class="reference external" href="https://github.com/python/cpython/pull/121726">PR gh-121726</a>. API:</p>
+<div class="highlight"><pre><span></span><span class="n">PyBytesWriter</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Create</span><span class="p">(</span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">str</span><span class="p">)</span>
+<span class="n">PyObject</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Finish</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">str</span><span class="p">)</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">PyBytesWriter_Discard</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">)</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">PyBytesWriter_Prepare</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">str</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">PyBytesWriter_WriteBytes</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">str</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">bytes</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+</pre></div>
+<p>Example creating the string <tt class="docutils literal">&quot;abc&quot;</tt>:</p>
+<div class="highlight"><pre><span></span><span class="n">PyObject</span><span class="o">*</span>
+<span class="nf">create_abc</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">str</span><span class="p">;</span>
+<span class="w">    </span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyBytesWriter_Create</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">str</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">str</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;abc&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="n">str</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">PyBytesWriter_Finish</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">str</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+<p>With a <tt class="docutils literal">PyBytesWriter_Prepare(writer, &amp;str, size)</tt> to preallocate the
+buffer.</p>
+<p>The implementation was fully based on the private structure:</p>
+<div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">buffer</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">allocated</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">min_size</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">use_bytearray</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">overallocate</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">use_small_buffer</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">small_buffer</span><span class="p">[</span><span class="mi">512</span><span class="p">];</span>
+<span class="p">}</span><span class="w"> </span><span class="n">_PyBytesWriter</span><span class="p">;</span>
+</pre></div>
+<p>In August, I created a <a class="reference external" href="https://github.com/capi-workgroup/decisions/issues/39">C API Working Group decision</a>. Sadly, this
+API didn't convinced the C API WG which found the <tt class="docutils literal">Prepare()</tt> API
+confusing and the <em>str</em> variable hard to use.</p>
+<p>In October, I closed the decision issue:</p>
+<blockquote>
+It seems like this API is too low-level and too error-prone. I
+prefer to abandon promoting this API as a public API for now. We can
+revisit this API later if needed.</blockquote>
+</div>
+<div class="section" id="second-public-api-attempt">
+<h2>Second public API attempt</h2>
+<p>In February 2025, I gave a try to a second public API:
+<a class="reference external" href="https://github.com/python/cpython/issues/129813">issue gh-129813</a>
+and <a class="reference external" href="https://github.com/python/cpython/pull/129814">PR gh-129814</a>.
+API:</p>
+<div class="highlight"><pre><span></span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Create</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">**</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">alloc</span><span class="p">)</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">PyBytesWriter_Discard</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">)</span>
+<span class="n">PyObject</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Finish</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">)</span>
+
+<span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Extend</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">extend</span><span class="p">)</span>
+<span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_WriteBytes</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">bytes</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Format</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">format</span><span class="p">,</span><span class="w"> </span><span class="p">...)</span>
+</pre></div>
+<p>The API now uses <tt class="docutils literal">void*</tt> instead of <tt class="docutils literal">char*</tt> for the buffer and I
+added <tt class="docutils literal">PyBytesWriter_Format()</tt> function.</p>
+<p>Example creating the string <tt class="docutils literal">&quot;abc&quot;</tt>:</p>
+<div class="highlight"><pre><span></span><span class="n">PyObject</span><span class="o">*</span>
+<span class="nf">create_abc</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyBytesWriter_Create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">buf</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;abc&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="n">buf</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">PyBytesWriter_Finish</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+<p>The API is similar to the first version, but <tt class="docutils literal">PyBytesWriter_Create()</tt>
+now returns a <tt class="docutils literal">void*</tt> instead of the <tt class="docutils literal">PyBytesWriter*</tt>.</p>
+<p>With a <tt class="docutils literal">buf = PyBytesWriter_Extend(writer, buf, str_size)</tt> API to
+preallocate the bufer.</p>
+<p>The implementation now uses a new dedicated simpler structure (less
+members):</p>
+<div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">PyBytesWriter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">small_buffer</span><span class="p">[</span><span class="mi">256</span><span class="p">];</span>
+<span class="w">    </span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">obj</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">use_bytearray</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+<p>This time, I followed <strong>Petr Viktorin</strong>'s advice and I created a
+<a class="reference external" href="https://discuss.python.org/t/add-pybyteswriter-public-c-api/81182">discussion on Discourse</a>.
+Again, the API was not liked by other developers who were confused by
+the API.</p>
+<p>In March, I gave up again, and closed my PR:</p>
+<blockquote>
+It seems like most developers are confused by the API which requires
+to pass writer and buf to most functions. I abandon this API.</blockquote>
+</div>
+<div class="section" id="third-public-api-pep-782">
+<h2>Third public API: PEP 782</h2>
+<p>Following <strong>Antoine Pitrou</strong>'s link, I had a look at <a class="reference external" href="https://github.com/apache/arrow/blob/b3d218c819283bafe973dc7deb5214324f4a68b2/cpp/src/arrow/buffer_builder.h#L176-L191">Arrow C++
+BufferBuilder API</a>.
+Antoine helped me to design a better API using size and without the
+<tt class="docutils literal">void *buf</tt> parameter.</p>
+<p>At the end of March, I wrote <a class="reference external" href="https://peps.python.org/pep-0782/">PEP 782 – Add PyBytesWriter C API</a> and created a <a class="reference external" href="https://discuss.python.org/t/pep-782-add-pybyteswriter-c-api/86617">new discussion on
+the PEP</a>.</p>
+<p>Example creating the string <tt class="docutils literal">&quot;abc&quot;</tt>:</p>
+<div class="highlight"><pre><span></span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span>
+<span class="nf">create_abc</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyBytesWriter_Create</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyBytesWriter_GetData</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;abc&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">PyBytesWriter_Finish</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+<p>With a <tt class="docutils literal">PyBytesWriter_Resize(writer, size)</tt> API to preallocate the
+buffer. The <em>size</em> is now absolute, rather than being relative.</p>
+<p>The mandatory <tt class="docutils literal">void *buf</tt> parameter was replaced with
+<tt class="docutils literal">PyBytesWriter_GetData()</tt> function.</p>
+<p>In May, I submitted the PEP to the Steering Council. In September, the
+Steering Council <a class="reference external" href="https://discuss.python.org/t/pep-782-add-pybyteswriter-c-api/86617/15">approved PEP 782</a>!
+(Yeah, it took them 4 months to take a decision.)</p>
+</div>
+<div class="section" id="final-api">
+<h2>Final API</h2>
+<div class="highlight"><pre><span></span><span class="n">PyBytesWriter</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Create</span><span class="p">(</span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">PyBytesWriter_Discard</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">)</span>
+<span class="n">PyObject</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_Finish</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">)</span>
+<span class="n">PyObject</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_FinishWithSize</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="n">PyObject</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_FinishWithPointer</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">)</span>
+
+<span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_GetData</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">)</span>
+<span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">PyBytesWriter_GetSize</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">)</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">PyBytesWriter_WriteBytes</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">bytes</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="n">PyBytesWriter_Format</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">format</span><span class="p">,</span><span class="w"> </span><span class="p">...)</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">PyBytesWriter_Resize</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">PyBytesWriter_Grow</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">PyBytesWriter_GrowAndUpdatePointer</span><span class="p">(</span><span class="n">PyBytesWriter</span><span class="w"> </span><span class="o">*</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">)</span>
+</pre></div>
+<p>See the <a class="reference external" href="https://docs.python.org/dev/c-api/bytes.html#pybyteswriter">documentation</a>.</p>
+</div>
+<div class="section" id="implementation">
+<h2>Implementation</h2>
+<p>In September, I implemented the <tt class="docutils literal">PyBytesWriter</tt> API in the main branch
+(future Python 3.15) with documentation and tests.</p>
+<p>I also modified code using soft deprecated APIs,
+<tt class="docutils literal">PyBytes_FromStringAndSize(NULL, size)</tt> and <tt class="docutils literal">_PyBytes_Resize()</tt>,  to
+use the new <tt class="docutils literal">PyBytesWriter</tt> API instead. When doing these conversions,
+I ran benchmarks to check that there is no significant impact on
+performance. Examples of benchmarks:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/python/cpython/pull/138829#issuecomment-3288634427">os.read(1)</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/138955#issuecomment-3293995606">io.FileIO.read(1)</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/138954#issuecomment-3293959389">io.BufferedReader.read1(1)</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/138874#issuecomment-3288721255">utf8_encoder()</a></li>
+</ul>
+<p>For example, I abandonned these two changes:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/python/cpython/pull/138840#issuecomment-3288640248">bytes_concat: 1.4x slower</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/138957">_json: 1.10x slower</a></li>
+</ul>
+<p>Later, other people joined the party and found other opportunity for
+<tt class="docutils literal">PyBytesWriter</tt> with great optimizations:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/python/cpython/pull/139976">zstd: 10-30% speedup for decompression</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/140150">Python parser, concatenate bytes strings: 4x faster</a></li>
+<li><a class="reference external" href="https://github.com/python/cpython/pull/140139">io.RawIOBase.readall(): 4x faster</a></li>
+</ul>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (27)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>

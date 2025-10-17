@@ -27,6 +27,39 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/pep-782-pybyteswriter-c-api.html">
+		<h2 itemprop="name headline">PEP 782 – Add PyBytesWriter C API</h2>
+	</a>
+	<time datetime="2025-10-17T13:00:00+02:00" itemprop="datePublished">Fri 17 October 2025</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Arrietty">
+<img alt="The Secret World of Arrietty" src="https://vstinner.github.io/images/arrietty.jpg" />
+</a>
+<p>In the Python C API, I dislike APIs modifying immutable objects such as
+<tt class="docutils literal">_PyBytes_Resize()</tt>. I designed a whole new <tt class="docutils literal">PyBytesWriter</tt> API to
+replace this <tt class="docutils literal">_PyBytes_Resize()</tt> function. As usual in Python, it took
+multiple iterations and one year to design the API and to reach an
+agreement.</p>
+<p>Picture: <em>The Secret World …</em></p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/pep-757-c-api-import-export-integers.html">
 		<h2 itemprop="name headline">PEP 757 – C API to import-export Python integers</h2>
 	</a>
@@ -323,40 +356,6 @@ better define the API …</p></div></div>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/debug-python-refleak.html">
-		<h2 itemprop="name headline">Debug a Python reference leak</h2>
-	</a>
-	<time datetime="2022-11-04T13:00:00+01:00" itemprop="datePublished">Fri 04 November 2022</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136">
-<img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" />
-</a>
-<p>This morning, I got <a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/">this email</a>
-from the buildbot-status mailing list:</p>
-<blockquote>
-The Buildbot has detected a new failure on builder PPC64LE Fedora Rawhide
-<strong>Refleaks</strong> 3.x while building Python.</blockquote>
-<p>I get many of buildbot failures per month (by email), but I like to debug
-reference leaks: they are more challenging …</p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/refleak.html" rel="tag">refleak</a>
-	</span>
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev disabled"><a href="#">&larr; Previous</a></li>
@@ -398,7 +397,7 @@ reference leaks: they are more challenging …</p></div>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (26)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (27)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>
