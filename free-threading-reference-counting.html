@@ -249,7 +249,7 @@ uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
 uint32_t new_local = local + 1;
 _Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, new_local);
 </pre>
-<p>The &quot;relaxed&quot; operations are fast since there are no synchronization or
+<p>The &quot;relaxed&quot; operations are cheap since there are no synchronization or
 ordering constraints imposed on other reads or writes, only these operations'
 atomicity is guaranteed.</p>
 </div>
@@ -302,7 +302,7 @@ static inline void Py_DECREF(PyObject *op)
     }
 }
 </pre>
-<p>Same as <tt class="docutils literal">Py_INCREF()</tt>, fast &quot;relaxed&quot; functions are used if the object is
+<p>Same as <tt class="docutils literal">Py_INCREF()</tt>, cheap &quot;relaxed&quot; functions are used if the object is
 owned by the current thread. If the local reference count reachs <tt class="docutils literal">0</tt>, call
 <tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> (described below).</p>
 <p>Otherwise, call slower <tt class="docutils literal">_Py_DecRefShared()</tt> code path (described below).</p>
@@ -311,7 +311,6 @@ owned by the current thread. If the local reference count reachs <tt class="docu
 <h4><tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> function</h4>
 <p>In <tt class="docutils literal">Py_DECREF()</tt>, if an object is owned by the current thread and its
 refcount reached <tt class="docutils literal">0</tt>, <tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> is called.</p>
-<p><tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> code:</p>
 <pre class="literal-block">
 void
 _Py_MergeZeroLocalRefcount(PyObject *op)
@@ -337,7 +336,7 @@ _Py_MergeZeroLocalRefcount(PyObject *op)
     }
 }
 </pre>
-<p>If the shared reference count is already <tt class="docutils literal">0</tt>, the function just calls
+<p>If the shared reference count is <tt class="docutils literal">0</tt>, the function just calls
 <tt class="docutils literal">_Py_Dealloc(op)</tt>.</p>
 <p>Otherwise, it sets <em>ob_tid</em> to <tt class="docutils literal">_Py_UNOWNED_TID</tt> (<tt class="docutils literal">0</tt>), and then adds the
 flag <tt class="docutils literal">_Py_REF_MERGED</tt> to shared reference count. If other threads called
@@ -350,7 +349,6 @@ once the shared reference count reachs <tt class="docutils literal">0</tt>.</p>
 <h4><tt class="docutils literal">_Py_DecRefShared()</tt> function</h4>
 <p><tt class="docutils literal">Py_DECREF()</tt> calls <tt class="docutils literal">_Py_DecRefShared()</tt> if the object is not owned by the
 current thread (and the object is mortal).</p>
-<p><tt class="docutils literal">_Py_DecRefShared()</tt> code:</p>
 <pre class="literal-block">
 static int
 _Py_DecRefSharedIsDead(PyObject *o)
@@ -418,7 +416,8 @@ owning thread.</p>
 <p><tt class="docutils literal">Py_DECREF()</tt> sets the <tt class="docutils literal">_Py_REF_MERGED</tt> flag if the object is owned by the
 current thread and <em>ob_ref_local</em> reached <tt class="docutils literal">0</tt>.</p>
 <p>The <tt class="docutils literal">_Py_ExplicitMergeRefcount()</tt> and GC <tt class="docutils literal">merge_refcount()</tt> explicitly
-merge <em>ob_ref_local</em> into <em>ob_ref_shared</em> and sets <tt class="docutils literal">_Py_REF_MERGED</tt> flag.</p>
+merge <em>ob_ref_local</em> into <em>ob_ref_shared</em>, set <em>ob_tid</em> to <tt class="docutils literal">_Py_UNOWNED_TID</tt>
+(<tt class="docutils literal">0</tt>), and set the <tt class="docutils literal">_Py_REF_MERGED</tt> flag.</p>
 </div>
 <div class="section" id="py-ref-queued-flag">
 <h4><tt class="docutils literal">_Py_REF_QUEUED</tt> flag</h4>
