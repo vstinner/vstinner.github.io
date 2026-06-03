@@ -1,5 +1,412 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"></link><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"></link><id>https://vstinner.github.io/</id><updated>2025-10-17T13:00:00+02:00</updated><entry><title>PEP 782 – Add PyBytesWriter C API</title><link href="https://vstinner.github.io/pep-782-pybyteswriter-c-api.html" rel="alternate"></link><published>2025-10-17T13:00:00+02:00</published><updated>2025-10-17T13:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-10-17:/pep-782-pybyteswriter-c-api.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Arrietty"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-06-03T16:00:00+02:00</updated><entry><title>Free Threading internals: reference counting</title><link href="https://vstinner.github.io/free-threading-reference-counting.html" rel="alternate"/><published>2026-06-03T16:00:00+02:00</published><updated>2026-06-03T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-03:/free-threading-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
+&lt;img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
+GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
+&lt;p&gt;This article explores the problem of tracking objects lifetime using reference
+counting in an efficient fashion.&lt;/p&gt;
+&lt;p&gt;We …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
+&lt;img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
+GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
+&lt;p&gt;This article explores the problem of tracking objects lifetime using reference
+counting in an efficient fashion.&lt;/p&gt;
+&lt;p&gt;We will see how the Gilectomy project (2016-2018) started with atomic
+operations and then switched to &lt;em&gt;buffered reference counting&lt;/em&gt;, and how the
+nogil project (2021-2026) solved the performance issue using &lt;em&gt;Biased Reference
+Counting&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Painting: The Bride by Marc Chagall (1950).&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="python-object-reference-count"&gt;
+&lt;h2&gt;Python object reference count&lt;/h2&gt;
+&lt;p&gt;Python C API relies on reference counting to track objects lifetime. When an
+object is created, its refcount is &lt;tt class="docutils literal"&gt;1&lt;/tt&gt;. &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; increases the
+refcount and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; decreases the refcount. When the refcount reachs
+&lt;tt class="docutils literal"&gt;0&lt;/tt&gt;, the object is destroyed.&lt;/p&gt;
+&lt;p&gt;In C code, &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; are called very frequently,
+and so should be as efficient as possible.&lt;/p&gt;
+&lt;p&gt;An object reference count can be read with &lt;tt class="docutils literal"&gt;sys.getrefcount(obj)&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="atomic-operations"&gt;
+&lt;h2&gt;Atomic operations&lt;/h2&gt;
+&lt;p&gt;In 2016, the Gilectomy project was created by Larry Hastings to remove the GIL.
+To support calling &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; in parallel, Gilectomy
+started by using atomic operations on the object refcount. For example,
+&lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; calls the atomic function &lt;tt class="docutils literal"&gt;__sync_add_and_fetch()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+typedef struct {
+    Py_ssize_t shared_refcnt;
+} ob_refcnt_t;
+
+typedef struct _object {
+    ob_refcnt_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+
+#define Py_INCREF(op) \
+    __sync_add_and_fetch(&amp;amp;op-&amp;gt;ob_refcnt.shared_refcnt, 1)
+&lt;/pre&gt;
+&lt;p&gt;The problem with the atomic operation is that it's a kind of locking and lock
+contention can cause bad performance. For example, if many threads modify the
+refcount of the same object, refcount operations will be serialiazed by the
+lock and so the code doesn't scale well with the number of threads.&lt;/p&gt;
+&lt;p&gt;In June 2017, Larry Hastings measured (&lt;a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going"&gt;slides&lt;/a&gt;)
+that atomic refcount makes Python 18.9x slower on 7 CPU cores (4.4 seconds to
+83.0 seconds):&lt;/p&gt;
+&lt;img alt="Graphic showing the performance of reference counting" src="https://vstinner.github.io/images/ft_atomic_refcount.png" /&gt;
+&lt;p&gt;CPython has multiple singletons objects which are commonly used and so can
+suffer from lock contention. Examples: &lt;tt class="docutils literal"&gt;None&lt;/tt&gt;, integers in range
+[&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;-5&lt;/span&gt;&lt;/tt&gt;; &lt;tt class="docutils literal"&gt;1024&lt;/tt&gt;], empty string, single Latin-1 characters, etc.&lt;/p&gt;
+&lt;p&gt;In 2015, Christian Aichinger made an experiment to use atomic operations in
+&lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;: it made Python 20% slower overall (on a
+single thread). Read the article: &lt;a class="reference external" href="https://www.caichinger.com/blog/2015/05/23/python_atomic_refcounting_slowdown/"&gt;Python's GIL and atomic reference counting&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;In 2020, the usage of atomic operations in &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; was also discussed
+for sub-interpreters use case (see &lt;a class="reference external" href="https://github.com/python/cpython/issues/84713"&gt;issue&lt;/a&gt; and &lt;a class="reference external" href="https://github.com/python/cpython/pull/19958"&gt;PR&lt;/a&gt;). But at the end, it was
+decided to not share objects between sub-interpreters instead.&lt;/p&gt;
+&lt;p&gt;In 2007, using atomic operations in &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; was already mentioned in a
+&lt;a class="reference external" href="https://mail.python.org/archives/list/python-dev&amp;#64;python.org/thread/RRDO6RHFZ6UITEONOZ5VQOZ6VTT6JN3D/#6A46ICDZPNV3YGMCCPAQFWVXV6IVKBMT"&gt;discussion about removing the GIL&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="gilectomy-buffered-reference-counting"&gt;
+&lt;h2&gt;Gilectomy buffered reference counting&lt;/h2&gt;
+&lt;p&gt;To make Gilectomy scale better, &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; has been modified to use
+&amp;quot;buffered reference counting&amp;quot; instead. The &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; function becomes:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline void Py_INCREF(PyObject *o)
+{
+    PyRefLog *rl = PyThread_get_key_value(PyRefLogTLSKey);
+    if (PyRefPad_IsFull(rl)) {
+        PyRefLog_Rotate(rl);
+    }
+    PyRefPad_Write(rl-&amp;gt;incref, o);
+}
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; uses a separated reference log (&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;rl-&amp;gt;decref&lt;/span&gt;&lt;/tt&gt;) to respect
+operations order.&lt;/p&gt;
+&lt;p&gt;In October 2016, Larry Hastings compared (&lt;a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going"&gt;slides&lt;/a&gt;)
+atomic refcount and buffered reference counting (&amp;quot;rcm&amp;quot;) to a reference Python:&lt;/p&gt;
+&lt;img alt="Graphic showing the performance of reference counting" src="https://vstinner.github.io/images/ft_rcm.png" /&gt;
+&lt;p&gt;Performance is better on 7 CPU cores using &amp;quot;buffered reference counting&amp;quot;,
+instead of atomic operations.&lt;/p&gt;
+&lt;p&gt;Read more about gilectomy:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://lwn.net/Articles/723514/"&gt;LWN: Progress on the Gilectomy&lt;/a&gt;
+(May 2017).&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going"&gt;Slides: gilectomy: how's it going?&lt;/a&gt;
+by Larry Hastings.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In 2018, using a tracing garbage collector and breaking the C API was
+considered: read &lt;a class="reference external" href="https://lwn.net/Articles/754577/"&gt;LWN: A Gilectomy update&lt;/a&gt;.
+But it didn't happen in practice.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="biased-reference-counting"&gt;
+&lt;h2&gt;Biased Reference Counting&lt;/h2&gt;
+&lt;div class="section" id="creation-of-the-nogil-project"&gt;
+&lt;h3&gt;Creation of the nogil project&lt;/h3&gt;
+&lt;p&gt;In 2021, Sam Gross created a &amp;quot;nogil&amp;quot; fork of CPython to remove the GIL.  It
+uses &amp;quot;Biased Reference Counting&amp;quot; which is &lt;a class="reference external" href="https://peps.python.org/pep-0703/#reference-counting"&gt;described in PEP 703&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+It is based on the observation that most objects are only accessed by a
+single thread, even in multi-threaded programs. Each object is associated
+with an owning thread (the thread that created it). Reference counting
+operations from the owning thread use non-atomic instructions to modify a
+“local” reference count. Other threads use atomic instructions to modify a
+“shared” reference count. This design avoids many atomic read-modify-write
+operations that are expensive on contemporary processors.&lt;/blockquote&gt;
+&lt;p&gt;Biased reference counting (BRC) is a technique first described in 2018 by Jiho
+Choi, Thomas Shull, and Josep Torrellas: &lt;a class="reference external" href="https://dl.acm.org/doi/abs/10.1145/3243176.3243195"&gt;article&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; members before:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+struct _object {
+    Py_ssize_t ob_refcnt;
+    PyTypeObject *ob_type;
+};
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyObject&lt;/tt&gt; members after:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+struct _object {
+  uintptr_t ob_tid;
+  uint32_t ob_ref_local;
+  Py_ssize_t ob_ref_shared;
+  PyTypeObject *ob_type;
+};
+&lt;/pre&gt;
+&lt;p&gt;The &lt;em&gt;ob_refcnt&lt;/em&gt; is replaced with &lt;em&gt;ob_ref_local&lt;/em&gt; and &lt;em&gt;ob_ref_shared&lt;/em&gt;, and
+a new &lt;em&gt;ob_tid&lt;/em&gt; member is added.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;ob_ref_local&lt;/em&gt; is the &amp;quot;local&amp;quot; reference count, &lt;em&gt;ob_ref_shared&lt;/em&gt; is the &amp;quot;shared&amp;quot;
+reference count, and &lt;em&gt;ob_tid&lt;/em&gt; is the identifier of the thread which owns the
+object.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="creation-of-an-object"&gt;
+&lt;h3&gt;Creation of an object&lt;/h3&gt;
+&lt;p&gt;Python calls &lt;tt class="docutils literal"&gt;PyObject_INIT(op)&lt;/tt&gt; to create a new Python object. It
+initializes &lt;em&gt;ob_ref_local&lt;/em&gt; to &lt;tt class="docutils literal"&gt;1&lt;/tt&gt;, &lt;em&gt;ob_ref_shared&lt;/em&gt; to &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;, and &lt;em&gt;ob_tid&lt;/em&gt; to
+&lt;tt class="docutils literal"&gt;_Py_ThreadId()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_Py_ThreadId()&lt;/tt&gt; gets the thread identifier. The function is called at each
+object creation, and at each &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; call. So it
+must be as efficient as possible. For example, on x86-64, it just has to read
+the &lt;tt class="docutils literal"&gt;fs&lt;/tt&gt; CPU register:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline uintptr_t
+_Py_ThreadId(void)
+{
+    uintptr_t tid;
+#if defined(_MSC_VER) &amp;amp;&amp;amp; defined(_M_X64)
+    tid = __readgsqword(48);
+#elif defined(__x86_64__)
+    __asm__(&amp;quot;{movq %%fs:0, %0|mov %0, qword ptr fs:[0]}&amp;quot; : &amp;quot;=r&amp;quot; (tid));  // x86_64 Linux, BSD uses FS
+#else
+    ...
+#endif
+  return tid;
+}
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-incref"&gt;
+&lt;h3&gt;Py_INCREF()&lt;/h3&gt;
+&lt;p&gt;In Python 3.12, &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; basically just has to increase the &lt;em&gt;ob_refcnt&lt;/em&gt;
+member. It also checks if an object is immortal to implement &lt;a class="reference external" href="https://peps.python.org/pep-0683/"&gt;PEP 683&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Python 3.12 code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline void Py_INCREF(PyObject *op)
+{
+    if (_Py_IsImmortal(op)) {
+        return;
+    }
+    op-&amp;gt;ob_refcnt++;
+}
+&lt;/pre&gt;
+&lt;p&gt;In nogil, &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; becomes more complex:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline int _Py_IsOwnedByCurrentThread(PyObject *ob)
+{ return ob-&amp;gt;ob_tid == _Py_ThreadId(); }
+
+static inline void Py_INCREF(PyObject *op)
+{
+    uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;amp;op-&amp;gt;ob_ref_local);
+    uint32_t new_local = local + 1;
+    if (new_local == 0) {
+        // local is equal to _Py_IMMORTAL_REFCNT_LOCAL: do nothing
+        return;
+    }
+    if (_Py_IsOwnedByCurrentThread(op)) {
+        _Py_atomic_store_uint32_relaxed(&amp;amp;op-&amp;gt;ob_ref_local, new_local);
+    }
+    else {
+        _Py_atomic_add_ssize(&amp;amp;op-&amp;gt;ob_ref_shared, (1 &amp;lt;&amp;lt; _Py_REF_SHARED_SHIFT));
+    }
+}
+&lt;/pre&gt;
+&lt;div class="section" id="fast-path"&gt;
+&lt;h4&gt;Fast path&lt;/h4&gt;
+&lt;p&gt;If the object is owned by the current thread and is mortal, which is the common
+case, the code is basically:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;amp;op-&amp;gt;ob_ref_local);
+uint32_t new_local = local + 1;
+_Py_atomic_store_uint32_relaxed(&amp;amp;op-&amp;gt;ob_ref_local, new_local);
+&lt;/pre&gt;
+&lt;p&gt;The &amp;quot;relaxed&amp;quot; operations are fast since there are no synchronization or
+ordering constraints imposed on other reads or writes, only these operations'
+atomicity is guaranteed.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="slow-path"&gt;
+&lt;h4&gt;Slow path&lt;/h4&gt;
+&lt;p&gt;If the object is not owned by the current thread, a slower code path is used:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+_Py_atomic_add_ssize(&amp;amp;op-&amp;gt;ob_ref_shared, (1 &amp;lt;&amp;lt; _Py_REF_SHARED_SHIFT));
+&lt;/pre&gt;
+&lt;p&gt;where &lt;tt class="docutils literal"&gt;_Py_atomic_add_ssize()&lt;/tt&gt; uses the &amp;quot;sequentially consistent&amp;quot; order which
+is slower than &amp;quot;relaxed&amp;quot; since it implies locking.&lt;/p&gt;
+&lt;p&gt;See &lt;a class="reference external" href="https://github.com/python/cpython/blob/1eff27f2c0452b3114bcf139062c87c025842c3e/Include/cpython/pyatomic.h"&gt;Include/cpython/pyatomic.h header&lt;/a&gt;
+for more information on atomic functions used by CPython and memory order.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-decref"&gt;
+&lt;h3&gt;Py_DECREF()&lt;/h3&gt;
+&lt;p&gt;In Python 3.12, &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; basically decrements &lt;em&gt;ob_refcnt&lt;/em&gt; and calls
+&lt;tt class="docutils literal"&gt;_Py_Dealloc(op)&lt;/tt&gt; if the refcount is &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;. It also checks if the object
+is immortal to do nothing in this case.&lt;/p&gt;
+&lt;p&gt;Python 3.12 code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline void Py_DECREF(PyObject *op)
+{
+    if (_Py_IsImmortal(op)) {
+        return;
+    }
+    if (--op-&amp;gt;ob_refcnt == 0) {
+        _Py_Dealloc(op);
+    }
+}
+&lt;/pre&gt;
+&lt;p&gt;In nogil, the function becomes more complex:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static inline void Py_DECREF(PyObject *op)
+{
+    uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;amp;op-&amp;gt;ob_ref_local);
+    if (local == _Py_IMMORTAL_REFCNT_LOCAL) {
+        return;
+    }
+    if (_Py_IsOwnedByCurrentThread(op)) {
+        local--;
+        _Py_atomic_store_uint32_relaxed(&amp;amp;op-&amp;gt;ob_ref_local, local);
+        if (local == 0) {
+            _Py_MergeZeroLocalRefcount(op);
+        }
+    }
+    else {
+        _Py_DecRefShared(op);
+    }
+}
+&lt;/pre&gt;
+&lt;p&gt;Same as &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt;, fast &amp;quot;relaxed&amp;quot; functions are used if the object is
+owned by the current thread. If the local reference count reachs &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;, call
+&lt;tt class="docutils literal"&gt;_Py_MergeZeroLocalRefcount()&lt;/tt&gt; (described below).&lt;/p&gt;
+&lt;p&gt;Otherwise, call slower &lt;tt class="docutils literal"&gt;_Py_DecRefShared()&lt;/tt&gt; code path (described below).&lt;/p&gt;
+&lt;p&gt;Note: If the object is immortal, do nothing.&lt;/p&gt;
+&lt;div class="section" id="py-mergezerolocalrefcount-function"&gt;
+&lt;h4&gt;&lt;tt class="docutils literal"&gt;_Py_MergeZeroLocalRefcount()&lt;/tt&gt; function&lt;/h4&gt;
+&lt;p&gt;In &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;, if an object is owned by the current thread and its
+refcount reached &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;_Py_MergeZeroLocalRefcount()&lt;/tt&gt; is called.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_Py_MergeZeroLocalRefcount()&lt;/tt&gt; code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+void
+_Py_MergeZeroLocalRefcount(PyObject *op)
+{
+    assert(op-&amp;gt;ob_ref_local == 0);
+
+    Py_ssize_t shared = _Py_atomic_load_ssize_acquire(&amp;amp;op-&amp;gt;ob_ref_shared);
+    if (shared == 0) {
+        _Py_Dealloc(op);
+        return;
+    }
+
+    _Py_atomic_store_uintptr_relaxed(&amp;amp;op-&amp;gt;ob_tid, 0);
+
+    Py_ssize_t new_shared;
+    do {
+        new_shared = (shared &amp;amp; ~_Py_REF_SHARED_FLAG_MASK) | _Py_REF_MERGED;
+    } while (!_Py_atomic_compare_exchange_ssize(&amp;amp;op-&amp;gt;ob_ref_shared,
+                                                &amp;amp;shared, new_shared));
+
+    if (new_shared == _Py_REF_MERGED) {
+        _Py_Dealloc(op);
+    }
+}
+&lt;/pre&gt;
+&lt;p&gt;If the shared reference count is already &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;, the function just calls
+&lt;tt class="docutils literal"&gt;_Py_Dealloc(op)&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Otherwise, it sets &lt;em&gt;ob_tid&lt;/em&gt; to &lt;tt class="docutils literal"&gt;_Py_UNOWNED_TID&lt;/tt&gt; (&lt;tt class="docutils literal"&gt;0&lt;/tt&gt;), and then adds the
+flag &lt;tt class="docutils literal"&gt;_Py_REF_MERGED&lt;/tt&gt; to shared reference count. If other threads called
+&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; in parallel and the shared reference count became &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; in the
+meanwhile, &lt;tt class="docutils literal"&gt;_Py_Dealloc(op)&lt;/tt&gt; is called. Otherwise, there are still shared
+references to the object and so it's still alive. The object will be destroyed
+once the shared reference count reachs &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-decrefshared-function"&gt;
+&lt;h4&gt;&lt;tt class="docutils literal"&gt;_Py_DecRefShared()&lt;/tt&gt; function&lt;/h4&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; calls &lt;tt class="docutils literal"&gt;_Py_DecRefShared()&lt;/tt&gt; if the object is not owned by the
+current thread (and the object is mortal).&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_Py_DecRefShared()&lt;/tt&gt; code:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+static int
+_Py_DecRefSharedIsDead(PyObject *o)
+{
+    // Should we queue the object for the owning thread to merge?
+    int should_queue;
+
+    Py_ssize_t new_shared;
+    Py_ssize_t shared = _Py_atomic_load_ssize_relaxed(&amp;amp;o-&amp;gt;ob_ref_shared);
+    do {
+        should_queue = (shared == 0 || shared == _Py_REF_MAYBE_WEAKREF);
+
+        if (should_queue) {
+            // If the object had refcount zero, not queued, and not merged,
+            // then we enqueue the object to be merged by the owning thread.
+            // In this case, we don't subtract one from the reference count
+            // because the queue holds a reference.
+            new_shared = _Py_REF_QUEUED;
+        }
+        else {
+            // Otherwise, subtract one from the reference count. This might
+            // be negative!
+            new_shared = shared - (1 &amp;lt;&amp;lt; _Py_REF_SHARED_SHIFT);
+        }
+    } while (!_Py_atomic_compare_exchange_ssize(&amp;amp;o-&amp;gt;ob_ref_shared,
+                                                &amp;amp;shared, new_shared));
+
+    if (should_queue) {
+        _Py_brc_queue_object(o);
+    }
+    else if (new_shared == _Py_REF_MERGED) {
+        // refcount is zero AND merged
+        return 1;
+    }
+    return 0;
+}
+
+void
+_Py_DecRefShared(PyObject *o)
+{
+    if (_Py_DecRefSharedIsDead(o)) {
+        _Py_Dealloc(o);
+    }
+}
+&lt;/pre&gt;
+&lt;p&gt;If the shared reference count is &lt;tt class="docutils literal"&gt;0&lt;/tt&gt; and the &lt;tt class="docutils literal"&gt;_Py_REF_MERGED&lt;/tt&gt; flag is set,
+call &lt;tt class="docutils literal"&gt;_Py_Dealloc(o)&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;If the object has a shared reference count of &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;, is not queued, and is not
+merged, then set the &lt;tt class="docutils literal"&gt;_Py_REF_QUEUED&lt;/tt&gt; flag and calls
+&lt;tt class="docutils literal"&gt;_Py_brc_queue_object(o)&lt;/tt&gt; which schedules the object destruction in its
+owning thread.&lt;/p&gt;
+&lt;p&gt;Otherwise, decrement the shared reference count.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="shared-reference-count-flags"&gt;
+&lt;h3&gt;Shared reference count flags&lt;/h3&gt;
+&lt;p&gt;The 2 least significant bits of &lt;em&gt;ob_ref_shared&lt;/em&gt; are used to store a flag:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_REF_MAYBE_WEAKREF&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_REF_QUEUED&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_REF_MERGED&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="section" id="py-ref-merged-flag"&gt;
+&lt;h4&gt;&lt;tt class="docutils literal"&gt;_Py_REF_MERGED&lt;/tt&gt; flag&lt;/h4&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; sets the &lt;tt class="docutils literal"&gt;_Py_REF_MERGED&lt;/tt&gt; flag if the object is owned by the
+current thread and &lt;em&gt;ob_ref_local&lt;/em&gt; reached &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;_Py_ExplicitMergeRefcount()&lt;/tt&gt; and GC &lt;tt class="docutils literal"&gt;merge_refcount()&lt;/tt&gt; explicitly
+merge &lt;em&gt;ob_ref_local&lt;/em&gt; into &lt;em&gt;ob_ref_shared&lt;/em&gt; and sets &lt;tt class="docutils literal"&gt;_Py_REF_MERGED&lt;/tt&gt; flag.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-ref-queued-flag"&gt;
+&lt;h4&gt;&lt;tt class="docutils literal"&gt;_Py_REF_QUEUED&lt;/tt&gt; flag&lt;/h4&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; sets the &lt;tt class="docutils literal"&gt;_Py_REF_QUEUED&lt;/tt&gt; flag if the object is not owned by
+the current thread and the shared reference count reached &lt;tt class="docutils literal"&gt;0&lt;/tt&gt;. In this case,
+&lt;tt class="docutils literal"&gt;_Py_brc_queue_object(o)&lt;/tt&gt; is called to schedule the object destruction in its
+owning thread.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="py-ref-maybe-weakref-flag"&gt;
+&lt;h4&gt;&lt;tt class="docutils literal"&gt;_Py_REF_MAYBE_WEAKREF&lt;/tt&gt; flag&lt;/h4&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://docs.python.org/dev/c-api/object.html#c.PyUnstable_EnableTryIncRef"&gt;PyUnstable_EnableTryIncRef()&lt;/a&gt;
+enables subsequent uses of &lt;a class="reference external" href="https://docs.python.org/dev/c-api/object.html#c.PyUnstable_TryIncRef"&gt;PyUnstable_TryIncRef()&lt;/a&gt; on
+&lt;em&gt;obj&lt;/em&gt;.  It sets the &lt;tt class="docutils literal"&gt;_Py_REF_MAYBE_WEAKREF&lt;/tt&gt; flag.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_Py_NewRefWithLock()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;_Py_XNewRefWithLock()&lt;/tt&gt; also set the
+&lt;tt class="docutils literal"&gt;_Py_REF_MAYBE_WEAKREF&lt;/tt&gt; flag. These functions are similar to
+&lt;tt class="docutils literal"&gt;Py_NewRef()&lt;/tt&gt;/&lt;tt class="docutils literal"&gt;Py_XNewRef()&lt;/tt&gt;, but also optimistically sets
+&lt;tt class="docutils literal"&gt;_Py_REF_MAYBE_WEAKREF&lt;/tt&gt; on objects owned by a different thread.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Biased Reference Counting is more efficient than atomic operatons on the
+refcount because they use cheap &amp;quot;relaxed&amp;quot; operations on the refcount if the
+object is owned by the current thread which is the most common case.&lt;/p&gt;
+&lt;p&gt;In exchange, &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; functions became (way) more
+complex to implement Biased Reference Counting.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"/><category term="free-threading"/><category term="cpython"/></entry><entry><title>PEP 782 – Add PyBytesWriter C API</title><link href="https://vstinner.github.io/pep-782-pybyteswriter-c-api.html" rel="alternate"/><published>2025-10-17T13:00:00+02:00</published><updated>2025-10-17T13:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-10-17:/pep-782-pybyteswriter-c-api.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Arrietty"&gt;
 &lt;img alt="The Secret World of Arrietty" src="https://vstinner.github.io/images/arrietty.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;In the Python C API, I dislike APIs modifying immutable objects such as
@@ -209,7 +616,7 @@ performance. Examples of benchmarks:&lt;/p&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://github.com/python/cpython/pull/140139"&gt;io.RawIOBase.readall(): 4x faster&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>PEP 757 – C API to import-export Python integers</title><link href="https://vstinner.github.io/pep-757-c-api-import-export-integers.html" rel="alternate"></link><published>2025-09-11T16:00:00+02:00</published><updated>2025-09-11T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-09-11:/pep-757-c-api-import-export-integers.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Ponyo"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>PEP 757 – C API to import-export Python integers</title><link href="https://vstinner.github.io/pep-757-c-api-import-export-integers.html" rel="alternate"/><published>2025-09-11T16:00:00+02:00</published><updated>2025-09-11T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-09-11:/pep-757-c-api-import-export-integers.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Ponyo"&gt;
 &lt;img alt="Ponyo movie" src="https://vstinner.github.io/images/ponyo.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;Design an API can take time. This article describes the design of the
@@ -393,7 +800,7 @@ void PyLongWriter_Discard(PyLongWriter *writer)
 &lt;p&gt;The &lt;tt class="docutils literal"&gt;decimal&lt;/tt&gt; extension and &lt;tt class="docutils literal"&gt;Python/marshal.c&lt;/tt&gt; have been modified to
 use this API.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>My Python commits: February 2025</title><link href="https://vstinner.github.io/python-commits-february-2025.html" rel="alternate"></link><published>2025-03-11T15:00:00+01:00</published><updated>2025-03-11T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-03-11:/python-commits-february-2025.html</id><summary type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>My Python commits: February 2025</title><link href="https://vstinner.github.io/python-commits-february-2025.html" rel="alternate"/><published>2025-03-11T15:00:00+01:00</published><updated>2025-03-11T15:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2025-03-11:/python-commits-february-2025.html</id><summary type="html">&lt;p&gt;Here is a report on my 18 commits merged into Python in February 2025:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;Reorganize C API tests&lt;/li&gt;
 &lt;li&gt;Use PyErr_FormatUnraisable()&lt;/li&gt;
@@ -567,7 +974,7 @@ and the result with color. Each test is displayed twice.&lt;/li&gt;
 The test is not reliable, &lt;a class="reference external" href="https://github.com/python/cpython/issues/109959#issuecomment-2577550700"&gt;it fails randomly on Linux&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category></entry><entry><title>PEP 741: C API to configure Python initialization</title><link href="https://vstinner.github.io/pyconfig-pep-741.html" rel="alternate"></link><published>2024-09-24T17:00:00+02:00</published><updated>2024-09-24T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-09-24:/pyconfig-pep-741.html</id><summary type="html">&lt;div class="section" id="pep-741-story"&gt;
+</content><category term="cpython"/><category term="cpython"/></entry><entry><title>PEP 741: C API to configure Python initialization</title><link href="https://vstinner.github.io/pyconfig-pep-741.html" rel="alternate"/><published>2024-09-24T17:00:00+02:00</published><updated>2024-09-24T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-09-24:/pyconfig-pep-741.html</id><summary type="html">&lt;div class="section" id="pep-741-story"&gt;
 &lt;h2&gt;PEP 741 story&lt;/h2&gt;
 &lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Starry_Night"&gt;
 &lt;img alt="The Starry Night (1889) by Vincent Van Gogh" src="https://vstinner.github.io/images/starry_night_van_gogh.jpg" /&gt;
@@ -833,7 +1240,7 @@ False
 &lt;/ul&gt;
 &lt;p&gt;Total: &lt;strong&gt;206&lt;/strong&gt; messages!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Add PyUnicodeWriter C API</title><link href="https://vstinner.github.io/pyunicodewriter-c-api.html" rel="alternate"></link><published>2024-07-04T18:00:00+02:00</published><updated>2024-07-04T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-07-04:/pyunicodewriter-c-api.html</id><summary type="html">&lt;img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" /&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Add PyUnicodeWriter C API</title><link href="https://vstinner.github.io/pyunicodewriter-c-api.html" rel="alternate"/><published>2024-07-04T18:00:00+02:00</published><updated>2024-07-04T18:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-07-04:/pyunicodewriter-c-api.html</id><summary type="html">&lt;img alt="La Danse - Matisse" src="https://vstinner.github.io/images/matisse_la_danse.jpg" /&gt;
 &lt;p&gt;In May, I designed a new C API to build a Python str object: the
 &lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#pyunicodewriter"&gt;PyUnicodeWriter API&lt;/a&gt;.
 Many people were involved in the design and the discussion
@@ -1005,7 +1412,7 @@ points. I added an API to support natively this string format.&lt;/p&gt;
 convenient, less error-prone, and maybe even a little bit more efficient!&lt;/p&gt;
 &lt;p&gt;Thanks to everyone who was involved in these discussions!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"></link><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Status of the Python Limited C API (March 2024)</title><link href="https://vstinner.github.io/status-limited-c-api-march-2024.html" rel="alternate"/><published>2024-03-20T17:00:00+01:00</published><updated>2024-03-20T17:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2024-03-20:/status-limited-c-api-march-2024.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html"&gt;
 &lt;img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;In Python 3.13, I made multiple enhancements to make the limited C API more
@@ -1231,7 +1638,7 @@ cases. It would be interersting to only use the limited C API. The PEP 741 to
 embed Python in Rust would be interesting for that.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Remove private C API functions</title><link href="https://vstinner.github.io/remove-c-api-funcs-313.html" rel="alternate"></link><published>2023-12-15T23:00:00+01:00</published><updated>2023-12-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-12-15:/remove-c-api-funcs-313.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Remove private C API functions</title><link href="https://vstinner.github.io/remove-c-api-funcs-313.html" rel="alternate"/><published>2023-12-15T23:00:00+01:00</published><updated>2023-12-15T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-12-15:/remove-c-api-funcs-313.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/The_Seasons_(Mucha)"&gt;
 &lt;img alt="Mucha paintaing: the 4 seasons" src="https://vstinner.github.io/images/mucha_seasons.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;In Python 3.13 alpha 1, I removed more than 300 private C API functions. Even
@@ -1429,7 +1836,7 @@ the old private ones: less error prone, can be more efficient, etc. At least,
 the conversion of private to public is moving steadily, functions are added one
 by one.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Design the API of a new PyDict_GetItemRef() function</title><link href="https://vstinner.github.io/c-api-dict-getitemref.html" rel="alternate"></link><published>2023-11-16T20:00:00+01:00</published><updated>2023-11-16T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-11-16:/c-api-dict-getitemref.html</id><summary type="html">&lt;p&gt;Last June, I proposed adding a new &lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt; function to Python
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Design the API of a new PyDict_GetItemRef() function</title><link href="https://vstinner.github.io/c-api-dict-getitemref.html" rel="alternate"/><published>2023-11-16T20:00:00+01:00</published><updated>2023-11-16T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-11-16:/c-api-dict-getitemref.html</id><summary type="html">&lt;p&gt;Last June, I proposed adding a new &lt;tt class="docutils literal"&gt;PyDict_GetItemRef()&lt;/tt&gt; function to Python
 3.13 C API. Every aspect of the API design was discussed in length. I will
 explain how the API was designed, to finish with the future creation of C API
 Working Group.&lt;/p&gt;
@@ -1753,7 +2160,7 @@ Two weeks later, &lt;strong&gt;Guido&lt;/strong&gt; submitted the PEP to the Ste
 Council expressed their desire to delegate some C API decisions to a C API
 Working Group.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>My contributions to Python (July 2023)</title><link href="https://vstinner.github.io/contrib-python-july-2023.html" rel="alternate"></link><published>2023-07-08T23:00:00+02:00</published><updated>2023-07-08T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-07-08:/contrib-python-july-2023.html</id><summary type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>My contributions to Python (July 2023)</title><link href="https://vstinner.github.io/contrib-python-july-2023.html" rel="alternate"/><published>2023-07-08T23:00:00+02:00</published><updated>2023-07-08T23:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2023-07-08:/contrib-python-july-2023.html</id><summary type="html">&lt;p&gt;In 2023, between May 4 and July 8, I made 144 commits in the Python main
 branch. In this article, I describe the most important Python contributions
 that I made to Python 3.12 and Python 3.13 in these months.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/foxes_in_love/status/1668558475490742277"&gt;
@@ -2346,7 +2753,7 @@ proposing solutions for the most commonly used removed functions like the
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_gitversion()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Convert macros to functions in the Python C API</title><link href="https://vstinner.github.io/c-api-convert-macros-functions.html" rel="alternate"></link><published>2022-12-12T23:00:00+01:00</published><updated>2022-12-12T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-12-12:/c-api-convert-macros-functions.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Convert macros to functions in the Python C API</title><link href="https://vstinner.github.io/c-api-convert-macros-functions.html" rel="alternate"/><published>2022-12-12T23:00:00+01:00</published><updated>2022-12-12T23:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-12-12:/c-api-convert-macros-functions.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.exemplaire-editions.fr/librairie/livre/loeil-du-cyclone"&gt;
 &lt;img alt="L'oeil du cyclone - Théo Grosjean" src="https://vstinner.github.io/images/loeil_cyclone.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;&lt;em&gt;Drawing: &amp;quot;L'oeil du cyclone&amp;quot; by Théo Grosjean.&lt;/em&gt;&lt;/p&gt;
@@ -2644,7 +3051,7 @@ count&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_CHECK_REFCNT()&lt;/tt&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Debug a Python reference leak</title><link href="https://vstinner.github.io/debug-python-refleak.html" rel="alternate"></link><published>2022-11-04T13:00:00+01:00</published><updated>2022-11-04T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-11-04:/debug-python-refleak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Debug a Python reference leak</title><link href="https://vstinner.github.io/debug-python-refleak.html" rel="alternate"/><published>2022-11-04T13:00:00+01:00</published><updated>2022-11-04T13:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2022-11-04:/debug-python-refleak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/djamilaknopf/status/1587441869403099136"&gt;
 &lt;img alt="Childhood memories in the countryside" src="https://vstinner.github.io/images/refleak.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;This morning, I got &lt;a class="reference external" href="https://mail.python.org/archives/list/buildbot-status&amp;#64;python.org/message/MU2EJRTFF4ZCYTDXYER7KCL3IQUM5F3T/"&gt;this email&lt;/a&gt;
@@ -3095,7 +3502,7 @@ taken by the issue&lt;/li&gt;
 &lt;p&gt;Oh by the way, while I finished my article, my PR got reviewed and I merged it:
 &lt;a class="reference external" href="https://github.com/python/cpython/commit/387f72588d538bc56669f0f28cc41df854fc5b43"&gt;my commit fixing the leak&lt;/a&gt;!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="refleak"></category><category term="cpython"></category></entry><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"></link><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;
+</content><category term="cpython"/><category term="refleak"/><category term="cpython"/></entry><entry><title>Python C API: Add functions to access PyObject</title><link href="https://vstinner.github.io/c-api-abstract-pyobject.html" rel="alternate"/><published>2021-10-05T14:00:00+02:00</published><updated>2021-10-05T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-05:/c-api-abstract-pyobject.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1433139994516934663"&gt;
 &lt;img alt="A spider in my bedroom" src="https://vstinner.github.io/images/spider.png" /&gt;
 &lt;/a&gt;
 &lt;p&gt;The PyObject structure prevents indirectly to optimize CPython. We will see why
@@ -3335,7 +3742,7 @@ new issue later to propose these changes. Also, the performance of these
 changes must be checked with benchmarks, to ensure that there is no performance
 overhead or that the overhead is acceptable.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>C API changes between Python 3.5 to 3.10</title><link href="https://vstinner.github.io/c-api-python3_10-changes.html" rel="alternate"></link><published>2021-10-04T15:00:00+02:00</published><updated>2021-10-04T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-04:/c-api-python3_10-changes.html</id><summary type="html">&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>C API changes between Python 3.5 to 3.10</title><link href="https://vstinner.github.io/c-api-python3_10-changes.html" rel="alternate"/><published>2021-10-04T15:00:00+02:00</published><updated>2021-10-04T15:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-10-04:/c-api-python3_10-changes.html</id><summary type="html">&lt;img alt="Homer Simpson hiding" src="https://vstinner.github.io/images/homer_hiding.webp" /&gt;
 &lt;p&gt;I'm trying to enhance and to fix the Python C API for 5 years. My first goal
 was to shrink the C API without breaking third party C extensions. I hid many
 private functions from the public functions: I moved them to the &amp;quot;internal C
@@ -3713,7 +4120,7 @@ embedding Python is now explicitly defined. The &lt;a class="reference external"
 describes C API and ABI stability guarantees along with best practices for
 using the Stable ABI.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Creation of the pythoncapi_compat project</title><link href="https://vstinner.github.io/pythoncapi_compat.html" rel="alternate"></link><published>2021-03-30T20:00:00+02:00</published><updated>2021-03-30T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-30:/pythoncapi_compat.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Creation of the pythoncapi_compat project</title><link href="https://vstinner.github.io/pythoncapi_compat.html" rel="alternate"/><published>2021-03-30T20:00:00+02:00</published><updated>2021-03-30T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-30:/pythoncapi_compat.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Kekeflipnote/status/1378034391872638980"&gt;
 &lt;img alt="Strange Cat by Kéké" src="https://vstinner.github.io/images/strange_cat.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;In 2020, I created a new &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat project&lt;/a&gt; to add Python 3.10 support
@@ -3982,7 +4389,7 @@ Python versions in a single code base.&lt;/p&gt;
 &lt;p&gt;The next steps is to get it adopted more widely and get it endorsed by the
 Python project, maybe by moving it under the PSF organization on GitHub.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"></link><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Make structures opaque in the Python C API</title><link href="https://vstinner.github.io/c-api-opaque-structures.html" rel="alternate"/><published>2021-03-26T12:00:00+01:00</published><updated>2021-03-26T12:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2021-03-26:/c-api-opaque-structures.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/Incendie_du_centre_de_donn%C3%A9es_d%27OVHcloud_%C3%A0_Strasbourg"&gt;
 &lt;img alt="OVHcloud datacenter fire in Strasbourg" src="https://vstinner.github.io/images/incendie-ovh.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;This article is about changes that I made, with the help other developers, in
@@ -4262,7 +4669,7 @@ see &lt;a class="reference external" href="https://bugs.python.org/issue34595"&g
 &lt;li&gt;Attempt to make some structures opaque, like PyThreadState.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="c-api"></category><category term="cpython"></category></entry><entry><title>Isolate Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"></link><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>Isolate Python Subinterpreters</title><link href="https://vstinner.github.io/isolate-subinterpreters.html" rel="alternate"/><published>2020-12-27T22:00:00+01:00</published><updated>2020-12-27T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-27:/isolate-subinterpreters.html</id><summary type="html">&lt;img alt="Christmas gift." src="https://vstinner.github.io/images/christmas-gift.jpg" /&gt;
 &lt;p&gt;This article is about the work done in Python in 2019 and 2020 to better
 isolate subinterpreters. Static types are converted to heap types, extension
 modules are converted to use the new multiphase initialization API (PEP 489),
@@ -4619,7 +5026,7 @@ to the multiphase initialization API (&lt;a class="reference external" href="htt
 &lt;p&gt;I'm tracking the work in my &lt;a class="reference external" href="https://pythondev.readthedocs.io/subinterpreters.html"&gt;Python Subinterpreters&lt;/a&gt; page
 and in the &lt;a class="reference external" href="https://bugs.python.org/issue40512"&gt;bpo-40512: Meta issue: per-interpreter GIL&lt;/a&gt;.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Hide implementation details from the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"></link><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
+</content><category term="cpython"/><category term="cpython"/><category term="subinterpreters"/></entry><entry><title>Hide implementation details from the Python C API</title><link href="https://vstinner.github.io/hide-implementation-details-python-c-api.html" rel="alternate"/><published>2020-12-25T22:00:00+01:00</published><updated>2020-12-25T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-25:/hide-implementation-details-python-c-api.html</id><summary type="html">&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
 &lt;p&gt;This article is the history of Python C API discussions over the last 4 years,
 and the creation of C API projects: &lt;a class="reference external" href="https://pythoncapi.readthedocs.io/"&gt;pythoncapi website&lt;/a&gt;, &lt;a class="reference external" href="https://github.com/pythoncapi/pythoncapi_compat"&gt;pythoncapi_compat.h header file&lt;/a&gt; and &lt;a class="reference external" href="https://hpy.readthedocs.io/"&gt;HPy (new clean C API)&lt;/a&gt;. More and more people are aware of issues
 caused by the C API and are working …&lt;/p&gt;</summary><content type="html">&lt;img alt="My cat attacking the Python C API" src="https://vstinner.github.io/images/pepsie.jpg" /&gt;
@@ -4764,7 +5171,7 @@ API prevents to optimize CPython and makes the CPython C API inefficient on
 PyPy. It is still a draft.&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="optimization"></category><category term="cpython"></category><category term="c-api"></category></entry><entry><title>Leaks discovered by subinterpreters</title><link href="https://vstinner.github.io/subinterpreter-leaks.html" rel="alternate"></link><published>2020-12-23T14:00:00+01:00</published><updated>2020-12-23T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-23:/subinterpreter-leaks.html</id><summary type="html">&lt;p&gt;This article is about old reference leaks discovered or caused by the work on
+</content><category term="cpython"/><category term="optimization"/><category term="cpython"/><category term="c-api"/></entry><entry><title>Leaks discovered by subinterpreters</title><link href="https://vstinner.github.io/subinterpreter-leaks.html" rel="alternate"/><published>2020-12-23T14:00:00+01:00</published><updated>2020-12-23T14:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-12-23:/subinterpreter-leaks.html</id><summary type="html">&lt;p&gt;This article is about old reference leaks discovered or caused by the work on
 isolating subinterpreters: leaks in 6 different modules (gc, _weakref, _abc,
 _signal, _ast and _thread).&lt;/p&gt;
 &lt;img alt="_thread GC bug" src="https://vstinner.github.io/images/thread_gc_bug.jpg" /&gt;
@@ -5053,7 +5460,7 @@ converting extension modules to the multiphase initialization API (PEP 489) and
 by converting dozens of static types to heap types. We made huge progresses
 last months!&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"></link><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;
+</content><category term="cpython"/><category term="cpython"/><category term="subinterpreters"/></entry><entry><title>GIL bugfixes for daemon threads in Python 3.9</title><link href="https://vstinner.github.io/gil-bugfixes-daemon-threads-python39.html" rel="alternate"/><published>2020-04-04T22:00:00+02:00</published><updated>2020-04-04T22:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-04:/gil-bugfixes-daemon-threads-python39.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/Bouletcorp/status/1241018332112998401"&gt;
 &lt;img alt="`#CoronaMaison by Boulet" src="https://vstinner.github.io/images/coronamaison_boulet.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;My previous article &lt;a class="reference external" href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html"&gt;Daemon threads and the Python finalization in Python 3.2 and 3.3&lt;/a&gt; introduces
@@ -5298,7 +5705,7 @@ PyEval_AcquireLock() and PyEval_AcquireThread() also exit if Python is finalizin
 &lt;tt class="docutils literal"&gt;take_gil()&lt;/tt&gt; exits if finalizing &lt;strong&gt;before, while, and after&lt;/strong&gt; taking the GIL (3 checks)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"></link><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
+</content><category term="cpython"/><category term="cpython"/><category term="subinterpreters"/></entry><entry><title>Threading shutdown race condition</title><link href="https://vstinner.github.io/threading-shutdown-race-condition.html" rel="alternate"/><published>2020-04-03T20:00:00+02:00</published><updated>2020-04-03T20:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-04-03:/threading-shutdown-race-condition.html</id><summary type="html">&lt;p&gt;This article is about a race condition in threading shutdown that I fixed in
 Python 3.9 in March 2019. I also forbid spawning daemon threads in
 subinterpreters to fix another related bug.&lt;/p&gt;
 &lt;a class="reference external image-reference" href="https://twitter.com/neeljulien/status/1240292383369150464"&gt;
@@ -5471,7 +5878,7 @@ non-daemon threads is deleted.&lt;/p&gt;
 &lt;p&gt;I also modified &lt;tt class="docutils literal"&gt;Thread.start()&lt;/tt&gt; to forbid spawning daemon threads in Python
 subinterpreters to fix a related issue.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"></link><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;
+</content><category term="cpython"/><category term="cpython"/><category term="subinterpreters"/></entry><entry><title>Daemon threads and the Python finalization in Python 3.2 and 3.3</title><link href="https://vstinner.github.io/daemon-threads-python-finalization-python32.html" rel="alternate"/><published>2020-03-26T22:00:00+01:00</published><updated>2020-03-26T22:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2020-03-26:/daemon-threads-python-finalization-python32.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://twitter.com/LuppiChan/status/1240346448606171136"&gt;
 &lt;img alt="#CoronaMaison by Luppi" src="https://vstinner.github.io/images/coronamaison_luppi.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;At exit, the Python finalization calls Python objects finalizers (the
@@ -5627,7 +6034,7 @@ daemon threads. The Python finalization became more reliable.&lt;/p&gt;
 &lt;p&gt;Changing Python finalization is risky. A backport of a bugfix into Python 2.7.8
 caused a regression which required to revert the bugfix in Python 2.7.9.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="cpython"></category><category term="subinterpreters"></category></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"></link><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;
+</content><category term="cpython"/><category term="cpython"/><category term="subinterpreters"/></entry><entry><title>asyncio WSASend() memory leak</title><link href="https://vstinner.github.io/asyncio-proactor-wsasend-memory-leak.html" rel="alternate"/><published>2019-03-06T20:00:00+01:00</published><updated>2019-03-06T20:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-03-06:/asyncio-proactor-wsasend-memory-leak.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/jronaldlee/5996590138/"&gt;
 &lt;img alt="Leaking tap" src="https://vstinner.github.io/images/leaking_tap.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;I fixed multiple bugs in asyncio &lt;tt class="docutils literal"&gt;ProactorEventLoop&lt;/tt&gt; previously. But test_asyncio
@@ -5975,7 +6382,7 @@ tests make the difference.&lt;/p&gt;
 asyncio implementation is quite complex :-)&lt;/p&gt;
 &lt;p&gt;Ok, &lt;tt class="docutils literal"&gt;_overlapped.Overlapped&lt;/tt&gt; should now have a few less memory leaks :-)&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"></link><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;
+</content><category term="cpython"/><category term="asyncio"/></entry><entry><title>asyncio: WSARecv() cancellation causing data loss</title><link href="https://vstinner.github.io/asyncio-proactor-wsarecv-cancellation-data-loss.html" rel="alternate"/><published>2019-01-31T15:20:00+01:00</published><updated>2019-01-31T15:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-31:/asyncio-proactor-wsarecv-cancellation-data-loss.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/joybot/6026542856/"&gt;
 &lt;img alt="Unlocked lock" src="https://vstinner.github.io/images/lock.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;In December 2017, &lt;strong&gt;Yury Selivanov&lt;/strong&gt; pushed the long awaited &lt;tt class="docutils literal"&gt;start_tls()&lt;/tt&gt;
@@ -6371,7 +6778,7 @@ Date:   Fri Jun 8 00:25:52 2018 +0200
 failure can hide a very severe bug.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"></link><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;
+</content><category term="cpython"/><category term="asyncio"/></entry><entry><title>Asyncio: Proactor ConnectPipe() Race Condition</title><link href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html" rel="alternate"/><published>2019-01-30T18:00:00+01:00</published><updated>2019-01-30T18:00:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-30:/asyncio-proactor-connect-pipe-race-condition.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/"&gt;
 &lt;img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;Between December 2014 and January 2015, once I succeeded to fix the root issue
@@ -6587,7 +6994,7 @@ Date:   Mon Jan 26 22:30:49 2015 +0100
     has the same behaviour than ReadFile().
 &lt;/pre&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"></link><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
+</content><category term="cpython"/><category term="asyncio"/></entry><entry><title>Asyncio: Proactor Cancellation From Hell</title><link href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html" rel="alternate"/><published>2019-01-28T20:20:00+01:00</published><updated>2019-01-28T20:20:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-28:/asyncio-proactor-cancellation-from-hell.html</id><summary type="html">&lt;img alt="South Park Hell" src="https://vstinner.github.io/images/south_park_hell.jpg" /&gt;
 &lt;p&gt;Between 2014 and 2015, I was working on the new shiny &lt;tt class="docutils literal"&gt;asyncio&lt;/tt&gt; module
 (module added to Python 3.4 released in March 2014). I helped to stabilize the
 Windows implementation because... well, nobody else was paying attention to it,
@@ -6954,7 +7361,7 @@ into the overlapped memory.&lt;/li&gt;
 &lt;li&gt;The overlapped is destroyed: &lt;strong&gt;free&lt;/strong&gt; overlapped memory.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="asyncio"></category></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"></link><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;
+</content><category term="cpython"/><category term="asyncio"/></entry><entry><title>Locale Bugfixes in Python 3</title><link href="https://vstinner.github.io/locale-bugfixes-python3.html" rel="alternate"/><published>2019-01-09T00:30:00+01:00</published><updated>2019-01-09T00:30:00+01:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2019-01-09:/locale-bugfixes-python3.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://www.flickr.com/photos/svensson/40467591/"&gt;
 &lt;img alt="Unicode Mixed Bag" src="https://vstinner.github.io/images/unicode_bag.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;This article describes a few locales bugs that I fixed in Python 3 between 2012
@@ -7290,7 +7697,7 @@ def test_zh_TW_Big5(self):
 but it's not portable nor future-proof, since most constants are hardcoded and
 depends on the operating sytem and the libc version.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"></link><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" /&gt;
+</content><category term="cpython"/><category term="unicode"/><category term="locales"/></entry><entry><title>Python 3, locales and encodings</title><link href="https://vstinner.github.io/python3-locales-encodings.html" rel="alternate"/><published>2018-09-06T16:00:00+02:00</published><updated>2018-09-06T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2018-09-06:/python3-locales-encodings.html</id><summary type="html">&lt;img alt="I □ Unicode" src="https://vstinner.github.io/images/i-square-unicode.jpg" /&gt;
 &lt;p&gt;Recently, I worked on a change which looked simple: move the code to initialize
 the &lt;tt class="docutils literal"&gt;sys.stdout&lt;/tt&gt; encoding before &lt;tt class="docutils literal"&gt;Py_Initialize()&lt;/tt&gt;. While I was on it,
 I also decided to move the code which selects the Python &amp;quot;filesystem encoding&amp;quot;.
@@ -7795,4 +8202,4 @@ Honestly, I would not bet that Python 3.8 will behave properly in all possible
 cases. At least, I tried to fix all issues that I spotted! Moreover, I added
 many tests which should help to detect bugs and prevent regressions.&lt;/p&gt;
 &lt;/div&gt;
-</content><category term="cpython"></category><category term="unicode"></category><category term="locales"></category></entry></feed>
+</content><category term="cpython"/><category term="unicode"/><category term="locales"/></entry></feed>

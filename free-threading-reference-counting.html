@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Free Threading internals: reference counting — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Free Threading internals: reference counting; Date: 2026-06-03; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Free Threading internals: reference counting</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2026-06-03T16:00:00+02:00" itemprop="datePublished">Wed 03 June 2026</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+ 
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/free-threading.html" rel="tag">free-threading</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e">
+<img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" />
+</a>
+<p>I'm writing an article serie on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &quot;remove the
+GIL&quot; issue where previous attempts failed.</p>
+<p>This article explores the problem of tracking objects lifetime using reference
+counting in an efficient fashion.</p>
+<p>We will see how the Gilectomy project (2016-2018) started with atomic
+operations and then switched to <em>buffered reference counting</em>, and how the
+nogil project (2021-2026) solved the performance issue using <em>Biased Reference
+Counting</em>.</p>
+<p><em>Painting: The Bride by Marc Chagall (1950).</em></p>
+<div class="section" id="python-object-reference-count">
+<h2>Python object reference count</h2>
+<p>Python C API relies on reference counting to track objects lifetime. When an
+object is created, its refcount is <tt class="docutils literal">1</tt>. <tt class="docutils literal">Py_INCREF()</tt> increases the
+refcount and <tt class="docutils literal">Py_DECREF()</tt> decreases the refcount. When the refcount reachs
+<tt class="docutils literal">0</tt>, the object is destroyed.</p>
+<p>In C code, <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> are called very frequently,
+and so should be as efficient as possible.</p>
+<p>An object reference count can be read with <tt class="docutils literal">sys.getrefcount(obj)</tt>.</p>
+</div>
+<div class="section" id="atomic-operations">
+<h2>Atomic operations</h2>
+<p>In 2016, the Gilectomy project was created by Larry Hastings to remove the GIL.
+To support calling <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> in parallel, Gilectomy
+started by using atomic operations on the object refcount. For example,
+<tt class="docutils literal">Py_INCREF()</tt> calls the atomic function <tt class="docutils literal">__sync_add_and_fetch()</tt>:</p>
+<pre class="literal-block">
+typedef struct {
+    Py_ssize_t shared_refcnt;
+} ob_refcnt_t;
+
+typedef struct _object {
+    ob_refcnt_t ob_refcnt;
+    struct _typeobject *ob_type;
+} PyObject;
+
+#define Py_INCREF(op) \
+    __sync_add_and_fetch(&amp;op-&gt;ob_refcnt.shared_refcnt, 1)
+</pre>
+<p>The problem with the atomic operation is that it's a kind of locking and lock
+contention can cause bad performance. For example, if many threads modify the
+refcount of the same object, refcount operations will be serialiazed by the
+lock and so the code doesn't scale well with the number of threads.</p>
+<p>In June 2017, Larry Hastings measured (<a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going">slides</a>)
+that atomic refcount makes Python 18.9x slower on 7 CPU cores (4.4 seconds to
+83.0 seconds):</p>
+<img alt="Graphic showing the performance of reference counting" src="https://vstinner.github.io/images/ft_atomic_refcount.png" />
+<p>CPython has multiple singletons objects which are commonly used and so can
+suffer from lock contention. Examples: <tt class="docutils literal">None</tt>, integers in range
+[<tt class="docutils literal"><span class="pre">-5</span></tt>; <tt class="docutils literal">1024</tt>], empty string, single Latin-1 characters, etc.</p>
+<p>In 2015, Christian Aichinger made an experiment to use atomic operations in
+<tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt>: it made Python 20% slower overall (on a
+single thread). Read the article: <a class="reference external" href="https://www.caichinger.com/blog/2015/05/23/python_atomic_refcounting_slowdown/">Python's GIL and atomic reference counting</a>.</p>
+<p>In 2020, the usage of atomic operations in <tt class="docutils literal">Py_INCREF()</tt> was also discussed
+for sub-interpreters use case (see <a class="reference external" href="https://github.com/python/cpython/issues/84713">issue</a> and <a class="reference external" href="https://github.com/python/cpython/pull/19958">PR</a>). But at the end, it was
+decided to not share objects between sub-interpreters instead.</p>
+<p>In 2007, using atomic operations in <tt class="docutils literal">Py_INCREF()</tt> was already mentioned in a
+<a class="reference external" href="https://mail.python.org/archives/list/python-dev&#64;python.org/thread/RRDO6RHFZ6UITEONOZ5VQOZ6VTT6JN3D/#6A46ICDZPNV3YGMCCPAQFWVXV6IVKBMT">discussion about removing the GIL</a>.</p>
+</div>
+<div class="section" id="gilectomy-buffered-reference-counting">
+<h2>Gilectomy buffered reference counting</h2>
+<p>To make Gilectomy scale better, <tt class="docutils literal">Py_INCREF()</tt> has been modified to use
+&quot;buffered reference counting&quot; instead. The <tt class="docutils literal">Py_INCREF()</tt> function becomes:</p>
+<pre class="literal-block">
+static inline void Py_INCREF(PyObject *o)
+{
+    PyRefLog *rl = PyThread_get_key_value(PyRefLogTLSKey);
+    if (PyRefPad_IsFull(rl)) {
+        PyRefLog_Rotate(rl);
+    }
+    PyRefPad_Write(rl-&gt;incref, o);
+}
+</pre>
+<p><tt class="docutils literal">Py_DECREF()</tt> uses a separated reference log (<tt class="docutils literal"><span class="pre">rl-&gt;decref</span></tt>) to respect
+operations order.</p>
+<p>In October 2016, Larry Hastings compared (<a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going">slides</a>)
+atomic refcount and buffered reference counting (&quot;rcm&quot;) to a reference Python:</p>
+<img alt="Graphic showing the performance of reference counting" src="https://vstinner.github.io/images/ft_rcm.png" />
+<p>Performance is better on 7 CPU cores using &quot;buffered reference counting&quot;,
+instead of atomic operations.</p>
+<p>Read more about gilectomy:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://lwn.net/Articles/723514/">LWN: Progress on the Gilectomy</a>
+(May 2017).</li>
+<li><a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going">Slides: gilectomy: how's it going?</a>
+by Larry Hastings.</li>
+</ul>
+<p>In 2018, using a tracing garbage collector and breaking the C API was
+considered: read <a class="reference external" href="https://lwn.net/Articles/754577/">LWN: A Gilectomy update</a>.
+But it didn't happen in practice.</p>
+</div>
+<div class="section" id="biased-reference-counting">
+<h2>Biased Reference Counting</h2>
+<div class="section" id="creation-of-the-nogil-project">
+<h3>Creation of the nogil project</h3>
+<p>In 2021, Sam Gross created a &quot;nogil&quot; fork of CPython to remove the GIL.  It
+uses &quot;Biased Reference Counting&quot; which is <a class="reference external" href="https://peps.python.org/pep-0703/#reference-counting">described in PEP 703</a>:</p>
+<blockquote>
+It is based on the observation that most objects are only accessed by a
+single thread, even in multi-threaded programs. Each object is associated
+with an owning thread (the thread that created it). Reference counting
+operations from the owning thread use non-atomic instructions to modify a
+“local” reference count. Other threads use atomic instructions to modify a
+“shared” reference count. This design avoids many atomic read-modify-write
+operations that are expensive on contemporary processors.</blockquote>
+<p>Biased reference counting (BRC) is a technique first described in 2018 by Jiho
+Choi, Thomas Shull, and Josep Torrellas: <a class="reference external" href="https://dl.acm.org/doi/abs/10.1145/3243176.3243195">article</a>.</p>
+<p><tt class="docutils literal">PyObject</tt> members before:</p>
+<pre class="literal-block">
+struct _object {
+    Py_ssize_t ob_refcnt;
+    PyTypeObject *ob_type;
+};
+</pre>
+<p><tt class="docutils literal">PyObject</tt> members after:</p>
+<pre class="literal-block">
+struct _object {
+  uintptr_t ob_tid;
+  uint32_t ob_ref_local;
+  Py_ssize_t ob_ref_shared;
+  PyTypeObject *ob_type;
+};
+</pre>
+<p>The <em>ob_refcnt</em> is replaced with <em>ob_ref_local</em> and <em>ob_ref_shared</em>, and
+a new <em>ob_tid</em> member is added.</p>
+<p><em>ob_ref_local</em> is the &quot;local&quot; reference count, <em>ob_ref_shared</em> is the &quot;shared&quot;
+reference count, and <em>ob_tid</em> is the identifier of the thread which owns the
+object.</p>
+</div>
+<div class="section" id="creation-of-an-object">
+<h3>Creation of an object</h3>
+<p>Python calls <tt class="docutils literal">PyObject_INIT(op)</tt> to create a new Python object. It
+initializes <em>ob_ref_local</em> to <tt class="docutils literal">1</tt>, <em>ob_ref_shared</em> to <tt class="docutils literal">0</tt>, and <em>ob_tid</em> to
+<tt class="docutils literal">_Py_ThreadId()</tt>.</p>
+<p><tt class="docutils literal">_Py_ThreadId()</tt> gets the thread identifier. The function is called at each
+object creation, and at each <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> call. So it
+must be as efficient as possible. For example, on x86-64, it just has to read
+the <tt class="docutils literal">fs</tt> CPU register:</p>
+<pre class="literal-block">
+static inline uintptr_t
+_Py_ThreadId(void)
+{
+    uintptr_t tid;
+#if defined(_MSC_VER) &amp;&amp; defined(_M_X64)
+    tid = __readgsqword(48);
+#elif defined(__x86_64__)
+    __asm__(&quot;{movq %%fs:0, %0|mov %0, qword ptr fs:[0]}&quot; : &quot;=r&quot; (tid));  // x86_64 Linux, BSD uses FS
+#else
+    ...
+#endif
+  return tid;
+}
+</pre>
+</div>
+<div class="section" id="py-incref">
+<h3>Py_INCREF()</h3>
+<p>In Python 3.12, <tt class="docutils literal">Py_INCREF()</tt> basically just has to increase the <em>ob_refcnt</em>
+member. It also checks if an object is immortal to implement <a class="reference external" href="https://peps.python.org/pep-0683/">PEP 683</a>.</p>
+<p>Python 3.12 code:</p>
+<pre class="literal-block">
+static inline void Py_INCREF(PyObject *op)
+{
+    if (_Py_IsImmortal(op)) {
+        return;
+    }
+    op-&gt;ob_refcnt++;
+}
+</pre>
+<p>In nogil, <tt class="docutils literal">Py_INCREF()</tt> becomes more complex:</p>
+<pre class="literal-block">
+static inline int _Py_IsOwnedByCurrentThread(PyObject *ob)
+{ return ob-&gt;ob_tid == _Py_ThreadId(); }
+
+static inline void Py_INCREF(PyObject *op)
+{
+    uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
+    uint32_t new_local = local + 1;
+    if (new_local == 0) {
+        // local is equal to _Py_IMMORTAL_REFCNT_LOCAL: do nothing
+        return;
+    }
+    if (_Py_IsOwnedByCurrentThread(op)) {
+        _Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, new_local);
+    }
+    else {
+        _Py_atomic_add_ssize(&amp;op-&gt;ob_ref_shared, (1 &lt;&lt; _Py_REF_SHARED_SHIFT));
+    }
+}
+</pre>
+<div class="section" id="fast-path">
+<h4>Fast path</h4>
+<p>If the object is owned by the current thread and is mortal, which is the common
+case, the code is basically:</p>
+<pre class="literal-block">
+uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
+uint32_t new_local = local + 1;
+_Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, new_local);
+</pre>
+<p>The &quot;relaxed&quot; operations are fast since there are no synchronization or
+ordering constraints imposed on other reads or writes, only these operations'
+atomicity is guaranteed.</p>
+</div>
+<div class="section" id="slow-path">
+<h4>Slow path</h4>
+<p>If the object is not owned by the current thread, a slower code path is used:</p>
+<pre class="literal-block">
+_Py_atomic_add_ssize(&amp;op-&gt;ob_ref_shared, (1 &lt;&lt; _Py_REF_SHARED_SHIFT));
+</pre>
+<p>where <tt class="docutils literal">_Py_atomic_add_ssize()</tt> uses the &quot;sequentially consistent&quot; order which
+is slower than &quot;relaxed&quot; since it implies locking.</p>
+<p>See <a class="reference external" href="https://github.com/python/cpython/blob/1eff27f2c0452b3114bcf139062c87c025842c3e/Include/cpython/pyatomic.h">Include/cpython/pyatomic.h header</a>
+for more information on atomic functions used by CPython and memory order.</p>
+</div>
+</div>
+<div class="section" id="py-decref">
+<h3>Py_DECREF()</h3>
+<p>In Python 3.12, <tt class="docutils literal">Py_DECREF()</tt> basically decrements <em>ob_refcnt</em> and calls
+<tt class="docutils literal">_Py_Dealloc(op)</tt> if the refcount is <tt class="docutils literal">0</tt>. It also checks if the object
+is immortal to do nothing in this case.</p>
+<p>Python 3.12 code:</p>
+<pre class="literal-block">
+static inline void Py_DECREF(PyObject *op)
+{
+    if (_Py_IsImmortal(op)) {
+        return;
+    }
+    if (--op-&gt;ob_refcnt == 0) {
+        _Py_Dealloc(op);
+    }
+}
+</pre>
+<p>In nogil, the function becomes more complex:</p>
+<pre class="literal-block">
+static inline void Py_DECREF(PyObject *op)
+{
+    uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
+    if (local == _Py_IMMORTAL_REFCNT_LOCAL) {
+        return;
+    }
+    if (_Py_IsOwnedByCurrentThread(op)) {
+        local--;
+        _Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, local);
+        if (local == 0) {
+            _Py_MergeZeroLocalRefcount(op);
+        }
+    }
+    else {
+        _Py_DecRefShared(op);
+    }
+}
+</pre>
+<p>Same as <tt class="docutils literal">Py_INCREF()</tt>, fast &quot;relaxed&quot; functions are used if the object is
+owned by the current thread. If the local reference count reachs <tt class="docutils literal">0</tt>, call
+<tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> (described below).</p>
+<p>Otherwise, call slower <tt class="docutils literal">_Py_DecRefShared()</tt> code path (described below).</p>
+<p>Note: If the object is immortal, do nothing.</p>
+<div class="section" id="py-mergezerolocalrefcount-function">
+<h4><tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> function</h4>
+<p>In <tt class="docutils literal">Py_DECREF()</tt>, if an object is owned by the current thread and its
+refcount reached <tt class="docutils literal">0</tt>, <tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> is called.</p>
+<p><tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> code:</p>
+<pre class="literal-block">
+void
+_Py_MergeZeroLocalRefcount(PyObject *op)
+{
+    assert(op-&gt;ob_ref_local == 0);
+
+    Py_ssize_t shared = _Py_atomic_load_ssize_acquire(&amp;op-&gt;ob_ref_shared);
+    if (shared == 0) {
+        _Py_Dealloc(op);
+        return;
+    }
+
+    _Py_atomic_store_uintptr_relaxed(&amp;op-&gt;ob_tid, 0);
+
+    Py_ssize_t new_shared;
+    do {
+        new_shared = (shared &amp; ~_Py_REF_SHARED_FLAG_MASK) | _Py_REF_MERGED;
+    } while (!_Py_atomic_compare_exchange_ssize(&amp;op-&gt;ob_ref_shared,
+                                                &amp;shared, new_shared));
+
+    if (new_shared == _Py_REF_MERGED) {
+        _Py_Dealloc(op);
+    }
+}
+</pre>
+<p>If the shared reference count is already <tt class="docutils literal">0</tt>, the function just calls
+<tt class="docutils literal">_Py_Dealloc(op)</tt>.</p>
+<p>Otherwise, it sets <em>ob_tid</em> to <tt class="docutils literal">_Py_UNOWNED_TID</tt> (<tt class="docutils literal">0</tt>), and then adds the
+flag <tt class="docutils literal">_Py_REF_MERGED</tt> to shared reference count. If other threads called
+<tt class="docutils literal">Py_DECREF()</tt> in parallel and the shared reference count became <tt class="docutils literal">0</tt> in the
+meanwhile, <tt class="docutils literal">_Py_Dealloc(op)</tt> is called. Otherwise, there are still shared
+references to the object and so it's still alive. The object will be destroyed
+once the shared reference count reachs <tt class="docutils literal">0</tt>.</p>
+</div>
+<div class="section" id="py-decrefshared-function">
+<h4><tt class="docutils literal">_Py_DecRefShared()</tt> function</h4>
+<p><tt class="docutils literal">Py_DECREF()</tt> calls <tt class="docutils literal">_Py_DecRefShared()</tt> if the object is not owned by the
+current thread (and the object is mortal).</p>
+<p><tt class="docutils literal">_Py_DecRefShared()</tt> code:</p>
+<pre class="literal-block">
+static int
+_Py_DecRefSharedIsDead(PyObject *o)
+{
+    // Should we queue the object for the owning thread to merge?
+    int should_queue;
+
+    Py_ssize_t new_shared;
+    Py_ssize_t shared = _Py_atomic_load_ssize_relaxed(&amp;o-&gt;ob_ref_shared);
+    do {
+        should_queue = (shared == 0 || shared == _Py_REF_MAYBE_WEAKREF);
+
+        if (should_queue) {
+            // If the object had refcount zero, not queued, and not merged,
+            // then we enqueue the object to be merged by the owning thread.
+            // In this case, we don't subtract one from the reference count
+            // because the queue holds a reference.
+            new_shared = _Py_REF_QUEUED;
+        }
+        else {
+            // Otherwise, subtract one from the reference count. This might
+            // be negative!
+            new_shared = shared - (1 &lt;&lt; _Py_REF_SHARED_SHIFT);
+        }
+    } while (!_Py_atomic_compare_exchange_ssize(&amp;o-&gt;ob_ref_shared,
+                                                &amp;shared, new_shared));
+
+    if (should_queue) {
+        _Py_brc_queue_object(o);
+    }
+    else if (new_shared == _Py_REF_MERGED) {
+        // refcount is zero AND merged
+        return 1;
+    }
+    return 0;
+}
+
+void
+_Py_DecRefShared(PyObject *o)
+{
+    if (_Py_DecRefSharedIsDead(o)) {
+        _Py_Dealloc(o);
+    }
+}
+</pre>
+<p>If the shared reference count is <tt class="docutils literal">0</tt> and the <tt class="docutils literal">_Py_REF_MERGED</tt> flag is set,
+call <tt class="docutils literal">_Py_Dealloc(o)</tt>.</p>
+<p>If the object has a shared reference count of <tt class="docutils literal">0</tt>, is not queued, and is not
+merged, then set the <tt class="docutils literal">_Py_REF_QUEUED</tt> flag and calls
+<tt class="docutils literal">_Py_brc_queue_object(o)</tt> which schedules the object destruction in its
+owning thread.</p>
+<p>Otherwise, decrement the shared reference count.</p>
+</div>
+</div>
+<div class="section" id="shared-reference-count-flags">
+<h3>Shared reference count flags</h3>
+<p>The 2 least significant bits of <em>ob_ref_shared</em> are used to store a flag:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_Py_REF_MAYBE_WEAKREF</tt></li>
+<li><tt class="docutils literal">_Py_REF_QUEUED</tt></li>
+<li><tt class="docutils literal">_Py_REF_MERGED</tt></li>
+</ul>
+<div class="section" id="py-ref-merged-flag">
+<h4><tt class="docutils literal">_Py_REF_MERGED</tt> flag</h4>
+<p><tt class="docutils literal">Py_DECREF()</tt> sets the <tt class="docutils literal">_Py_REF_MERGED</tt> flag if the object is owned by the
+current thread and <em>ob_ref_local</em> reached <tt class="docutils literal">0</tt>.</p>
+<p>The <tt class="docutils literal">_Py_ExplicitMergeRefcount()</tt> and GC <tt class="docutils literal">merge_refcount()</tt> explicitly
+merge <em>ob_ref_local</em> into <em>ob_ref_shared</em> and sets <tt class="docutils literal">_Py_REF_MERGED</tt> flag.</p>
+</div>
+<div class="section" id="py-ref-queued-flag">
+<h4><tt class="docutils literal">_Py_REF_QUEUED</tt> flag</h4>
+<p><tt class="docutils literal">Py_DECREF()</tt> sets the <tt class="docutils literal">_Py_REF_QUEUED</tt> flag if the object is not owned by
+the current thread and the shared reference count reached <tt class="docutils literal">0</tt>. In this case,
+<tt class="docutils literal">_Py_brc_queue_object(o)</tt> is called to schedule the object destruction in its
+owning thread.</p>
+</div>
+<div class="section" id="py-ref-maybe-weakref-flag">
+<h4><tt class="docutils literal">_Py_REF_MAYBE_WEAKREF</tt> flag</h4>
+<p><a class="reference external" href="https://docs.python.org/dev/c-api/object.html#c.PyUnstable_EnableTryIncRef">PyUnstable_EnableTryIncRef()</a>
+enables subsequent uses of <a class="reference external" href="https://docs.python.org/dev/c-api/object.html#c.PyUnstable_TryIncRef">PyUnstable_TryIncRef()</a> on
+<em>obj</em>.  It sets the <tt class="docutils literal">_Py_REF_MAYBE_WEAKREF</tt> flag.</p>
+<p><tt class="docutils literal">_Py_NewRefWithLock()</tt> and <tt class="docutils literal">_Py_XNewRefWithLock()</tt> also set the
+<tt class="docutils literal">_Py_REF_MAYBE_WEAKREF</tt> flag. These functions are similar to
+<tt class="docutils literal">Py_NewRef()</tt>/<tt class="docutils literal">Py_XNewRef()</tt>, but also optimistically sets
+<tt class="docutils literal">_Py_REF_MAYBE_WEAKREF</tt> on objects owned by a different thread.</p>
+</div>
+</div>
+</div>
+<div class="section" id="conclusion">
+<h2>Conclusion</h2>
+<p>Biased Reference Counting is more efficient than atomic operatons on the
+refcount because they use cheap &quot;relaxed&quot; operations on the refcount if the
+object is owned by the current thread which is the most common case.</p>
+<p>In exchange, <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> functions became (way) more
+complex to implement Biased Reference Counting.</p>
+</div>
+</div>
+	<hr>
+	<h2>Comments</h2>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (28)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>

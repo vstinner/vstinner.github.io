@@ -27,6 +27,31 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/python37-gil-change.html">
+		<h2 itemprop="name headline">How I fixed a very old GIL race condition in Python 3.7</h2>
+	</a>
+	<time datetime="2018-03-08T10:00:00+01:00" itemprop="datePublished">Thu 08 March 2018</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL</strong> (Global
+Interpreter Lock), one of the most critical part of Python. I had to dig the
+Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
+this time, <em>threads were …</em></p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/python37-pep-564-nanoseconds.html">
 		<h2 itemprop="name headline">Python 3.7 nanoseconds</h2>
 	</a>
@@ -311,38 +336,6 @@ macros with function calls.</p>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/contrib-cpython-2017q2-part1.html">
-		<h2 itemprop="name headline">My contributions to CPython during 2017 Q2 (part 1)</h2>
-	</a>
-	<time datetime="2017-07-13T16:00:00+02:00" itemprop="datePublished">Thu 13 July 2017</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><p>This is the first part of my contributions to <a class="reference external" href="https://www.python.org/">CPython</a> during 2017 Q2 (april, may, june):</p>
-<ul class="simple">
-<li>Statistics</li>
-<li>Buidbots and test.bisect</li>
-<li>Python 3.6.0 regression</li>
-<li>struct.Struct.format type</li>
-<li>Optimization: one less syscall per open() call</li>
-<li>make regen-all</li>
-</ul>
-<p>Previous report: <a class="reference external" href="https://vstinner.github.io/contrib-cpython-2017q1.html">My contributions to CPython during 2017 Q1</a>.</p>
-<p>Next reports …</p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/index4.html">&larr; Previous</a></li>
@@ -384,7 +377,7 @@ macros with function calls.</p>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (27)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (28)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

@@ -27,6 +27,38 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/asyncio-proactor-connect-pipe-race-condition.html">
+		<h2 itemprop="name headline">Asyncio: Proactor ConnectPipe() Race Condition</h2>
+	</a>
+	<time datetime="2019-01-30T18:00:00+01:00" itemprop="datePublished">Wed 30 January 2019</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://www.flickr.com/photos/phrawr/7612947262/">
+<img alt="Pipes" src="https://vstinner.github.io/images/pipes.jpg" />
+</a>
+<p>Between December 2014 and January 2015, once I succeeded to fix the root issue
+of the random asyncio crashes on Windows (<a class="reference external" href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">Proactor Cancellation From Hell</a>), I fixed more race conditions
+and bugs in <tt class="docutils literal">ProactorEventLoop</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">ConnectPipe()</tt> Race Condition</li>
+<li>Race Condition in <tt class="docutils literal">BaseSubprocessTransport._try_finish()</tt></li>
+<li>Close the transport on failure: ResourceWarning</li>
+<li>Cleanup code …</li></ul></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/asyncio.html" rel="tag">asyncio</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/asyncio-proactor-cancellation-from-hell.html">
 		<h2 itemprop="name headline">Asyncio: Proactor Cancellation From Hell</h2>
 	</a>
@@ -306,31 +338,6 @@ $ python3.0
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/python37-gil-change.html">
-		<h2 itemprop="name headline">How I fixed a very old GIL race condition in Python 3.7</h2>
-	</a>
-	<time datetime="2018-03-08T10:00:00+01:00" itemprop="datePublished">Thu 08 March 2018</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><p><strong>It took me 4 years to fix a nasty bug in the famous Python GIL</strong> (Global
-Interpreter Lock), one of the most critical part of Python. I had to dig the
-Git history to find a <strong>change made 26 years ago</strong> by <strong>Guido van Rossum</strong>: at
-this time, <em>threads were …</em></p></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/python.html" rel="category">python</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev"><a href="https://vstinner.github.io/author/victor-stinner3.html">&larr; Previous</a></li>
@@ -372,7 +379,7 @@ this time, <em>threads were …</em></p></div>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (27)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (28)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>
