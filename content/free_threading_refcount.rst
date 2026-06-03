@@ -19,6 +19,11 @@ GIL" issue where previous attempts failed.
 This article explores the problem of tracking objects lifetime using reference
 counting in an efficient fashion.
 
+We will see how the Gilectomy project (2016-2018) started with atomic
+operations and then switched to *buffered reference counting*, and how the
+nogil project (2021-2026) solved the performance issue using *Biased Reference
+Counting*.
+
 *Painting: The Bride by Marc Chagall (1950).*
 
 Python object reference count
