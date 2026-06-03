@@ -251,7 +251,7 @@ case, the code is basically::
     uint32_t new_local = local + 1;
     _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, new_local);
 
-The "relaxed" operations are fast since there are no synchronization or
+The "relaxed" operations are cheap since there are no synchronization or
 ordering constraints imposed on other reads or writes, only these operations'
 atomicity is guaranteed.
 
@@ -308,7 +308,7 @@ In nogil, the function becomes more complex::
         }
     }
 
-Same as ``Py_INCREF()``, fast "relaxed" functions are used if the object is
+Same as ``Py_INCREF()``, cheap "relaxed" functions are used if the object is
 owned by the current thread. If the local reference count reachs ``0``, call
 ``_Py_MergeZeroLocalRefcount()`` (described below).
 
@@ -323,7 +323,7 @@ Note: If the object is immortal, do nothing.
 In ``Py_DECREF()``, if an object is owned by the current thread and its
 refcount reached ``0``, ``_Py_MergeZeroLocalRefcount()`` is called.
 
-``_Py_MergeZeroLocalRefcount()`` code::
+::
 
     void
     _Py_MergeZeroLocalRefcount(PyObject *op)
@@ -349,7 +349,7 @@ refcount reached ``0``, ``_Py_MergeZeroLocalRefcount()`` is called.
         }
     }
 
-If the shared reference count is already ``0``, the function just calls
+If the shared reference count is ``0``, the function just calls
 ``_Py_Dealloc(op)``.
 
 Otherwise, it sets *ob_tid* to ``_Py_UNOWNED_TID`` (``0``), and then adds the
@@ -365,7 +365,7 @@ once the shared reference count reachs ``0``.
 ``Py_DECREF()`` calls ``_Py_DecRefShared()`` if the object is not owned by the
 current thread (and the object is mortal).
 
-``_Py_DecRefShared()`` code::
+::
 
     static int
     _Py_DecRefSharedIsDead(PyObject *o)
@@ -437,7 +437,8 @@ The 2 least significant bits of *ob_ref_shared* are used to store a flag:
 current thread and *ob_ref_local* reached ``0``.
 
 The ``_Py_ExplicitMergeRefcount()`` and GC ``merge_refcount()`` explicitly
-merge *ob_ref_local* into *ob_ref_shared* and sets ``_Py_REF_MERGED`` flag.
+merge *ob_ref_local* into *ob_ref_shared*, set *ob_tid* to ``_Py_UNOWNED_TID``
+(``0``), and set the ``_Py_REF_MERGED`` flag.
 
 ``_Py_REF_QUEUED`` flag
 ^^^^^^^^^^^^^^^^^^^^^^^
