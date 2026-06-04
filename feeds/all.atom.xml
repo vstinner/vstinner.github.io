@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-06-04T17:00:00+02:00</updated><entry><title>Free Threading internals: deferred reference counting</title><link href="https://vstinner.github.io/free-threading-deferred-reference-counting.html" rel="alternate"/><published>2026-06-04T17:00:00+02:00</published><updated>2026-06-04T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-04:/free-threading-deferred-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Girl_with_Balloon"&gt;
 &lt;img alt="Banksy - Girl with balloon (2002)" src="https://vstinner.github.io/images/banksy_girl_balloon.jpg" /&gt;
 &lt;/a&gt;
-&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+&lt;p&gt;I'm writing an article series on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
 GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -19,7 +19,7 @@ GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
 seen how the reference …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Girl_with_Balloon"&gt;
 &lt;img alt="Banksy - Girl with balloon (2002)" src="https://vstinner.github.io/images/banksy_girl_balloon.jpg" /&gt;
 &lt;/a&gt;
-&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+&lt;p&gt;I'm writing an article series on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
 GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -331,7 +331,7 @@ is no longer the bottleneck.&lt;/p&gt;
 </content><category term="cpython"/><category term="free-threading"/><category term="cpython"/></entry><entry><title>Free Threading internals: reference counting</title><link href="https://vstinner.github.io/free-threading-reference-counting.html" rel="alternate"/><published>2026-06-03T16:00:00+02:00</published><updated>2026-06-03T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-03:/free-threading-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
 &lt;img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" /&gt;
 &lt;/a&gt;
-&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+&lt;p&gt;I'm writing an article series on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
 GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
 &lt;ul class="simple"&gt;
@@ -347,7 +347,7 @@ GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
 &lt;p&gt;This first article explores the problem of tracking objects lifetime …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
 &lt;img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" /&gt;
 &lt;/a&gt;
-&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+&lt;p&gt;I'm writing an article series on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
 GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
 &lt;ul class="simple"&gt;
