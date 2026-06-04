@@ -54,7 +54,17 @@
 <p>I'm writing an article serie on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &quot;remove the
 GIL&quot; issue where previous attempts failed.</p>
-<p>This article explores the problem of tracking objects lifetime using reference
+<ul class="simple">
+<li><ol class="first arabic">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html">Reference counting</a> (this article)</li>
+</ol>
+</li>
+<li><ol class="first arabic" start="2">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html">Deferred reference counting</a></li>
+</ol>
+</li>
+</ul>
+<p>This first article explores the problem of tracking objects lifetime using reference
 counting in an efficient fashion.</p>
 <p>We will see how the Gilectomy project (2016-2018) started with atomic
 operations and then switched to <em>buffered reference counting</em>, and how the
@@ -475,7 +485,7 @@ complex to implement Biased Reference Counting.</p>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (28)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (29)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

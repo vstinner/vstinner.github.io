@@ -1,19 +1,366 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-06-03T16:00:00+02:00</updated><entry><title>Free Threading internals: reference counting</title><link href="https://vstinner.github.io/free-threading-reference-counting.html" rel="alternate"/><published>2026-06-03T16:00:00+02:00</published><updated>2026-06-03T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-03:/free-threading-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-06-04T17:00:00+02:00</updated><entry><title>Free Threading internals: deferred reference counting</title><link href="https://vstinner.github.io/free-threading-deferred-reference-counting.html" rel="alternate"/><published>2026-06-04T17:00:00+02:00</published><updated>2026-06-04T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-04:/free-threading-deferred-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Girl_with_Balloon"&gt;
+&lt;img alt="Banksy - Girl with balloon (2002)" src="https://vstinner.github.io/images/banksy_girl_balloon.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
+GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html"&gt;Reference counting&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html"&gt;Deferred reference counting&lt;/a&gt; (this article)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the &lt;a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html"&gt;previous article&lt;/a&gt;, we have
+seen how the reference …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Girl_with_Balloon"&gt;
+&lt;img alt="Banksy - Girl with balloon (2002)" src="https://vstinner.github.io/images/banksy_girl_balloon.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
+GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html"&gt;Reference counting&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html"&gt;Deferred reference counting&lt;/a&gt; (this article)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the &lt;a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html"&gt;previous article&lt;/a&gt;, we have
+seen how the reference count performance issue was addressed with &lt;em&gt;Biased
+Reference Counting&lt;/em&gt;. In this article, we will investigate further technics
+reducing reference count contention even more.&lt;/p&gt;
+&lt;p&gt;In this second article, we will see how immortal objects avoid reference
+count contention by doing nothing in &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;. Then
+we will see how deferred reference count combined with stack references can
+avoid the need to call &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Photo: Banksy - Girl with balloon (2002).&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="immortal-objects-pep-683"&gt;
+&lt;h2&gt;Immortal objects (PEP 683)&lt;/h2&gt;
+&lt;p&gt;In Python 3.12 (in 2022), before Free Threading (Python 3.13), Eric Snow and
+Eddie Elizondo managed to convince the Steering Council and the Python
+community with &lt;a class="reference external" href="https://peps.python.org/pep-0683/"&gt;PEP 683&lt;/a&gt; that modifying
+&lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; to do nothing on immortal objects is worth
+it.&lt;/p&gt;
+&lt;p&gt;The implementation basically adds the following code at the beginning of
+&lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; functions:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+if (_Py_IsImmortal(op)) {
+    return;
+}
+&lt;/pre&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;sys._is_immortal(obj)&lt;/tt&gt; function (added to Python 3.14) can be used to
+check if an object is immortal.  Immortal objects use a special value for their
+reference count which can be surprising. Example on Python 3.16:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.16
+&amp;gt;&amp;gt;&amp;gt; obj = 1  # an immortal object
+&amp;gt;&amp;gt;&amp;gt; import sys; sys._is_immortal(obj)
+True
+&amp;gt;&amp;gt;&amp;gt; sys.getrefcount(obj)  # surprise!
+3221225472
+&lt;/pre&gt;
+&lt;p&gt;Note: You should not rely on the reference count of immortal objects.&lt;/p&gt;
+&lt;div class="section" id="free-threading"&gt;
+&lt;h3&gt;Free Threading&lt;/h3&gt;
+&lt;p&gt;In Free Threading, reference counting on immortal objects is cheap, since
+&lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; do nothing on them. There is no risk of
+reference count contention.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-16-static-immortal-objects"&gt;
+&lt;h3&gt;Python 3.16 static immortal objects&lt;/h3&gt;
+&lt;p&gt;Python 3.16 creates many Python static objects at build time:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;1030 integer singletons (range [-5; 1024])&lt;/li&gt;
+&lt;li&gt;256 Unicode singletons (range [U+0000; U+00ff])&lt;/li&gt;
+&lt;li&gt;256 bytes singletons (&lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;b'\x00'&lt;/span&gt;&lt;/tt&gt; to &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;b'\xff'&lt;/span&gt;&lt;/tt&gt;)&lt;/li&gt;
+&lt;li&gt;around 865 static Unicode strings&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These static objects are created as immortal objects. Examples:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.16
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal('a')
+True
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(b'a')
+True
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(123)
+True
+&lt;/pre&gt;
+&lt;p&gt;For details on static objects, see the internal header files:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/internal/pycore_global_strings.h&lt;/tt&gt;: declare static strings.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Include/internal/pycore_runtime_init_generated.h&lt;/tt&gt;: initialize all static
+objects.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Python 3.16 has more singletons objects, also created as immortal objects:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;None&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;Ellipsis&lt;/tt&gt; (&lt;tt class="docutils literal"&gt;...&lt;/tt&gt;), &lt;tt class="docutils literal"&gt;False&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;True&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Empty bytes and Unicode strings (&lt;tt class="docutils literal"&gt;b''&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;''&lt;/tt&gt;)&lt;/li&gt;
+&lt;li&gt;Empty tuple (&lt;tt class="docutils literal"&gt;()&lt;/tt&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Examples:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(None)
+True
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(True)
+True
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(())
+True
+&lt;/pre&gt;
+&lt;p&gt;And Python 3.16 has 120 &amp;quot;static types&amp;quot;, including built-in types, which are
+also created as immortal objects. Examples:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.16
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(int)
+True
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(str)
+True
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(dict)
+True
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="python-3-16-runtime-immortal-objects"&gt;
+&lt;h3&gt;Python 3.16 runtime immortal objects&lt;/h3&gt;
+&lt;p&gt;On Free Threading, &lt;tt class="docutils literal"&gt;sys.intern(str)&lt;/tt&gt; marks the interned string as immortal:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.16t
+&amp;gt;&amp;gt;&amp;gt; import sys
+&amp;gt;&amp;gt;&amp;gt; s = sys.intern(&amp;quot;long unique string&amp;quot;)
+&amp;gt;&amp;gt;&amp;gt; sys._is_immortal(s)
+True
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunstable-setimmortal"&gt;
+&lt;h3&gt;&lt;tt class="docutils literal"&gt;PyUnstable_SetImmortal()&lt;/tt&gt;&lt;/h3&gt;
+&lt;p&gt;Python 3.15 added &lt;a class="reference external" href="https://docs.python.org/dev/c-api/object.html#c.PyUnstable_SetImmortal"&gt;PyUnstable_SetImmortal()&lt;/a&gt; C
+API which can be used to mark an object as immortal.&lt;/p&gt;
+&lt;blockquote&gt;
+The argument should be uniquely referenced by the calling thread. This is
+intended to be used for reducing reference counting contention in the
+free-threaded build for objects which are shared across threads.&lt;/blockquote&gt;
+&lt;p&gt;If an object is &lt;a class="reference external" href="https://docs.python.org/dev/glossary.html#term-immortal"&gt;immortal&lt;/a&gt;, its reference
+count is never modified, and therefore it is &lt;strong&gt;never deallocated&lt;/strong&gt; while the
+interpreter is running.&lt;/p&gt;
+&lt;p&gt;Unicode strings cannot be made immortal with this API. See
+&lt;a class="reference external" href="https://github.com/python/cpython/blob/aa8a43d179bad5cd9fbfce63b630e2ee0bd617e4/InternalDocs/string_interning.md?plain=1#L57"&gt;InternalDocs/string_interning.md&lt;/a&gt;
+for the rationale. Extract:&lt;/p&gt;
+&lt;blockquote&gt;
+Invariant: Every immortal string is interned. In practice, this means that
+you must not use &lt;tt class="docutils literal"&gt;_Py_SetImmortal()&lt;/tt&gt; on a string. The converse is not
+true: interned strings can be mortal.&lt;/blockquote&gt;
+&lt;p&gt;On a Free-Threaded build, &lt;tt class="docutils literal"&gt;sys.intern(str)&lt;/tt&gt; marks the interned string as
+immortal, and so the C function &lt;tt class="docutils literal"&gt;PyUnicode_InternInPlace()&lt;/tt&gt; can be used to
+mark a string as immortal.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="deferred-reference-count"&gt;
+&lt;h2&gt;Deferred reference count&lt;/h2&gt;
+&lt;p&gt;Python 3.13 added deferred reference counting with the implementation of Free
+Threading. Python 3.14 added &lt;a class="reference external" href="https://docs.python.org/dev/c-api/object.html#c.PyUnstable_Object_EnableDeferredRefcount"&gt;PyUnstable_Object_EnableDeferredRefcount(obj)&lt;/a&gt;
+function:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Enable deferred reference counting on &lt;em&gt;obj&lt;/em&gt;, if supported by the runtime.
+In the free-threaded build, this allows the interpreter to avoid reference
+count adjustments to &lt;em&gt;obj&lt;/em&gt;, which may improve multi-threaded performance.&lt;/p&gt;
+&lt;p&gt;The tradeoff is that &lt;em&gt;obj&lt;/em&gt; &lt;strong&gt;will only be deallocated by the tracing
+garbage collector&lt;/strong&gt;, and not when the interpreter no longer has any
+references to it.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;On Free Threading, the function sets the &lt;tt class="docutils literal"&gt;_PyGC_BITS_DEFERRED&lt;/tt&gt; flag in the
+object GC bits (&lt;em&gt;ob_gc_bits&lt;/em&gt;) and sets the shared reference count
+(&lt;em&gt;ob_ref_shared&lt;/em&gt;) to the special value &lt;tt class="docutils literal"&gt;_Py_REF_DEFERRED&lt;/tt&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+This value is added to &lt;em&gt;ob_ref_shared&lt;/em&gt; for objects that use deferred
+reference counting so that they are not immediately deallocated when the
+non-deferred reference count drops to zero.&lt;/blockquote&gt;
+&lt;p&gt;The function only works on types implementing the GC protocol
+(&lt;tt class="docutils literal"&gt;Py_TPFLAGS_HAVE_GC&lt;/tt&gt; flag). It's the case for all types implemented in
+Python, but not for static types implemented in C.&lt;/p&gt;
+&lt;p&gt;Python 3.16 creates static immortal objects with deferred reference count.&lt;/p&gt;
+&lt;p&gt;Deferred reference counting is also used for modules, top-level functions (but
+not nested functions), class and static methods, and some other objects.
+Examples on Free Threading:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+$ python3.16t
+&amp;gt;&amp;gt;&amp;gt; import _testinternalcapi
+&amp;gt;&amp;gt;&amp;gt; import sys
+&amp;gt;&amp;gt;&amp;gt; _testinternalcapi.has_deferred_refcount(sys)  # module
+True
+&amp;gt;&amp;gt;&amp;gt; _testinternalcapi.has_deferred_refcount(sys.getrefcount)  # function
+True
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div class="section" id="stack-reference"&gt;
+&lt;h2&gt;Stack reference&lt;/h2&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://peps.python.org/pep-0703/#deferred-reference-counting"&gt;PEP 703: Deferred Reference Counting&lt;/a&gt; promises:&lt;/p&gt;
+&lt;blockquote&gt;
+Typically, the interpreter modifies objects’ reference counts as they are
+pushed to and popped from the interpreter’s stack. The interpreter &lt;strong&gt;skips
+these reference counting operations&lt;/strong&gt; for objects that use deferred
+reference counting.&lt;/blockquote&gt;
+&lt;p&gt;To implement this optimization, stack references were added to Python 3.13.
+Extract of &lt;a class="reference external" href="https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/InternalDocs/stackrefs.md"&gt;InternalDocs/stackrefs.md&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+Stack references are the interpreter's tagged representation of values on
+the evaluation stack. They carry metadata to track ownership and support
+optimizations such as tagged small ints.&lt;/blockquote&gt;
+&lt;p&gt;A &lt;tt class="docutils literal"&gt;_PyStackRef&lt;/tt&gt; is a tagged pointer-sized value. Tag bits distinguish three
+cases:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; unset - reference count lives on the pointed-to object.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; set - ownership is &amp;quot;borrowed&amp;quot; (&lt;strong&gt;no refcount to drop on
+close&lt;/strong&gt;) or the object is immortal.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Py_INT_TAG&lt;/tt&gt; set - tagged small integer stored directly in the stackref (no heap allocation).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Since the Python memory allocator uses at least an alignment on 8 bytes, the 3
+least significant bits are available to store a tag. (Currently, &lt;tt class="docutils literal"&gt;_PyStackRef&lt;/tt&gt;
+only uses 2 bits for the tag.)&lt;/p&gt;
+&lt;p&gt;For example, the following functions can use the &lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; tag and so
+avoid calling &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+void another_func(_PyStackRef ref)
+{
+    PyObject *obj = PyStackRef_AsPyObjectBorrow(ref);  // borrowed ref
+    // ... use obj ...
+}
+
+void func(PyObject *obj)
+{
+    // Make the assumption that the caller owns a strong reference to obj
+    _PyStackRef ref = PyStackRef_FromPyObjectBorrow(obj);
+
+    // Check that Py_TAG_REFCNT flag is set
+    assert(!PyStackRef_RefcountOnObject(ref));
+
+    another_func(ref);
+
+    PyStackRef_CLOSE(ref);
+}
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_PyStackRef_FromPyObjectNew()&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;On a Free-threaded Python build, if the object uses &lt;strong&gt;deferred reference
+count&lt;/strong&gt;, use &lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; flag.&lt;/li&gt;
+&lt;li&gt;If the object is &lt;strong&gt;immortal&lt;/strong&gt;, use the &lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; flag.&lt;/li&gt;
+&lt;li&gt;Otherwise, &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; is called.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyStackRef_CLOSE()&lt;/tt&gt; only calls &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; if the &lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; flag
+is not set.&lt;/p&gt;
+&lt;p&gt;Read &lt;a class="reference external" href="https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/Include/internal/pycore_stackref.h"&gt;pycore_stackref.h internal header&lt;/a&gt;
+for more information on the stack reference API.&lt;/p&gt;
+&lt;p&gt;The API was added to Python 3.13 (2024) by Ken Jin (&lt;a class="reference external" href="https://github.com/python/cpython/pull/118330"&gt;PR gh-118330&lt;/a&gt;) to implement tagged
+pointers. It only started to be used widely in Python 3.14 (2025) internals (in
+&lt;tt class="docutils literal"&gt;Python/ceval.c&lt;/tt&gt;). See &lt;a class="reference external" href="https://github.com/faster-cpython/ideas/issues/632"&gt;faster-python issue #632&lt;/a&gt; for the background on
+this work.&lt;/p&gt;
+&lt;div class="section" id="pycstackref-api"&gt;
+&lt;h3&gt;&lt;tt class="docutils literal"&gt;_PyCStackRef&lt;/tt&gt; API&lt;/h3&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;_PyCStackRef&lt;/tt&gt; is a stack reference that can be stored in a regular C local
+variable and be visible to the garbage collector in the free threading build.
+Used in combination with &lt;tt class="docutils literal"&gt;_PyThreadState_PushCStackRef()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;On Free-Threading, &lt;tt class="docutils literal"&gt;_PyThreadState_PushCStackRef()&lt;/tt&gt; adds the reference to the
+linked list &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;tstate-&amp;gt;c_stack_refs&lt;/span&gt;&lt;/tt&gt;, and the garbage collector traverses this
+list.&lt;/p&gt;
+&lt;p&gt;Example of usage:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+_PyCStackRef mro_ref;
+_PyThreadState_PushCStackRef(tstate, &amp;amp;mro_ref);
+mro_ref.ref = PyStackRef_FromPyObjectNew(mro);
+// ... use mro_ref ...
+_PyThreadState_PopCStackRef(tstate, &amp;amp;mro_ref);
+&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bytecode-evaluation-loop"&gt;
+&lt;h2&gt;Bytecode evaluation loop&lt;/h2&gt;
+&lt;p&gt;To explain how stack reference avoids calling &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt;, let's see how LOAD_CONST and POP_TOP opcodes are implemented
+in Python 3.16 with stack reference, compared to Python 3.13. The bytecode
+evaluation loop in implemented in &lt;tt class="docutils literal"&gt;Python/ceval.c&lt;/tt&gt; and opcodes are
+implemented in &lt;tt class="docutils literal"&gt;Python/generated_cases.c.h&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Python 3.13 LOAD_CONST opcode:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject *value = GETITEM(FRAME_CO_CONSTS, oparg);
+Py_INCREF(value);
+stack_pointer[0] = value;
+stack_pointer += 1;
+&lt;/pre&gt;
+&lt;p&gt;Python 3.16 LOAD_CONST opcode using stack reference:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+PyObject *obj = GETITEM(FRAME_CO_CONSTS, oparg);
+_PyStackRef value = PyStackRef_FromPyObjectBorrow(obj);
+stack_pointer[0] = value;
+stack_pointer += 1;
+&lt;/pre&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyStackRef_FromPyObjectBorrow(obj)&lt;/tt&gt; uses the &lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; flag and
+doesn't call &lt;tt class="docutils literal"&gt;Py_INCREF(obj)&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Python 3.13 POP_TOP opcode:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+Py_DECREF(stack_pointer[-1]);
+stack_pointer -= 1;
+&lt;/pre&gt;
+&lt;p&gt;Python 3.16 POP_TOP opcode using stack reference:&lt;/p&gt;
+&lt;pre class="literal-block"&gt;
+_PyStackRef value = stack_pointer[-1];
+PyStackRef_XCLOSE(value);
+stack_pointer -= 1;
+&lt;/pre&gt;
+&lt;p&gt;Since LOAD_CONST creates the stack reference with the &lt;tt class="docutils literal"&gt;Py_TAG_REFCNT&lt;/tt&gt; flag,
+&lt;tt class="docutils literal"&gt;PyStackRef_XCLOSE(value)&lt;/tt&gt; does nothing: it doesn't call
+&lt;tt class="docutils literal"&gt;Py_DECREF(value)&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;At the end, using stack references avoid many &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; calls in the bytecode evalution loop, making Python faster.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="conclusion"&gt;
+&lt;h2&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Python 3.16 marks many objects as immortal which avoids reference count
+contention, since &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; do nothing in this case.&lt;/p&gt;
+&lt;p&gt;Python 3.16 also uses deferred reference counting combined with stack
+references to avoid calling &lt;tt class="docutils literal"&gt;Py_INCREF()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;Py_DECREF()&lt;/tt&gt; which is even
+faster.&lt;/p&gt;
+&lt;p&gt;Biased Reference Counting, immortal objects, deferred reference counting and
+stack reference solved the reference count contention issue and makes sure that
+threads scales well with the number of CPU cores. At least, reference counting
+is no longer the bottleneck.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"/><category term="free-threading"/><category term="cpython"/></entry><entry><title>Free Threading internals: reference counting</title><link href="https://vstinner.github.io/free-threading-reference-counting.html" rel="alternate"/><published>2026-06-03T16:00:00+02:00</published><updated>2026-06-03T16:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-03:/free-threading-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
 &lt;img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
 GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
-&lt;p&gt;This article explores the problem of tracking objects lifetime using reference
-counting in an efficient fashion.&lt;/p&gt;
-&lt;p&gt;We …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html"&gt;Reference counting&lt;/a&gt; (this article)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html"&gt;Deferred reference counting&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This first article explores the problem of tracking objects lifetime …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/La_Mari%C3%A9e"&gt;
 &lt;img alt="The Bride by Marc Chagall (1950)" src="https://vstinner.github.io/images/chagall_la_mariee.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;I'm writing an article serie on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the &amp;quot;remove the
 GIL&amp;quot; issue where previous attempts failed.&lt;/p&gt;
-&lt;p&gt;This article explores the problem of tracking objects lifetime using reference
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;ol class="first arabic"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html"&gt;Reference counting&lt;/a&gt; (this article)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ol class="first arabic" start="2"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html"&gt;Deferred reference counting&lt;/a&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This first article explores the problem of tracking objects lifetime using reference
 counting in an efficient fashion.&lt;/p&gt;
 &lt;p&gt;We will see how the Gilectomy project (2016-2018) started with atomic
 operations and then switched to &lt;em&gt;buffered reference counting&lt;/em&gt;, and how the
