@@ -40,3 +40,6 @@ Command::
     python3 -m pip install --user --upgrade pelican ghp-import
 
 The aboutwilson theme comes from: https://github.com/getpelican/pelican-themes/tree/master/aboutwilson
+
+I modified the CSS (``local.css``) and the article template (to remove
+comments).
