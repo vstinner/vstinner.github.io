@@ -48,19 +48,21 @@ Atomic operations
 In 2016, the Gilectomy project was created by Larry Hastings to remove the GIL.
 To support calling ``Py_INCREF()`` and ``Py_DECREF()`` in parallel, Gilectomy
 started by using atomic operations on the object refcount. For example,
-``Py_INCREF()`` calls the atomic function ``__sync_add_and_fetch()``::
+``Py_INCREF()`` calls the atomic function ``__sync_add_and_fetch()``:
 
-    typedef struct {
-        Py_ssize_t shared_refcnt;
-    } ob_refcnt_t;
+.. code-block:: c
 
-    typedef struct _object {
-        ob_refcnt_t ob_refcnt;
-        struct _typeobject *ob_type;
-    } PyObject;
+   typedef struct {
+       Py_ssize_t shared_refcnt;
+   } ob_refcnt_t;
 
-    #define Py_INCREF(op) \
-        __sync_add_and_fetch(&op->ob_refcnt.shared_refcnt, 1)
+   typedef struct _object {
+       ob_refcnt_t ob_refcnt;
+       struct _typeobject *ob_type;
+   } PyObject;
+
+   #define Py_INCREF(op) \
+       __sync_add_and_fetch(&op->ob_refcnt.shared_refcnt, 1)
 
 The problem with the atomic operation is that it's a kind of locking and lock
 contention can cause bad performance. For example, if many threads modify the
@@ -98,16 +100,18 @@ Gilectomy buffered reference counting
 =====================================
 
 To make Gilectomy scale better, ``Py_INCREF()`` has been modified to use
-"buffered reference counting" instead. The ``Py_INCREF()`` function becomes::
+"buffered reference counting" instead. The ``Py_INCREF()`` function becomes:
 
-    static inline void Py_INCREF(PyObject *o)
-    {
-        PyRefLog *rl = PyThread_get_key_value(PyRefLogTLSKey);
-        if (PyRefPad_IsFull(rl)) {
-            PyRefLog_Rotate(rl);
-        }
-        PyRefPad_Write(rl->incref, o);
-    }
+.. code-block:: c
+
+   static inline void Py_INCREF(PyObject *o)
+   {
+       PyRefLog *rl = PyThread_get_key_value(PyRefLogTLSKey);
+       if (PyRefPad_IsFull(rl)) {
+           PyRefLog_Rotate(rl);
+       }
+       PyRefPad_Write(rl->incref, o);
+   }
 
 ``Py_DECREF()`` uses a separated reference log (``rl->decref``) to respect
 operations order.
@@ -156,21 +160,25 @@ Biased reference counting (BRC) is a technique first described in 2018 by Jiho
 Choi, Thomas Shull, and Josep Torrellas: `article
 <https://dl.acm.org/doi/abs/10.1145/3243176.3243195>`_.
 
-``PyObject`` members before::
+``PyObject`` members before:
 
-    struct _object {
-        Py_ssize_t ob_refcnt;
-        PyTypeObject *ob_type;
-    };
+.. code-block:: c
 
-``PyObject`` members after::
+   struct _object {
+       Py_ssize_t ob_refcnt;
+       PyTypeObject *ob_type;
+   };
 
-    struct _object {
-      uintptr_t ob_tid;
-      uint32_t ob_ref_local;
-      Py_ssize_t ob_ref_shared;
-      PyTypeObject *ob_type;
-    };
+``PyObject`` members after:
+
+.. code-block:: c
+
+   struct _object {
+     uintptr_t ob_tid;
+     uint32_t ob_ref_local;
+     Py_ssize_t ob_ref_shared;
+     PyTypeObject *ob_type;
+   };
 
 The *ob_refcnt* is replaced with *ob_ref_local* and *ob_ref_shared*, and
 a new *ob_tid* member is added.
@@ -189,21 +197,23 @@ initializes *ob_ref_local* to ``1``, *ob_ref_shared* to ``0``, and *ob_tid* to
 ``_Py_ThreadId()`` gets the thread identifier. The function is called at each
 object creation, and at each ``Py_INCREF()`` and ``Py_DECREF()`` call. So it
 must be as efficient as possible. For example, on x86-64, it just has to read
-the ``fs`` CPU register::
+the ``fs`` CPU register:
 
-    static inline uintptr_t
-    _Py_ThreadId(void)
-    {
-        uintptr_t tid;
-    #if defined(_MSC_VER) && defined(_M_X64)
-        tid = __readgsqword(48);
-    #elif defined(__x86_64__)
-        __asm__("{movq %%fs:0, %0|mov %0, qword ptr fs:[0]}" : "=r" (tid));  // x86_64 Linux, BSD uses FS
-    #else
-        ...
-    #endif
-      return tid;
-    }
+.. code-block:: c
+
+   static inline uintptr_t
+   _Py_ThreadId(void)
+   {
+       uintptr_t tid;
+   #if defined(_MSC_VER) && defined(_M_X64)
+       tid = __readgsqword(48);
+   #elif defined(__x86_64__)
+       __asm__("{movq %%fs:0, %0|mov %0, qword ptr fs:[0]}" : "=r" (tid));  // x86_64 Linux, BSD uses FS
+   #else
+       ...
+   #endif
+     return tid;
+   }
 
 Py_INCREF()
 -----------
@@ -212,47 +222,53 @@ In Python 3.12, ``Py_INCREF()`` basically just has to increase the *ob_refcnt*
 member. It also checks if an object is immortal to implement `PEP 683
 <https://peps.python.org/pep-0683/>`_.
 
-Python 3.12 code::
+Python 3.12 code:
 
-    static inline void Py_INCREF(PyObject *op)
-    {
-        if (_Py_IsImmortal(op)) {
-            return;
-        }
-        op->ob_refcnt++;
-    }
+.. code-block:: c
+
+   static inline void Py_INCREF(PyObject *op)
+   {
+       if (_Py_IsImmortal(op)) {
+           return;
+       }
+       op->ob_refcnt++;
+   }
 
 
-In nogil, ``Py_INCREF()`` becomes more complex::
+In nogil, ``Py_INCREF()`` becomes more complex:
 
-    static inline int _Py_IsOwnedByCurrentThread(PyObject *ob)
-    { return ob->ob_tid == _Py_ThreadId(); }
+.. code-block:: c
 
-    static inline void Py_INCREF(PyObject *op)
-    {
-        uint32_t local = _Py_atomic_load_uint32_relaxed(&op->ob_ref_local);
-        uint32_t new_local = local + 1;
-        if (new_local == 0) {
-            // local is equal to _Py_IMMORTAL_REFCNT_LOCAL: do nothing
-            return;
-        }
-        if (_Py_IsOwnedByCurrentThread(op)) {
-            _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, new_local);
-        }
-        else {
-            _Py_atomic_add_ssize(&op->ob_ref_shared, (1 << _Py_REF_SHARED_SHIFT));
-        }
-    }
+   static inline int _Py_IsOwnedByCurrentThread(PyObject *ob)
+   { return ob->ob_tid == _Py_ThreadId(); }
+
+   static inline void Py_INCREF(PyObject *op)
+   {
+       uint32_t local = _Py_atomic_load_uint32_relaxed(&op->ob_ref_local);
+       uint32_t new_local = local + 1;
+       if (new_local == 0) {
+           // local is equal to _Py_IMMORTAL_REFCNT_LOCAL: do nothing
+           return;
+       }
+       if (_Py_IsOwnedByCurrentThread(op)) {
+           _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, new_local);
+       }
+       else {
+           _Py_atomic_add_ssize(&op->ob_ref_shared, (1 << _Py_REF_SHARED_SHIFT));
+       }
+   }
 
 Fast path
 ^^^^^^^^^
 
 If the object is owned by the current thread and is mortal, which is the common
-case, the code is basically::
+case, the code is basically:
 
-    uint32_t local = _Py_atomic_load_uint32_relaxed(&op->ob_ref_local);
-    uint32_t new_local = local + 1;
-    _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, new_local);
+.. code-block:: c
+
+   uint32_t local = _Py_atomic_load_uint32_relaxed(&op->ob_ref_local);
+   uint32_t new_local = local + 1;
+   _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, new_local);
 
 The "relaxed" operations are cheap since there are no synchronization or
 ordering constraints imposed on other reads or writes, only these operations'
@@ -261,9 +277,11 @@ atomicity is guaranteed.
 Slow path
 ^^^^^^^^^
 
-If the object is not owned by the current thread, a slower code path is used::
+If the object is not owned by the current thread, a slower code path is used:
 
-    _Py_atomic_add_ssize(&op->ob_ref_shared, (1 << _Py_REF_SHARED_SHIFT));
+.. code-block:: c
+
+   _Py_atomic_add_ssize(&op->ob_ref_shared, (1 << _Py_REF_SHARED_SHIFT));
 
 where ``_Py_atomic_add_ssize()`` uses the "sequentially consistent" order which
 is slower than "relaxed" since it implies locking.
@@ -279,37 +297,41 @@ In Python 3.12, ``Py_DECREF()`` basically decrements *ob_refcnt* and calls
 ``_Py_Dealloc(op)`` if the refcount is ``0``. It also checks if the object
 is immortal to do nothing in this case.
 
-Python 3.12 code::
+Python 3.12 code:
 
-    static inline void Py_DECREF(PyObject *op)
-    {
-        if (_Py_IsImmortal(op)) {
-            return;
-        }
-        if (--op->ob_refcnt == 0) {
-            _Py_Dealloc(op);
-        }
-    }
+.. code-block:: c
 
-In nogil, the function becomes more complex::
+   static inline void Py_DECREF(PyObject *op)
+   {
+       if (_Py_IsImmortal(op)) {
+           return;
+       }
+       if (--op->ob_refcnt == 0) {
+           _Py_Dealloc(op);
+       }
+   }
 
-    static inline void Py_DECREF(PyObject *op)
-    {
-        uint32_t local = _Py_atomic_load_uint32_relaxed(&op->ob_ref_local);
-        if (local == _Py_IMMORTAL_REFCNT_LOCAL) {
-            return;
-        }
-        if (_Py_IsOwnedByCurrentThread(op)) {
-            local--;
-            _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, local);
-            if (local == 0) {
-                _Py_MergeZeroLocalRefcount(op);
-            }
-        }
-        else {
-            _Py_DecRefShared(op);
-        }
-    }
+In nogil, the function becomes more complex:
+
+.. code-block:: c
+
+   static inline void Py_DECREF(PyObject *op)
+   {
+       uint32_t local = _Py_atomic_load_uint32_relaxed(&op->ob_ref_local);
+       if (local == _Py_IMMORTAL_REFCNT_LOCAL) {
+           return;
+       }
+       if (_Py_IsOwnedByCurrentThread(op)) {
+           local--;
+           _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, local);
+           if (local == 0) {
+               _Py_MergeZeroLocalRefcount(op);
+           }
+       }
+       else {
+           _Py_DecRefShared(op);
+       }
+   }
 
 Same as ``Py_INCREF()``, cheap "relaxed" functions are used if the object is
 owned by the current thread. If the local reference count reachs ``0``, call
@@ -326,31 +348,31 @@ Note: If the object is immortal, do nothing.
 In ``Py_DECREF()``, if an object is owned by the current thread and its
 refcount reached ``0``, ``_Py_MergeZeroLocalRefcount()`` is called.
 
-::
+.. code-block:: c
 
-    void
-    _Py_MergeZeroLocalRefcount(PyObject *op)
-    {
-        assert(op->ob_ref_local == 0);
+   void
+   _Py_MergeZeroLocalRefcount(PyObject *op)
+   {
+       assert(op->ob_ref_local == 0);
 
-        Py_ssize_t shared = _Py_atomic_load_ssize_acquire(&op->ob_ref_shared);
-        if (shared == 0) {
-            _Py_Dealloc(op);
-            return;
-        }
+       Py_ssize_t shared = _Py_atomic_load_ssize_acquire(&op->ob_ref_shared);
+       if (shared == 0) {
+           _Py_Dealloc(op);
+           return;
+       }
 
-        _Py_atomic_store_uintptr_relaxed(&op->ob_tid, 0);
+       _Py_atomic_store_uintptr_relaxed(&op->ob_tid, 0);
 
-        Py_ssize_t new_shared;
-        do {
-            new_shared = (shared & ~_Py_REF_SHARED_FLAG_MASK) | _Py_REF_MERGED;
-        } while (!_Py_atomic_compare_exchange_ssize(&op->ob_ref_shared,
-                                                    &shared, new_shared));
+       Py_ssize_t new_shared;
+       do {
+           new_shared = (shared & ~_Py_REF_SHARED_FLAG_MASK) | _Py_REF_MERGED;
+       } while (!_Py_atomic_compare_exchange_ssize(&op->ob_ref_shared,
+                                                   &shared, new_shared));
 
-        if (new_shared == _Py_REF_MERGED) {
-            _Py_Dealloc(op);
-        }
-    }
+       if (new_shared == _Py_REF_MERGED) {
+           _Py_Dealloc(op);
+       }
+   }
 
 If the shared reference count is ``0``, the function just calls
 ``_Py_Dealloc(op)``.
@@ -368,51 +390,51 @@ once the shared reference count reachs ``0``.
 ``Py_DECREF()`` calls ``_Py_DecRefShared()`` if the object is not owned by the
 current thread (and the object is mortal).
 
-::
+.. code-block:: c
 
-    static int
-    _Py_DecRefSharedIsDead(PyObject *o)
-    {
-        // Should we queue the object for the owning thread to merge?
-        int should_queue;
+   static int
+   _Py_DecRefSharedIsDead(PyObject *o)
+   {
+       // Should we queue the object for the owning thread to merge?
+       int should_queue;
 
-        Py_ssize_t new_shared;
-        Py_ssize_t shared = _Py_atomic_load_ssize_relaxed(&o->ob_ref_shared);
-        do {
-            should_queue = (shared == 0 || shared == _Py_REF_MAYBE_WEAKREF);
+       Py_ssize_t new_shared;
+       Py_ssize_t shared = _Py_atomic_load_ssize_relaxed(&o->ob_ref_shared);
+       do {
+           should_queue = (shared == 0 || shared == _Py_REF_MAYBE_WEAKREF);
 
-            if (should_queue) {
-                // If the object had refcount zero, not queued, and not merged,
-                // then we enqueue the object to be merged by the owning thread.
-                // In this case, we don't subtract one from the reference count
-                // because the queue holds a reference.
-                new_shared = _Py_REF_QUEUED;
-            }
-            else {
-                // Otherwise, subtract one from the reference count. This might
-                // be negative!
-                new_shared = shared - (1 << _Py_REF_SHARED_SHIFT);
-            }
-        } while (!_Py_atomic_compare_exchange_ssize(&o->ob_ref_shared,
-                                                    &shared, new_shared));
+           if (should_queue) {
+               // If the object had refcount zero, not queued, and not merged,
+               // then we enqueue the object to be merged by the owning thread.
+               // In this case, we don't subtract one from the reference count
+               // because the queue holds a reference.
+               new_shared = _Py_REF_QUEUED;
+           }
+           else {
+               // Otherwise, subtract one from the reference count. This might
+               // be negative!
+               new_shared = shared - (1 << _Py_REF_SHARED_SHIFT);
+           }
+       } while (!_Py_atomic_compare_exchange_ssize(&o->ob_ref_shared,
+                                                   &shared, new_shared));
 
-        if (should_queue) {
-            _Py_brc_queue_object(o);
-        }
-        else if (new_shared == _Py_REF_MERGED) {
-            // refcount is zero AND merged
-            return 1;
-        }
-        return 0;
-    }
+       if (should_queue) {
+           _Py_brc_queue_object(o);
+       }
+       else if (new_shared == _Py_REF_MERGED) {
+           // refcount is zero AND merged
+           return 1;
+       }
+       return 0;
+   }
 
-    void
-    _Py_DecRefShared(PyObject *o)
-    {
-        if (_Py_DecRefSharedIsDead(o)) {
-            _Py_Dealloc(o);
-        }
-    }
+   void
+   _Py_DecRefShared(PyObject *o)
+   {
+       if (_Py_DecRefSharedIsDead(o)) {
+           _Py_Dealloc(o);
+       }
+   }
 
 If the shared reference count is ``0`` and the ``_Py_REF_MERGED`` flag is set,
 call ``_Py_Dealloc(o)``.

@@ -41,22 +41,26 @@ community with `PEP 683 <https://peps.python.org/pep-0683/>`_ that modifying
 it.
 
 The implementation basically adds the following code at the beginning of
-``Py_INCREF()`` and ``Py_DECREF()`` functions::
+``Py_INCREF()`` and ``Py_DECREF()`` functions:
 
-    if (_Py_IsImmortal(op)) {
-        return;
-    }
+.. code-block:: c
+
+   if (_Py_IsImmortal(op)) {
+       return;
+   }
 
 The ``sys._is_immortal(obj)`` function (added to Python 3.14) can be used to
 check if an object is immortal.  Immortal objects use a special value for their
-reference count which can be surprising. Example on Python 3.16::
+reference count which can be surprising. Example on Python 3.16:
 
-    $ python3.16
-    >>> obj = 1  # an immortal object
-    >>> import sys; sys._is_immortal(obj)
-    True
-    >>> sys.getrefcount(obj)  # surprise!
-    3221225472
+.. code-block:: pycon
+
+   $ python3.16
+   >>> obj = 1  # an immortal object
+   >>> import sys; sys._is_immortal(obj)
+   True
+   >>> sys.getrefcount(obj)  # surprise!
+   3221225472
 
 Note: You should not rely on the reference count of immortal objects.
 
@@ -77,15 +81,17 @@ Python 3.16 creates many Python static objects at build time:
 * 256 bytes singletons (``b'\x00'`` to ``b'\xff'``)
 * around 865 static Unicode strings
 
-These static objects are created as immortal objects. Examples::
+These static objects are created as immortal objects. Examples:
 
-    $ python3.16
-    >>> sys._is_immortal('a')
-    True
-    >>> sys._is_immortal(b'a')
-    True
-    >>> sys._is_immortal(123)
-    True
+.. code-block:: pycon
+
+   $ python3.16
+   >>> sys._is_immortal('a')
+   True
+   >>> sys._is_immortal(b'a')
+   True
+   >>> sys._is_immortal(123)
+   True
 
 For details on static objects, see the internal header files:
 
@@ -99,36 +105,42 @@ Python 3.16 has more singletons objects, also created as immortal objects:
 * Empty bytes and Unicode strings (``b''`` and ``''``)
 * Empty tuple (``()``)
 
-Examples::
+Examples:
 
-    >>> sys._is_immortal(None)
-    True
-    >>> sys._is_immortal(True)
-    True
-    >>> sys._is_immortal(())
-    True
+.. code-block:: pycon
+
+   >>> sys._is_immortal(None)
+   True
+   >>> sys._is_immortal(True)
+   True
+   >>> sys._is_immortal(())
+   True
 
 And Python 3.16 has 120 "static types", including built-in types, which are
-also created as immortal objects. Examples::
+also created as immortal objects. Examples:
 
-    $ python3.16
-    >>> sys._is_immortal(int)
-    True
-    >>> sys._is_immortal(str)
-    True
-    >>> sys._is_immortal(dict)
-    True
+.. code-block:: pycon
+
+   $ python3.16
+   >>> sys._is_immortal(int)
+   True
+   >>> sys._is_immortal(str)
+   True
+   >>> sys._is_immortal(dict)
+   True
 
 Python 3.16 runtime immortal objects
 ------------------------------------
 
-On Free Threading, ``sys.intern(str)`` marks the interned string as immortal::
+On Free Threading, ``sys.intern(str)`` marks the interned string as immortal:
 
-    $ python3.16t
-    >>> import sys
-    >>> s = sys.intern("long unique string")
-    >>> sys._is_immortal(s)
-    True
+.. code-block:: pycon
+
+   $ python3.16t
+   >>> import sys
+   >>> s = sys.intern("long unique string")
+   >>> sys._is_immortal(s)
+   True
 
 ``PyUnstable_SetImmortal()``
 ----------------------------
@@ -192,15 +204,17 @@ Python 3.16 creates static immortal objects with deferred reference count.
 
 Deferred reference counting is also used for modules, top-level functions (but
 not nested functions), class and static methods, and some other objects.
-Examples on Free Threading::
+Examples on Free Threading:
 
-    $ python3.16t
-    >>> import _testinternalcapi
-    >>> import sys
-    >>> _testinternalcapi.has_deferred_refcount(sys)  # module
-    True
-    >>> _testinternalcapi.has_deferred_refcount(sys.getrefcount)  # function
-    True
+.. code-block:: pycon
+
+   $ python3.16t
+   >>> import _testinternalcapi
+   >>> import sys
+   >>> _testinternalcapi.has_deferred_refcount(sys)  # module
+   True
+   >>> _testinternalcapi.has_deferred_refcount(sys.getrefcount)  # function
+   True
 
 
 Stack reference
@@ -235,26 +249,28 @@ least significant bits are available to store a tag. (Currently, ``_PyStackRef``
 only uses 2 bits for the tag.)
 
 For example, the following functions can use the ``Py_TAG_REFCNT`` tag and so
-avoid calling ``Py_INCREF()`` and ``Py_DECREF()``::
+avoid calling ``Py_INCREF()`` and ``Py_DECREF()``:
 
-    void another_func(_PyStackRef ref)
-    {
-        PyObject *obj = PyStackRef_AsPyObjectBorrow(ref);  // borrowed ref
-        // ... use obj ...
-    }
+.. code-block:: c
 
-    void func(PyObject *obj)
-    {
-        // Make the assumption that the caller owns a strong reference to obj
-        _PyStackRef ref = PyStackRef_FromPyObjectBorrow(obj);
+   void another_func(_PyStackRef ref)
+   {
+       PyObject *obj = PyStackRef_AsPyObjectBorrow(ref);  // borrowed ref
+       // ... use obj ...
+   }
 
-        // Check that Py_TAG_REFCNT flag is set
-        assert(!PyStackRef_RefcountOnObject(ref));
+   void func(PyObject *obj)
+   {
+       // Make the assumption that the caller owns a strong reference to obj
+       _PyStackRef ref = PyStackRef_FromPyObjectBorrow(obj);
 
-        another_func(ref);
+       // Check that Py_TAG_REFCNT flag is set
+       assert(!PyStackRef_RefcountOnObject(ref));
 
-        PyStackRef_CLOSE(ref);
-    }
+       another_func(ref);
+
+       PyStackRef_CLOSE(ref);
+   }
 
 ``_PyStackRef_FromPyObjectNew()``:
 
@@ -289,13 +305,15 @@ On Free-Threading, ``_PyThreadState_PushCStackRef()`` adds the reference to the
 linked list ``tstate->c_stack_refs``, and the garbage collector traverses this
 list.
 
-Example of usage::
+Example of usage:
 
-    _PyCStackRef mro_ref;
-    _PyThreadState_PushCStackRef(tstate, &mro_ref);
-    mro_ref.ref = PyStackRef_FromPyObjectNew(mro);
-    // ... use mro_ref ...
-    _PyThreadState_PopCStackRef(tstate, &mro_ref);
+.. code-block:: c
+
+   _PyCStackRef mro_ref;
+   _PyThreadState_PushCStackRef(tstate, &mro_ref);
+   mro_ref.ref = PyStackRef_FromPyObjectNew(mro);
+   // ... use mro_ref ...
+   _PyThreadState_PopCStackRef(tstate, &mro_ref);
 
 Bytecode evaluation loop
 ========================
@@ -306,33 +324,41 @@ in Python 3.16 with stack reference, compared to Python 3.13. The bytecode
 evaluation loop in implemented in ``Python/ceval.c`` and opcodes are
 implemented in ``Python/generated_cases.c.h``.
 
-Python 3.13 LOAD_CONST opcode::
+Python 3.13 LOAD_CONST opcode:
 
-    PyObject *value = GETITEM(FRAME_CO_CONSTS, oparg);
-    Py_INCREF(value);
-    stack_pointer[0] = value;
-    stack_pointer += 1;
+.. code-block:: c
 
-Python 3.16 LOAD_CONST opcode using stack reference::
+   PyObject *value = GETITEM(FRAME_CO_CONSTS, oparg);
+   Py_INCREF(value);
+   stack_pointer[0] = value;
+   stack_pointer += 1;
 
-    PyObject *obj = GETITEM(FRAME_CO_CONSTS, oparg);
-    _PyStackRef value = PyStackRef_FromPyObjectBorrow(obj);
-    stack_pointer[0] = value;
-    stack_pointer += 1;
+Python 3.16 LOAD_CONST opcode using stack reference:
+
+.. code-block:: c
+
+   PyObject *obj = GETITEM(FRAME_CO_CONSTS, oparg);
+   _PyStackRef value = PyStackRef_FromPyObjectBorrow(obj);
+   stack_pointer[0] = value;
+   stack_pointer += 1;
 
 ``PyStackRef_FromPyObjectBorrow(obj)`` uses the ``Py_TAG_REFCNT`` flag and
 doesn't call ``Py_INCREF(obj)``.
 
-Python 3.13 POP_TOP opcode::
+Python 3.13 POP_TOP opcode:
 
-    Py_DECREF(stack_pointer[-1]);
-    stack_pointer -= 1;
+.. code-block:: c
 
-Python 3.16 POP_TOP opcode using stack reference::
+   Py_DECREF(stack_pointer[-1]);
+   stack_pointer -= 1;
 
-    _PyStackRef value = stack_pointer[-1];
-    PyStackRef_XCLOSE(value);
-    stack_pointer -= 1;
+Python 3.16 POP_TOP opcode using stack reference:
+
+.. code-block:: c
+
+   _PyStackRef value = stack_pointer[-1];
+   PyStackRef_XCLOSE(value);
+   stack_pointer -= 1;
 
 Since LOAD_CONST creates the stack reference with the ``Py_TAG_REFCNT`` flag,
 ``PyStackRef_XCLOSE(value)`` does nothing: it doesn't call
