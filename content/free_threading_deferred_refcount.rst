@@ -12,7 +12,7 @@ Free Threading internals: deferred reference counting
    :alt: Banksy - Girl with balloon (2002)
    :target: https://en.wikipedia.org/wiki/Girl_with_Balloon
 
-I'm writing an article serie on Free Threading internals to learn more about
+I'm writing an article series on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the "remove the
 GIL" issue where previous attempts failed.
 

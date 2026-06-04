@@ -12,7 +12,7 @@ Free Threading internals: reference counting
    :alt: The Bride by Marc Chagall (1950)
    :target: https://en.wikipedia.org/wiki/La_Mari%C3%A9e
 
-I'm writing an article serie on Free Threading internals to learn more about
+I'm writing an article series on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the "remove the
 GIL" issue where previous attempts failed.
 
