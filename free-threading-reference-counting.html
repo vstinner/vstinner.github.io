@@ -86,19 +86,18 @@ and so should be as efficient as possible.</p>
 To support calling <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> in parallel, Gilectomy
 started by using atomic operations on the object refcount. For example,
 <tt class="docutils literal">Py_INCREF()</tt> calls the atomic function <tt class="docutils literal">__sync_add_and_fetch()</tt>:</p>
-<pre class="literal-block">
-typedef struct {
-    Py_ssize_t shared_refcnt;
-} ob_refcnt_t;
+<div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">shared_refcnt</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">ob_refcnt_t</span><span class="p">;</span>
 
-typedef struct _object {
-    ob_refcnt_t ob_refcnt;
-    struct _typeobject *ob_type;
-} PyObject;
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">_object</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ob_refcnt_t</span><span class="w"> </span><span class="n">ob_refcnt</span><span class="p">;</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">_typeobject</span><span class="w"> </span><span class="o">*</span><span class="n">ob_type</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">PyObject</span><span class="p">;</span>
 
-#define Py_INCREF(op) \
-    __sync_add_and_fetch(&amp;op-&gt;ob_refcnt.shared_refcnt, 1)
-</pre>
+<span class="cp">#define Py_INCREF(op) \</span>
+<span class="cp">    __sync_add_and_fetch(&amp;op-&gt;ob_refcnt.shared_refcnt, 1)</span>
+</pre></div>
 <p>The problem with the atomic operation is that it's a kind of locking and lock
 contention can cause bad performance. For example, if many threads modify the
 refcount of the same object, refcount operations will be serialiazed by the
@@ -123,16 +122,15 @@ decided to not share objects between sub-interpreters instead.</p>
 <h2>Gilectomy buffered reference counting</h2>
 <p>To make Gilectomy scale better, <tt class="docutils literal">Py_INCREF()</tt> has been modified to use
 &quot;buffered reference counting&quot; instead. The <tt class="docutils literal">Py_INCREF()</tt> function becomes:</p>
-<pre class="literal-block">
-static inline void Py_INCREF(PyObject *o)
-{
-    PyRefLog *rl = PyThread_get_key_value(PyRefLogTLSKey);
-    if (PyRefPad_IsFull(rl)) {
-        PyRefLog_Rotate(rl);
-    }
-    PyRefPad_Write(rl-&gt;incref, o);
-}
-</pre>
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Py_INCREF</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">o</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">PyRefLog</span><span class="w"> </span><span class="o">*</span><span class="n">rl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyThread_get_key_value</span><span class="p">(</span><span class="n">PyRefLogTLSKey</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">PyRefPad_IsFull</span><span class="p">(</span><span class="n">rl</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">PyRefLog_Rotate</span><span class="p">(</span><span class="n">rl</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">PyRefPad_Write</span><span class="p">(</span><span class="n">rl</span><span class="o">-&gt;</span><span class="n">incref</span><span class="p">,</span><span class="w"> </span><span class="n">o</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
 <p><tt class="docutils literal">Py_DECREF()</tt> uses a separated reference log (<tt class="docutils literal"><span class="pre">rl-&gt;decref</span></tt>) to respect
 operations order.</p>
 <p>In October 2016, Larry Hastings compared (<a class="reference external" href="https://speakerdeck.com/pycon2017/larry-hastings-the-gilectomy-hows-it-going">slides</a>)
@@ -168,21 +166,19 @@ operations that are expensive on contemporary processors.</blockquote>
 <p>Biased reference counting (BRC) is a technique first described in 2018 by Jiho
 Choi, Thomas Shull, and Josep Torrellas: <a class="reference external" href="https://dl.acm.org/doi/abs/10.1145/3243176.3243195">article</a>.</p>
 <p><tt class="docutils literal">PyObject</tt> members before:</p>
-<pre class="literal-block">
-struct _object {
-    Py_ssize_t ob_refcnt;
-    PyTypeObject *ob_type;
-};
-</pre>
+<div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">_object</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">ob_refcnt</span><span class="p">;</span>
+<span class="w">    </span><span class="n">PyTypeObject</span><span class="w"> </span><span class="o">*</span><span class="n">ob_type</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
 <p><tt class="docutils literal">PyObject</tt> members after:</p>
-<pre class="literal-block">
-struct _object {
-  uintptr_t ob_tid;
-  uint32_t ob_ref_local;
-  Py_ssize_t ob_ref_shared;
-  PyTypeObject *ob_type;
-};
-</pre>
+<div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">_object</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">ob_tid</span><span class="p">;</span>
+<span class="w">  </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">ob_ref_local</span><span class="p">;</span>
+<span class="w">  </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">ob_ref_shared</span><span class="p">;</span>
+<span class="w">  </span><span class="n">PyTypeObject</span><span class="w"> </span><span class="o">*</span><span class="n">ob_type</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
 <p>The <em>ob_refcnt</em> is replaced with <em>ob_ref_local</em> and <em>ob_ref_shared</em>, and
 a new <em>ob_tid</em> member is added.</p>
 <p><em>ob_ref_local</em> is the &quot;local&quot; reference count, <em>ob_ref_shared</em> is the &quot;shared&quot;
@@ -198,66 +194,62 @@ initializes <em>ob_ref_local</em> to <tt class="docutils literal">1</tt>, <em>ob
 object creation, and at each <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> call. So it
 must be as efficient as possible. For example, on x86-64, it just has to read
 the <tt class="docutils literal">fs</tt> CPU register:</p>
-<pre class="literal-block">
-static inline uintptr_t
-_Py_ThreadId(void)
-{
-    uintptr_t tid;
-#if defined(_MSC_VER) &amp;&amp; defined(_M_X64)
-    tid = __readgsqword(48);
-#elif defined(__x86_64__)
-    __asm__(&quot;{movq %%fs:0, %0|mov %0, qword ptr fs:[0]}&quot; : &quot;=r&quot; (tid));  // x86_64 Linux, BSD uses FS
-#else
-    ...
-#endif
-  return tid;
-}
-</pre>
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">uintptr_t</span>
+<span class="nf">_Py_ThreadId</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">tid</span><span class="p">;</span>
+<span class="cp">#if defined(_MSC_VER) &amp;&amp; defined(_M_X64)</span>
+<span class="w">    </span><span class="n">tid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">__readgsqword</span><span class="p">(</span><span class="mi">48</span><span class="p">);</span>
+<span class="cp">#elif defined(__x86_64__)</span>
+<span class="w">    </span><span class="n">__asm__</span><span class="p">(</span><span class="s">&quot;{movq %%fs:0, %0|mov %0, qword ptr fs:[0]}&quot;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">&quot;=r&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">tid</span><span class="p">));</span><span class="w">  </span><span class="c1">// x86_64 Linux, BSD uses FS</span>
+<span class="cp">#else</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="cp">#endif</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">tid</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
 </div>
 <div class="section" id="py-incref">
 <h3>Py_INCREF()</h3>
 <p>In Python 3.12, <tt class="docutils literal">Py_INCREF()</tt> basically just has to increase the <em>ob_refcnt</em>
 member. It also checks if an object is immortal to implement <a class="reference external" href="https://peps.python.org/pep-0683/">PEP 683</a>.</p>
 <p>Python 3.12 code:</p>
-<pre class="literal-block">
-static inline void Py_INCREF(PyObject *op)
-{
-    if (_Py_IsImmortal(op)) {
-        return;
-    }
-    op-&gt;ob_refcnt++;
-}
-</pre>
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Py_INCREF</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">op</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_Py_IsImmortal</span><span class="p">(</span><span class="n">op</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_refcnt</span><span class="o">++</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
 <p>In nogil, <tt class="docutils literal">Py_INCREF()</tt> becomes more complex:</p>
-<pre class="literal-block">
-static inline int _Py_IsOwnedByCurrentThread(PyObject *ob)
-{ return ob-&gt;ob_tid == _Py_ThreadId(); }
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">_Py_IsOwnedByCurrentThread</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">ob</span><span class="p">)</span>
+<span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">ob</span><span class="o">-&gt;</span><span class="n">ob_tid</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">_Py_ThreadId</span><span class="p">();</span><span class="w"> </span><span class="p">}</span>
 
-static inline void Py_INCREF(PyObject *op)
-{
-    uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
-    uint32_t new_local = local + 1;
-    if (new_local == 0) {
-        // local is equal to _Py_IMMORTAL_REFCNT_LOCAL: do nothing
-        return;
-    }
-    if (_Py_IsOwnedByCurrentThread(op)) {
-        _Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, new_local);
-    }
-    else {
-        _Py_atomic_add_ssize(&amp;op-&gt;ob_ref_shared, (1 &lt;&lt; _Py_REF_SHARED_SHIFT));
-    }
-}
-</pre>
+<span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Py_INCREF</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">op</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_atomic_load_uint32_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">new_local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_local</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// local is equal to _Py_IMMORTAL_REFCNT_LOCAL: do nothing</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_Py_IsOwnedByCurrentThread</span><span class="p">(</span><span class="n">op</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_atomic_store_uint32_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="p">,</span><span class="w"> </span><span class="n">new_local</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_atomic_add_ssize</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_shared</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">_Py_REF_SHARED_SHIFT</span><span class="p">));</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
 <div class="section" id="fast-path">
 <h4>Fast path</h4>
 <p>If the object is owned by the current thread and is mortal, which is the common
 case, the code is basically:</p>
-<pre class="literal-block">
-uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
-uint32_t new_local = local + 1;
-_Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, new_local);
-</pre>
+<div class="highlight"><pre><span></span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_atomic_load_uint32_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="p">);</span>
+<span class="kt">uint32_t</span><span class="w"> </span><span class="n">new_local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="n">_Py_atomic_store_uint32_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="p">,</span><span class="w"> </span><span class="n">new_local</span><span class="p">);</span>
+</pre></div>
 <p>The &quot;relaxed&quot; operations are cheap since there are no synchronization or
 ordering constraints imposed on other reads or writes, only these operations'
 atomicity is guaranteed.</p>
@@ -265,9 +257,8 @@ atomicity is guaranteed.</p>
 <div class="section" id="slow-path">
 <h4>Slow path</h4>
 <p>If the object is not owned by the current thread, a slower code path is used:</p>
-<pre class="literal-block">
-_Py_atomic_add_ssize(&amp;op-&gt;ob_ref_shared, (1 &lt;&lt; _Py_REF_SHARED_SHIFT));
-</pre>
+<div class="highlight"><pre><span></span><span class="n">_Py_atomic_add_ssize</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_shared</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">_Py_REF_SHARED_SHIFT</span><span class="p">));</span>
+</pre></div>
 <p>where <tt class="docutils literal">_Py_atomic_add_ssize()</tt> uses the &quot;sequentially consistent&quot; order which
 is slower than &quot;relaxed&quot; since it implies locking.</p>
 <p>See <a class="reference external" href="https://github.com/python/cpython/blob/1eff27f2c0452b3114bcf139062c87c025842c3e/Include/cpython/pyatomic.h">Include/cpython/pyatomic.h header</a>
@@ -280,37 +271,35 @@ for more information on atomic functions used by CPython and memory order.</p>
 <tt class="docutils literal">_Py_Dealloc(op)</tt> if the refcount is <tt class="docutils literal">0</tt>. It also checks if the object
 is immortal to do nothing in this case.</p>
 <p>Python 3.12 code:</p>
-<pre class="literal-block">
-static inline void Py_DECREF(PyObject *op)
-{
-    if (_Py_IsImmortal(op)) {
-        return;
-    }
-    if (--op-&gt;ob_refcnt == 0) {
-        _Py_Dealloc(op);
-    }
-}
-</pre>
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Py_DECREF</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">op</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_Py_IsImmortal</span><span class="p">(</span><span class="n">op</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">--</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_refcnt</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_Dealloc</span><span class="p">(</span><span class="n">op</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
 <p>In nogil, the function becomes more complex:</p>
-<pre class="literal-block">
-static inline void Py_DECREF(PyObject *op)
-{
-    uint32_t local = _Py_atomic_load_uint32_relaxed(&amp;op-&gt;ob_ref_local);
-    if (local == _Py_IMMORTAL_REFCNT_LOCAL) {
-        return;
-    }
-    if (_Py_IsOwnedByCurrentThread(op)) {
-        local--;
-        _Py_atomic_store_uint32_relaxed(&amp;op-&gt;ob_ref_local, local);
-        if (local == 0) {
-            _Py_MergeZeroLocalRefcount(op);
-        }
-    }
-    else {
-        _Py_DecRefShared(op);
-    }
-}
-</pre>
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">Py_DECREF</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">op</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_atomic_load_uint32_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">local</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">_Py_IMMORTAL_REFCNT_LOCAL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_Py_IsOwnedByCurrentThread</span><span class="p">(</span><span class="n">op</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">local</span><span class="o">--</span><span class="p">;</span>
+<span class="w">        </span><span class="n">_Py_atomic_store_uint32_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="p">,</span><span class="w"> </span><span class="n">local</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">local</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">_Py_MergeZeroLocalRefcount</span><span class="p">(</span><span class="n">op</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_DecRefShared</span><span class="p">(</span><span class="n">op</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
 <p>Same as <tt class="docutils literal">Py_INCREF()</tt>, cheap &quot;relaxed&quot; functions are used if the object is
 owned by the current thread. If the local reference count reachs <tt class="docutils literal">0</tt>, call
 <tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> (described below).</p>
@@ -320,31 +309,30 @@ owned by the current thread. If the local reference count reachs <tt class="docu
 <h4><tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> function</h4>
 <p>In <tt class="docutils literal">Py_DECREF()</tt>, if an object is owned by the current thread and its
 refcount reached <tt class="docutils literal">0</tt>, <tt class="docutils literal">_Py_MergeZeroLocalRefcount()</tt> is called.</p>
-<pre class="literal-block">
-void
-_Py_MergeZeroLocalRefcount(PyObject *op)
-{
-    assert(op-&gt;ob_ref_local == 0);
+<div class="highlight"><pre><span></span><span class="kt">void</span>
+<span class="nf">_Py_MergeZeroLocalRefcount</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">op</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_local</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 
-    Py_ssize_t shared = _Py_atomic_load_ssize_acquire(&amp;op-&gt;ob_ref_shared);
-    if (shared == 0) {
-        _Py_Dealloc(op);
-        return;
-    }
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_atomic_load_ssize_acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_shared</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">shared</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_Dealloc</span><span class="p">(</span><span class="n">op</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
 
-    _Py_atomic_store_uintptr_relaxed(&amp;op-&gt;ob_tid, 0);
+<span class="w">    </span><span class="n">_Py_atomic_store_uintptr_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_tid</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 
-    Py_ssize_t new_shared;
-    do {
-        new_shared = (shared &amp; ~_Py_REF_SHARED_FLAG_MASK) | _Py_REF_MERGED;
-    } while (!_Py_atomic_compare_exchange_ssize(&amp;op-&gt;ob_ref_shared,
-                                                &amp;shared, new_shared));
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">new_shared</span><span class="p">;</span>
+<span class="w">    </span><span class="k">do</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">new_shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">shared</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">~</span><span class="n">_Py_REF_SHARED_FLAG_MASK</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">_Py_REF_MERGED</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_Py_atomic_compare_exchange_ssize</span><span class="p">(</span><span class="o">&amp;</span><span class="n">op</span><span class="o">-&gt;</span><span class="n">ob_ref_shared</span><span class="p">,</span>
+<span class="w">                                                </span><span class="o">&amp;</span><span class="n">shared</span><span class="p">,</span><span class="w"> </span><span class="n">new_shared</span><span class="p">));</span>
 
-    if (new_shared == _Py_REF_MERGED) {
-        _Py_Dealloc(op);
-    }
-}
-</pre>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_shared</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">_Py_REF_MERGED</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_Dealloc</span><span class="p">(</span><span class="n">op</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
 <p>If the shared reference count is <tt class="docutils literal">0</tt>, the function just calls
 <tt class="docutils literal">_Py_Dealloc(op)</tt>.</p>
 <p>Otherwise, it sets <em>ob_tid</em> to <tt class="docutils literal">_Py_UNOWNED_TID</tt> (<tt class="docutils literal">0</tt>), and then adds the
@@ -358,51 +346,50 @@ once the shared reference count reachs <tt class="docutils literal">0</tt>.</p>
 <h4><tt class="docutils literal">_Py_DecRefShared()</tt> function</h4>
 <p><tt class="docutils literal">Py_DECREF()</tt> calls <tt class="docutils literal">_Py_DecRefShared()</tt> if the object is not owned by the
 current thread (and the object is mortal).</p>
-<pre class="literal-block">
-static int
-_Py_DecRefSharedIsDead(PyObject *o)
-{
-    // Should we queue the object for the owning thread to merge?
-    int should_queue;
+<div class="highlight"><pre><span></span><span class="k">static</span><span class="w"> </span><span class="kt">int</span>
+<span class="nf">_Py_DecRefSharedIsDead</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">o</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Should we queue the object for the owning thread to merge?</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">should_queue</span><span class="p">;</span>
 
-    Py_ssize_t new_shared;
-    Py_ssize_t shared = _Py_atomic_load_ssize_relaxed(&amp;o-&gt;ob_ref_shared);
-    do {
-        should_queue = (shared == 0 || shared == _Py_REF_MAYBE_WEAKREF);
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">new_shared</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_atomic_load_ssize_relaxed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">o</span><span class="o">-&gt;</span><span class="n">ob_ref_shared</span><span class="p">);</span>
+<span class="w">    </span><span class="k">do</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">should_queue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">shared</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">_Py_REF_MAYBE_WEAKREF</span><span class="p">);</span>
 
-        if (should_queue) {
-            // If the object had refcount zero, not queued, and not merged,
-            // then we enqueue the object to be merged by the owning thread.
-            // In this case, we don't subtract one from the reference count
-            // because the queue holds a reference.
-            new_shared = _Py_REF_QUEUED;
-        }
-        else {
-            // Otherwise, subtract one from the reference count. This might
-            // be negative!
-            new_shared = shared - (1 &lt;&lt; _Py_REF_SHARED_SHIFT);
-        }
-    } while (!_Py_atomic_compare_exchange_ssize(&amp;o-&gt;ob_ref_shared,
-                                                &amp;shared, new_shared));
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">should_queue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// If the object had refcount zero, not queued, and not merged,</span>
+<span class="w">            </span><span class="c1">// then we enqueue the object to be merged by the owning thread.</span>
+<span class="w">            </span><span class="c1">// In this case, we don&#39;t subtract one from the reference count</span>
+<span class="w">            </span><span class="c1">// because the queue holds a reference.</span>
+<span class="w">            </span><span class="n">new_shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_REF_QUEUED</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// Otherwise, subtract one from the reference count. This might</span>
+<span class="w">            </span><span class="c1">// be negative!</span>
+<span class="w">            </span><span class="n">new_shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">_Py_REF_SHARED_SHIFT</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_Py_atomic_compare_exchange_ssize</span><span class="p">(</span><span class="o">&amp;</span><span class="n">o</span><span class="o">-&gt;</span><span class="n">ob_ref_shared</span><span class="p">,</span>
+<span class="w">                                                </span><span class="o">&amp;</span><span class="n">shared</span><span class="p">,</span><span class="w"> </span><span class="n">new_shared</span><span class="p">));</span>
 
-    if (should_queue) {
-        _Py_brc_queue_object(o);
-    }
-    else if (new_shared == _Py_REF_MERGED) {
-        // refcount is zero AND merged
-        return 1;
-    }
-    return 0;
-}
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">should_queue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_brc_queue_object</span><span class="p">(</span><span class="n">o</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">new_shared</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">_Py_REF_MERGED</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// refcount is zero AND merged</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
 
-void
-_Py_DecRefShared(PyObject *o)
-{
-    if (_Py_DecRefSharedIsDead(o)) {
-        _Py_Dealloc(o);
-    }
-}
-</pre>
+<span class="kt">void</span>
+<span class="nf">_Py_DecRefShared</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">o</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_Py_DecRefSharedIsDead</span><span class="p">(</span><span class="n">o</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_Py_Dealloc</span><span class="p">(</span><span class="n">o</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
 <p>If the shared reference count is <tt class="docutils literal">0</tt> and the <tt class="docutils literal">_Py_REF_MERGED</tt> flag is set,
 call <tt class="docutils literal">_Py_Dealloc(o)</tt>.</p>
 <p>If the object has a shared reference count of <tt class="docutils literal">0</tt>, is not queued, and is not

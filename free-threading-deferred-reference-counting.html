@@ -81,22 +81,20 @@ community with <a class="reference external" href="https://peps.python.org/pep-0
 it.</p>
 <p>The implementation basically adds the following code at the beginning of
 <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt> functions:</p>
-<pre class="literal-block">
-if (_Py_IsImmortal(op)) {
-    return;
-}
-</pre>
+<div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_Py_IsImmortal</span><span class="p">(</span><span class="n">op</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
 <p>The <tt class="docutils literal">sys._is_immortal(obj)</tt> function (added to Python 3.14) can be used to
 check if an object is immortal.  Immortal objects use a special value for their
 reference count which can be surprising. Example on Python 3.16:</p>
-<pre class="literal-block">
-$ python3.16
-&gt;&gt;&gt; obj = 1  # an immortal object
-&gt;&gt;&gt; import sys; sys._is_immortal(obj)
-True
-&gt;&gt;&gt; sys.getrefcount(obj)  # surprise!
-3221225472
-</pre>
+<div class="highlight"><pre><span></span><span class="go">$ python3.16</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">obj</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># an immortal object</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span><span class="p">;</span> <span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">getrefcount</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>  <span class="c1"># surprise!</span>
+<span class="go">3221225472</span>
+</pre></div>
 <p>Note: You should not rely on the reference count of immortal objects.</p>
 <div class="section" id="free-threading">
 <h3>Free Threading</h3>
@@ -114,15 +112,14 @@ reference count contention.</p>
 <li>around 865 static Unicode strings</li>
 </ul>
 <p>These static objects are created as immortal objects. Examples:</p>
-<pre class="literal-block">
-$ python3.16
-&gt;&gt;&gt; sys._is_immortal('a')
-True
-&gt;&gt;&gt; sys._is_immortal(b'a')
-True
-&gt;&gt;&gt; sys._is_immortal(123)
-True
-</pre>
+<div class="highlight"><pre><span></span><span class="go">$ python3.16</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;a&#39;</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
 <p>For details on static objects, see the internal header files:</p>
 <ul class="simple">
 <li><tt class="docutils literal">Include/internal/pycore_global_strings.h</tt>: declare static strings.</li>
@@ -136,36 +133,33 @@ objects.</li>
 <li>Empty tuple (<tt class="docutils literal">()</tt>)</li>
 </ul>
 <p>Examples:</p>
-<pre class="literal-block">
-&gt;&gt;&gt; sys._is_immortal(None)
-True
-&gt;&gt;&gt; sys._is_immortal(True)
-True
-&gt;&gt;&gt; sys._is_immortal(())
-True
-</pre>
+<div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(())</span>
+<span class="go">True</span>
+</pre></div>
 <p>And Python 3.16 has 120 &quot;static types&quot;, including built-in types, which are
 also created as immortal objects. Examples:</p>
-<pre class="literal-block">
-$ python3.16
-&gt;&gt;&gt; sys._is_immortal(int)
-True
-&gt;&gt;&gt; sys._is_immortal(str)
-True
-&gt;&gt;&gt; sys._is_immortal(dict)
-True
-</pre>
+<div class="highlight"><pre><span></span><span class="go">$ python3.16</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
 </div>
 <div class="section" id="python-3-16-runtime-immortal-objects">
 <h3>Python 3.16 runtime immortal objects</h3>
 <p>On Free Threading, <tt class="docutils literal">sys.intern(str)</tt> marks the interned string as immortal:</p>
-<pre class="literal-block">
-$ python3.16t
-&gt;&gt;&gt; import sys
-&gt;&gt;&gt; s = sys.intern(&quot;long unique string&quot;)
-&gt;&gt;&gt; sys._is_immortal(s)
-True
-</pre>
+<div class="highlight"><pre><span></span><span class="go">$ python3.16t</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">intern</span><span class="p">(</span><span class="s2">&quot;long unique string&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sys</span><span class="o">.</span><span class="n">_is_immortal</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="go">True</span>
+</pre></div>
 </div>
 <div class="section" id="pyunstable-setimmortal">
 <h3><tt class="docutils literal">PyUnstable_SetImmortal()</tt></h3>
@@ -217,15 +211,14 @@ Python, but not for static types implemented in C.</p>
 <p>Deferred reference counting is also used for modules, top-level functions (but
 not nested functions), class and static methods, and some other objects.
 Examples on Free Threading:</p>
-<pre class="literal-block">
-$ python3.16t
-&gt;&gt;&gt; import _testinternalcapi
-&gt;&gt;&gt; import sys
-&gt;&gt;&gt; _testinternalcapi.has_deferred_refcount(sys)  # module
-True
-&gt;&gt;&gt; _testinternalcapi.has_deferred_refcount(sys.getrefcount)  # function
-True
-</pre>
+<div class="highlight"><pre><span></span><span class="go">$ python3.16t</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">_testinternalcapi</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_testinternalcapi</span><span class="o">.</span><span class="n">has_deferred_refcount</span><span class="p">(</span><span class="n">sys</span><span class="p">)</span>  <span class="c1"># module</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_testinternalcapi</span><span class="o">.</span><span class="n">has_deferred_refcount</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">getrefcount</span><span class="p">)</span>  <span class="c1"># function</span>
+<span class="go">True</span>
+</pre></div>
 </div>
 <div class="section" id="stack-reference">
 <h2>Stack reference</h2>
@@ -254,26 +247,25 @@ least significant bits are available to store a tag. (Currently, <tt class="docu
 only uses 2 bits for the tag.)</p>
 <p>For example, the following functions can use the <tt class="docutils literal">Py_TAG_REFCNT</tt> tag and so
 avoid calling <tt class="docutils literal">Py_INCREF()</tt> and <tt class="docutils literal">Py_DECREF()</tt>:</p>
-<pre class="literal-block">
-void another_func(_PyStackRef ref)
-{
-    PyObject *obj = PyStackRef_AsPyObjectBorrow(ref);  // borrowed ref
-    // ... use obj ...
-}
+<div class="highlight"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">another_func</span><span class="p">(</span><span class="n">_PyStackRef</span><span class="w"> </span><span class="n">ref</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyStackRef_AsPyObjectBorrow</span><span class="p">(</span><span class="n">ref</span><span class="p">);</span><span class="w">  </span><span class="c1">// borrowed ref</span>
+<span class="w">    </span><span class="c1">// ... use obj ...</span>
+<span class="p">}</span>
 
-void func(PyObject *obj)
-{
-    // Make the assumption that the caller owns a strong reference to obj
-    _PyStackRef ref = PyStackRef_FromPyObjectBorrow(obj);
+<span class="kt">void</span><span class="w"> </span><span class="nf">func</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">obj</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Make the assumption that the caller owns a strong reference to obj</span>
+<span class="w">    </span><span class="n">_PyStackRef</span><span class="w"> </span><span class="n">ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyStackRef_FromPyObjectBorrow</span><span class="p">(</span><span class="n">obj</span><span class="p">);</span>
 
-    // Check that Py_TAG_REFCNT flag is set
-    assert(!PyStackRef_RefcountOnObject(ref));
+<span class="w">    </span><span class="c1">// Check that Py_TAG_REFCNT flag is set</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">PyStackRef_RefcountOnObject</span><span class="p">(</span><span class="n">ref</span><span class="p">));</span>
 
-    another_func(ref);
+<span class="w">    </span><span class="n">another_func</span><span class="p">(</span><span class="n">ref</span><span class="p">);</span>
 
-    PyStackRef_CLOSE(ref);
-}
-</pre>
+<span class="w">    </span><span class="n">PyStackRef_CLOSE</span><span class="p">(</span><span class="n">ref</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
 <p><tt class="docutils literal">_PyStackRef_FromPyObjectNew()</tt>:</p>
 <ul class="simple">
 <li>On a Free-threaded Python build, if the object uses <strong>deferred reference
@@ -298,13 +290,12 @@ Used in combination with <tt class="docutils literal">_PyThreadState_PushCStackR
 linked list <tt class="docutils literal"><span class="pre">tstate-&gt;c_stack_refs</span></tt>, and the garbage collector traverses this
 list.</p>
 <p>Example of usage:</p>
-<pre class="literal-block">
-_PyCStackRef mro_ref;
-_PyThreadState_PushCStackRef(tstate, &amp;mro_ref);
-mro_ref.ref = PyStackRef_FromPyObjectNew(mro);
-// ... use mro_ref ...
-_PyThreadState_PopCStackRef(tstate, &amp;mro_ref);
-</pre>
+<div class="highlight"><pre><span></span><span class="n">_PyCStackRef</span><span class="w"> </span><span class="n">mro_ref</span><span class="p">;</span>
+<span class="n">_PyThreadState_PushCStackRef</span><span class="p">(</span><span class="n">tstate</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">mro_ref</span><span class="p">);</span>
+<span class="n">mro_ref</span><span class="p">.</span><span class="n">ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyStackRef_FromPyObjectNew</span><span class="p">(</span><span class="n">mro</span><span class="p">);</span>
+<span class="c1">// ... use mro_ref ...</span>
+<span class="n">_PyThreadState_PopCStackRef</span><span class="p">(</span><span class="n">tstate</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">mro_ref</span><span class="p">);</span>
+</pre></div>
 </div>
 </div>
 <div class="section" id="bytecode-evaluation-loop">
@@ -315,32 +306,28 @@ in Python 3.16 with stack reference, compared to Python 3.13. The bytecode
 evaluation loop in implemented in <tt class="docutils literal">Python/ceval.c</tt> and opcodes are
 implemented in <tt class="docutils literal">Python/generated_cases.c.h</tt>.</p>
 <p>Python 3.13 LOAD_CONST opcode:</p>
-<pre class="literal-block">
-PyObject *value = GETITEM(FRAME_CO_CONSTS, oparg);
-Py_INCREF(value);
-stack_pointer[0] = value;
-stack_pointer += 1;
-</pre>
+<div class="highlight"><pre><span></span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GETITEM</span><span class="p">(</span><span class="n">FRAME_CO_CONSTS</span><span class="p">,</span><span class="w"> </span><span class="n">oparg</span><span class="p">);</span>
+<span class="n">Py_INCREF</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<span class="n">stack_pointer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="n">stack_pointer</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</pre></div>
 <p>Python 3.16 LOAD_CONST opcode using stack reference:</p>
-<pre class="literal-block">
-PyObject *obj = GETITEM(FRAME_CO_CONSTS, oparg);
-_PyStackRef value = PyStackRef_FromPyObjectBorrow(obj);
-stack_pointer[0] = value;
-stack_pointer += 1;
-</pre>
+<div class="highlight"><pre><span></span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GETITEM</span><span class="p">(</span><span class="n">FRAME_CO_CONSTS</span><span class="p">,</span><span class="w"> </span><span class="n">oparg</span><span class="p">);</span>
+<span class="n">_PyStackRef</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyStackRef_FromPyObjectBorrow</span><span class="p">(</span><span class="n">obj</span><span class="p">);</span>
+<span class="n">stack_pointer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="n">stack_pointer</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</pre></div>
 <p><tt class="docutils literal">PyStackRef_FromPyObjectBorrow(obj)</tt> uses the <tt class="docutils literal">Py_TAG_REFCNT</tt> flag and
 doesn't call <tt class="docutils literal">Py_INCREF(obj)</tt>.</p>
 <p>Python 3.13 POP_TOP opcode:</p>
-<pre class="literal-block">
-Py_DECREF(stack_pointer[-1]);
-stack_pointer -= 1;
-</pre>
+<div class="highlight"><pre><span></span><span class="n">Py_DECREF</span><span class="p">(</span><span class="n">stack_pointer</span><span class="p">[</span><span class="mi">-1</span><span class="p">]);</span>
+<span class="n">stack_pointer</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</pre></div>
 <p>Python 3.16 POP_TOP opcode using stack reference:</p>
-<pre class="literal-block">
-_PyStackRef value = stack_pointer[-1];
-PyStackRef_XCLOSE(value);
-stack_pointer -= 1;
-</pre>
+<div class="highlight"><pre><span></span><span class="n">_PyStackRef</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stack_pointer</span><span class="p">[</span><span class="mi">-1</span><span class="p">];</span>
+<span class="n">PyStackRef_XCLOSE</span><span class="p">(</span><span class="n">value</span><span class="p">);</span>
+<span class="n">stack_pointer</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</pre></div>
 <p>Since LOAD_CONST creates the stack reference with the <tt class="docutils literal">Py_TAG_REFCNT</tt> flag,
 <tt class="docutils literal">PyStackRef_XCLOSE(value)</tt> does nothing: it doesn't call
 <tt class="docutils literal">Py_DECREF(value)</tt>.</p>
