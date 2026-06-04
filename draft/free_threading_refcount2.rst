@@ -1,12 +1,16 @@
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Free Threading internals: reference counting (continued)
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Free Threading internals: deferred reference counting
++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2026-06-04 17:00
 :tags: free-threading, cpython
 :category: cpython
-:slug: free-threading-reference-counting-continued
+:slug: free-threading-deferred-reference-counting
 :authors: Victor Stinner
+
+.. image:: {static}/images/banksy_girl_balloon.jpg
+   :alt: Banksy - Girl with balloon (2002)
+   :target: https://en.wikipedia.org/wiki/Girl_with_Balloon
 
 In the `previous article <{filename}/free_threading_refcount.rst>`_, we have
 seen how the reference count performance issue was addressed with *Biased
@@ -17,6 +21,8 @@ We will see how immortal objects avoid reference count contention by doing
 nothing in ``Py_INCREF()`` and ``Py_DECREF()``. Then we will see how deferred
 reference count combined with stack references can avoid the need to call
 ``Py_INCREF()`` and ``Py_DECREF()``.
+
+*Photo: Banksy - Girl with balloon (2002).*
 
 Immortal objects (PEP 683)
 ==========================
@@ -184,9 +190,9 @@ Examples on Free Threading::
     $ python3.16t
     >>> import _testinternalcapi
     >>> import sys
-    >>> _testinternalcapi.has_deferred_refcount(sys)
+    >>> _testinternalcapi.has_deferred_refcount(sys)  # module
     True
-    >>> _testinternalcapi.has_deferred_refcount(sys.getrefcount)
+    >>> _testinternalcapi.has_deferred_refcount(sys.getrefcount)  # function
     True
 
 
@@ -212,10 +218,10 @@ Extract of `InternalDocs/stackrefs.md
 A ``_PyStackRef`` is a tagged pointer-sized value. Tag bits distinguish three
 cases:
 
-* `Py_TAG_REFCNT` unset - reference count lives on the pointed-to object.
-* `Py_TAG_REFCNT` set - ownership is "borrowed" (**no refcount to drop on
+* ``Py_TAG_REFCNT`` unset - reference count lives on the pointed-to object.
+* ``Py_TAG_REFCNT`` set - ownership is "borrowed" (**no refcount to drop on
   close**) or the object is immortal.
-* `Py_INT_TAG` set - tagged small integer stored directly in the stackref (no heap allocation).
+* ``Py_INT_TAG`` set - tagged small integer stored directly in the stackref (no heap allocation).
 
 Since the Python memory allocator uses at least an alignment on 8 bytes, the 3
 least significant bits are available to store a tag. Currently, ``_PyStackRef``
@@ -226,7 +232,8 @@ avoid calling ``Py_INCREF()`` and ``Py_DECREF()``::
 
     void another_func(_PyStackRef ref)
     {
-        // ... use ref ...
+        PyObject *obj = PyStackRef_AsPyObjectBorrow(ref);  // borrowed ref
+        // ... use obj ...
     }
 
     void func(PyObject *obj)
@@ -254,7 +261,7 @@ is not set.
 
 Read `pycore_stackref.h internal header
 <https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/Include/internal/pycore_stackref.h>`_
-for more information on stack reference API.
+for more information on the stack reference API.
 
 The API was added to Python 3.13 (2024) by Ken Jin (`PR gh-118330
 <https://github.com/python/cpython/pull/118330>`_) to implement tagged
@@ -266,7 +273,7 @@ this work.
 ``Python/ceval.c`` has been modified to use ``_PyStackRef`` instead of
 ``PyObject*`` to track object lifetime. Examples:
 
-* The stack became ``_PyStackRef*`` array.
+* The stack became an array of ``_PyStackRef``.
 * ``LOAD_FAST`` opcode is implemented with:
   ``stack_pointer[0] = PyStackRef_DUP(GETLOCAL(oparg))``.
 
@@ -297,3 +304,63 @@ Example of usage::
     mro_ref.ref = PyStackRef_FromPyObjectNew(mro);
     // ... use mro_ref ...
     _PyThreadState_PopCStackRef(tstate, &mro_ref);
+
+Bytecode evaluation loop
+========================
+
+To explain how stack reference avoids calling ``Py_INCREF()`` and
+``Py_DECREF()``, let's see how LOAD_CONST and POP_TOP are implemented in Python
+3.16 with stack reference, compared to Python 3.13. The bytecode evaluation
+loop in implemented in ``Python/ceval.c`` and opcodes are implemented in
+``Python/generated_cases.c.h``.
+
+Python 3.13 LOAD_CONST opcode::
+
+    PyObject *value = GETITEM(FRAME_CO_CONSTS, oparg);
+    Py_INCREF(value);
+    stack_pointer[0] = value;
+    stack_pointer += 1;
+
+Python 3.16 LOAD_CONST opcode using stack reference::
+
+    PyObject *obj = GETITEM(FRAME_CO_CONSTS, oparg);
+    _PyStackRef value = PyStackRef_FromPyObjectBorrow(obj);
+    stack_pointer[0] = value;
+    stack_pointer += 1;
+
+``PyStackRef_FromPyObjectBorrow(obj)`` uses the ``Py_TAG_REFCNT`` flag and
+doesn't call ``Py_INCREF(obj)``.
+
+Python 3.13 POP_TOP opcode::
+
+    Py_DECREF(stack_pointer[-1]);
+    stack_pointer -= 1;
+
+Python 3.16 POP_TOP opcode using stack reference::
+
+    _PyStackRef value = stack_pointer[-1];
+    PyStackRef_XCLOSE(value);
+    stack_pointer -= 1;
+
+Since LOAD_CONST creates the stack reference with the ``Py_TAG_REFCNT`` flag,
+``PyStackRef_XCLOSE(value)`` does nothing: it doesn't call
+``Py_DECREF(value)``.
+
+At the end, using stack references avoid many ``Py_INCREF()`` and
+``Py_DECREF()`` calls in the bytecode evalution loop, making Python faster.
+
+
+Conclusion
+==========
+
+Python 3.16 marks many objects as immortal which avoids reference count
+contention, since ``Py_INCREF()`` and ``Py_DECREF()`` do nothing in this case.
+
+Python 3.16 also uses deferred reference counting combined with stack
+references to avoid calling ``Py_INCREF()`` and ``Py_DECREF()`` which is even
+faster.
+
+Biased Reference Counting, immortal objects, deferred reference counting and
+stack reference solved the reference count contention issue and makes sure that
+threads scales well with the number of CPU cores. At least, reference counting
+is no longer the bottleneck.
