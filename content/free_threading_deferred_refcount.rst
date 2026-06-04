@@ -12,15 +12,22 @@ Free Threading internals: deferred reference counting
    :alt: Banksy - Girl with balloon (2002)
    :target: https://en.wikipedia.org/wiki/Girl_with_Balloon
 
+I'm writing an article serie on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the "remove the
+GIL" issue where previous attempts failed.
+
+* 1. `Reference counting <{filename}/free_threading_refcount.rst>`_
+* 2. `Deferred reference counting <{filename}/free_threading_deferred_refcount.rst>`_ (this article)
+
 In the `previous article <{filename}/free_threading_refcount.rst>`_, we have
 seen how the reference count performance issue was addressed with *Biased
 Reference Counting*. In this article, we will investigate further technics
 reducing reference count contention even more.
 
-We will see how immortal objects avoid reference count contention by doing
-nothing in ``Py_INCREF()`` and ``Py_DECREF()``. Then we will see how deferred
-reference count combined with stack references can avoid the need to call
-``Py_INCREF()`` and ``Py_DECREF()``.
+In this second article, we will see how immortal objects avoid reference
+count contention by doing nothing in ``Py_INCREF()`` and ``Py_DECREF()``. Then
+we will see how deferred reference count combined with stack references can
+avoid the need to call ``Py_INCREF()`` and ``Py_DECREF()``.
 
 *Photo: Banksy - Girl with balloon (2002).*
 
@@ -33,7 +40,7 @@ community with `PEP 683 <https://peps.python.org/pep-0683/>`_ that modifying
 ``Py_INCREF()`` and ``Py_DECREF()`` to do nothing on immortal objects is worth
 it.
 
-The implementation basically adds the following code to the beginning of
+The implementation basically adds the following code at the beginning of
 ``Py_INCREF()`` and ``Py_DECREF()`` functions::
 
     if (_Py_IsImmortal(op)) {
@@ -51,7 +58,7 @@ reference count which can be surprising. Example on Python 3.16::
     >>> sys.getrefcount(obj)  # surprise!
     3221225472
 
-You should not rely on the reference count of immortal objects.
+Note: You should not rely on the reference count of immortal objects.
 
 Free Threading
 --------------
@@ -65,10 +72,10 @@ Python 3.16 static immortal objects
 
 Python 3.16 creates many Python static objects at build time:
 
-* 865 static Unicode strings
+* 1030 integer singletons (range [-5; 1024])
 * 256 Unicode singletons (range [U+0000; U+00ff])
 * 256 bytes singletons (``b'\x00'`` to ``b'\xff'``)
-* 1030 integer singletons (range [-5; 1024])
+* around 865 static Unicode strings
 
 These static objects are created as immortal objects. Examples::
 
@@ -115,8 +122,7 @@ also created as immortal objects. Examples::
 Python 3.16 runtime immortal objects
 ------------------------------------
 
-On a Free-Threaded build, ``sys.intern(str)`` marks the interned string as
-immortal::
+On Free Threading, ``sys.intern(str)`` marks the interned string as immortal::
 
     $ python3.16t
     >>> import sys
@@ -157,7 +163,8 @@ mark a string as immortal.
 Deferred reference count
 ========================
 
-Python 3.14 added `PyUnstable_Object_EnableDeferredRefcount(obj)
+Python 3.13 added deferred reference counting with the implementation of Free
+Threading. Python 3.14 added `PyUnstable_Object_EnableDeferredRefcount(obj)
 <https://docs.python.org/dev/c-api/object.html#c.PyUnstable_Object_EnableDeferredRefcount>`_
 function:
 
@@ -224,8 +231,8 @@ cases:
 * ``Py_INT_TAG`` set - tagged small integer stored directly in the stackref (no heap allocation).
 
 Since the Python memory allocator uses at least an alignment on 8 bytes, the 3
-least significant bits are available to store a tag. Currently, ``_PyStackRef``
-only uses 2 bits for the tag.
+least significant bits are available to store a tag. (Currently, ``_PyStackRef``
+only uses 2 bits for the tag.)
 
 For example, the following functions can use the ``Py_TAG_REFCNT`` tag and so
 avoid calling ``Py_INCREF()`` and ``Py_DECREF()``::
@@ -265,26 +272,11 @@ for more information on the stack reference API.
 
 The API was added to Python 3.13 (2024) by Ken Jin (`PR gh-118330
 <https://github.com/python/cpython/pull/118330>`_) to implement tagged
-pointers. It only started to be used widely (in ``Python/ceval.c``) in Python
-3.14 (2025) internals.  See `faster-python issue #632
+pointers. It only started to be used widely in Python 3.14 (2025) internals (in
+``Python/ceval.c``). See `faster-python issue #632
 <https://github.com/faster-cpython/ideas/issues/632>`_ for the background on
 this work.
 
-``Python/ceval.c`` has been modified to use ``_PyStackRef`` instead of
-``PyObject*`` to track object lifetime. Examples:
-
-* The stack became an array of ``_PyStackRef``.
-* ``LOAD_FAST`` opcode is implemented with:
-  ``stack_pointer[0] = PyStackRef_DUP(GETLOCAL(oparg))``.
-
-Slowly, more and more functions are added to return ``_PyStackRef``.
-For example, a dictionary lookup using ``_PyStackRef`` can use the
-``Py_TAG_REFCNT`` flag if a dictionary value uses deferred reference count::
-
-    if (_PyObject_HasDeferredRefcount(value)) {
-        *value_addr =  (_PyStackRef){ .bits = (uintptr_t)value | Py_TAG_REFCNT };
-        return ix;
-    }
 
 ``_PyCStackRef`` API
 --------------------
@@ -293,9 +285,9 @@ For example, a dictionary lookup using ``_PyStackRef`` can use the
 variable and be visible to the garbage collector in the free threading build.
 Used in combination with ``_PyThreadState_PushCStackRef()``.
 
-On Free-Threading, ``_PyThreadState_PushCStackRef()`` adds the
-``_PyCStackRef`` to the linked list ``tstate->c_stack_refs``, and the
-garbage collector traverses this list.
+On Free-Threading, ``_PyThreadState_PushCStackRef()`` adds the reference to the
+linked list ``tstate->c_stack_refs``, and the garbage collector traverses this
+list.
 
 Example of usage::
 
@@ -309,10 +301,10 @@ Bytecode evaluation loop
 ========================
 
 To explain how stack reference avoids calling ``Py_INCREF()`` and
-``Py_DECREF()``, let's see how LOAD_CONST and POP_TOP are implemented in Python
-3.16 with stack reference, compared to Python 3.13. The bytecode evaluation
-loop in implemented in ``Python/ceval.c`` and opcodes are implemented in
-``Python/generated_cases.c.h``.
+``Py_DECREF()``, let's see how LOAD_CONST and POP_TOP opcodes are implemented
+in Python 3.16 with stack reference, compared to Python 3.13. The bytecode
+evaluation loop in implemented in ``Python/ceval.c`` and opcodes are
+implemented in ``Python/generated_cases.c.h``.
 
 Python 3.13 LOAD_CONST opcode::
 

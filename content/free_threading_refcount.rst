@@ -16,7 +16,10 @@ I'm writing an article serie on Free Threading internals to learn more about
 Free Threading, explain how it works, and explain how it solved the "remove the
 GIL" issue where previous attempts failed.
 
-This article explores the problem of tracking objects lifetime using reference
+* 1. `Reference counting <{filename}/free_threading_refcount.rst>`_ (this article)
+* 2. `Deferred reference counting <{filename}/free_threading_deferred_refcount.rst>`_
+
+This first article explores the problem of tracking objects lifetime using reference
 counting in an efficient fashion.
 
 We will see how the Gilectomy project (2016-2018) started with atomic
