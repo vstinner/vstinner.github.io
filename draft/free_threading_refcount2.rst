@@ -2,17 +2,29 @@
 Free Threading internals: reference counting (continued)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+:date: 2026-06-04 17:00
+:tags: free-threading, cpython
+:category: cpython
+:slug: free-threading-reference-counting-continued
+:authors: Victor Stinner
+
 In the `previous article <{filename}/free_threading_refcount.rst>`_, we have
 seen how the reference count performance issue was addressed with *Biased
 Reference Counting*. In this article, we will investigate further technics
 reducing lock contention even more.
 
+We will see how immortal objects avoid reference count contention, and how
+deferred reference count combined with stack reference can avoid the
+``Py_INCREF()``/``Py_DECREF()`` dance.
+
 Immortal objects (PEP 683)
 ==========================
 
-In Python 3.12 (in 2022), Eric Snow and Eddie Elizondo managed to convince the
-Steering Council and the Python community that modifying ``Py_INCREF()`` and
-``Py_DECREF()`` to do nothing on immortal objects is worth it.
+In Python 3.12 (in 2022), before Free Threading (Python 3.13), Eric Snow and
+Eddie Elizondo managed to convince the Steering Council and the Python
+community with `PEP 683 <https://peps.python.org/pep-0683/>`_ that modifying
+``Py_INCREF()`` and ``Py_DECREF()`` to do nothing on immortal objects is worth
+it.
 
 My main worry was the negative impact on performance. About that, `PEP 683 says
 <https://peps.python.org/pep-0683/#performance>`_:
@@ -26,44 +38,19 @@ My main worry was the negative impact on performance. About that, `PEP 683 says
     opportunities for specialization in the eval loop that would improve
     performance.
 
-The implementation basically adds the following code to ``Py_INCREF()`` and
-``Py_DECREF()``::
+The implementation basically adds the following code to the beginning of
+``Py_INCREF()`` and ``Py_DECREF()`` functions::
 
     if (_Py_IsImmortal(op)) {
         return;
     }
-
-``Py_INCREF()`` becomes::
-
-    static inline void Py_INCREF(PyObject *op)
-    {
-        if (_Py_IsImmortal(op)) {
-            return;
-        }
-        op->ob_refcnt++;
-    }
-
-``Py_DECREF()`` becomes::
-
-    static inline void Py_DECREF(PyObject *op)
-    {
-        if (_Py_IsImmortal(op)) {
-            return;
-        }
-        if (--op->ob_refcnt == 0) {
-            _Py_Dealloc(op);
-        }
-    }
-
-The exact ``Py_INCREF()`` and ``Py_DECREF()`` implementation evolved over time.
-Above, I showed the common portable implementation.
 
 The ``sys._is_immortal(obj)`` (added to Python 3.14) can be used to check if an
 object is immortal.  Immortal objects use a special value for their reference
 count which can be surprising. Example on Python 3.16::
 
     $ python3.16
-    >>> obj = 1
+    >>> obj = 1  # an immortal object
     >>> import sys; sys._is_immortal(obj)
     True
     >>> sys.getrefcount(obj)
@@ -153,22 +140,23 @@ API which can be used to mark an object as immortal.
     intended to be used for reducing reference counting contention in the
     free-threaded build for objects which are shared across threads.
 
-Unicode strings cannot be made immortal with this API. See
-`InternalDocs/string_interning.md
-<https://github.com/python/cpython/blob/aa8a43d179bad5cd9fbfce63b630e2ee0bd617e4/InternalDocs/string_interning.md?plain=1#L57>`_
-for the rationale:
-
-    Invariant: Every immortal string is interned. In practice, this means that
-    you must not use `_Py_SetImmortal` on a string. The converse is not true:
-    interned strings can be mortal.
-
-The C function ``PyUnicode_InternInPlace()`` can be used to intern a string and
-so make it immortal.
-
 If an object is `immortal
 <https://docs.python.org/dev/glossary.html#term-immortal>`_, its reference
 count is never modified, and therefore it is **never deallocated** while the
 interpreter is running.
+
+Unicode strings cannot be made immortal with this API. See
+`InternalDocs/string_interning.md
+<https://github.com/python/cpython/blob/aa8a43d179bad5cd9fbfce63b630e2ee0bd617e4/InternalDocs/string_interning.md?plain=1#L57>`_
+for the rationale. Extract:
+
+    Invariant: Every immortal string is interned. In practice, this means that
+    you must not use ``_Py_SetImmortal()`` on a string. The converse is not
+    true: interned strings can be mortal.
+
+On a Free-Threaded build, ``sys.intern(str)`` marks the interned string as
+immortal, and so the C function ``PyUnicode_InternInPlace()`` can be used to
+make a string immortal.
 
 
 Deferred reference count
@@ -184,9 +172,7 @@ function:
     The tradeoff is that *obj* will only be deallocated by the tracing garbage
     collector, and not when the interpreter no longer has any references to it.
 
-`PEP 703: Deferred Reference Counting <https://peps.python.org/pep-0703/#deferred-reference-counting>`_.
-
-The function sets ``_PyGC_BITS_DEFERRED`` flag in the object GC bits
+The function sets the ``_PyGC_BITS_DEFERRED`` flag in the object GC bits
 (*ob_gc_bits*) and sets the shared reference count (*ob_ref_shared*) to the
 special value ``_Py_REF_DEFERRED``:
 
@@ -196,78 +182,103 @@ special value ``_Py_REF_DEFERRED``:
 
 The function only works on types implementing the GC protocol
 (``Py_TPFLAGS_HAVE_GC`` flag). It's the case for all types implemented in
-Python, but not for all types implemented in C.
+Python, but not for static types implemented in C.
+
+See also `PEP 703: Deferred Reference Counting
+<https://peps.python.org/pep-0703/#deferred-reference-counting>`_.
 
 Python 3.16 creates static immortal objects with deferred reference count.
 
-For example, a dictionary lookup can avoid the ``Py_INCREF()``/``Py_DECREF()``
-dance when using ``_PyStackRef``::
+
+Stack reference
+===============
+
+Read `InternalDocs/stackrefs.md
+<https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/InternalDocs/stackrefs.md>`_:
+
+    Stack references are the interpreter's tagged representation of values on
+    the evaluation stack. They carry metadata to track ownership and support
+    optimizations such as tagged small ints.
+
+A ``_PyStackRef`` is a tagged pointer-sized value. Tag bits distinguish three cases:
+
+* `Py_TAG_REFCNT` unset - reference count lives on the pointed-to object.
+* `Py_TAG_REFCNT` set - ownership is "borrowed" (no refcount to drop on close) or the object is immortal.
+* `Py_INT_TAG` set - tagged small integer stored directly in the stackref (no heap allocation).
+
+The API was added to Python 3.13 (2024) by Ken Jin (`PR gh-118330
+<https://github.com/python/cpython/pull/118330>`_) to implement tagged
+pointers. It only started to be used widely in Python 3.14 (2025) internals.
+See `faster-python issue #632
+<https://github.com/faster-cpython/ideas/issues/632>`_ for the background on
+this work.
+
+Note: since the Python memory allocator uses at least an alignment on 8 bytes,
+the 3 least significant bits are available to store a tag. Currently,
+``_PyStackRef`` only uses 2 bits for the tag.
+
+For example, the following functions can use the ``Py_TAG_REFCNT`` tag and so
+avoid calling ``Py_INCREF()`` and ``Py_DECREF()``::
+
+    void another_func(_PyStackRef ref)
+    {
+        // ... use ref ...
+    }
+
+    void func(PyObject *obj)
+    {
+        // Make the assumption that the caller owns a strong reference to obj
+        _PyStackRef ref = PyStackRef_FromPyObjectBorrow(obj);
+
+        // Check that Py_TAG_REFCNT flag is set
+        assert(!PyStackRef_RefcountOnObject(ref));
+
+        another_func(ref);
+
+        PyStackRef_CLOSE(ref);
+    }
+
+``_PyStackRef_FromPyObjectNew()``:
+
+* On a Free-threaded Python build, if the object uses deferred reference count,
+  use ``Py_TAG_REFCNT`` flag.
+* If the object is immortal, use the ``Py_TAG_REFCNT`` flag.
+* Otherwise, ``Py_INCREF()`` is called.
+
+``PyStackRef_CLOSE()`` only calls ``Py_DECREF()`` if the ``Py_TAG_REFCNT`` flag
+is not set.
+
+Read `pycore_stackref.h internal header
+<https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/Include/internal/pycore_stackref.h>`_
+for more information on stack reference API.
+
+``Python/ceval.c`` has been modified to use ``_PyStackRef`` instead of
+``PyObject*`` to track object lifetime. Examples:
+
+* The stack became ``_PyStackRef*`` array.
+* ``LOAD_FAST`` opcode is implemented with:
+  ``stack_pointer[0] = PyStackRef_DUP(GETLOCAL(oparg))``.
+
+Slowly, more functions are added to return ``_PyStackRef``.
+
+For example, a dictionary lookup using ``_PyStackRef`` can use the
+``Py_TAG_REFCNT`` flag if a dictionary value uses deferred reference count::
 
     if (_PyObject_HasDeferredRefcount(value)) {
         *value_addr =  (_PyStackRef){ .bits = (uintptr_t)value | Py_TAG_REFCNT };
         return ix;
     }
 
-Stack reference (``_PyStackRef``)
-================================
-
-Read `InternalDocs/stackrefs.md <https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/InternalDocs/stackrefs.md>`_.
-
-    Stack references are the interpreter's tagged representation of values on
-    the evaluation stack. They carry metadata to track ownership and support
-    optimizations such as tagged small ints.
-
-- A `_PyStackRef` is a tagged pointer-sized value (see `Include/internal/pycore_stackref.h`).
-- Tag bits distinguish three cases:
-  - `Py_TAG_REFCNT` unset - reference count lives on the pointed-to object.
-  - `Py_TAG_REFCNT` set - ownership is "borrowed" (no refcount to drop on close) or the object is immortal.
-  - `Py_INT_TAG` set - tagged small integer stored directly in the stackref (no heap allocation).
-- Special constants: `PyStackRef_NULL`, `PyStackRef_ERROR`, and embedded `None`/`True`/`False`.
-
-The API avoids the ``Py_INCREF()``/``Py_DECREF()`` dance whenever possible.
-
-For example, the following function doesn't call ``Py_INCREF()`` or ``Py_DECREF()``
-even if *ref* "owns" a reference to the object *obj*.
-
-::
-
-    void func(PyObject *obj)
-    {
-        _PyStackRef ref = PyStackRef_FromPyObjectBorrow(obj);
-
-        // Check that Py_TAG_REFCNT flag is set
-        assert(!PyStackRef_RefcountOnObject(ref));
-
-        // ... use ref ...
-
-        PyStackRef_CLOSE(ref);
-    }
-
-On a Free-threaded Python build, ``_PyStackRef_FromPyObjectNew()`` can
-use ``Py_TAG_REFCNT`` flag is the object uses deferred reference count.
-
-The ``Py_TAG_REFCNT`` flag can also be used if the object is immortal.
-
-Read `pycore_stackref.h internal header
-<https://github.com/python/cpython/blob/038495db33723849b1c206e1bf7e3af1e1c41f0a/Include/internal/pycore_stackref.h>`_
-for more information on stack reference.
-
-Otherwise, ``Py_INCREF()`` is called.
-
-* ``PyStackRef_FromPyObjectSteal()``
-* ``PyStackRef_IsNull()``
-* ``PyStackRef_DUP()``
-* Can be used in ``Python/ceval.c``
-
 ``_PyCStackRef`` API
 --------------------
 
 ``_PyCStackRef`` is a stackref that can be stored in a regular C local variable
-and be visible to the GC in the free threading build. Used in combination with
-``_PyThreadState_PushCStackRef()``.
+and be visible to the garbage collector in the free threading build. Used in
+combination with ``_PyThreadState_PushCStackRef()``.
 
-``_PyThreadState_PushCStackRef()`` adds the ``_PyCStackRef`` to the linked list
-``tstate_impl->c_stack_refs``.
+On a Free-Threading, ``_PyThreadState_PushCStackRef()`` adds the
+``_PyCStackRef`` to the linked list ``tstate_impl->c_stack_refs``, and the
+garbage collector traverses this list.
 
 Example::
 
@@ -276,6 +287,7 @@ Example::
     mro_ref.ref = PyStackRef_FromPyObjectNew(mro);
     ...
     _PyThreadState_PopCStackRef(tstate, &mro_ref);
+
 
 Ref counting API
 ================
@@ -312,8 +324,3 @@ Is uniquely referenced?
     modifications when loading objects onto the operands stack by borrowing
     references when possible, which means that a reference count of 1 by itself
     does not guarantee that a function argument uniquely referenced.
-
-Misc
-----
-
-``_Py_TryXGetRef()``
