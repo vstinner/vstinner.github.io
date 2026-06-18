@@ -1,5 +1,139 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-06-04T17:00:00+02:00</updated><entry><title>Free Threading internals: deferred reference counting</title><link href="https://vstinner.github.io/free-threading-deferred-reference-counting.html" rel="alternate"/><published>2026-06-04T17:00:00+02:00</published><updated>2026-06-04T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-04:/free-threading-deferred-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Girl_with_Balloon"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/all.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-06-18T12:00:00+02:00</updated><entry><title>Free Threading internals: PyMutex</title><link href="https://vstinner.github.io/free-threading-pymutex.html" rel="alternate"/><published>2026-06-18T12:00:00+02:00</published><updated>2026-06-18T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-18:/free-threading-pymutex.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)"&gt;
+&lt;img alt="Sunflowers - Vincent van Gogh (1888)" src="https://vstinner.github.io/images/van_gogh_sunflowers.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://peps.python.org/pep-0703/"&gt;PEP 703&lt;/a&gt; replaces the unique Global
+Interpreter Lock (GIL) with one lock per Python object. Since a lock is added
+to every object, it's important that locks have small memory footprint and are
+efficient. PEP 703 adds a new &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; for this purpose.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Painting: Sunflowers - Vincent van Gogh (1888).&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="gilectomy-locks"&gt;
+&lt;h2&gt;Gilectomy …&lt;/h2&gt;&lt;/div&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)"&gt;
+&lt;img alt="Sunflowers - Vincent van Gogh (1888)" src="https://vstinner.github.io/images/van_gogh_sunflowers.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;&lt;a class="reference external" href="https://peps.python.org/pep-0703/"&gt;PEP 703&lt;/a&gt; replaces the unique Global
+Interpreter Lock (GIL) with one lock per Python object. Since a lock is added
+to every object, it's important that locks have small memory footprint and are
+efficient. PEP 703 adds a new &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; for this purpose.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Painting: Sunflowers - Vincent van Gogh (1888).&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="gilectomy-locks"&gt;
+&lt;h2&gt;Gilectomy locks&lt;/h2&gt;
+&lt;p&gt;The Gilectomy project only added &lt;tt class="docutils literal"&gt;py_recursivelock_t&lt;/tt&gt; lock to
+&lt;tt class="docutils literal"&gt;PyDictObject&lt;/tt&gt;, &lt;tt class="docutils literal"&gt;PyListObject&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PySetObject&lt;/tt&gt; structures (&lt;tt class="docutils literal"&gt;dict&lt;/tt&gt;,
+&lt;tt class="docutils literal"&gt;list&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;set&lt;/tt&gt; types).&lt;/p&gt;
+&lt;p&gt;On x86-64 Linux, &lt;a class="reference external" href="https://github.com/larryhastings/gilectomy/blob/de3aebf50a636e43fe65d4caed8ce5fc7eebe042/Include/lock.h#L172-L188"&gt;py_recursivelock_t&lt;/a&gt;
+size is &lt;strong&gt;72 bytes&lt;/strong&gt;. On Python 3.13, an empty list size is 56 bytes, and an
+empty dictionary size is 64 bytes. So adding 72 bytes for the lock is quite
+significant! On Linux, &lt;a class="reference external" href="https://github.com/larryhastings/gilectomy/blob/de3aebf50a636e43fe65d4caed8ce5fc7eebe042/Include/lock_linux.h#L34"&gt;PY_NATIVELOCK_T&lt;/a&gt;
+(4 bytes) is based on futex.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pymutex"&gt;
+&lt;h2&gt;PyMutex&lt;/h2&gt;
+&lt;p&gt;In August 2023, Sam Gross opened the issue
+&lt;a class="reference external" href="https://github.com/python/cpython/issues/108724"&gt;Add lightweight locking C API&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;PyMutex is a one byte lock with fast, inlineable lock and unlock functions for
+the common uncontended case.  The design is based on WebKit's &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;WTF::Lock&lt;/span&gt;&lt;/tt&gt;
+(WTF stands for Web Template Framework):&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://webkit.org/blog/6161/locking-in-webkit/"&gt;Locking in WebKit&lt;/a&gt;
+(May 2016) by Filip Pizlo&lt;/li&gt;
+&lt;li&gt;&lt;a class="reference external" href="https://github.com/WebKit/WebKit/blob/main/Source/WTF/wtf/Lock.h"&gt;WebKit WTF/wtf/Lock.h source code&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;PyMutex is built using the &lt;tt class="docutils literal"&gt;_PyParkingLot&lt;/tt&gt; APIs, which provides a
+cross-platform futex-like API (based on WebKit's &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;WTF::ParkingLot&lt;/span&gt;&lt;/tt&gt;).  This
+internal API will be used for building other synchronization primitives used to
+implement PEP 703, such as one-time initialization and events.&lt;/p&gt;
+&lt;p&gt;Pull request overview:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt;: A 1-byte lock that doesn't require memory allocation to
+initialize and is generally faster than the existing &lt;tt class="docutils literal"&gt;PyThread_type_lock&lt;/tt&gt;.
+The API is internal only for now.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyParking_Lot&lt;/tt&gt;: A futex-like API based on the API of the same name in
+WebKit.  Used to implement &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PyRawMutex&lt;/tt&gt;: A word sized lock used to implement &lt;tt class="docutils literal"&gt;_PyParking_Lot&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PyEvent&lt;/tt&gt;: A one time event. This was used a bunch in the &amp;quot;nogil&amp;quot; fork and
+is useful for testing the &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; implementation, so I've included it as
+part of the PR.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;pycore_llist.h&lt;/tt&gt;: Defines common operations on doubly-linked list.  Not
+strictly necessary (could do the list operations manually), but they come up
+frequently in the &amp;quot;nogil&amp;quot; fork. (Similar to
+&lt;a class="reference external" href="https://man.freebsd.org/cgi/man.cgi?queue"&gt;FreeBSD sys/queue.h&lt;/a&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;See the final commit: &lt;a class="reference external" href="https://github.com/python/cpython/commit/0c89056fe59ac42f09978582479d40e58a236856"&gt;Add PyMutex and _PyParkingLot APIs&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pymutex-implementation"&gt;
+&lt;h2&gt;PyMutex implementation&lt;/h2&gt;
+&lt;p&gt;As written above, the &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; structure is made of a single byte:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="k"&gt;typedef&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;struct&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="nc"&gt;PyMutex&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="kt"&gt;uint8_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;_bits&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;&lt;span class="w"&gt;  &lt;/span&gt;&lt;span class="c1"&gt;// (private)&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyMutex&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;In fact, only 2 bits are used! The private &lt;tt class="docutils literal"&gt;_bits&lt;/tt&gt; member can have 4 states:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;0b00&lt;/tt&gt;: Unlocked.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;0b01&lt;/tt&gt;: Locked.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;0b10&lt;/tt&gt;: Unlocked and has parked threads.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;0b11&lt;/tt&gt;: Locked and has parked threads.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyMutex_Lock()&lt;/tt&gt; can lock with a single atomic compare-exchange operation in
+the uncontended case using a static inline function:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="n"&gt;PyAPI_FUNC&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="kt"&gt;void&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyMutex_Lock&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyMutex&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+
+&lt;span class="k"&gt;static&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kr"&gt;inline&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kt"&gt;void&lt;/span&gt;
+&lt;span class="nf"&gt;_PyMutex_Lock&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyMutex&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="kt"&gt;uint8_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;expected&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;_Py_UNLOCKED&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;!&lt;/span&gt;&lt;span class="n"&gt;_Py_atomic_compare_exchange_uint8&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;&amp;amp;&lt;/span&gt;&lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="o"&gt;-&amp;gt;&lt;/span&gt;&lt;span class="n"&gt;_bits&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;&amp;amp;&lt;/span&gt;&lt;span class="n"&gt;expected&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;_Py_LOCKED&lt;/span&gt;&lt;span class="p"&gt;))&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="n"&gt;PyMutex_Lock&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;m&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="cp"&gt;#define PyMutex_Lock _PyMutex_Lock&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;Otherwise, it calls &lt;tt class="docutils literal"&gt;PyMutex_Lock()&lt;/tt&gt; function to acquire the lock.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="flags"&gt;
+&lt;h2&gt;Flags&lt;/h2&gt;
+&lt;p&gt;The internal &lt;tt class="docutils literal"&gt;PyMutex_LockFlags()&lt;/tt&gt; function accepts flags:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_LOCK_DONT_DETACH&lt;/tt&gt;: Do not detach/release the GIL when waiting on the
+lock.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PY_LOCK_DETACH&lt;/tt&gt;: Detach/release the GIL while waiting on the lock.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PY_LOCK_HANDLE_SIGNALS&lt;/tt&gt;: Handle signals if interrupted while waiting on
+the lock.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PY_FAIL_IF_INTERRUPTED&lt;/tt&gt;: Fail if interrupted by a signal while waiting on
+the lock.&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_PY_LOCK_PYTHONLOCK&lt;/tt&gt;: Locking &amp;amp; unlocking this lock requires attached
+thread state. If locking returns &lt;tt class="docutils literal"&gt;PY_LOCK_FAILURE&lt;/tt&gt;, a Python exception
+&lt;em&gt;may&lt;/em&gt; be raised. (Intended for use with &lt;tt class="docutils literal"&gt;_PY_LOCK_HANDLE_SIGNALS&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;_PY_LOCK_DETACH&lt;/tt&gt;.)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;PyMutex_Lock()&lt;/tt&gt; function uses &lt;tt class="docutils literal"&gt;_PY_LOCK_DETACH&lt;/tt&gt; flag by default.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="performance"&gt;
+&lt;h2&gt;Performance&lt;/h2&gt;
+&lt;p&gt;The &lt;tt class="docutils literal"&gt;Tools/lockbench/lockbench.py&lt;/tt&gt; benchmark compares &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; with the
+existing &lt;tt class="docutils literal"&gt;PyThread_type_lock&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;Uncontended acquisition + release:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Linux (x86-64): &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; 11 ns (4x faster), &lt;tt class="docutils literal"&gt;PyThread_type_lock&lt;/tt&gt; 44 ns&lt;/li&gt;
+&lt;li&gt;macOS (arm64): &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; 13 ns (1.4x faster), &lt;tt class="docutils literal"&gt;PyThread_type_lock&lt;/tt&gt; 18 ns&lt;/li&gt;
+&lt;li&gt;Windows (x86-64): &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; 13 ns (2.9x faster), &lt;tt class="docutils literal"&gt;PyThread_type_lock&lt;/tt&gt; 38 ns&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="critical-section"&gt;
+&lt;h2&gt;Critical section&lt;/h2&gt;
+&lt;p&gt;In practice, the &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt; should not be used directly, it's better to use
+the critical section API instead: see &lt;a class="reference external" href="https://docs.python.org/dev/c-api/synchronization.html#c.Py_BEGIN_CRITICAL_SECTION"&gt;Py_BEGIN_CRITICAL_SECTION(obj)
+documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Critical sections avoid deadlocks by implicitly suspending active critical
+sections, hence, they do not provide exclusive access such as provided by
+traditional locks like &lt;tt class="docutils literal"&gt;PyMutex&lt;/tt&gt;. When a critical section is started, the
+per-object lock for the object is acquired. If the code executed inside the
+critical section calls C-API functions then it can suspend the critical section
+thereby releasing the per-object lock, so other threads can acquire the
+per-object lock for the same object.&lt;/p&gt;
+&lt;/div&gt;
+</content><category term="cpython"/><category term="free-threading"/><category term="cpython"/></entry><entry><title>Free Threading internals: deferred reference counting</title><link href="https://vstinner.github.io/free-threading-deferred-reference-counting.html" rel="alternate"/><published>2026-06-04T17:00:00+02:00</published><updated>2026-06-04T17:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-04:/free-threading-deferred-reference-counting.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Girl_with_Balloon"&gt;
 &lt;img alt="Banksy - Girl with balloon (2002)" src="https://vstinner.github.io/images/banksy_girl_balloon.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;I'm writing an article series on Free Threading internals to learn more about

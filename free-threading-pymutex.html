@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Free Threading internals: PyMutex — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Free Threading internals: PyMutex; Date: 2026-06-18; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Free Threading internals: PyMutex</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2026-06-18T12:00:00+02:00" itemprop="datePublished">Thu 18 June 2026</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/free-threading.html" rel="tag">free-threading</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)">
+<img alt="Sunflowers - Vincent van Gogh (1888)" src="https://vstinner.github.io/images/van_gogh_sunflowers.jpg" />
+</a>
+<p><a class="reference external" href="https://peps.python.org/pep-0703/">PEP 703</a> replaces the unique Global
+Interpreter Lock (GIL) with one lock per Python object. Since a lock is added
+to every object, it's important that locks have small memory footprint and are
+efficient. PEP 703 adds a new <tt class="docutils literal">PyMutex</tt> for this purpose.</p>
+<p><em>Painting: Sunflowers - Vincent van Gogh (1888).</em></p>
+<div class="section" id="gilectomy-locks">
+<h2>Gilectomy locks</h2>
+<p>The Gilectomy project only added <tt class="docutils literal">py_recursivelock_t</tt> lock to
+<tt class="docutils literal">PyDictObject</tt>, <tt class="docutils literal">PyListObject</tt> and <tt class="docutils literal">PySetObject</tt> structures (<tt class="docutils literal">dict</tt>,
+<tt class="docutils literal">list</tt> and <tt class="docutils literal">set</tt> types).</p>
+<p>On x86-64 Linux, <a class="reference external" href="https://github.com/larryhastings/gilectomy/blob/de3aebf50a636e43fe65d4caed8ce5fc7eebe042/Include/lock.h#L172-L188">py_recursivelock_t</a>
+size is <strong>72 bytes</strong>. On Python 3.13, an empty list size is 56 bytes, and an
+empty dictionary size is 64 bytes. So adding 72 bytes for the lock is quite
+significant! On Linux, <a class="reference external" href="https://github.com/larryhastings/gilectomy/blob/de3aebf50a636e43fe65d4caed8ce5fc7eebe042/Include/lock_linux.h#L34">PY_NATIVELOCK_T</a>
+(4 bytes) is based on futex.</p>
+</div>
+<div class="section" id="pymutex">
+<h2>PyMutex</h2>
+<p>In August 2023, Sam Gross opened the issue
+<a class="reference external" href="https://github.com/python/cpython/issues/108724">Add lightweight locking C API</a>.</p>
+<p>PyMutex is a one byte lock with fast, inlineable lock and unlock functions for
+the common uncontended case.  The design is based on WebKit's <tt class="docutils literal"><span class="pre">WTF::Lock</span></tt>
+(WTF stands for Web Template Framework):</p>
+<ul class="simple">
+<li><a class="reference external" href="https://webkit.org/blog/6161/locking-in-webkit/">Locking in WebKit</a>
+(May 2016) by Filip Pizlo</li>
+<li><a class="reference external" href="https://github.com/WebKit/WebKit/blob/main/Source/WTF/wtf/Lock.h">WebKit WTF/wtf/Lock.h source code</a></li>
+</ul>
+<p>PyMutex is built using the <tt class="docutils literal">_PyParkingLot</tt> APIs, which provides a
+cross-platform futex-like API (based on WebKit's <tt class="docutils literal"><span class="pre">WTF::ParkingLot</span></tt>).  This
+internal API will be used for building other synchronization primitives used to
+implement PEP 703, such as one-time initialization and events.</p>
+<p>Pull request overview:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyMutex</tt>: A 1-byte lock that doesn't require memory allocation to
+initialize and is generally faster than the existing <tt class="docutils literal">PyThread_type_lock</tt>.
+The API is internal only for now.</li>
+<li><tt class="docutils literal">_PyParking_Lot</tt>: A futex-like API based on the API of the same name in
+WebKit.  Used to implement <tt class="docutils literal">PyMutex</tt>.</li>
+<li><tt class="docutils literal">_PyRawMutex</tt>: A word sized lock used to implement <tt class="docutils literal">_PyParking_Lot</tt>.</li>
+<li><tt class="docutils literal">PyEvent</tt>: A one time event. This was used a bunch in the &quot;nogil&quot; fork and
+is useful for testing the <tt class="docutils literal">PyMutex</tt> implementation, so I've included it as
+part of the PR.</li>
+<li><tt class="docutils literal">pycore_llist.h</tt>: Defines common operations on doubly-linked list.  Not
+strictly necessary (could do the list operations manually), but they come up
+frequently in the &quot;nogil&quot; fork. (Similar to
+<a class="reference external" href="https://man.freebsd.org/cgi/man.cgi?queue">FreeBSD sys/queue.h</a>).</li>
+</ul>
+<p>See the final commit: <a class="reference external" href="https://github.com/python/cpython/commit/0c89056fe59ac42f09978582479d40e58a236856">Add PyMutex and _PyParkingLot APIs</a>.</p>
+</div>
+<div class="section" id="pymutex-implementation">
+<h2>PyMutex implementation</h2>
+<p>As written above, the <tt class="docutils literal">PyMutex</tt> structure is made of a single byte:</p>
+<div class="highlight"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">PyMutex</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">_bits</span><span class="p">;</span><span class="w">  </span><span class="c1">// (private)</span>
+<span class="p">}</span><span class="w"> </span><span class="n">PyMutex</span><span class="p">;</span>
+</pre></div>
+<p>In fact, only 2 bits are used! The private <tt class="docutils literal">_bits</tt> member can have 4 states:</p>
+<ul class="simple">
+<li><tt class="docutils literal">0b00</tt>: Unlocked.</li>
+<li><tt class="docutils literal">0b01</tt>: Locked.</li>
+<li><tt class="docutils literal">0b10</tt>: Unlocked and has parked threads.</li>
+<li><tt class="docutils literal">0b11</tt>: Locked and has parked threads.</li>
+</ul>
+<p><tt class="docutils literal">PyMutex_Lock()</tt> can lock with a single atomic compare-exchange operation in
+the uncontended case using a static inline function:</p>
+<div class="highlight"><pre><span></span><span class="n">PyAPI_FUNC</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="n">PyMutex_Lock</span><span class="p">(</span><span class="n">PyMutex</span><span class="w"> </span><span class="o">*</span><span class="n">m</span><span class="p">);</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span>
+<span class="nf">_PyMutex_Lock</span><span class="p">(</span><span class="n">PyMutex</span><span class="w"> </span><span class="o">*</span><span class="n">m</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_Py_UNLOCKED</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_Py_atomic_compare_exchange_uint8</span><span class="p">(</span><span class="o">&amp;</span><span class="n">m</span><span class="o">-&gt;</span><span class="n">_bits</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">expected</span><span class="p">,</span><span class="w"> </span><span class="n">_Py_LOCKED</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">PyMutex_Lock</span><span class="p">(</span><span class="n">m</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+<span class="cp">#define PyMutex_Lock _PyMutex_Lock</span>
+</pre></div>
+<p>Otherwise, it calls <tt class="docutils literal">PyMutex_Lock()</tt> function to acquire the lock.</p>
+</div>
+<div class="section" id="flags">
+<h2>Flags</h2>
+<p>The internal <tt class="docutils literal">PyMutex_LockFlags()</tt> function accepts flags:</p>
+<ul class="simple">
+<li><tt class="docutils literal">_Py_LOCK_DONT_DETACH</tt>: Do not detach/release the GIL when waiting on the
+lock.</li>
+<li><tt class="docutils literal">_PY_LOCK_DETACH</tt>: Detach/release the GIL while waiting on the lock.</li>
+<li><tt class="docutils literal">_PY_LOCK_HANDLE_SIGNALS</tt>: Handle signals if interrupted while waiting on
+the lock.</li>
+<li><tt class="docutils literal">_PY_FAIL_IF_INTERRUPTED</tt>: Fail if interrupted by a signal while waiting on
+the lock.</li>
+<li><tt class="docutils literal">_PY_LOCK_PYTHONLOCK</tt>: Locking &amp; unlocking this lock requires attached
+thread state. If locking returns <tt class="docutils literal">PY_LOCK_FAILURE</tt>, a Python exception
+<em>may</em> be raised. (Intended for use with <tt class="docutils literal">_PY_LOCK_HANDLE_SIGNALS</tt> and
+<tt class="docutils literal">_PY_LOCK_DETACH</tt>.)</li>
+</ul>
+<p>The <tt class="docutils literal">PyMutex_Lock()</tt> function uses <tt class="docutils literal">_PY_LOCK_DETACH</tt> flag by default.</p>
+</div>
+<div class="section" id="performance">
+<h2>Performance</h2>
+<p>The <tt class="docutils literal">Tools/lockbench/lockbench.py</tt> benchmark compares <tt class="docutils literal">PyMutex</tt> with the
+existing <tt class="docutils literal">PyThread_type_lock</tt>.</p>
+<p>Uncontended acquisition + release:</p>
+<ul class="simple">
+<li>Linux (x86-64): <tt class="docutils literal">PyMutex</tt> 11 ns (4x faster), <tt class="docutils literal">PyThread_type_lock</tt> 44 ns</li>
+<li>macOS (arm64): <tt class="docutils literal">PyMutex</tt> 13 ns (1.4x faster), <tt class="docutils literal">PyThread_type_lock</tt> 18 ns</li>
+<li>Windows (x86-64): <tt class="docutils literal">PyMutex</tt> 13 ns (2.9x faster), <tt class="docutils literal">PyThread_type_lock</tt> 38 ns</li>
+</ul>
+</div>
+<div class="section" id="critical-section">
+<h2>Critical section</h2>
+<p>In practice, the <tt class="docutils literal">PyMutex</tt> should not be used directly, it's better to use
+the critical section API instead: see <a class="reference external" href="https://docs.python.org/dev/c-api/synchronization.html#c.Py_BEGIN_CRITICAL_SECTION">Py_BEGIN_CRITICAL_SECTION(obj)
+documentation</a>.</p>
+<p>Critical sections avoid deadlocks by implicitly suspending active critical
+sections, hence, they do not provide exclusive access such as provided by
+traditional locks like <tt class="docutils literal">PyMutex</tt>. When a critical section is started, the
+per-object lock for the object is acquired. If the code executed inside the
+critical section calls C-API functions then it can suspend the critical section
+thereby releasing the per-object lock, so other threads can acquire the
+per-object lock for the same object.</p>
+</div>
+</div>
+	<hr>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (30)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
