@@ -77,10 +77,10 @@ Pull request overview:
 See the final commit: `Add PyMutex and _PyParkingLot APIs
 <https://github.com/python/cpython/commit/0c89056fe59ac42f09978582479d40e58a236856>`_.
 
-PyMutex structure
-=================
+PyMutex implementation
+======================
 
-As written above, ``PyMutex`` is a single byte:
+As written above, the ``PyMutex`` structure is made of a single byte:
 
 .. code-block:: c
 
@@ -88,12 +88,32 @@ As written above, ``PyMutex`` is a single byte:
        uint8_t _bits;  // (private)
    } PyMutex;
 
-In fact, only 2 bits are used! The ``_bits`` member can have 4 states:
+In fact, only 2 bits are used! The private ``_bits`` member can have 4 states:
 
 * ``0b00``: Unlocked.
 * ``0b01``: Locked.
 * ``0b10``: Unlocked and has parked threads.
 * ``0b11``: Locked and has parked threads.
+
+``PyMutex_Lock()`` can lock with a single atomic compare-exchange operation in
+the uncontended case using a static inline function:
+
+.. code-block:: c
+
+   PyAPI_FUNC(void) PyMutex_Lock(PyMutex *m);
+
+   static inline void
+   _PyMutex_Lock(PyMutex *m)
+   {
+       uint8_t expected = _Py_UNLOCKED;
+       if (!_Py_atomic_compare_exchange_uint8(&m->_bits, &expected, _Py_LOCKED)) {
+           PyMutex_Lock(m);
+       }
+   }
+   #define PyMutex_Lock _PyMutex_Lock
+
+Otherwise, it calls ``PyMutex_Lock()`` function to acquire the lock.
+
 
 Flags
 =====
