@@ -50,6 +50,23 @@
 	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)">
 <img alt="Sunflowers - Vincent van Gogh (1888)" src="https://vstinner.github.io/images/van_gogh_sunflowers.jpg" />
 </a>
+<p>I'm writing an article series on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &quot;remove the
+GIL&quot; issue where previous attempts failed.</p>
+<ul class="simple">
+<li><ol class="first arabic">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html">Reference counting</a></li>
+</ol>
+</li>
+<li><ol class="first arabic" start="2">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html">Deferred reference counting</a></li>
+</ol>
+</li>
+<li><ol class="first arabic" start="3">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-pymutex.html">PyMutex</a> (this article)</li>
+</ol>
+</li>
+</ul>
 <p><a class="reference external" href="https://peps.python.org/pep-0703/">PEP 703</a> replaces the unique Global
 Interpreter Lock (GIL) with one lock per Python object. Since a lock is added
 to every object, it's important that locks have small memory footprint and are
@@ -66,7 +83,7 @@ empty dictionary size is 64 bytes. So adding 72 bytes for the lock is quite
 significant! On Linux, <a class="reference external" href="https://github.com/larryhastings/gilectomy/blob/de3aebf50a636e43fe65d4caed8ce5fc7eebe042/Include/lock_linux.h#L34">PY_NATIVELOCK_T</a>
 (4 bytes) is based on futex.</p>
 </div>
-<div class="section" id="pymutex">
+<div class="section" id="pymutex-1">
 <h2>PyMutex</h2>
 <p>In August 2023, Sam Gross opened the issue
 <a class="reference external" href="https://github.com/python/cpython/issues/108724">Add lightweight locking C API</a>.</p>

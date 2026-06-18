@@ -38,13 +38,25 @@
 	<div class="summary"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)">
 <img alt="Sunflowers - Vincent van Gogh (1888)" src="https://vstinner.github.io/images/van_gogh_sunflowers.jpg" />
 </a>
+<p>I'm writing an article series on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the &quot;remove the
+GIL&quot; issue where previous attempts failed.</p>
+<ul class="simple">
+<li><ol class="first arabic">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html">Reference counting</a></li>
+</ol>
+</li>
+<li><ol class="first arabic" start="2">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html">Deferred reference counting</a></li>
+</ol>
+</li>
+<li><ol class="first arabic" start="3">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-pymutex.html">PyMutex</a> (this article)</li>
+</ol>
+</li>
+</ul>
 <p><a class="reference external" href="https://peps.python.org/pep-0703/">PEP 703</a> replaces the unique Global
-Interpreter Lock (GIL) with one lock per Python object. Since a lock is added
-to every object, it's important that locks have small memory footprint and are
-efficient. PEP 703 adds a new <tt class="docutils literal">PyMutex</tt> for this purpose.</p>
-<p><em>Painting: Sunflowers - Vincent van Gogh (1888).</em></p>
-<div class="section" id="gilectomy-locks">
-<h2>Gilectomy …</h2></div></div>
+Interpreter Lock (GIL …</p></div>
 	Category:
 	<span itemprop="articleSection">
 		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
@@ -84,9 +96,13 @@ GIL&quot; issue where previous attempts failed.</p>
 <li><a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html">Deferred reference counting</a> (this article)</li>
 </ol>
 </li>
+<li><ol class="first arabic" start="3">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-pymutex.html">PyMutex</a></li>
+</ol>
+</li>
 </ul>
 <p>In the <a class="reference external" href="https://vstinner.github.io/free-threading-reference-counting.html">previous article</a>, we have
-seen how the reference …</p></div>
+seen how the …</p></div>
 	Category:
 	<span itemprop="articleSection">
 		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
@@ -126,8 +142,12 @@ GIL&quot; issue where previous attempts failed.</p>
 <li><a class="reference external" href="https://vstinner.github.io/free-threading-deferred-reference-counting.html">Deferred reference counting</a></li>
 </ol>
 </li>
+<li><ol class="first arabic" start="3">
+<li><a class="reference external" href="https://vstinner.github.io/free-threading-pymutex.html">PyMutex</a></li>
+</ol>
+</li>
 </ul>
-<p>This first article explores the problem of tracking objects lifetime …</p></div>
+<p>This first article explores the problem of tracking objects …</p></div>
 	Category:
 	<span itemprop="articleSection">
 		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
