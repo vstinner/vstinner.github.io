@@ -2,7 +2,7 @@
 Free Threading internals: PyMutex
 +++++++++++++++++++++++++++++++++
 
-:date: 2026-06-05 19:00
+:date: 2026-06-18 12:00
 :tags: free-threading, cpython
 :category: cpython
 :slug: free-threading-pymutex
