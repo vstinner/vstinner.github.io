@@ -12,6 +12,14 @@ Free Threading internals: PyMutex
    :alt: Sunflowers - Vincent van Gogh (1888)
    :target: https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)
 
+I'm writing an article series on Free Threading internals to learn more about
+Free Threading, explain how it works, and explain how it solved the "remove the
+GIL" issue where previous attempts failed.
+
+* 1. `Reference counting <{filename}/free_threading_refcount.rst>`_
+* 2. `Deferred reference counting <{filename}/free_threading_deferred_refcount.rst>`_
+* 3. `PyMutex <{filename}/free_threading_pymutex.rst>`_ (this article)
+
 `PEP 703 <https://peps.python.org/pep-0703/>`_ replaces the unique Global
 Interpreter Lock (GIL) with one lock per Python object. Since a lock is added
 to every object, it's important that locks have small memory footprint and are

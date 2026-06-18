@@ -18,6 +18,7 @@ GIL" issue where previous attempts failed.
 
 * 1. `Reference counting <{filename}/free_threading_refcount.rst>`_ (this article)
 * 2. `Deferred reference counting <{filename}/free_threading_deferred_refcount.rst>`_
+* 3. `PyMutex <{filename}/free_threading_pymutex.rst>`_
 
 This first article explores the problem of tracking objects lifetime using reference
 counting in an efficient fashion.
