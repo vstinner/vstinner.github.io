@@ -13,16 +13,15 @@ PEP 814: Add frozendict built-in type
    :target: https://fr.wikipedia.org/wiki/La_Danse_au_Moulin-Rouge_(Philadelphie)
 
 In November 2025 at Pycon France (at Lyon), I watched the talk "Build a
-frozendict type (immutable dictionary)" by Antoine Rozo (`video
+frozendict type (immutable dictionary)" by **Antoine Rozo** (`video
 <https://indymotion.fr/w/1GAEdaD7hCJs4YHy7gfkL7>`_ in French). It was a funny
 talk building a ``frozendict`` type in pure Python exploring different
-implementations such as a frozen ``dataclass`` with slots, ``frozenset`` and
-``super``. See his `final implementation
-<https://gist.github.com/vstinner/ee45f2ccc4ba8dabaf2ff30a1c65c056>`_ which is
-interesting!
+implementations such as a frozen ``dataclass`` with slots, ``frozenset``, and
+``super``. See his interesting `final implementation
+<https://gist.github.com/vstinner/ee45f2ccc4ba8dabaf2ff30a1c65c056>`_!
 
 Watching this talk reminded me my old PEP 416 and the more recent discussions
-on PEP 603 ``frozenmap``. It motivated to write a new PEP 814 with Donghee Na
+on PEP 603 ``frozenmap``. It motivated to write a new PEP 814 with **Donghee Na**
 to add a built-in ``frozendict`` type implemented in C to Python 3.15.
 
 Fortunately, the PEP discussion went well and the Steering Council accepted PEP
@@ -35,6 +34,10 @@ beta versions) to be tested! Example:
    >>> fd['x'] = 2
    TypeError: 'frozendict' object does not support item assignment
 
+The main difference with the existing ``types.MappingProxyType`` type is that
+``frozendict`` is hashable if all values are hashable.
+
+Here is the journey of adding the ``frozendict`` type to Python 3.15.
 
 *Painting: La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec (1890).*
 
@@ -44,7 +47,7 @@ PEP 416: Add a frozendict builtin type
 
 In 2012, I was working actively on the `pysandbox project
 <https://github.com/vstinner/pysandbox>`_. To implement this sandbox, I needed
-read-only dictionaries (used a namespaces) and so I wrote `PEP 416 – Add a
+read-only dictionaries (used as namespaces) and so I wrote `PEP 416 – Add a
 frozendict builtin type <https://peps.python.org/pep-0416/>`_.
 
 Sadly, after 1 month of discussions, Guido van Rossum (Python former `BDFL
@@ -81,12 +84,16 @@ dictionary sizes, whereas ``dict.copy()`` has O(n) complexity.
 PEP 603 discussion got 215 messages, but it was not submitted to the Steering
 Council so far.
 
+In the meanwhile, it's possible to install the `immutables project from PyPI
+<https://pypi.org/project/immutables/>`_ to get ``immutables.Map`` type.
+(Latest version was released in 2024.)
+
+
 PEP 814 – Add frozendict built-in type
 ======================================
 
-In November 2025, I wrote `PEP 814 – Add frozendict built-in type
-<https://peps.python.org/pep-0814/>`_ with Donghee Na, and we `started a
-discussion
+In November 2025, Donghee Na and me wrote `PEP 814 – Add frozendict built-in
+type <https://peps.python.org/pep-0814/>`_, and we `started a discussion
 <https://discuss.python.org/t/pep-814-add-frozendict-built-in-type/104854>`_.
 PEP 814 has a different Rationale than the old PEP 416, and it explains the
 ``frozendict`` API in details.
@@ -108,9 +115,19 @@ Examples:
    >>> hash(frozendict(x=1, y=2)) == hash(frozendict(y=2, x=1))
    True
 
+``dict`` has more methods than ``frozendict``:
+
+* ``__delitem__(key)``
+* ``__setitem__(key, value)``
+* ``clear()``
+* ``pop(key)``
+* ``popitem()``
+* ``setdefault(key, value)``
+* ``update(*args, **kwargs)``
+
 Quickly, the PEP got updated to document that ``frozendict`` can be compared to
 ``dict``, the ``frozendict | frozendict`` union operation was documented,
-the copy was elaborated, more C API functions were added (like
+the ``frozendict`` copy was elaborated, more C API functions were added (like
 ``PyAnyDict_Check()`` and ``PyFrozenDict_New()``), and the complexity of PEP
 603 ``frozenmap`` operations was clarified.
 
@@ -129,6 +146,7 @@ but also requested some changes, like removing this paragraph:
     Immutable mappings can be used to safely share dictionaries across thread
     and asynchronous task boundaries. The immutability makes it easier to
     reason about threads and asynchronous tasks.
+
 
 Implementation
 ==============
@@ -185,16 +203,16 @@ Return the frozendict unchanged
 ===============================
 
 Since a ``frozendict`` is immutable, it's possible to return the same
-``frozendict`` on multiple operations. Examples:
+``frozendict`` unchanged on multiple operations. Examples:
 
 .. code-block:: python
 
    $ python3.15
-   >>> fd=frozendict(x=1, y=2)
+   >>> fd = frozendict(x=1, y=2)
    >>> fd.copy() is fd
    True
 
-   >>> empty=frozendict()
+   >>> empty = frozendict()
    >>> (fd | empty) is fd
    True
    >>> (empty | fd) is fd
@@ -257,7 +275,7 @@ Private variables and variables of private modules converted to ``frozendict``:
 * ``_opcode_metadata._specialized_opmap``
 * ``_opcode_metadata.opmap``
 
-PEP 814 planned to convert more dictionares to ``frozendict`` in the standard
+PEP 814 planned to convert more dictionaries to ``frozendict`` in the standard
 library, but the Steering Council asked:
 
     Stdlib adoption should happen with each module maintainer’s approval, not
@@ -265,13 +283,13 @@ library, but the Steering Council asked:
 
 The ``errno.errorcode`` change (`PR gh-144906
 <https://github.com/python/cpython/pull/144906>`_) was rejected by the module
-maintainer (Thomas Wouters), since there are legit use cases to modify
+maintainer (**Thomas Wouters**), since there are legit use cases to modify
 the ``errno.errorcode`` dictionary.
 
 Converting the 3 ``_opcode_metadata`` dictionaries to ``frozendict`` broke the
-Cinder project. Because of the rejected ``errno`` change and the Cinder
-regression, it was decided to not convert more stdlib dictionaries to
-``frozendict``.
+Cinder project (even if ``_opcode_metadata`` is a private module). Because of
+the rejected ``errno`` change and the Cinder regression, it was decided to not
+convert more stdlib dictionaries to ``frozendict``.
 
 
 Frozendict special cases
@@ -281,12 +299,23 @@ Only the frozendict mapping is immutable. Values can still be mutable. Example:
 
 .. code-block:: python
 
-   >>> fd=frozendict(x=[1])
+   >>> fd = frozendict(x=[1])
    >>> fd['x'].append(2)
    >>> fd
    frozendict({'x': [1, 2]})
 
-A frozendict is only hashable if all values are hashtable. Example:
+Mutable values is not specific to ``frozendict``, ``tuple`` items can also be
+mutable even if the ``tuple`` sequence is immutable. Example:
+
+.. code-block:: python
+
+   >>> t=(1, 2, [])
+   >>> t[-1].append(3)
+   >>> t
+   (1, 2, [3])
+
+
+A ``frozendict`` is only hashable if all values are hashtable. Example:
 
 .. code-block:: python
 
@@ -304,7 +333,7 @@ Example of such recursive dictionary:
 
    fd = frozendict(foo=[])
    fd['foo'].append(fd)
-    assert fd['foo'][0] is fd
+   assert fd['foo'][0] is fd
 
 
 Bugs involving the garbage collector
@@ -321,7 +350,7 @@ being modified using ``gc.get_objects()``.
 
 The issue was fixed by only tracking ``frozendict`` in the garbage collector
 once it's fully initialized, instead of tracking it as soon as it's created
-(empty). Multiple ``frozendict`` methods had to be fixed for this issue.
+(empty). Multiple ``frozendict`` methods had to be fixed.
 
 Later, Donghee discovered (and fixed) similar issues in the ``frozenset`` type:
 `issue gh-152235 <https://github.com/python/cpython/issues/152235>`_.
@@ -529,3 +558,44 @@ it's immutable. At the end, it was decided to reject ``frozendict`` in
 
 Note: I also added an internal ``_PyDict_CopyAsDict()`` function to copy a
 ``dict`` or a ``frozendict`` as a new (mutable) ``dict``.
+
+
+Follow-up ideas for frozendict
+==============================
+
+* `frozenset and frozendict comprehensions
+  <https://discuss.python.org/t/frozenset-and-frozendict-comprehensions/101584>`_
+  (August 2025)
+  discuss a new syntax for ``frozendict`` literals.
+* `Provide a C-API to efficently convert dict into frozendict
+  <https://discuss.python.org/t/provide-a-c-api-to-efficently-convert-dict-into-frozendict/107754>`_
+  (June 2026).
+* `Dict constant folding, new frozendict type
+  <https://discuss.python.org/t/dict-constant-folding-new-frozendict-type/104363>`_
+  (October 2025).
+
+
+Read more about frozendict
+==========================
+
+* `Python frozendict documentation
+  <https://docs.python.org/dev/library/stdtypes.html#frozendict>`_.
+
+* `InfoWorld: Get started with Python’s new frozendict type
+  <https://www.infoworld.com/article/4152654/get-started-with-pythons-new-frozendict-type.html>`_
+  (April, 2026)
+  by Serdar Yegulalp.
+
+* `LWN: A "frozen" dictionary for Python
+  <https://lwn.net/Articles/1047238/>`_
+  (December 2025)
+  by Jake Edge.
+
+* `Hacker News on the LWN's article
+  <https://news.ycombinator.com/item?id=46229467>`_
+  (December 2025).
+
+* `Python Gains frozendict and Other Python News for March 2026
+  <https://realpython.com/python-news-march-2026/>`_
+  (March 2026)
+  by Philipp Acsany.
