@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>PEP 814: Add frozendict built-in type — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: PEP 814: Add frozendict built-in type; Date: 2026-07-04; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">PEP 814: Add frozendict built-in type</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2026-07-04T14:00:00+02:00" itemprop="datePublished">Sat 04 July 2026</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://fr.wikipedia.org/wiki/La_Danse_au_Moulin-Rouge_(Philadelphie)">
+<img alt="La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec" src="https://vstinner.github.io/images/toulouse_lautrec.jpg" />
+</a>
+<p>In November 2025 at Pycon France (at Lyon), I watched the talk &quot;Build a
+frozendict type (immutable dictionary)&quot; by <strong>Antoine Rozo</strong> (<a class="reference external" href="https://indymotion.fr/w/1GAEdaD7hCJs4YHy7gfkL7">video</a> in French). It was a funny
+talk building a <tt class="docutils literal">frozendict</tt> type in pure Python exploring different
+implementations such as a frozen <tt class="docutils literal">dataclass</tt> with slots, <tt class="docutils literal">frozenset</tt>, and
+<tt class="docutils literal">super</tt>. See his interesting <a class="reference external" href="https://gist.github.com/vstinner/ee45f2ccc4ba8dabaf2ff30a1c65c056">final implementation</a>!</p>
+<p>Watching this talk reminded me my old PEP 416 and the more recent discussions
+on PEP 603 <tt class="docutils literal">frozenmap</tt>. It motivated to write a new PEP 814 with <strong>Donghee Na</strong>
+to add a built-in <tt class="docutils literal">frozendict</tt> type implemented in C to Python 3.15.</p>
+<p>Fortunately, the PEP discussion went well and the Steering Council accepted PEP
+814. We implemented <tt class="docutils literal">frozendict</tt> in Python 3.15 which is now available (as
+beta versions) to be tested! Example:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="ne">TypeError</span><span class="p">:</span> <span class="s1">&#39;frozendict&#39;</span> <span class="nb">object</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">support</span> <span class="n">item</span> <span class="n">assignment</span>
+</pre></div>
+<p>The main difference with the existing <tt class="docutils literal">types.MappingProxyType</tt> type is that
+<tt class="docutils literal">frozendict</tt> is hashable if all values are hashable.</p>
+<p>Here is the journey of adding the <tt class="docutils literal">frozendict</tt> type to Python 3.15.</p>
+<p><em>Painting: La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec (1890).</em></p>
+<div class="section" id="pep-416-add-a-frozendict-builtin-type">
+<h2>PEP 416: Add a frozendict builtin type</h2>
+<p>In 2012, I was working actively on the <a class="reference external" href="https://github.com/vstinner/pysandbox">pysandbox project</a>. To implement this sandbox, I needed
+read-only dictionaries (used as namespaces) and so I wrote <a class="reference external" href="https://peps.python.org/pep-0416/">PEP 416 – Add a
+frozendict builtin type</a>.</p>
+<p>Sadly, after 1 month of discussions, Guido van Rossum (Python former <a class="reference external" href="https://en.wikipedia.org/wiki/Benevolent_dictator_for_life">BDFL</a>) rejected my
+PEP: read the <a class="reference external" href="https://peps.python.org/pep-0416/#rejection-notice">Rejection Notice</a>.</p>
+<p>Note: In 2013, I announced the <a class="reference external" href="https://lwn.net/Articles/574215/">failure of the pysandbox project</a>.</p>
+</div>
+<div class="section" id="pep-603-adding-a-frozenmap-type-to-collections">
+<h2>PEP 603: Adding a frozenmap type to collections</h2>
+<p>In September 2019, Yury Selivanov wrote <a class="reference external" href="https://peps.python.org/pep-0603/">PEP 603: Adding a frozenmap type to
+collections</a> and <a class="reference external" href="https://discuss.python.org/t/pep-603-adding-a-frozenmap-type-to-collections/2318">started a discussion</a>.
+<tt class="docutils literal">frozenmap</tt> implementation is based on <a class="reference external" href="https://en.wikipedia.org/wiki/Hash_array_mapped_trie">Hash Array Mapped Trie (HAMT)</a> data structure.
+<tt class="docutils literal">frozenmap</tt> instances can be hashable just like <tt class="docutils literal">tuple</tt> objects.
+The API is similar to <tt class="docutils literal">dict</tt> API, with additional methods:</p>
+<ul class="simple">
+<li><tt class="docutils literal">including(key, value)</tt></li>
+<li><tt class="docutils literal">excluding(key)</tt></li>
+<li><tt class="docutils literal">union(mapping=None, **kw)</tt></li>
+<li><tt class="docutils literal">mutating()</tt></li>
+</ul>
+<p>Copying a <tt class="docutils literal">frozenmap</tt> displays near O(1) performance for all benchmarked
+dictionary sizes, whereas <tt class="docutils literal">dict.copy()</tt> has O(n) complexity.</p>
+<p><tt class="docutils literal">frozenmap</tt> lookup time is ~30% slower than <tt class="docutils literal">dict</tt> lookups on average.</p>
+<p><tt class="docutils literal">frozenmap</tt> doesn't preserve insertion order.</p>
+<p>PEP 603 discussion got 215 messages, but it was not submitted to the Steering
+Council so far.</p>
+<p>In the meanwhile, it's possible to install the <a class="reference external" href="https://pypi.org/project/immutables/">immutables project from PyPI</a> to get <tt class="docutils literal">immutables.Map</tt> type.
+(Latest version was released in 2024.)</p>
+</div>
+<div class="section" id="pep-814-add-frozendict-built-in-type-1">
+<h2>PEP 814 – Add frozendict built-in type</h2>
+<p>In November 2025, Donghee Na and me wrote <a class="reference external" href="https://peps.python.org/pep-0814/">PEP 814 – Add frozendict built-in
+type</a>, and we <a class="reference external" href="https://discuss.python.org/t/pep-814-add-frozendict-built-in-type/104854">started a discussion</a>.
+PEP 814 has a different Rationale than the old PEP 416, and it explains the
+<tt class="docutils literal">frozendict</tt> API in details.</p>
+<p>The insertion order is preserved, but the hash value does not depend on the
+items’ order.</p>
+<p>Examples:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="s1">&#39;localhost&#39;</span><span class="p">},</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">)</span>
+<span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="s1">&#39;localhost&#39;</span><span class="p">,</span> <span class="s1">&#39;port&#39;</span><span class="p">:</span> <span class="mi">8080</span><span class="p">})</span>
+
+<span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">|</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+
+<span class="c1"># hash doesn&#39;t depend on items&#39; order</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">hash</span><span class="p">(</span><span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span> <span class="o">==</span> <span class="nb">hash</span><span class="p">(</span><span class="n">frozendict</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+<span class="kc">True</span>
+</pre></div>
+<p><tt class="docutils literal">dict</tt> has more methods than <tt class="docutils literal">frozendict</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">__delitem__(key)</tt></li>
+<li><tt class="docutils literal">__setitem__(key, value)</tt></li>
+<li><tt class="docutils literal">clear()</tt></li>
+<li><tt class="docutils literal">pop(key)</tt></li>
+<li><tt class="docutils literal">popitem()</tt></li>
+<li><tt class="docutils literal">setdefault(key, value)</tt></li>
+<li><tt class="docutils literal"><span class="pre">update(*args,</span> **kwargs)</tt></li>
+</ul>
+<p>Quickly, the PEP got updated to document that <tt class="docutils literal">frozendict</tt> can be compared to
+<tt class="docutils literal">dict</tt>, the <tt class="docutils literal">frozendict | frozendict</tt> union operation was documented,
+the <tt class="docutils literal">frozendict</tt> copy was elaborated, more C API functions were added (like
+<tt class="docutils literal">PyAnyDict_Check()</tt> and <tt class="docutils literal">PyFrozenDict_New()</tt>), and the complexity of PEP
+603 <tt class="docutils literal">frozenmap</tt> operations was clarified.</p>
+<p>Adding a method to convert a <tt class="docutils literal">dict</tt> to a <tt class="docutils literal">frozendict</tt>, and type annotation
+were added to <a class="reference external" href="https://peps.python.org/pep-0814/#deferred-ideas">Deferred Ideas</a>.</p>
+<p>The sentence &quot;Using <strong>immutable</strong> values creates a hashable frozendict&quot; was
+replaced with &quot;Using <strong>hashable</strong> values creates a hashable frozendict&quot; to
+clarify that hashable doesn't mean immutable.</p>
+<p>In February 2026, the Steering Council <a class="reference external" href="https://discuss.python.org/t/pep-814-add-frozendict-built-in-type/104854/121">accepted PEP 814</a>,
+but also requested some changes, like removing this paragraph:</p>
+<blockquote>
+Immutable mappings can be used to safely share dictionaries across thread
+and asynchronous task boundaries. The immutability makes it easier to
+reason about threads and asynchronous tasks.</blockquote>
+</div>
+<div class="section" id="implementation">
+<h2>Implementation</h2>
+<p>The Reference Implementation section of PEP 814 says:</p>
+<ul class="simple">
+<li><tt class="docutils literal">frozendict</tt> shares most of its code with the <tt class="docutils literal">dict</tt> type.</li>
+<li>Add <tt class="docutils literal">PyFrozenDictObject</tt> structure which inherits from <tt class="docutils literal">PyDictObject</tt> and
+has an additional <tt class="docutils literal">ma_hash</tt> member.</li>
+</ul>
+<p>In the current main branch, <tt class="docutils literal">Objects/dictobject.c</tt> has around 8,500 lines.  A
+coarse measurement is that only around 560 lines (7%) are specific to the
+<tt class="docutils literal">frozendict</tt> implementation: so most of the <tt class="docutils literal">dict</tt> code is shared with
+<tt class="docutils literal">frozendict</tt>!</p>
+<p>Most changes were done in the <a class="reference external" href="https://github.com/python/cpython/issues/141510">issue gh-141510</a>.</p>
+<p>In March 2026, Python 3.15 alpha 7 was released, the first version including
+<tt class="docutils literal">frozendict</tt>. Obviously, many bugs have been quickly discovered! For example,
+the <tt class="docutils literal">frozendict.__init__()</tt> method was implemented by mistake: this method
+allowed to modify an immutable <tt class="docutils literal">frozendict</tt> which is plain wrong! The method
+has been simply removed.</p>
+<p>I <a class="reference external" href="https://github.com/python/cpython/commit/244300162d2e863a0588d1754e224d68931ada37">fixed</a>
+<tt class="docutils literal">hash(frozendict)</tt>, the implementation created too many hash collision.  The
+code now computes hash of <tt class="docutils literal">(key, value)</tt> pairs</p>
+<p><tt class="docutils literal">repr(frozendict)</tt> was modified to return <tt class="docutils literal"><span class="pre">'frozendict()'</span></tt> instead of
+<tt class="docutils literal"><span class="pre">'frozendict({})'</span></tt> for an empty dictionary.</p>
+<p>Donghee Na optimized the <tt class="docutils literal">frozendict</tt> implementation for Free Threading. For
+example:</p>
+<ul class="simple">
+<li>Avoid locking whenever possible on <tt class="docutils literal">repr(frozendict)</tt>,
+<tt class="docutils literal">frozenset.fromkeys()</tt>, <tt class="docutils literal">frozendict.copy()</tt> and
+<tt class="docutils literal">frozendict | frozendict</tt>.</li>
+<li><tt class="docutils literal">len(frozendict)</tt> do no use atomic operation.</li>
+</ul>
+<p>Donghee also modified <tt class="docutils literal">BINARY_OP_SUBSCR_DICT</tt> and <tt class="docutils literal">CONTAINS_OP_DICT</tt>
+bytecode specialization to support <tt class="docutils literal">frozendict</tt>.</p>
+<p>The helper function <tt class="docutils literal">can_modify_dict()</tt> was added to debug mode to make sure
+that a <tt class="docutils literal">frozendict</tt> is only modified when it's not visible in Python. It must
+not be tracked by the garbage collector and it must have a reference count of
+<tt class="docutils literal">1</tt>.</p>
+<p><tt class="docutils literal">frozendict.fromkeys()</tt> was fixed to copy the <tt class="docutils literal">frozendict</tt> if the type
+constructor returns a <tt class="docutils literal">frozendict</tt>.</p>
+</div>
+<div class="section" id="return-the-frozendict-unchanged">
+<h2>Return the frozendict unchanged</h2>
+<p>Since a <tt class="docutils literal">frozendict</tt> is immutable, it's possible to return the same
+<tt class="docutils literal">frozendict</tt> unchanged on multiple operations. Examples:</p>
+<div class="highlight"><pre><span></span><span class="err">$</span> <span class="n">python3</span><span class="mf">.15</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="ow">is</span> <span class="n">fd</span>
+<span class="kc">True</span>
+
+<span class="o">&gt;&gt;&gt;</span> <span class="n">empty</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="p">(</span><span class="n">fd</span> <span class="o">|</span> <span class="n">empty</span><span class="p">)</span> <span class="ow">is</span> <span class="n">fd</span>
+<span class="kc">True</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="p">(</span><span class="n">empty</span> <span class="o">|</span> <span class="n">fd</span><span class="p">)</span> <span class="ow">is</span> <span class="n">fd</span>
+<span class="kc">True</span>
+
+ <span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+ <span class="o">&gt;&gt;&gt;</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span> <span class="ow">is</span> <span class="n">fd</span>
+ <span class="kc">True</span>
+</pre></div>
+</div>
+<div class="section" id="use-frozendict-in-the-standard-library">
+<h2>Use frozendict in the Standard Library</h2>
+<p><tt class="docutils literal">eval()</tt> and <tt class="docutils literal">exec()</tt> now accept <tt class="docutils literal">frozendict</tt> for globals, and <tt class="docutils literal">type()</tt>
+and <tt class="docutils literal">str.maketrans()</tt> now accept <tt class="docutils literal">frozendict</tt> for dict.</p>
+<p>Modules modified to accept <tt class="docutils literal">frozendict</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">copy</tt></li>
+<li><tt class="docutils literal">decimal</tt> (to set context flags)</li>
+<li><tt class="docutils literal">json</tt></li>
+<li><tt class="docutils literal">marshal</tt> (version increased to 6)</li>
+<li><tt class="docutils literal">pickle</tt></li>
+<li><tt class="docutils literal">plistlib</tt> (only for serialization)</li>
+<li><tt class="docutils literal">pprint</tt></li>
+<li><tt class="docutils literal">xml.etree.ElementTree</tt></li>
+</ul>
+<p>It's now possible to pass <tt class="docutils literal">object_hook=frozendict</tt> to the JSON decoder to
+create <tt class="docutils literal">frozendict</tt> dictionaries. Example:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;{&quot;x&quot;: 1}&#39;</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">frozendict</span><span class="p">)</span>
+<span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+</pre></div>
+<p>Changes methods:</p>
+<ul class="simple">
+<li><tt class="docutils literal">dataclasses.field</tt>: <tt class="docutils literal">Field.metadata</tt> becomes an empty <tt class="docutils literal">frozendict</tt>
+if there is no metadata.</li>
+<li><tt class="docutils literal">email.headerregistry.ParameterizedMIMEHeader.params</tt> type is now
+<tt class="docutils literal">frozendict</tt> instead of <tt class="docutils literal">MappingProxyType</tt>.</li>
+</ul>
+<p>Private variables and variables of private modules converted to <tt class="docutils literal">frozendict</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">functools._convert</tt></li>
+<li><tt class="docutils literal">gettext._binary_ops</tt></li>
+<li><tt class="docutils literal">gettext._c2py_ops</tt></li>
+<li><tt class="docutils literal">json.decoder._CONSTANTS</tt></li>
+<li><tt class="docutils literal">json.tool._group_to_theme_color</tt></li>
+<li><tt class="docutils literal">opcode._cache_format</tt></li>
+<li><tt class="docutils literal">opcode._inline_cache_entries</tt></li>
+<li><tt class="docutils literal">optparse._builtin_cvt</tt></li>
+<li><tt class="docutils literal">platform._ver_stages</tt></li>
+<li><tt class="docutils literal">platform._default_architecture</tt></li>
+<li><tt class="docutils literal">plistlib._BINARY_FORMAT</tt></li>
+<li><tt class="docutils literal">_ssl._PROTOCOL_NAMES</tt></li>
+<li><tt class="docutils literal">symtable._scopes_value_to_name</tt></li>
+<li><tt class="docutils literal">tarball._NAMED_FILTERS</tt></li>
+<li><tt class="docutils literal">_opcode_metadata._specializations</tt></li>
+<li><tt class="docutils literal">_opcode_metadata._specialized_opmap</tt></li>
+<li><tt class="docutils literal">_opcode_metadata.opmap</tt></li>
+</ul>
+<p>PEP 814 planned to convert more dictionaries to <tt class="docutils literal">frozendict</tt> in the standard
+library, but the Steering Council asked:</p>
+<blockquote>
+Stdlib adoption should happen with each module maintainer’s approval, not
+as a mechanical sweep.</blockquote>
+<p>The <tt class="docutils literal">errno.errorcode</tt> change (<a class="reference external" href="https://github.com/python/cpython/pull/144906">PR gh-144906</a>) was rejected by the module
+maintainer (<strong>Thomas Wouters</strong>), since there are legit use cases to modify
+the <tt class="docutils literal">errno.errorcode</tt> dictionary.</p>
+<p>Converting the 3 <tt class="docutils literal">_opcode_metadata</tt> dictionaries to <tt class="docutils literal">frozendict</tt> broke the
+Cinder project (even if <tt class="docutils literal">_opcode_metadata</tt> is a private module). Because of
+the rejected <tt class="docutils literal">errno</tt> change and the Cinder regression, it was decided to not
+convert more stdlib dictionaries to <tt class="docutils literal">frozendict</tt>.</p>
+</div>
+<div class="section" id="frozendict-special-cases">
+<h2>Frozendict special cases</h2>
+<p>Only the frozendict mapping is immutable. Values can still be mutable. Example:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span>
+<span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]})</span>
+</pre></div>
+<p>Mutable values is not specific to <tt class="docutils literal">frozendict</tt>, <tt class="docutils literal">tuple</tt> items can also be
+mutable even if the <tt class="docutils literal">tuple</tt> sequence is immutable. Example:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">t</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[])</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">t</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">t</span>
+<span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+</pre></div>
+<p>A <tt class="docutils literal">frozendict</tt> is only hashable if all values are hashtable. Example:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="nb">hash</span><span class="p">(</span><span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>  <span class="c1"># hashable values</span>
+<span class="o">-</span><span class="mi">3593417788644647096</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">hash</span><span class="p">(</span><span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="p">[]))</span>  <span class="c1"># not hashable values</span>
+<span class="ne">TypeError</span><span class="p">:</span> <span class="n">unhashable</span> <span class="nb">type</span><span class="p">:</span> <span class="s1">&#39;list&#39;</span>
+</pre></div>
+<p>I <a class="reference external" href="https://github.com/python/cpython/commit/646bd86e3b2f4f484129bd4a926cf73fafc9f874">had to fix a corner case</a>
+in <tt class="docutils literal">copy.deepcopy()</tt> when copying a <tt class="docutils literal">frozendict</tt> which... contains itself!
+Example of such recursive dictionary:</p>
+<div class="highlight"><pre><span></span><span class="n">fd</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">foo</span><span class="o">=</span><span class="p">[])</span>
+<span class="n">fd</span><span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">fd</span><span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="n">fd</span>
+</pre></div>
+</div>
+<div class="section" id="bugs-involving-the-garbage-collector">
+<h2>Bugs involving the garbage collector</h2>
+<p><a class="reference external" href="https://github.com/python/cpython/issues/151722">Issue gh-151722</a> was
+created to report a bug using <tt class="docutils literal">gc.get_objects()</tt>: it was possible to see a
+<tt class="docutils literal">frozendict</tt> being modified in Python!</p>
+<p>While a <tt class="docutils literal">frozendict</tt> is immutable in Python, the C implementation creates an
+empty <tt class="docutils literal">frozendict</tt>, sets items and then returns the new <tt class="docutils literal">frozendict</tt> to
+Python. The problem is that it was possible to see the internal <tt class="docutils literal">frozendict</tt>
+being modified using <tt class="docutils literal">gc.get_objects()</tt>.</p>
+<p>The issue was fixed by only tracking <tt class="docutils literal">frozendict</tt> in the garbage collector
+once it's fully initialized, instead of tracking it as soon as it's created
+(empty). Multiple <tt class="docutils literal">frozendict</tt> methods had to be fixed.</p>
+<p>Later, Donghee discovered (and fixed) similar issues in the <tt class="docutils literal">frozenset</tt> type:
+<a class="reference external" href="https://github.com/python/cpython/issues/152235">issue gh-152235</a>.</p>
+</div>
+<div class="section" id="update-your-code-for-frozendict">
+<h2>Update your code for frozendict</h2>
+<div class="section" id="python-code">
+<h3>Python code</h3>
+<p>Code checking for <tt class="docutils literal">dict</tt> type using <tt class="docutils literal">isinstance(arg, dict)</tt> can be updated
+to <tt class="docutils literal">isinstance(arg, (dict, frozendict))</tt> to accept also the <tt class="docutils literal">frozendict</tt>
+type, or to <tt class="docutils literal">isinstance(arg, collections.abc.Mapping)</tt> to accept also other
+mapping types such as <tt class="docutils literal">types.MappingProxyType</tt>.</p>
+</div>
+<div class="section" id="c-code">
+<h3>C code</h3>
+<p>In functions accepting <tt class="docutils literal">dict</tt>, accepting <tt class="docutils literal">frozendict</tt> can be easily done by
+replacing <tt class="docutils literal">PyDict_Check()</tt> with <tt class="docutils literal">PyAnyDict_Check()</tt>.</p>
+<p>The good news is that C code which only reads dictionaries with functions like
+<tt class="docutils literal">PyDict_GetItemRef()</tt> don't need to be updated to accept <tt class="docutils literal">frozendict</tt>!</p>
+</div>
+</div>
+<div class="section" id="options-on-python-3-14-and-older">
+<h2>Options on Python 3.14 and older</h2>
+<p>Python 3.15 final is <a class="reference external" href="https://peps.python.org/pep-0790/">scheduled for October 2026</a>. Please <a class="reference external" href="https://www.python.org/downloads/">test Python 3.15 beta releases</a>!</p>
+<p>Until Python 3.15 will be available on your favorite operating system, there
+are different options to use an immutable dictionary on Python 3.14 and older.</p>
+<p>Note: it's already possible to <tt class="docutils literal">dnf install python3.15</tt> on Fedora 44!</p>
+<div class="section" id="mappingproxytype">
+<h3>MappingProxyType</h3>
+<p>When PEP 416 got rejected, I added <tt class="docutils literal">types.MappingProxyType</tt> to Python
+3.3. It can be used to create a read-only proxy of a dictionary. It's not
+possible to modify the proxy, but if the underlying dictionary is modified, the
+proxy is updated as well.</p>
+<p>The main difference with <tt class="docutils literal">frozendict</tt> is that it's not possible to hash a
+<tt class="docutils literal">MappingProxyType</tt>.</p>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><span class="err">$</span> <span class="n">python3</span><span class="mf">.14</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">types</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="s1">&#39;value&#39;</span><span class="p">}</span>
+
+<span class="o">&gt;&gt;&gt;</span> <span class="n">proxy</span> <span class="o">=</span> <span class="n">types</span><span class="o">.</span><span class="n">MappingProxyType</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span>
+<span class="s1">&#39;value&#39;</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;value2&#39;</span>
+<span class="ne">TypeError</span><span class="p">:</span> <span class="s1">&#39;mappingproxy&#39;</span> <span class="nb">object</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">support</span> <span class="n">item</span> <span class="n">assignment</span>
+
+<span class="o">&gt;&gt;&gt;</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;value2&#39;</span>  <span class="c1"># if the dict is modified</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">proxy</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span>              <span class="c1"># the proxy is updated as well</span>
+<span class="s1">&#39;value2&#39;</span>
+</pre></div>
+<p>Note: there are ways to access the internal mutable dictionary. Example using
+the <tt class="docutils literal">gc</tt> module:</p>
+<div class="highlight"><pre><span></span><span class="err">$</span> <span class="n">python3</span><span class="mf">.14</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">types</span><span class="o">,</span><span class="w"> </span><span class="nn">gc</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">mapping</span> <span class="o">=</span> <span class="n">types</span><span class="o">.</span><span class="n">MappingProxyType</span><span class="p">({</span><span class="s1">&#39;secret&#39;</span><span class="p">:</span> <span class="s1">&#39;dict&#39;</span><span class="p">})</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">internal_dict</span> <span class="o">=</span> <span class="n">gc</span><span class="o">.</span><span class="n">get_referents</span><span class="p">(</span><span class="n">mapping</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">internal_dict</span><span class="p">[</span><span class="s1">&#39;secret&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;not so secret&#39;</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">mapping</span>
+<span class="n">mappingproxy</span><span class="p">({</span><span class="s1">&#39;secret&#39;</span><span class="p">:</span> <span class="s1">&#39;not so secret&#39;</span><span class="p">})</span>
+</pre></div>
+</div>
+<div class="section" id="frozendict-on-pypi">
+<h3>frozendict on PyPI</h3>
+<p>The <a class="reference external" href="https://pypi.org/project/frozendict/">frozendict project</a> by Marco Sulla
+provides a <tt class="docutils literal">frozendict</tt> type with is similar API to Python 3.15 built-in
+<tt class="docutils literal">frozendict</tt> type, but with additional methods:</p>
+<ul class="simple">
+<li><tt class="docutils literal">set(key, value)</tt></li>
+<li><tt class="docutils literal">delete(key)</tt></li>
+<li><tt class="docutils literal">setdefault(key[, default])</tt></li>
+<li><tt class="docutils literal"><span class="pre">key([index])</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">value([index])</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">item([index])</span></tt></li>
+</ul>
+<p>On Python 3.6 to 3.10, it uses a C implementation. On other Python versions,
+the <tt class="docutils literal">frozendict.frozendict</tt> type is implemented in Python and inherits from
+the <tt class="docutils literal">dict</tt> type, so it's possible to modify a <tt class="docutils literal">frozendict</tt> using <tt class="docutils literal">dict</tt>
+methods:</p>
+<div class="highlight"><pre><span></span><span class="err">$</span> <span class="n">python3</span><span class="mf">.14</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">frozendict</span><span class="w"> </span><span class="kn">import</span> <span class="n">frozendict</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="o">.</span><span class="vm">__bases__</span>
+<span class="p">(</span><span class="o">&lt;</span><span class="k">class</span><span class="w"> </span><span class="err">&#39;</span><span class="nc">dict</span><span class="s1">&#39;&gt;,)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">dict</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span>  <span class="c1"># oops, the immutable frozendict has been modified!</span>
+<span class="n">frozendict</span><span class="o">.</span><span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
+</pre></div>
+<p>There are multiple other PyPI projects providing a <tt class="docutils literal">frozendict</tt> type,
+sometimes under a different name, such as <tt class="docutils literal">immutabledict</tt>.</p>
+</div>
+<div class="section" id="namedtuple">
+<h3>namedtuple</h3>
+<p>While <tt class="docutils literal">collections.namedtuple</tt> doesn't implement the mapping protocol, it is
+sometimes used to create immutable objects.</p>
+</div>
+</div>
+<div class="section" id="c-api-changes">
+<h2>C API changes</h2>
+<div class="section" id="new-functions">
+<h3>New functions</h3>
+<p>PEP 814 added new functions to Python 3.15 C API:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyAnyDict_Check()</tt>, <tt class="docutils literal">PyAnyDict_CheckExact()</tt></li>
+<li><tt class="docutils literal">PyFrozenDict_Check()</tt>, <tt class="docutils literal">PyFrozenDict_CheckExact()</tt></li>
+<li><tt class="docutils literal">PyFrozenDict_New()</tt></li>
+</ul>
+</div>
+<div class="section" id="functions-accepting-frozendict">
+<h3>Functions accepting frozendict</h3>
+<p>After the first implementation, the C API was adjusted to decide when the
+<tt class="docutils literal">frozendict</tt> type is accepted or not. Examples:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyDict_Update()</tt>, <tt class="docutils literal">PyDict_Merge()</tt> and <tt class="docutils literal">_PyDict_MergeEx()</tt> no longer
+accept frozendict.</li>
+<li><tt class="docutils literal">PyDict_Contains()</tt> and <tt class="docutils literal">PyDict_ContainsString()</tt> now raise
+<tt class="docutils literal">SystemError</tt> if the argument type is not accepted.</li>
+<li><tt class="docutils literal">PyDict_MergeFromSeq2()</tt> now fails with <tt class="docutils literal">SystemError</tt> if the first
+argument is not a <tt class="docutils literal">dict</tt> or a <tt class="docutils literal">dict</tt> subclass.</li>
+<li>Don't accept <tt class="docutils literal">frozendict</tt> in <tt class="docutils literal">PyDict_Watch()</tt> and <tt class="docutils literal">PyDict_Unwatch()</tt>. A
+<tt class="docutils literal">frozendict</tt> cannot be modified, so it's not useful to watch for
+modifications.</li>
+</ul>
+<p>Functions <strong>accepting</strong> <tt class="docutils literal">fronzendict</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyAnyDict_Check()</tt>, <tt class="docutils literal">PyAnyDict_CheckExact()</tt></li>
+<li><tt class="docutils literal">PyFrozenDict_Check()</tt>, <tt class="docutils literal">PyFrozenDict_CheckExact()</tt></li>
+<li><tt class="docutils literal">PyDictProxy_New()</tt></li>
+<li><tt class="docutils literal">PyDict_Size()</tt></li>
+<li><tt class="docutils literal">PyDict_GetItemRef()</tt>, <tt class="docutils literal">PyDict_GetItemStringRef()</tt></li>
+<li><tt class="docutils literal">PyDict_GetItem()</tt>, <tt class="docutils literal">PyDict_GetItemString()</tt>, <tt class="docutils literal">PyDict_GetItemWithError()</tt></li>
+<li><tt class="docutils literal">PyDict_Contains()</tt>, <tt class="docutils literal">PyDict_ContainsString()</tt></li>
+<li><tt class="docutils literal">PyDict_Keys()</tt>, <tt class="docutils literal">PyDict_Values()</tt> and <tt class="docutils literal">PyDict_Items()</tt></li>
+<li><tt class="docutils literal">PyDict_Next()</tt></li>
+<li><tt class="docutils literal">PyDict_Clear()</tt></li>
+</ul>
+<p>All <tt class="docutils literal">PyDict</tt> functions reading a dictionary accept a <tt class="docutils literal">frozendict</tt>.</p>
+<p>Note: <tt class="docutils literal">PyDict_Clear()</tt> is kind of special: it does nothing if the argument is
+not a <tt class="docutils literal">dict</tt> or a <tt class="docutils literal">dict</tt> subclass.</p>
+<p>The following abstract methods have also been modified to accept <tt class="docutils literal">frozendict</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyMapping_GetOptionalItem()</tt></li>
+<li><tt class="docutils literal">PyMapping_Keys()</tt></li>
+<li><tt class="docutils literal">PyMapping_Values()</tt></li>
+<li><tt class="docutils literal">PyMapping_Items()</tt></li>
+</ul>
+<p>The <tt class="docutils literal">test_capi.test_dict</tt> tests have been completed to test the
+<tt class="docutils literal">frozendict</tt> type and a <tt class="docutils literal">frozendict</tt> subclass.</p>
+</div>
+<div class="section" id="functions-not-accepting-frozendict">
+<h3>Functions not accepting frozendict</h3>
+<p>Functions <strong>not accepting</strong> <tt class="docutils literal">frozendict</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">PyDict_Check()</tt>, <tt class="docutils literal">PyDict_CheckExact()</tt></li>
+<li><tt class="docutils literal">PyDict_Copy()</tt></li>
+<li><tt class="docutils literal">PyDict_Update()</tt></li>
+<li><tt class="docutils literal">PyDict_Merge()</tt></li>
+<li><tt class="docutils literal">PyDict_MergeFromSeq2()</tt></li>
+<li><tt class="docutils literal">PyDict_DelItem()</tt>, <tt class="docutils literal">PyDict_DelItemString()</tt></li>
+<li><tt class="docutils literal">PyDict_SetItem()</tt>, <tt class="docutils literal">PyDict_SetItemString()</tt></li>
+<li><tt class="docutils literal">PyDict_SetDefault()</tt>, <tt class="docutils literal">PyDict_SetDefaultRef()</tt></li>
+<li><tt class="docutils literal">PyDict_Pop()</tt>, <tt class="docutils literal">PyDict_PopString()</tt></li>
+</ul>
+<p>Functions <strong>modifying</strong> a dictionary <strong>don't accept</strong> <tt class="docutils literal">frozendict</tt>. If they
+are called with a <tt class="docutils literal">frozendict</tt>, at least a nice error message is provided to
+guide the developer, rather than a generic error. For example,
+<tt class="docutils literal">PyDict_SetItem()</tt> raises <tt class="docutils literal"><span class="pre">TypeError(&quot;frozendict</span> object does not support
+item assignment&quot;)</tt>.</p>
+<p>First, <tt class="docutils literal">PyDict_Copy()</tt> was modified to return a <tt class="docutils literal">frozendict</tt> if the
+argument is a <tt class="docutils literal">frozendict</tt>. But it was too surprising in existing C code
+that the <tt class="docutils literal">PyDict_Copy()</tt> result type can now be <tt class="docutils literal">frozendict</tt>. Moreover,
+copying a <tt class="docutils literal">frozendict</tt> is expected to return the same object unchanged, since
+it's immutable. At the end, it was decided to reject <tt class="docutils literal">frozendict</tt> in
+<tt class="docutils literal">PyDict_Copy()</tt>.</p>
+<p>Note: I also added an internal <tt class="docutils literal">_PyDict_CopyAsDict()</tt> function to copy a
+<tt class="docutils literal">dict</tt> or a <tt class="docutils literal">frozendict</tt> as a new (mutable) <tt class="docutils literal">dict</tt>.</p>
+</div>
+</div>
+<div class="section" id="follow-up-ideas-for-frozendict">
+<h2>Follow-up ideas for frozendict</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://discuss.python.org/t/frozenset-and-frozendict-comprehensions/101584">frozenset and frozendict comprehensions</a>
+(August 2025)
+discuss a new syntax for <tt class="docutils literal">frozendict</tt> literals.</li>
+<li><a class="reference external" href="https://discuss.python.org/t/provide-a-c-api-to-efficently-convert-dict-into-frozendict/107754">Provide a C-API to efficently convert dict into frozendict</a>
+(June 2026).</li>
+<li><a class="reference external" href="https://discuss.python.org/t/dict-constant-folding-new-frozendict-type/104363">Dict constant folding, new frozendict type</a>
+(October 2025).</li>
+</ul>
+</div>
+<div class="section" id="read-more-about-frozendict">
+<h2>Read more about frozendict</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://docs.python.org/dev/library/stdtypes.html#frozendict">Python frozendict documentation</a>.</li>
+<li><a class="reference external" href="https://www.infoworld.com/article/4152654/get-started-with-pythons-new-frozendict-type.html">InfoWorld: Get started with Python’s new frozendict type</a>
+(April, 2026)
+by Serdar Yegulalp.</li>
+<li><a class="reference external" href="https://lwn.net/Articles/1047238/">LWN: A &quot;frozen&quot; dictionary for Python</a>
+(December 2025)
+by Jake Edge.</li>
+<li><a class="reference external" href="https://news.ycombinator.com/item?id=46229467">Hacker News on the LWN's article</a>
+(December 2025).</li>
+<li><a class="reference external" href="https://realpython.com/python-news-march-2026/">Python Gains frozendict and Other Python News for March 2026</a>
+(March 2026)
+by Philipp Acsany.</li>
+</ul>
+</div>
+</div>
+	<hr>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (31)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
