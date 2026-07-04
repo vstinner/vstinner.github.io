@@ -2,6 +2,13 @@
 PEP 814: Add frozendict built-in type
 +++++++++++++++++++++++++++++++++++++
 
+:date: 2026-07-04 14:00
+:tags: cpython
+:category: cpython
+:slug: pep-814-add-frozendict-builtin-type
+:authors: Victor Stinner
+
+
 PEP 416: Add a frozendict builtin type
 ======================================
 
@@ -140,7 +147,6 @@ Since a ``frozendict`` is immutable, it's possible to return the same
     True
 
 
-
 C API
 =====
 
@@ -168,16 +174,16 @@ not. Examples:
 
 Functions accepting ``fronzendict``:
 
-* PyAnyDict_Check(), PyAnyDict_CheckExact()
-* PyFrozenDict_Check(), PyFrozenDict_CheckExact()
-* PyDictProxy_New()
-* PyDict_Size()
-* PyDict_GetItemRef(), PyDict_GetItemStringRef()
-* PyDict_GetItem(), PyDict_GetItemString(), PyDict_GetItemWithError()
-* PyDict_Contains(), PyDict_ContainsString()
-* PyDict_Keys(), PyDict_Values() and PyDict_Items()
-* PyDict_Next()
-* PyDict_Clear()
+* ``PyAnyDict_Check()``, ``PyAnyDict_CheckExact()``
+* ``PyFrozenDict_Check()``, ``PyFrozenDict_CheckExact()``
+* ``PyDictProxy_New()``
+* ``PyDict_Size()``
+* ``PyDict_GetItemRef()``, ``PyDict_GetItemStringRef()``
+* ``PyDict_GetItem()``, ``PyDict_GetItemString()``, ``PyDict_GetItemWithError()``
+* ``PyDict_Contains()``, ``PyDict_ContainsString()``
+* ``PyDict_Keys()``, ``PyDict_Values()`` and ``PyDict_Items()``
+* ``PyDict_Next()``
+* ``PyDict_Clear()``
 
 All ``PyDict`` functions reading a dictionary accept a ``frozendict``.
 
@@ -189,22 +195,22 @@ is not a ``dict`` or a ``dict`` subclass.
 
 The following abstract methods have also been modified to accept ``frozendict``:
 
-* PyMapping_GetOptionalItem()
-* PyMapping_Keys()
-* PyMapping_Values()
-* PyMapping_Items()
+* ``PyMapping_GetOptionalItem()``
+* ``PyMapping_Keys()``
+* ``PyMapping_Values()``
+* ``PyMapping_Items()``
 
 Functions which don't accept ``frozendict``:
 
-* PyDict_Check(), PyDict_CheckExact()
-* PyDict_Copy()
-* PyDict_Update()
-* PyDict_Merge()
-* PyDict_MergeFromSeq2()
-* PyDict_DelItem(), PyDict_DelItemString()
-* PyDict_SetItem(), PyDict_SetItemString()
-* PyDict_SetDefault(), PyDict_SetDefaultRef()
-* PyDict_Pop(), PyDict_PopString()
+* ``PyDict_Check()``, ``PyDict_CheckExact()``
+* ``PyDict_Copy()``
+* ``PyDict_Update()``
+* ``PyDict_Merge()``
+* ``PyDict_MergeFromSeq2()``
+* ``PyDict_DelItem()``, ``PyDict_DelItemString()``
+* ``PyDict_SetItem()``, ``PyDict_SetItemString()``
+* ``PyDict_SetDefault()``, ``PyDict_SetDefaultRef()``
+* ``PyDict_Pop()``, ``PyDict_PopString()``
 
 Functions modifying a dictionary don't accept ``frozendict``. If they are
 called with a ``frozendict``, at least a nice error message is provided to
@@ -287,8 +293,8 @@ Rejected changes:
 
 * ``errno.errorcode`` (`PR gh-144906 <https://github.com/python/cpython/pull/144906>`_)
 
-Bugs involved the garbage collector
-===================================
+Bugs involving the garbage collector
+====================================
 
 `Issue gh-151722 <https://github.com/python/cpython/issues/151722>`_ was
 created to report a bug using ``gc.get_objects()``: it was possible to see a
@@ -305,3 +311,74 @@ functions creating ``frozendict`` have been fixed for this issue.
 
 Later, a similar issue has been discovered in ``frozenset``:
 `issue gh-152235 <https://github.com/python/cpython/issues/152235>`_.
+
+
+Options on Python 3.14 and older
+================================
+
+Python 3.15 final is `scheduled for October 2026
+<https://peps.python.org/pep-0790/>`_. Until that, there are different options
+to use an immutable dictionary on Python 3.14 and older.
+
+MappingProxyType
+----------------
+
+First, ``types.MappingProxyType`` is available since Python 3.3. It can be
+used to get a read-only proxy on a dictionary. It's not possible to modify
+the private, but if the underlying dictionary is modified, the proxy is updated
+as well.
+
+Example:
+
+.. code-block:: python
+
+   $ python3.14
+   >>> import types
+   >>> private={'key': 'value'}
+
+   >>> public=types.MappingProxyType(private)
+   >>> public['key']
+   'value'
+   >>> public['key']='value2'
+   TypeError: 'mappingproxy' object does not support item assignment
+
+   >>> private['key']='value2'
+   >>> public['key']
+   'value2'
+
+Moreover, it's possible to access the internal mutable dictionary.
+Example using the ``gc`` module:
+
+.. code-block:: python
+
+   $ python3.14
+   >>> import types, gc
+   >>> mapping = types.MappingProxyType({'secret': 'dict'})
+   >>> internal_dict = gc.get_referents(mapping)[0]
+   >>> internal_dict['secret'] = 'not so secret'
+   >>> mapping
+   mappingproxy({'secret': 'not so secret'})
+
+frozendict on PyPI
+------------------
+
+The `frozendict project <https://pypi.org/project/frozendict/>`_ by Marco Sulla
+provides a ``frozendict`` type with is similar to Python 3.15 built-in
+``frozendict`` type, but with additional methods:
+
+* ``set(key, value)``
+* ``delete(key)``
+* ``setdefault(key[, default])``
+* ``key([index])``
+* ``value([index])``
+* ``item([index])``
+
+On Python 3.6 to 3.10, it uses a C implementation. On other Python versions,
+the ``frozendict`` type is implemented in Python (it inherits from the ``dict``
+type).
+
+namedtuple
+----------
+
+While ``collections.namedtuple`` doesn't implement the mapping protocol, it is
+sometimes used when an immutable object is needed.
