@@ -8,15 +8,46 @@ PEP 814: Add frozendict built-in type
 :slug: pep-814-add-frozendict-builtin-type
 :authors: Victor Stinner
 
+.. image:: {static}/images/toulouse_lautrec.jpg
+   :alt: La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec
+   :target: https://fr.wikipedia.org/wiki/La_Danse_au_Moulin-Rouge_(Philadelphie)
+
+In November 2025 at Pycon France (at Lyon), I watched the talk "Build a
+frozendict type (immutable dictionary)" by Antoine Rozo (`video
+<https://indymotion.fr/w/1GAEdaD7hCJs4YHy7gfkL7>`_ in French). It was a funny
+talk building a ``frozendict`` type in pure Python exploring different
+implementations such as a frozen ``dataclass`` with slots, ``frozenset`` and
+``super``. See his `final implementation
+<https://gist.github.com/vstinner/ee45f2ccc4ba8dabaf2ff30a1c65c056>`_ which is
+interesting!
+
+Watching this talk reminded me my old PEP 416 and the more recent discussions
+on PEP 603 ``frozenmap``. It motivated to write a new PEP 814 with Donghee Na
+to add a built-in ``frozendict`` type implemented in C to Python 3.15.
+
+Fortunately, the PEP discussion went well and the Steering Council accepted PEP
+814. We implemented ``frozendict`` in Python 3.15 which is now available (as
+beta versions) to be tested! Example:
+
+.. code-block:: python
+
+   >>> fd = frozendict(x=1)
+   >>> fd['x'] = 2
+   TypeError: 'frozendict' object does not support item assignment
+
+
+*Painting: La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec (1890).*
+
 
 PEP 416: Add a frozendict builtin type
 ======================================
 
 In 2012, I was working actively on the `pysandbox project
 <https://github.com/vstinner/pysandbox>`_. To implement this sandbox, I needed
-read-only dictionaries and so I wrote `PEP 416 – Add a frozendict builtin type
-<https://peps.python.org/pep-0416/>`_. Sadly, after 1 month of discussions,
-Guido van Rossum (Python former `BDFL
+read-only dictionaries (used a namespaces) and so I wrote `PEP 416 – Add a
+frozendict builtin type <https://peps.python.org/pep-0416/>`_.
+
+Sadly, after 1 month of discussions, Guido van Rossum (Python former `BDFL
 <https://en.wikipedia.org/wiki/Benevolent_dictator_for_life>`_) rejected my
 PEP: read the `Rejection Notice
 <https://peps.python.org/pep-0416/#rejection-notice>`_.
@@ -47,7 +78,7 @@ dictionary sizes, whereas ``dict.copy()`` has O(n) complexity.
 
 ``frozenmap`` doesn't preserve insertion order.
 
-PEP 603 discussion got 215 messages, but it was submitted to the Steering
+PEP 603 discussion got 215 messages, but it was not submitted to the Steering
 Council so far.
 
 PEP 814 – Add frozendict built-in type
@@ -57,14 +88,33 @@ In November 2025, I wrote `PEP 814 – Add frozendict built-in type
 <https://peps.python.org/pep-0814/>`_ with Donghee Na, and we `started a
 discussion
 <https://discuss.python.org/t/pep-814-add-frozendict-built-in-type/104854>`_.
+PEP 814 has a different Rationale than the old PEP 416, and it explains the
+``frozendict`` API in details.
+
+The insertion order is preserved, but the hash value does not depend on the
+items’ order.
+
+Examples:
+
+.. code-block:: python
+
+   >>> frozendict({'host': 'localhost'}, port=8080)
+   frozendict({'host': 'localhost', 'port': 8080})
+
+   >>> frozendict(x=1) | frozendict(y=2)
+   frozendict({'x': 1, 'y': 2})
+
+   # hash doesn't depend on items' order
+   >>> hash(frozendict(x=1, y=2)) == hash(frozendict(y=2, x=1))
+   True
 
 Quickly, the PEP got updated to document that ``frozendict`` can be compared to
 ``dict``, the ``frozendict | frozendict`` union operation was documented,
 the copy was elaborated, more C API functions were added (like
-``PyAnyDict_Check()`` and ``PyFrozenDict_New()``), and complexity of PEP 603
-``frozenmap`` was clarified.
+``PyAnyDict_Check()`` and ``PyFrozenDict_New()``), and the complexity of PEP
+603 ``frozenmap`` operations was clarified.
 
-Adding a method to convert a ``dict`` to ``frozendict`` and type annotation
+Adding a method to convert a ``dict`` to a ``frozendict``, and type annotation
 were added to `Deferred Ideas
 <https://peps.python.org/pep-0814/#deferred-ideas>`_.
 
@@ -97,16 +147,16 @@ coarse measurement is that only around 560 lines (7%) are specific to the
 Most changes were done in the `issue gh-141510
 <https://github.com/python/cpython/issues/141510>`_.
 
-Python 3.15 alpha 7 was the first release including ``frozendict``. Obviously,
-many bugs have been quickly discovered! For example, the
-``frozendict.__init__()`` method was implemented by mistake: this method
+In March 2026, Python 3.15 alpha 7 was released, the first version including
+``frozendict``. Obviously, many bugs have been quickly discovered! For example,
+the ``frozendict.__init__()`` method was implemented by mistake: this method
 allowed to modify an immutable ``frozendict`` which is plain wrong! The method
 has been simply removed.
 
 I `fixed
 <https://github.com/python/cpython/commit/244300162d2e863a0588d1754e224d68931ada37>`_
-``hash(frozendict)``, the old implementation created too many hash collision.
-The new code now computes hash of ``(key, value)`` pairs
+``hash(frozendict)``, the implementation created too many hash collision.  The
+code now computes hash of ``(key, value)`` pairs
 
 ``repr(frozendict)`` was modified to return ``'frozendict()'`` instead of
 ``'frozendict({})'`` for an empty dictionary.
@@ -114,10 +164,10 @@ The new code now computes hash of ``(key, value)`` pairs
 Donghee Na optimized the ``frozendict`` implementation for Free Threading. For
 example:
 
-* ``len(frozendict)`` do no use atomic operation.
 * Avoid locking whenever possible on ``repr(frozendict)``,
   ``frozenset.fromkeys()``, ``frozendict.copy()`` and
   ``frozendict | frozendict``.
+* ``len(frozendict)`` do no use atomic operation.
 
 Donghee also modified ``BINARY_OP_SUBSCR_DICT`` and ``CONTAINS_OP_DICT``
 bytecode specialization to support ``frozendict``.
@@ -155,88 +205,11 @@ Since a ``frozendict`` is immutable, it's possible to return the same
     True
 
 
-C API
-=====
-
-New functions have beend added to Python 3.15 C API:
-
-* ``PyAnyDict_Check()``, ``PyAnyDict_CheckExact()``
-* ``PyFrozenDict_Check()``, ``PyFrozenDict_CheckExact()``
-* ``PyFrozenDict_New()``
-
-The C API was adjusted to decide when the ``frozendict`` type are accepted or
-not. Examples:
-
-* ``PyDict_Update()``, ``PyDict_Merge()`` and ``_PyDict_MergeEx()`` no longer
-  accept frozendict.
-* ``PyDict_Contains()`` and ``PyDict_ContainsString()`` now raise
-  ``SystemError`` if the argument type is not accepted.
-* ``PyDict_MergeFromSeq2()`` now fails with ``SystemError`` if the first
-  argument is not a ``dict`` or a ``dict`` subclass.
-* Don't accept ``frozendict`` in ``PyDict_Watch()`` and ``PyDict_Unwatch()``. A
-  ``frozendict`` cannot be modified, so it's not useful to watch for
-  modifications.
-
-Functions accepting ``fronzendict``:
-
-* ``PyAnyDict_Check()``, ``PyAnyDict_CheckExact()``
-* ``PyFrozenDict_Check()``, ``PyFrozenDict_CheckExact()``
-* ``PyDictProxy_New()``
-* ``PyDict_Size()``
-* ``PyDict_GetItemRef()``, ``PyDict_GetItemStringRef()``
-* ``PyDict_GetItem()``, ``PyDict_GetItemString()``, ``PyDict_GetItemWithError()``
-* ``PyDict_Contains()``, ``PyDict_ContainsString()``
-* ``PyDict_Keys()``, ``PyDict_Values()`` and ``PyDict_Items()``
-* ``PyDict_Next()``
-* ``PyDict_Clear()``
-
-All ``PyDict`` functions reading a dictionary accept a ``frozendict``. So
-existing C extensions using these functions don't need to be updated to accept
-``frozendict``.
-
-Note: ``PyDict_Clear()`` is kind of special: it does nothing if the argument is
-not a ``dict`` or a ``dict`` subclass.
-
-The following abstract methods have also been modified to accept ``frozendict``:
-
-* ``PyMapping_GetOptionalItem()``
-* ``PyMapping_Keys()``
-* ``PyMapping_Values()``
-* ``PyMapping_Items()``
-
-Functions which don't accept ``frozendict``:
-
-* ``PyDict_Check()``, ``PyDict_CheckExact()``
-* ``PyDict_Copy()``
-* ``PyDict_Update()``
-* ``PyDict_Merge()``
-* ``PyDict_MergeFromSeq2()``
-* ``PyDict_DelItem()``, ``PyDict_DelItemString()``
-* ``PyDict_SetItem()``, ``PyDict_SetItemString()``
-* ``PyDict_SetDefault()``, ``PyDict_SetDefaultRef()``
-* ``PyDict_Pop()``, ``PyDict_PopString()``
-
-Functions modifying a dictionary don't accept ``frozendict``. If they are
-called with a ``frozendict``, at least a nice error message is provided to
-guide the developer. For example, ``PyDict_SetItem()`` raises
-``TypeError("frozendict object does not support item assignment")``.
-
-First, ``PyDict_Copy()`` was modified to return a ``frozendict`` if the
-argument is a ``frozendict``. But it was too surprising in existing C code
-that the ``PyDict_Copy()`` result type can now be ``frozendict``. Moreover,
-copying a ``frozendict`` is expected to return the same object unchanged, since
-it's immutable. At the end, it was decided to reject ``frozendict`` in
-``PyDict_Copy()``.
-
-Note: I added an internal ``_PyDict_CopyAsDict()`` function to copy a ``dict``
-or a ``frozendict`` as a new (mutable) ``dict``.
-
-
 Use frozendict in the Standard Library
 ======================================
 
-``eval()`` and ``exec()`` accept ``frozendict`` for globals, and ``type()`` and
-``str.maketrans()`` accept ``frozendict`` for dict.
+``eval()`` and ``exec()`` now accept ``frozendict`` for globals, and ``type()``
+and ``str.maketrans()`` now accept ``frozendict`` for dict.
 
 Modules modified to accept ``frozendict``:
 
@@ -250,16 +223,16 @@ Modules modified to accept ``frozendict``:
 * ``xml.etree.ElementTree``
 
 It's now possible to pass ``object_hook=frozendict`` to the JSON decoder to
-create ``frozendict`` dictionaries:
+create ``frozendict`` dictionaries. Example:
 
 .. code-block:: python
 
    >>> json.loads('{"x": 1}', object_hook=frozendict)
    frozendict({'x': 1})
 
-Methods:
+Changes methods:
 
-* ``dataclasses.field``: ``Field.metadata`` becomes a empty ``frozendict``
+* ``dataclasses.field``: ``Field.metadata`` becomes an empty ``frozendict``
   if there is no metadata.
 * ``email.headerregistry.ParameterizedMIMEHeader.params`` type is now
   ``frozendict`` instead of ``MappingProxyType``.
@@ -325,13 +298,13 @@ A frozendict is only hashable if all values are hashtable. Example:
 I `had to fix a corner case
 <https://github.com/python/cpython/commit/646bd86e3b2f4f484129bd4a926cf73fafc9f874>`_
 in ``copy.deepcopy()`` when copying a ``frozendict`` which... contains itself!
-Example of such dictionary:
+Example of such recursive dictionary:
 
 .. code-block:: python
 
-   # recursive frozendict
    fd = frozendict(foo=[])
    fd['foo'].append(fd)
+    assert fd['foo'][0] is fd
 
 
 Bugs involving the garbage collector
@@ -341,18 +314,17 @@ Bugs involving the garbage collector
 created to report a bug using ``gc.get_objects()``: it was possible to see a
 ``frozendict`` being modified in Python!
 
-While ``frozendict`` are immutable in Python, the C implementation creates
-an empty ``frozendict``, set items and then return the new ``frozendict`` to
+While a ``frozendict`` is immutable in Python, the C implementation creates an
+empty ``frozendict``, sets items and then returns the new ``frozendict`` to
 Python. The problem is that it was possible to see the internal ``frozendict``
 being modified using ``gc.get_objects()``.
 
 The issue was fixed by only tracking ``frozendict`` in the garbage collector
 once it's fully initialized, instead of tracking it as soon as it's created
-(empty). Multiple C functions creating ``frozendict`` had to be fixed for this
-issue.
+(empty). Multiple ``frozendict`` methods had to be fixed for this issue.
 
-Later, Donghee discovered (and fixed) a similar issue in ``frozenset``: `issue
-gh-152235 <https://github.com/python/cpython/issues/152235>`_.
+Later, Donghee discovered (and fixed) similar issues in the ``frozenset`` type:
+`issue gh-152235 <https://github.com/python/cpython/issues/152235>`_.
 
 
 Update your code for frozendict
@@ -369,27 +341,35 @@ mapping types such as ``types.MappingProxyType``.
 C code
 ------
 
-In many functions which already accept ``dict``, accepting ``frozendict`` can
-be easily done by replacing ``PyDict_Check()`` with ``PyAnyDict_Check()``.
+In functions accepting ``dict``, accepting ``frozendict`` can be easily done by
+replacing ``PyDict_Check()`` with ``PyAnyDict_Check()``.
 
-C code which only reads dictionaries with functions like
-``PyDict_GetItemRef()`` don't need to be updated to accept ``frozendict``.
+The good news is that C code which only reads dictionaries with functions like
+``PyDict_GetItemRef()`` don't need to be updated to accept ``frozendict``!
 
 
 Options on Python 3.14 and older
 ================================
 
 Python 3.15 final is `scheduled for October 2026
-<https://peps.python.org/pep-0790/>`_. Until that, there are different options
-to use an immutable dictionary on Python 3.14 and older.
+<https://peps.python.org/pep-0790/>`_. Please `test Python 3.15 beta releases
+<https://www.python.org/downloads/>`_!
+
+Until Python 3.15 will be available on your favorite operating system, there
+are different options to use an immutable dictionary on Python 3.14 and older.
+
+Note: it's already possible to ``dnf install python3.15`` on Fedora 44!
 
 MappingProxyType
 ----------------
 
-When the PEP 416 got rejected, I added ``types.MappingProxyType`` to Python
+When PEP 416 got rejected, I added ``types.MappingProxyType`` to Python
 3.3. It can be used to create a read-only proxy of a dictionary. It's not
 possible to modify the proxy, but if the underlying dictionary is modified, the
 proxy is updated as well.
+
+The main difference with ``frozendict`` is that it's not possible to hash a
+``MappingProxyType``.
 
 Example:
 
@@ -397,16 +377,16 @@ Example:
 
    $ python3.14
    >>> import types
-   >>> private = {'key': 'value'}
+   >>> config = {'key': 'value'}
 
-   >>> proxy = types.MappingProxyType(private)
+   >>> proxy = types.MappingProxyType(config)
    >>> proxy['key']
    'value'
    >>> proxy['key'] = 'value2'
    TypeError: 'mappingproxy' object does not support item assignment
 
-   >>> private['key'] = 'value2'
-   >>> proxy['key']
+   >>> config['key'] = 'value2'  # if the dict is modified
+   >>> proxy['key']              # the proxy is updated as well
    'value2'
 
 Note: there are ways to access the internal mutable dictionary. Example using
@@ -437,14 +417,115 @@ provides a ``frozendict`` type with is similar API to Python 3.15 built-in
 * ``item([index])``
 
 On Python 3.6 to 3.10, it uses a C implementation. On other Python versions,
-the ``frozendict.frozendict`` type is implemented in Python (it inherits from
-the ``dict`` type).
+the ``frozendict.frozendict`` type is implemented in Python and inherits from
+the ``dict`` type, so it's possible to modify a ``frozendict`` using ``dict``
+methods:
 
-There are multiple other PyPI projects providing ``frozendict``, sometimes
-under a different name, such as ``immutabledict``.
+.. code-block:: python
+
+   $ python3.14
+   >>> from frozendict import frozendict
+   >>> fd = frozendict(x=1, y=2)
+   >>> frozendict.__bases__
+   (<class 'dict'>,)
+   >>> dict.__init__(fd, {'x': 1000})
+   >>> fd  # oops, the immutable frozendict has been modified!
+   frozendict.frozendict({'x': 1000, 'y': 2})
+
+There are multiple other PyPI projects providing a ``frozendict`` type,
+sometimes under a different name, such as ``immutabledict``.
 
 namedtuple
 ----------
 
 While ``collections.namedtuple`` doesn't implement the mapping protocol, it is
 sometimes used to create immutable objects.
+
+
+C API changes
+=============
+
+New functions
+-------------
+
+PEP 814 added new functions to Python 3.15 C API:
+
+* ``PyAnyDict_Check()``, ``PyAnyDict_CheckExact()``
+* ``PyFrozenDict_Check()``, ``PyFrozenDict_CheckExact()``
+* ``PyFrozenDict_New()``
+
+Functions accepting frozendict
+------------------------------
+
+After the first implementation, the C API was adjusted to decide when the
+``frozendict`` type is accepted or not. Examples:
+
+* ``PyDict_Update()``, ``PyDict_Merge()`` and ``_PyDict_MergeEx()`` no longer
+  accept frozendict.
+* ``PyDict_Contains()`` and ``PyDict_ContainsString()`` now raise
+  ``SystemError`` if the argument type is not accepted.
+* ``PyDict_MergeFromSeq2()`` now fails with ``SystemError`` if the first
+  argument is not a ``dict`` or a ``dict`` subclass.
+* Don't accept ``frozendict`` in ``PyDict_Watch()`` and ``PyDict_Unwatch()``. A
+  ``frozendict`` cannot be modified, so it's not useful to watch for
+  modifications.
+
+Functions **accepting** ``fronzendict``:
+
+* ``PyAnyDict_Check()``, ``PyAnyDict_CheckExact()``
+* ``PyFrozenDict_Check()``, ``PyFrozenDict_CheckExact()``
+* ``PyDictProxy_New()``
+* ``PyDict_Size()``
+* ``PyDict_GetItemRef()``, ``PyDict_GetItemStringRef()``
+* ``PyDict_GetItem()``, ``PyDict_GetItemString()``, ``PyDict_GetItemWithError()``
+* ``PyDict_Contains()``, ``PyDict_ContainsString()``
+* ``PyDict_Keys()``, ``PyDict_Values()`` and ``PyDict_Items()``
+* ``PyDict_Next()``
+* ``PyDict_Clear()``
+
+All ``PyDict`` functions reading a dictionary accept a ``frozendict``.
+
+Note: ``PyDict_Clear()`` is kind of special: it does nothing if the argument is
+not a ``dict`` or a ``dict`` subclass.
+
+The following abstract methods have also been modified to accept ``frozendict``:
+
+* ``PyMapping_GetOptionalItem()``
+* ``PyMapping_Keys()``
+* ``PyMapping_Values()``
+* ``PyMapping_Items()``
+
+The ``test_capi.test_dict`` tests have been completed to test the
+``frozendict`` type and a ``frozendict`` subclass.
+
+
+Functions not accepting frozendict
+----------------------------------
+
+Functions **not accepting** ``frozendict``:
+
+* ``PyDict_Check()``, ``PyDict_CheckExact()``
+* ``PyDict_Copy()``
+* ``PyDict_Update()``
+* ``PyDict_Merge()``
+* ``PyDict_MergeFromSeq2()``
+* ``PyDict_DelItem()``, ``PyDict_DelItemString()``
+* ``PyDict_SetItem()``, ``PyDict_SetItemString()``
+* ``PyDict_SetDefault()``, ``PyDict_SetDefaultRef()``
+* ``PyDict_Pop()``, ``PyDict_PopString()``
+
+Functions **modifying** a dictionary **don't accept** ``frozendict``. If they
+are called with a ``frozendict``, at least a nice error message is provided to
+guide the developer, rather than a generic error. For example,
+``PyDict_SetItem()`` raises ``TypeError("frozendict object does not support
+item assignment")``.
+
+First, ``PyDict_Copy()`` was modified to return a ``frozendict`` if the
+argument is a ``frozendict``. But it was too surprising in existing C code
+that the ``PyDict_Copy()`` result type can now be ``frozendict``. Moreover,
+copying a ``frozendict`` is expected to return the same object unchanged, since
+it's immutable. At the end, it was decided to reject ``frozendict`` in
+``PyDict_Copy()``.
+
+Note: I also added an internal ``_PyDict_CopyAsDict()`` function to copy a
+``dict`` or a ``frozendict`` as a new (mutable) ``dict``.
