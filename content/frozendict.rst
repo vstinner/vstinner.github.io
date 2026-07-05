@@ -602,8 +602,3 @@ Read more about frozendict
 * `Hacker News on the LWN's article
   <https://news.ycombinator.com/item?id=46229467>`_
   (December 2025).
-
-* `Python Gains frozendict and Other Python News for March 2026
-  <https://realpython.com/python-news-march-2026/>`_
-  (March 2026)
-  by Philipp Acsany.
