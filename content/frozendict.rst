@@ -248,13 +248,14 @@ Modules modified to accept ``frozendict``:
 * ``pprint``
 * ``xml.etree.ElementTree``
 
-It's now possible to pass ``object_hook=frozendict`` to the JSON decoder to
-create ``frozendict`` dictionaries. Example:
+It's now possible to pass ``object_pairs_hook=frozendict`` and
+``array_hook=tuple`` to the JSON decoder to create ``frozendict`` dictionaries
+with tuples. Example:
 
 .. code-block:: python
 
-   >>> json.loads('{"x": 1}', object_hook=frozendict)
-   frozendict({'x': 1})
+   >>> json.loads('{"x": [1, 2, 3]}', object_pairs_hook=frozendict, array_hook=tuple)
+   frozendict({'x': (1, 2, 3)})
 
 Changes methods:
 
