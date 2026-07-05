@@ -65,7 +65,7 @@ Council so far.&lt;/p&gt;
 type&lt;/a&gt;, and we &lt;a class="reference external" href="https://discuss.python.org/t/pep-814-add-frozendict-built-in-type/104854"&gt;started a discussion&lt;/a&gt;.
 PEP 814 has a different Rationale than the old PEP 416, and it explains the
 &lt;tt class="docutils literal"&gt;frozendict&lt;/tt&gt; API in details.&lt;/p&gt;
-&lt;p&gt;The insertion order is preserved, but a comparison and the hash value does not
+&lt;p&gt;The insertion order is preserved, but comparison and the hash value don't
 depend on the items’ order.&lt;/p&gt;
 &lt;p&gt;Examples:&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="o"&gt;&amp;gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class="n"&gt;frozendict&lt;/span&gt;&lt;span class="p"&gt;({&lt;/span&gt;&lt;span class="s1"&gt;&amp;#39;host&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="s1"&gt;&amp;#39;localhost&amp;#39;&lt;/span&gt;&lt;span class="p"&gt;},&lt;/span&gt; &lt;span class="n"&gt;port&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="mi"&gt;8080&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
