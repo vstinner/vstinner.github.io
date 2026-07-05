@@ -225,10 +225,11 @@ and <tt class="docutils literal">str.maketrans()</tt> now accept <tt class="docu
 <li><tt class="docutils literal">pprint</tt></li>
 <li><tt class="docutils literal">xml.etree.ElementTree</tt></li>
 </ul>
-<p>It's now possible to pass <tt class="docutils literal">object_hook=frozendict</tt> to the JSON decoder to
-create <tt class="docutils literal">frozendict</tt> dictionaries. Example:</p>
-<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;{&quot;x&quot;: 1}&#39;</span><span class="p">,</span> <span class="n">object_hook</span><span class="o">=</span><span class="n">frozendict</span><span class="p">)</span>
-<span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<p>It's now possible to pass <tt class="docutils literal">object_pairs_hook=frozendict</tt> and
+<tt class="docutils literal">array_hook=tuple</tt> to the JSON decoder to create <tt class="docutils literal">frozendict</tt> dictionaries
+with tuples. Example:</p>
+<div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="s1">&#39;{&quot;x&quot;: [1, 2, 3]}&#39;</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">frozendict</span><span class="p">,</span> <span class="n">array_hook</span><span class="o">=</span><span class="nb">tuple</span><span class="p">)</span>
+<span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)})</span>
 </pre></div>
 <p>Changes methods:</p>
 <ul class="simple">
