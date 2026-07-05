@@ -98,8 +98,8 @@ type <https://peps.python.org/pep-0814/>`_, and we `started a discussion
 PEP 814 has a different Rationale than the old PEP 416, and it explains the
 ``frozendict`` API in details.
 
-The insertion order is preserved, but the hash value does not depend on the
-items’ order.
+The insertion order is preserved, but a comparison and the hash value does not
+depend on the items’ order.
 
 Examples:
 
@@ -111,9 +111,15 @@ Examples:
    >>> frozendict(x=1) | frozendict(y=2)
    frozendict({'x': 1, 'y': 2})
 
+   # comparison doesn't depend on items' order
+   >>> frozendict(x=1, y=2) == frozendict(y=2, x=1)
+   True
    # hash doesn't depend on items' order
    >>> hash(frozendict(x=1, y=2)) == hash(frozendict(y=2, x=1))
    True
+
+Note: ``dict`` comparison does not depend on the items’ order neither,
+``frozendict`` inherits this behavior.
 
 ``dict`` has more methods than ``frozendict``:
 
@@ -209,6 +215,8 @@ Since a ``frozendict`` is immutable, it's possible to return the same
 
    $ python3.15
    >>> fd = frozendict(x=1, y=2)
+   >>> frozendict(fd) is fd
+   True
    >>> fd.copy() is fd
    True
 
