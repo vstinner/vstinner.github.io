@@ -98,7 +98,7 @@ type <https://peps.python.org/pep-0814/>`_, and we `started a discussion
 PEP 814 has a different Rationale than the old PEP 416, and it explains the
 ``frozendict`` API in details.
 
-The insertion order is preserved, but a comparison and the hash value does not
+The insertion order is preserved, but comparison and the hash value don't
 depend on the items’ order.
 
 Examples:
