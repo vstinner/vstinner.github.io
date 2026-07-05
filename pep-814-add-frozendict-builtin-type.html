@@ -103,8 +103,8 @@ Council so far.</p>
 type</a>, and we <a class="reference external" href="https://discuss.python.org/t/pep-814-add-frozendict-built-in-type/104854">started a discussion</a>.
 PEP 814 has a different Rationale than the old PEP 416, and it explains the
 <tt class="docutils literal">frozendict</tt> API in details.</p>
-<p>The insertion order is preserved, but the hash value does not depend on the
-items’ order.</p>
+<p>The insertion order is preserved, but a comparison and the hash value does not
+depend on the items’ order.</p>
 <p>Examples:</p>
 <div class="highlight"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="s1">&#39;localhost&#39;</span><span class="p">},</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">)</span>
 <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="s1">&#39;localhost&#39;</span><span class="p">,</span> <span class="s1">&#39;port&#39;</span><span class="p">:</span> <span class="mi">8080</span><span class="p">})</span>
@@ -112,10 +112,15 @@ items’ order.</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">|</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 <span class="n">frozendict</span><span class="p">({</span><span class="s1">&#39;x&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span>
 
+<span class="c1"># comparison doesn&#39;t depend on items&#39; order</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">==</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="kc">True</span>
 <span class="c1"># hash doesn&#39;t depend on items&#39; order</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="nb">hash</span><span class="p">(</span><span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span> <span class="o">==</span> <span class="nb">hash</span><span class="p">(</span><span class="n">frozendict</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
 <span class="kc">True</span>
 </pre></div>
+<p>Note: <tt class="docutils literal">dict</tt> comparison does not depend on the items’ order neither,
+<tt class="docutils literal">frozendict</tt> inherits this behavior.</p>
 <p><tt class="docutils literal">dict</tt> has more methods than <tt class="docutils literal">frozendict</tt>:</p>
 <ul class="simple">
 <li><tt class="docutils literal">__delitem__(key)</tt></li>
@@ -189,6 +194,8 @@ constructor returns a <tt class="docutils literal">frozendict</tt>.</p>
 <tt class="docutils literal">frozendict</tt> unchanged on multiple operations. Examples:</p>
 <div class="highlight"><pre><span></span><span class="err">$</span> <span class="n">python3</span><span class="mf">.15</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">frozendict</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span> <span class="ow">is</span> <span class="n">fd</span>
+<span class="kc">True</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">fd</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span> <span class="ow">is</span> <span class="n">fd</span>
 <span class="kc">True</span>
 
