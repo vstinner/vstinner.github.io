@@ -473,9 +473,6 @@ by Serdar Yegulalp.&lt;/li&gt;
 by Jake Edge.&lt;/li&gt;
 &lt;li&gt;&lt;a class="reference external" href="https://news.ycombinator.com/item?id=46229467"&gt;Hacker News on the LWN's article&lt;/a&gt;
 (December 2025).&lt;/li&gt;
-&lt;li&gt;&lt;a class="reference external" href="https://realpython.com/python-news-march-2026/"&gt;Python Gains frozendict and Other Python News for March 2026&lt;/a&gt;
-(March 2026)
-by Philipp Acsany.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 </content><category term="cpython"/><category term="cpython"/></entry><entry><title>Free Threading internals: PyMutex</title><link href="https://vstinner.github.io/free-threading-pymutex.html" rel="alternate"/><published>2026-06-18T12:00:00+02:00</published><updated>2026-06-18T12:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-06-18:/free-threading-pymutex.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Sunflowers_(Van_Gogh_series)"&gt;
