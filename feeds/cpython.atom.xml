@@ -337,8 +337,8 @@ the &lt;tt class="docutils literal"&gt;gc&lt;/tt&gt; module:&lt;/p&gt;
 &lt;div class="section" id="frozendict-on-pypi"&gt;
 &lt;h3&gt;frozendict on PyPI&lt;/h3&gt;
 &lt;p&gt;The &lt;a class="reference external" href="https://pypi.org/project/frozendict/"&gt;frozendict project&lt;/a&gt; by Marco Sulla
-provides a &lt;tt class="docutils literal"&gt;frozendict&lt;/tt&gt; type with is similar API to Python 3.15 built-in
-&lt;tt class="docutils literal"&gt;frozendict&lt;/tt&gt; type, but with additional methods:&lt;/p&gt;
+provides a &lt;tt class="docutils literal"&gt;frozendict&lt;/tt&gt; type which has a similar API than Python 3.15
+built-in &lt;tt class="docutils literal"&gt;frozendict&lt;/tt&gt; type, but with additional methods:&lt;/p&gt;
 &lt;ul class="simple"&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;set(key, value)&lt;/tt&gt;&lt;/li&gt;
 &lt;li&gt;&lt;tt class="docutils literal"&gt;delete(key)&lt;/tt&gt;&lt;/li&gt;
