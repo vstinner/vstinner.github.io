@@ -444,8 +444,8 @@ frozendict on PyPI
 ------------------
 
 The `frozendict project <https://pypi.org/project/frozendict/>`_ by Marco Sulla
-provides a ``frozendict`` type with is similar API to Python 3.15 built-in
-``frozendict`` type, but with additional methods:
+provides a ``frozendict`` type which has a similar API than Python 3.15
+built-in ``frozendict`` type, but with additional methods:
 
 * ``set(key, value)``
 * ``delete(key)``
