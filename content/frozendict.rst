@@ -10,7 +10,7 @@ PEP 814: Add frozendict built-in type
 
 .. image:: {static}/images/toulouse_lautrec.jpg
    :alt: La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec
-   :target: https://fr.wikipedia.org/wiki/La_Danse_au_Moulin-Rouge_(Philadelphie)
+   :target: https://en.wikipedia.org/wiki/At_the_Moulin_Rouge,_The_Dance
 
 In November 2025 at Pycon France (at Lyon), I watched the talk "Build a
 frozendict type (immutable dictionary)" by **Antoine Rozo** (`video
