@@ -4,6 +4,12 @@ Convert C functions to PyBytesWriter
 
 https://vstinner.github.io/pep-782-pybyteswriter-c-api.html
 
+Meta issues
+===========
+
+* Use PyBytesWriter in Unicode codecs:
+  https://github.com/python/cpython/issues/139156
+
 Convert to PyBytesWriter
 ========================
 
@@ -23,6 +29,15 @@ Issue gh-155742:
 * Use PyBytesWriter in io _textiowrapper_writeflush() (#155743)
 * Use PyBytesWriter in winconsoleio.c (#157391)
 * Use PyBytesWriter in xml.etree (#155749)
+
+In the UTF-32 encoder, I added a "fast path" for UCS-1 to which is the most
+common cases: it keeps PyBytes_FromStringAndSize(NULL, size). So there is no
+impact on performance.
+    https://github.com/python/cpython/pull/139157
+
+I optimized the UTF-7 encoder after converting it to PyBytesWriter.
+    https://github.com/python/cpython/pull/139253
+
 
 Special cases
 =============
