@@ -1,5 +1,206 @@
 <?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2026-07-04T14:00:00+02:00</updated><entry><title>PEP 814: Add frozendict built-in type</title><link href="https://vstinner.github.io/pep-814-add-frozendict-builtin-type.html" rel="alternate"/><published>2026-07-04T14:00:00+02:00</published><updated>2026-07-04T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-07-04:/pep-814-add-frozendict-builtin-type.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/At_the_Moulin_Rouge,_The_Dance"&gt;
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Victor Stinner blog 3 - cpython</title><link href="https://vstinner.github.io/" rel="alternate"/><link href="https://vstinner.github.io/feeds/cpython.atom.xml" rel="self"/><id>https://vstinner.github.io/</id><updated>2027-10-10T19:00:00+02:00</updated><entry><title>Optimize PyBytesWriter and PyUnicodeWriter implementation</title><link href="https://vstinner.github.io/optimize-pybyteswriter-pyunicodewriter-implementation.html" rel="alternate"/><published>2027-10-10T19:00:00+02:00</published><updated>2027-10-10T19:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2027-10-10:/optimize-pybyteswriter-pyunicodewriter-implementation.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luxe,_Calme_et_Volupt%C3%A9"&gt;
+&lt;img alt="Luxe, Calme et Volupté, by Henri Matisse" src="https://vstinner.github.io/images/matisse-luxe.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;This article describes my recent work on &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; C API, bugfixes, optimizations, documentation changes, with
+some references to older work.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; is now &lt;strong&gt;1.28x faster&lt;/strong&gt; than Python 3.15 on a micro-benchmark
+creating the string &lt;tt class="docutils literal"&gt;b'abc'&lt;/tt&gt;.  &lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; can now avoid memory
+copies in some cases (read-only buffer …&lt;/p&gt;</summary><content type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luxe,_Calme_et_Volupt%C3%A9"&gt;
+&lt;img alt="Luxe, Calme et Volupté, by Henri Matisse" src="https://vstinner.github.io/images/matisse-luxe.jpg" /&gt;
+&lt;/a&gt;
+&lt;p&gt;This article describes my recent work on &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; and
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; C API, bugfixes, optimizations, documentation changes, with
+some references to older work.&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; is now &lt;strong&gt;1.28x faster&lt;/strong&gt; than Python 3.15 on a micro-benchmark
+creating the string &lt;tt class="docutils literal"&gt;b'abc'&lt;/tt&gt;.  &lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; can now avoid memory
+copies in some cases (read-only buffer).&lt;/p&gt;
+&lt;p&gt;In debug mode, &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt; can now detect buffer
+overflows, and Python checks if singletons have been modified by mistake at
+exit to detect bugs in C extensions (detect silent memory corruption).&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; has been fixed to handle properly memory allocation failure.&lt;/p&gt;
+&lt;p&gt;I also made documentation and tests enhancements.&lt;/p&gt;
+&lt;p&gt;See also the previous article: &lt;a class="reference external" href="https://vstinner.github.io/pep-782-pybyteswriter-c-api.html"&gt;PEP 782 – Add PyBytesWriter C API&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Painting: Luxe, Calme et Volupté (1904), by Henri Matisse.&lt;/em&gt;&lt;/p&gt;
+&lt;div class="section" id="convert-to-pybyteswriter"&gt;
+&lt;h2&gt;Convert to PyBytesWriter&lt;/h2&gt;
+&lt;p&gt;Recently, I modified the following code to use &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt;:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;CJK codecs&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;PySSL_RAND()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;Python/assemble.c&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_Py_strhex_impl()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_zstd.finalize_dict()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;_zstd.train_dict()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;bytes.translate()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;codecs&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;codeobject.c&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;io _textiowrapper_writeflush()&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;winconsoleio.c&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;&lt;tt class="docutils literal"&gt;xml.etree&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In the current main branch, excluding tests and doc, there are:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;82 calls to &lt;tt class="docutils literal"&gt;PyBytesWriter_Create()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;23 calls to soft deprecated &lt;tt class="docutils literal"&gt;PyBytes_FromStringAndSize(NULL, size)&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;18 calls to soft deprecated &lt;tt class="docutils literal"&gt;_PyBytes_Resize()&lt;/tt&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;So the majority of stdlib functions creating &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; objects now use the new
+&lt;tt class="docutils literal"&gt;PyBytesWriter_Create()&lt;/tt&gt; API.&lt;/p&gt;
+&lt;p&gt;The UTF-32 encoder keeps a code path using &lt;tt class="docutils literal"&gt;PyBytes_FromStringAndSize(NULL,
+size)&lt;/tt&gt;: fast path if the input string kind is UCS-1.&lt;/p&gt;
+&lt;p&gt;When I modified the UTF-7 encoder, I had some concerns about performance, but
+hopefully I found &lt;a class="reference external" href="https://github.com/python/cpython/pull/139253"&gt;optimization opportunities&lt;/a&gt; making the encoder &lt;strong&gt;1.13x
+faster&lt;/strong&gt; in average.&lt;/p&gt;
+&lt;p&gt;In two cases, &lt;tt class="docutils literal"&gt;PyBytes_FromStringAndSize(NULL, size)&lt;/tt&gt; was replaced with
+&lt;tt class="docutils literal"&gt;PyMem_Malloc()&lt;/tt&gt; when no Python &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; object is needed:
+&lt;tt class="docutils literal"&gt;decode_unicode_with_escapes()&lt;/tt&gt; and &lt;tt class="docutils literal"&gt;memoryview.hex()&lt;/tt&gt;.&lt;/p&gt;
+&lt;p&gt;See also &lt;a class="reference external" href="https://github.com/python/cpython/issues/139156"&gt;issue gh-139156&lt;/a&gt;
+(September 2025) where I converted most Unicode encoders to &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="documentation"&gt;
+&lt;h2&gt;Documentation&lt;/h2&gt;
+&lt;p&gt;I added the following note on trailing null byte to &lt;a class="reference external" href="https://docs.python.org/dev/c-api/bytes.html#bytes-objects"&gt;PyBytesObject
+documentation&lt;/a&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;strong&gt;CPython implementation detail:&lt;/strong&gt; The internal buffer of PyBytesObject
+always includes an &lt;strong&gt;extra trailing null byte&lt;/strong&gt; for compatibility with null
+terminated C strings. This extra byte is not counted in PyBytes_Size() nor
+in the various length and size arguments of the functions below.&lt;/blockquote&gt;
+&lt;p&gt;Thanks to this change, &lt;strong&gt;Nathan Goldbaum&lt;/strong&gt; noticed that RustPython doesn't
+implement this trailing null byte and &lt;a class="reference external" href="https://github.com/RustPython/RustPython/issues/8685"&gt;reported the issue to RustPython&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I added a &lt;a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#unicode-objects"&gt;similar note to Unicode objects&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="detect-bugs"&gt;
+&lt;h2&gt;Detect bugs&lt;/h2&gt;
+&lt;div class="section" id="check-if-a-bytes-object-is-mutable"&gt;
+&lt;h3&gt;Check if a bytes object is mutable&lt;/h3&gt;
+&lt;p&gt;A &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; object is immutable in Python. But in C, it can be mutated under
+some strict conditions. I added &lt;tt class="docutils literal"&gt;_PyBytes_IsMutable()&lt;/tt&gt; assertion to check
+that:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;&lt;span class="c1"&gt;// Make sure that a bytes object can still be mutated.&lt;/span&gt;
+&lt;span class="c1"&gt;//&lt;/span&gt;
+&lt;span class="c1"&gt;// Usage: assert(_PyBytes_IsMutable(obj)).&lt;/span&gt;
+&lt;span class="kt"&gt;int&lt;/span&gt;
+&lt;span class="nf"&gt;_PyBytes_IsMutable&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyObject&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;assert&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyBytes_Check&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;));&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// Do not use _PyObject_IsUniquelyReferenced(): this function is called&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// by bytearray and PyBytesWriter which can be used by multiple threads.&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;assert&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;Py_REFCNT&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;==&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;assert&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;!&lt;/span&gt;&lt;span class="n"&gt;_Py_IsImmortal&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;));&lt;/span&gt;
+
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// Check that the object is not a singleton&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;Py_ssize_t&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;size&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyBytes_GET_SIZE&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;size&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;==&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="n"&gt;assert&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;!=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;bytes_get_empty&lt;/span&gt;&lt;span class="p"&gt;());&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;else&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;size&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;==&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;{&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="kt"&gt;unsigned&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="kt"&gt;char&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;ch&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="n"&gt;PyBytes_AS_STRING&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)[&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;];&lt;/span&gt;
+&lt;span class="w"&gt;        &lt;/span&gt;&lt;span class="n"&gt;assert&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;!=&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;PyObject&lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="n"&gt;CHARACTER&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;ch&lt;/span&gt;&lt;span class="p"&gt;));&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// gh-158219: The hash value must not be cached yet. Otherwise, it means&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// that the bytes object was already used in Python somehow (ex: as a&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="c1"&gt;// dictionary key).&lt;/span&gt;
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="n"&gt;assert&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="n"&gt;get_ob_shash&lt;/span&gt;&lt;span class="p"&gt;((&lt;/span&gt;&lt;span class="n"&gt;PyBytesObject&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;*&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="n"&gt;self&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="o"&gt;==&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;-1&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+
+&lt;span class="w"&gt;    &lt;/span&gt;&lt;span class="k"&gt;return&lt;/span&gt;&lt;span class="w"&gt; &lt;/span&gt;&lt;span class="mi"&gt;1&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;For example, the check is used in &lt;tt class="docutils literal"&gt;_PyBytes_Resize()&lt;/tt&gt; to make sure that it's
+safe to resize an object in-place. It's also used by &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; to check
+that no singleton is being modified.&lt;/p&gt;
+&lt;p&gt;I added a similar &lt;tt class="docutils literal"&gt;_PyUnicodeWriter_CanWrite()&lt;/tt&gt; check for
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt;. For example, it checks that the internal buffer is not
+read-only.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="detect-buffer-overflow-in-pybyteswriter"&gt;
+&lt;h3&gt;Detect buffer overflow in PyBytesWriter&lt;/h3&gt;
+&lt;p&gt;I modified &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; to detect buffer overflow in debug mode. It writes
+a canary byte (&lt;tt class="docutils literal"&gt;0xDD&lt;/tt&gt;) at the end of the buffer, and checks if this byte has
+been overwritten. When the buffer uses a &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; or &lt;tt class="docutils literal"&gt;bytearray&lt;/tt&gt; object, use
+the trailing null byte of these objects as the canary byte.&lt;/p&gt;
+&lt;p&gt;Previously, debug hooks on Python memory allocators already reported buffer
+overflow, but not when the trailing null byte was overwritten.&lt;/p&gt;
+&lt;p&gt;The new &lt;tt class="docutils literal"&gt;byteswriter_check_consistency()&lt;/tt&gt; assertion checks the canary, but
+also that the buffer object can be mutated.&lt;/p&gt;
+&lt;p&gt;I added a similar buffer overflow check to &lt;tt class="docutils literal"&gt;PyUnicodeWriter_Finish()&lt;/tt&gt;.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="detect-python-singleton-corruptions"&gt;
+&lt;h3&gt;Detect Python singleton corruptions&lt;/h3&gt;
+&lt;p&gt;In debug mode at Python exit, check if immutable singleton objects have been
+modified by mistake to detect bugs in C extensions: &lt;a class="reference external" href="https://github.com/python/cpython/commit/8bcbcf8cfc73844154f87c29b37ebb51cd8cb9b7"&gt;commit&lt;/a&gt;.
+Add tests corrupting bytes, str, bool and int singleton objects.&lt;/p&gt;
+&lt;p&gt;I wrote this new generic debug feature after I saw a bug report from &lt;strong&gt;Serhiy
+Storchaka&lt;/strong&gt; where &lt;a class="reference external" href="https://github.com/python/cpython/issues/155702"&gt;sqlite3 corrupts a bytes singleton object&lt;/a&gt;. Such memory corruption
+is silent and can remain unnoticed for a long time. The checks that I added
+make sure that the corruption is detected at least at Python exit.&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="fix-memoryerror-handling"&gt;
+&lt;h2&gt;Fix MemoryError handling&lt;/h2&gt;
+&lt;p&gt;There was also a tricky bug in &lt;tt class="docutils literal"&gt;PyBytesWriter_Resize()&lt;/tt&gt; on &lt;tt class="docutils literal"&gt;MemoryError&lt;/tt&gt;. I
+added &lt;tt class="docutils literal"&gt;_PyBytes_ResizeKeepOnError()&lt;/tt&gt; function which leaves the bytes object
+unchanged on memory allocation failure; &lt;tt class="docutils literal"&gt;PyBytesWriter_Resize()&lt;/tt&gt; now calls
+it.&lt;/p&gt;
+&lt;p&gt;Other similar fixes:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Leave &lt;tt class="docutils literal"&gt;bytearray&lt;/tt&gt; unchanged if &lt;tt class="docutils literal"&gt;resize()&lt;/tt&gt; fails (&lt;tt class="docutils literal"&gt;MemoryError&lt;/tt&gt;).&lt;/li&gt;
+&lt;li&gt;Do not close &lt;tt class="docutils literal"&gt;io.BytesIO&lt;/tt&gt; on &lt;tt class="docutils literal"&gt;MemoryError&lt;/tt&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="bug-fixes"&gt;
+&lt;h2&gt;Bug fixes&lt;/h2&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Check size in &lt;tt class="docutils literal"&gt;PyBytesWriter_FinishWithSize()&lt;/tt&gt;.&lt;/li&gt;
+&lt;li&gt;Fix &lt;tt class="docutils literal"&gt;&lt;span class="pre"&gt;struct.pack('0p',&lt;/span&gt; bytes)&lt;/tt&gt; and  &lt;tt class="docutils literal"&gt;xmlcharrefreplace()&lt;/tt&gt;: don't write
+a null byte outside the buffer.&lt;/li&gt;
+&lt;li&gt;Fix &lt;tt class="docutils literal"&gt;set_nomemory()&lt;/tt&gt;, so it can be run on &lt;tt class="docutils literal"&gt;Py_TRACE_REFS&lt;/tt&gt; debug builds
+(&lt;a class="reference external" href="https://github.com/python/cpython/commit/051b168e63af80872222a2d91d43af4de16980b1"&gt;commit&lt;/a&gt;).&lt;/li&gt;
+&lt;li&gt;Use &lt;tt class="docutils literal"&gt;const char*&lt;/tt&gt; for &lt;tt class="docutils literal"&gt;PyBytes_AS_STRING()&lt;/tt&gt; since &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; is immutable.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+&lt;div class="section" id="optimizations"&gt;
+&lt;h2&gt;Optimizations&lt;/h2&gt;
+&lt;div class="section" id="pybyteswriter"&gt;
+&lt;h3&gt;&lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt;&lt;/h3&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyBytesWriter_FinishWithSize()&lt;/tt&gt; now returns a single byte singleton
+when a &lt;tt class="docutils literal"&gt;bytes&lt;/tt&gt; buffer was allocated.&lt;/p&gt;
+&lt;p&gt;I also &lt;a class="reference external" href="https://github.com/python/cpython/commit/658612ae770aac8e1e5e060922d3364a4be7e547"&gt;optimized mashal&lt;/a&gt;
+to return bytes singletons. It makes the code shorter and easier to understand!&lt;/p&gt;
+&lt;p&gt;I also made multiple changes to optimize &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; to reduce its
+overhead compated to &lt;tt class="docutils literal"&gt;PyBytes_FromStringAndSize(NULL, size)&lt;/tt&gt;. I ran a
+&lt;a class="reference external" href="https://github.com/python/cpython/issues/158585#issuecomment-5986531617"&gt;benchmark creating the string b'abc'&lt;/a&gt; to
+compare Python 3.15 to Python 3.16:&lt;/p&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;Mean +- std dev: [py315] 41.6 ns +- 1.0 ns &lt;span class="pre"&gt;-&amp;gt;&lt;/span&gt; [py316] 32.5 ns +- 0.6 ns: 1.28x faster&lt;/tt&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;cite&gt;PyBytesWriter&lt;/cite&gt; API is now &lt;strong&gt;1.28x faster&lt;/strong&gt; (&lt;strong&gt;-9.1 ns&lt;/strong&gt;)!&lt;/p&gt;
+&lt;/div&gt;
+&lt;div class="section" id="pyunicodewriter"&gt;
+&lt;h3&gt;&lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt;&lt;/h3&gt;
+&lt;p&gt;&lt;tt class="docutils literal"&gt;PyUnicodeWriter_Create(size)&lt;/tt&gt; no longer allocates immediately a buffer: the
+buffer is now allocated at the first write.&lt;/p&gt;
+&lt;p&gt;If no buffer is allocated yet, &lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteStr()&lt;/tt&gt; stores the
+&lt;tt class="docutils literal"&gt;str&lt;/tt&gt; object as a read-only buffer to avoid memory copy. In the same way,
+&lt;tt class="docutils literal"&gt;PyUnicodeWriter_WriteChar()&lt;/tt&gt; stores a read-only single character singleton
+for characters in range U+0000-U+00ff (ASCII and Latin1 characters).&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="section" id="tests"&gt;
+&lt;h2&gt;Tests&lt;/h2&gt;
+&lt;p&gt;I added more tests on the C API:&lt;/p&gt;
+&lt;ul class="simple"&gt;
+&lt;li&gt;Add tests on the &lt;tt class="docutils literal"&gt;PyType&lt;/tt&gt; C API&lt;/li&gt;
+&lt;li&gt;Test &lt;tt class="docutils literal"&gt;PyBytesWriter_FinishWithSize()&lt;/tt&gt; with negative size&lt;/li&gt;
+&lt;li&gt;Add more &lt;tt class="docutils literal"&gt;PyBytesWriter&lt;/tt&gt; tests&lt;/li&gt;
+&lt;li&gt;Add tests on the deprecated &lt;tt class="docutils literal"&gt;_Py_Identifier&lt;/tt&gt; (Unicode) C API&lt;/li&gt;
+&lt;li&gt;Complete &lt;tt class="docutils literal"&gt;PyMarshal&lt;/tt&gt; C API tests&lt;/li&gt;
+&lt;li&gt;Add &lt;tt class="docutils literal"&gt;MemoryError&lt;/tt&gt; tests to &lt;tt class="docutils literal"&gt;PyUnicodeWriter&lt;/tt&gt;&lt;/li&gt;
+&lt;li&gt;Add more tests on the PyUnicode C API&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/div&gt;
+</content><category term="cpython"/><category term="c-api"/><category term="cpython"/></entry><entry><title>PEP 814: Add frozendict built-in type</title><link href="https://vstinner.github.io/pep-814-add-frozendict-builtin-type.html" rel="alternate"/><published>2026-07-04T14:00:00+02:00</published><updated>2026-07-04T14:00:00+02:00</updated><author><name>Victor Stinner</name></author><id>tag:vstinner.github.io,2026-07-04:/pep-814-add-frozendict-builtin-type.html</id><summary type="html">&lt;a class="reference external image-reference" href="https://en.wikipedia.org/wiki/At_the_Moulin_Rouge,_The_Dance"&gt;
 &lt;img alt="La Danse au Moulin-Rouge - Henri de Toulouse-Lautrec" src="https://vstinner.github.io/images/toulouse_lautrec.jpg" /&gt;
 &lt;/a&gt;
 &lt;p&gt;In November 2025 at Pycon France (at Lyon), I watched the talk &amp;quot;Build a

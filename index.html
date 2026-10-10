@@ -27,6 +27,39 @@
         
         
 <div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<a href="https://vstinner.github.io/optimize-pybyteswriter-pyunicodewriter-implementation.html">
+		<h2 itemprop="name headline">Optimize PyBytesWriter and PyUnicodeWriter implementation</h2>
+	</a>
+	<time datetime="2027-10-10T19:00:00+02:00" itemprop="datePublished">Sun 10 October 2027</time>
+	&nbsp;—&nbsp;
+	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+		<span itemprop="name">Victor Stinner</span>
+	</span>
+	<div class="summary"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luxe,_Calme_et_Volupt%C3%A9">
+<img alt="Luxe, Calme et Volupté, by Henri Matisse" src="https://vstinner.github.io/images/matisse-luxe.jpg" />
+</a>
+<p>This article describes my recent work on <tt class="docutils literal">PyBytesWriter</tt> and
+<tt class="docutils literal">PyUnicodeWriter</tt> C API, bugfixes, optimizations, documentation changes, with
+some references to older work.</p>
+<p><tt class="docutils literal">PyBytesWriter</tt> is now <strong>1.28x faster</strong> than Python 3.15 on a micro-benchmark
+creating the string <tt class="docutils literal">b'abc'</tt>.  <tt class="docutils literal">PyUnicodeWriter</tt> can now avoid memory
+copies in some cases (read-only buffer …</p></div>
+	Category:
+	<span itemprop="articleSection">
+		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+	</span>
+	Tags:
+ 
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+	</span>
+	<span itemprop="keywords">
+		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+	</span>
+</div>
+<hr>
+        
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
 	<a href="https://vstinner.github.io/pep-814-add-frozendict-builtin-type.html">
 		<h2 itemprop="name headline">PEP 814: Add frozendict built-in type</h2>
 	</a>
@@ -357,41 +390,6 @@ convenient API. It took me basically a whole …</p></div>
 	</span>
 </div>
 <hr>
-        
-<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
-	<a href="https://vstinner.github.io/status-limited-c-api-march-2024.html">
-		<h2 itemprop="name headline">Status of the Python Limited C API (March 2024)</h2>
-	</a>
-	<time datetime="2024-03-20T17:00:00+01:00" itemprop="datePublished">Wed 20 March 2024</time>
-	&nbsp;—&nbsp;
-	<span itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-		<span itemprop="name">Victor Stinner</span>
-	</span>
-	<div class="summary"><a class="reference external image-reference" href="https://danielazconegui.com/en/prints/ghibli-spyrited-away.html">
-<img alt="Ghibli - Spirited Away" src="https://vstinner.github.io/images/ghibli-spyrited-away.jpg" />
-</a>
-<p>In Python 3.13, I made multiple enhancements to make the limited C API more
-usable:</p>
-<ul class="simple">
-<li>Add 14 functions to the limited C API.</li>
-<li>Make the special debug build <tt class="docutils literal">Py_TRACE_REFS</tt> compatible with the limited
-C API.</li>
-<li>Enhance Argument Clinic to generate C code using the limited C API.</li>
-<li>Add an …</li></ul></div>
-	Category:
-	<span itemprop="articleSection">
-		<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
-	</span>
-	Tags:
- 
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
-	</span>
-	<span itemprop="keywords">
-		<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
-	</span>
-</div>
-<hr>
  <div class="pagination">
 <ul>
     <li class="prev disabled"><a href="#">&larr; Previous</a></li>
@@ -434,7 +432,7 @@ C API.</li>
 						<h4>Categories</h4>
 						<ul class="list-unstyled my-list-style">
 							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
-							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (31)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (32)</a></li>
 							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
 							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
 						</ul>

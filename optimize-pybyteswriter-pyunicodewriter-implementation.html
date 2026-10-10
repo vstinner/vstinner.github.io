@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Optimize PyBytesWriter and PyUnicodeWriter implementation — Victor Stinner blog 3</title>
+	<meta name="description" content="Title: Optimize PyBytesWriter and PyUnicodeWriter implementation; Date: 2027-10-10; Author: Victor Stinner">
+	<meta name="author" content="Victor Stinner">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+	<!--[if lt IE 9]>
+		<script src="https://vstinner.github.io/theme/html5.js"></script>
+		<![endif]-->
+	<link href="https://vstinner.github.io/theme/css/ipython.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//maxcdn.bootstrapcdn.com/bootswatch/3.2.0/simplex/bootstrap.min.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/local.css" rel="stylesheet">
+	<link href="https://vstinner.github.io/theme/css/pygments.css" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+	<div class="page-header">
+		<h1><a href="https://vstinner.github.io/">Victor Stinner blog 3</a>
+			<br>	</div>
+	<div class="row">
+		<div class="col-md-8 col-md-offset-2">
+<div class="article" itemscope itemtype="http://schema.org/BlogPosting">
+	<div class="text-center article-header">
+		<h1 itemprop="name headline" class="article-title">Optimize PyBytesWriter and PyUnicodeWriter implementation</h1>
+		<span itemprop="author" itemscope itemtype="http://schema.org/Person">
+			<h4 itemprop="name">Victor Stinner</h4>
+		</span>
+		<time datetime="2027-10-10T19:00:00+02:00" itemprop="datePublished">Sun 10 October 2027</time>
+	</div>
+	<div>
+		Category:
+		<span itemprop="articleSection">
+			<a href="https://vstinner.github.io/category/cpython.html" rel="category">cpython</a>
+		</span>
+	</div>
+	<div>
+		Tags:
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/c-api.html" rel="tag">c-api</a>
+		</span>
+		<span itemprop="keywords">
+			<a href="https://vstinner.github.io/tag/cpython.html" rel="tag">cpython</a>
+		</span>
+	</div>
+	<div itemprop="articleBody" class="article-body"><a class="reference external image-reference" href="https://en.wikipedia.org/wiki/Luxe,_Calme_et_Volupt%C3%A9">
+<img alt="Luxe, Calme et Volupté, by Henri Matisse" src="https://vstinner.github.io/images/matisse-luxe.jpg" />
+</a>
+<p>This article describes my recent work on <tt class="docutils literal">PyBytesWriter</tt> and
+<tt class="docutils literal">PyUnicodeWriter</tt> C API, bugfixes, optimizations, documentation changes, with
+some references to older work.</p>
+<p><tt class="docutils literal">PyBytesWriter</tt> is now <strong>1.28x faster</strong> than Python 3.15 on a micro-benchmark
+creating the string <tt class="docutils literal">b'abc'</tt>.  <tt class="docutils literal">PyUnicodeWriter</tt> can now avoid memory
+copies in some cases (read-only buffer).</p>
+<p>In debug mode, <tt class="docutils literal">PyBytesWriter</tt> and <tt class="docutils literal">PyUnicodeWriter</tt> can now detect buffer
+overflows, and Python checks if singletons have been modified by mistake at
+exit to detect bugs in C extensions (detect silent memory corruption).</p>
+<p><tt class="docutils literal">PyBytesWriter</tt> has been fixed to handle properly memory allocation failure.</p>
+<p>I also made documentation and tests enhancements.</p>
+<p>See also the previous article: <a class="reference external" href="https://vstinner.github.io/pep-782-pybyteswriter-c-api.html">PEP 782 – Add PyBytesWriter C API</a>.</p>
+<p><em>Painting: Luxe, Calme et Volupté (1904), by Henri Matisse.</em></p>
+<div class="section" id="convert-to-pybyteswriter">
+<h2>Convert to PyBytesWriter</h2>
+<p>Recently, I modified the following code to use <tt class="docutils literal">PyBytesWriter</tt>:</p>
+<ul class="simple">
+<li><tt class="docutils literal">CJK codecs</tt></li>
+<li><tt class="docutils literal">PySSL_RAND()</tt></li>
+<li><tt class="docutils literal">Python/assemble.c</tt></li>
+<li><tt class="docutils literal">_Py_strhex_impl()</tt></li>
+<li><tt class="docutils literal">_zstd.finalize_dict()</tt></li>
+<li><tt class="docutils literal">_zstd.train_dict()</tt></li>
+<li><tt class="docutils literal">bytes.translate()</tt></li>
+<li><tt class="docutils literal">codecs</tt></li>
+<li><tt class="docutils literal">codeobject.c</tt></li>
+<li><tt class="docutils literal">io _textiowrapper_writeflush()</tt></li>
+<li><tt class="docutils literal">winconsoleio.c</tt></li>
+<li><tt class="docutils literal">xml.etree</tt></li>
+</ul>
+<p>In the current main branch, excluding tests and doc, there are:</p>
+<ul class="simple">
+<li>82 calls to <tt class="docutils literal">PyBytesWriter_Create()</tt>.</li>
+<li>23 calls to soft deprecated <tt class="docutils literal">PyBytes_FromStringAndSize(NULL, size)</tt></li>
+<li>18 calls to soft deprecated <tt class="docutils literal">_PyBytes_Resize()</tt></li>
+</ul>
+<p>So the majority of stdlib functions creating <tt class="docutils literal">bytes</tt> objects now use the new
+<tt class="docutils literal">PyBytesWriter_Create()</tt> API.</p>
+<p>The UTF-32 encoder keeps a code path using <tt class="docutils literal">PyBytes_FromStringAndSize(NULL,
+size)</tt>: fast path if the input string kind is UCS-1.</p>
+<p>When I modified the UTF-7 encoder, I had some concerns about performance, but
+hopefully I found <a class="reference external" href="https://github.com/python/cpython/pull/139253">optimization opportunities</a> making the encoder <strong>1.13x
+faster</strong> in average.</p>
+<p>In two cases, <tt class="docutils literal">PyBytes_FromStringAndSize(NULL, size)</tt> was replaced with
+<tt class="docutils literal">PyMem_Malloc()</tt> when no Python <tt class="docutils literal">bytes</tt> object is needed:
+<tt class="docutils literal">decode_unicode_with_escapes()</tt> and <tt class="docutils literal">memoryview.hex()</tt>.</p>
+<p>See also <a class="reference external" href="https://github.com/python/cpython/issues/139156">issue gh-139156</a>
+(September 2025) where I converted most Unicode encoders to <tt class="docutils literal">PyBytesWriter</tt>.</p>
+</div>
+<div class="section" id="documentation">
+<h2>Documentation</h2>
+<p>I added the following note on trailing null byte to <a class="reference external" href="https://docs.python.org/dev/c-api/bytes.html#bytes-objects">PyBytesObject
+documentation</a>:</p>
+<blockquote>
+<strong>CPython implementation detail:</strong> The internal buffer of PyBytesObject
+always includes an <strong>extra trailing null byte</strong> for compatibility with null
+terminated C strings. This extra byte is not counted in PyBytes_Size() nor
+in the various length and size arguments of the functions below.</blockquote>
+<p>Thanks to this change, <strong>Nathan Goldbaum</strong> noticed that RustPython doesn't
+implement this trailing null byte and <a class="reference external" href="https://github.com/RustPython/RustPython/issues/8685">reported the issue to RustPython</a>.</p>
+<p>I added a <a class="reference external" href="https://docs.python.org/dev/c-api/unicode.html#unicode-objects">similar note to Unicode objects</a>.</p>
+</div>
+<div class="section" id="detect-bugs">
+<h2>Detect bugs</h2>
+<div class="section" id="check-if-a-bytes-object-is-mutable">
+<h3>Check if a bytes object is mutable</h3>
+<p>A <tt class="docutils literal">bytes</tt> object is immutable in Python. But in C, it can be mutated under
+some strict conditions. I added <tt class="docutils literal">_PyBytes_IsMutable()</tt> assertion to check
+that:</p>
+<div class="highlight"><pre><span></span><span class="c1">// Make sure that a bytes object can still be mutated.</span>
+<span class="c1">//</span>
+<span class="c1">// Usage: assert(_PyBytes_IsMutable(obj)).</span>
+<span class="kt">int</span>
+<span class="nf">_PyBytes_IsMutable</span><span class="p">(</span><span class="n">PyObject</span><span class="w"> </span><span class="o">*</span><span class="n">self</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">PyBytes_Check</span><span class="p">(</span><span class="n">self</span><span class="p">));</span>
+<span class="w">    </span><span class="c1">// Do not use _PyObject_IsUniquelyReferenced(): this function is called</span>
+<span class="w">    </span><span class="c1">// by bytearray and PyBytesWriter which can be used by multiple threads.</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">Py_REFCNT</span><span class="p">(</span><span class="n">self</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">_Py_IsImmortal</span><span class="p">(</span><span class="n">self</span><span class="p">));</span>
+
+<span class="w">    </span><span class="c1">// Check that the object is not a singleton</span>
+<span class="w">    </span><span class="n">Py_ssize_t</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyBytes_GET_SIZE</span><span class="p">(</span><span class="n">self</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">assert</span><span class="p">(</span><span class="n">self</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">bytes_get_empty</span><span class="p">());</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">size</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">ch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PyBytes_AS_STRING</span><span class="p">(</span><span class="n">self</span><span class="p">)[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">        </span><span class="n">assert</span><span class="p">(</span><span class="n">self</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="p">(</span><span class="n">PyObject</span><span class="o">*</span><span class="p">)</span><span class="n">CHARACTER</span><span class="p">(</span><span class="n">ch</span><span class="p">));</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// gh-158219: The hash value must not be cached yet. Otherwise, it means</span>
+<span class="w">    </span><span class="c1">// that the bytes object was already used in Python somehow (ex: as a</span>
+<span class="w">    </span><span class="c1">// dictionary key).</span>
+<span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">get_ob_shash</span><span class="p">((</span><span class="n">PyBytesObject</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">self</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">-1</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+<p>For example, the check is used in <tt class="docutils literal">_PyBytes_Resize()</tt> to make sure that it's
+safe to resize an object in-place. It's also used by <tt class="docutils literal">PyBytesWriter</tt> to check
+that no singleton is being modified.</p>
+<p>I added a similar <tt class="docutils literal">_PyUnicodeWriter_CanWrite()</tt> check for
+<tt class="docutils literal">PyUnicodeWriter</tt>. For example, it checks that the internal buffer is not
+read-only.</p>
+</div>
+<div class="section" id="detect-buffer-overflow-in-pybyteswriter">
+<h3>Detect buffer overflow in PyBytesWriter</h3>
+<p>I modified <tt class="docutils literal">PyBytesWriter</tt> to detect buffer overflow in debug mode. It writes
+a canary byte (<tt class="docutils literal">0xDD</tt>) at the end of the buffer, and checks if this byte has
+been overwritten. When the buffer uses a <tt class="docutils literal">bytes</tt> or <tt class="docutils literal">bytearray</tt> object, use
+the trailing null byte of these objects as the canary byte.</p>
+<p>Previously, debug hooks on Python memory allocators already reported buffer
+overflow, but not when the trailing null byte was overwritten.</p>
+<p>The new <tt class="docutils literal">byteswriter_check_consistency()</tt> assertion checks the canary, but
+also that the buffer object can be mutated.</p>
+<p>I added a similar buffer overflow check to <tt class="docutils literal">PyUnicodeWriter_Finish()</tt>.</p>
+</div>
+<div class="section" id="detect-python-singleton-corruptions">
+<h3>Detect Python singleton corruptions</h3>
+<p>In debug mode at Python exit, check if immutable singleton objects have been
+modified by mistake to detect bugs in C extensions: <a class="reference external" href="https://github.com/python/cpython/commit/8bcbcf8cfc73844154f87c29b37ebb51cd8cb9b7">commit</a>.
+Add tests corrupting bytes, str, bool and int singleton objects.</p>
+<p>I wrote this new generic debug feature after I saw a bug report from <strong>Serhiy
+Storchaka</strong> where <a class="reference external" href="https://github.com/python/cpython/issues/155702">sqlite3 corrupts a bytes singleton object</a>. Such memory corruption
+is silent and can remain unnoticed for a long time. The checks that I added
+make sure that the corruption is detected at least at Python exit.</p>
+</div>
+</div>
+<div class="section" id="fix-memoryerror-handling">
+<h2>Fix MemoryError handling</h2>
+<p>There was also a tricky bug in <tt class="docutils literal">PyBytesWriter_Resize()</tt> on <tt class="docutils literal">MemoryError</tt>. I
+added <tt class="docutils literal">_PyBytes_ResizeKeepOnError()</tt> function which leaves the bytes object
+unchanged on memory allocation failure; <tt class="docutils literal">PyBytesWriter_Resize()</tt> now calls
+it.</p>
+<p>Other similar fixes:</p>
+<ul class="simple">
+<li>Leave <tt class="docutils literal">bytearray</tt> unchanged if <tt class="docutils literal">resize()</tt> fails (<tt class="docutils literal">MemoryError</tt>).</li>
+<li>Do not close <tt class="docutils literal">io.BytesIO</tt> on <tt class="docutils literal">MemoryError</tt>.</li>
+</ul>
+</div>
+<div class="section" id="bug-fixes">
+<h2>Bug fixes</h2>
+<ul class="simple">
+<li>Check size in <tt class="docutils literal">PyBytesWriter_FinishWithSize()</tt>.</li>
+<li>Fix <tt class="docutils literal"><span class="pre">struct.pack('0p',</span> bytes)</tt> and  <tt class="docutils literal">xmlcharrefreplace()</tt>: don't write
+a null byte outside the buffer.</li>
+<li>Fix <tt class="docutils literal">set_nomemory()</tt>, so it can be run on <tt class="docutils literal">Py_TRACE_REFS</tt> debug builds
+(<a class="reference external" href="https://github.com/python/cpython/commit/051b168e63af80872222a2d91d43af4de16980b1">commit</a>).</li>
+<li>Use <tt class="docutils literal">const char*</tt> for <tt class="docutils literal">PyBytes_AS_STRING()</tt> since <tt class="docutils literal">bytes</tt> is immutable.</li>
+</ul>
+</div>
+<div class="section" id="optimizations">
+<h2>Optimizations</h2>
+<div class="section" id="pybyteswriter">
+<h3><tt class="docutils literal">PyBytesWriter</tt></h3>
+<p><tt class="docutils literal">PyBytesWriter_FinishWithSize()</tt> now returns a single byte singleton
+when a <tt class="docutils literal">bytes</tt> buffer was allocated.</p>
+<p>I also <a class="reference external" href="https://github.com/python/cpython/commit/658612ae770aac8e1e5e060922d3364a4be7e547">optimized mashal</a>
+to return bytes singletons. It makes the code shorter and easier to understand!</p>
+<p>I also made multiple changes to optimize <tt class="docutils literal">PyBytesWriter</tt> to reduce its
+overhead compated to <tt class="docutils literal">PyBytes_FromStringAndSize(NULL, size)</tt>. I ran a
+<a class="reference external" href="https://github.com/python/cpython/issues/158585#issuecomment-5986531617">benchmark creating the string b'abc'</a> to
+compare Python 3.15 to Python 3.16:</p>
+<p><tt class="docutils literal">Mean +- std dev: [py315] 41.6 ns +- 1.0 ns <span class="pre">-&gt;</span> [py316] 32.5 ns +- 0.6 ns: 1.28x faster</tt></p>
+<p>The <cite>PyBytesWriter</cite> API is now <strong>1.28x faster</strong> (<strong>-9.1 ns</strong>)!</p>
+</div>
+<div class="section" id="pyunicodewriter">
+<h3><tt class="docutils literal">PyUnicodeWriter</tt></h3>
+<p><tt class="docutils literal">PyUnicodeWriter_Create(size)</tt> no longer allocates immediately a buffer: the
+buffer is now allocated at the first write.</p>
+<p>If no buffer is allocated yet, <tt class="docutils literal">PyUnicodeWriter_WriteStr()</tt> stores the
+<tt class="docutils literal">str</tt> object as a read-only buffer to avoid memory copy. In the same way,
+<tt class="docutils literal">PyUnicodeWriter_WriteChar()</tt> stores a read-only single character singleton
+for characters in range U+0000-U+00ff (ASCII and Latin1 characters).</p>
+</div>
+</div>
+<div class="section" id="tests">
+<h2>Tests</h2>
+<p>I added more tests on the C API:</p>
+<ul class="simple">
+<li>Add tests on the <tt class="docutils literal">PyType</tt> C API</li>
+<li>Test <tt class="docutils literal">PyBytesWriter_FinishWithSize()</tt> with negative size</li>
+<li>Add more <tt class="docutils literal">PyBytesWriter</tt> tests</li>
+<li>Add tests on the deprecated <tt class="docutils literal">_Py_Identifier</tt> (Unicode) C API</li>
+<li>Complete <tt class="docutils literal">PyMarshal</tt> C API tests</li>
+<li>Add <tt class="docutils literal">MemoryError</tt> tests to <tt class="docutils literal">PyUnicodeWriter</tt></li>
+<li>Add more tests on the PyUnicode C API</li>
+</ul>
+</div>
+</div>
+	<hr>
+</div>
+		</div>
+	</div> 	<!-- <hr> -->
+</div> <!-- /container -->
+<footer class="aw-footer bg-danger">
+	<div class="container"> <!-- footer -->
+		<div class="row">
+			<div class="col-md-10 col-md-offset-1">
+				<div class="row">
+					<div class="col-md-3">
+						<h4>Navigation</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io">Victor Stinner blog 3</a></li>
+							<li><a href="https://vstinner.github.io/feeds/all.atom.xml" type="application/atom+xml"><i class="fa fa-rss "></i> atom</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Author</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://twitter.com/VictorStinner">Follow @VictorStinner on Twitter</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Categories</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="https://vstinner.github.io/category/benchmark.html">benchmark (8)</a></li>
+							<li><a href="https://vstinner.github.io/category/cpython.html">cpython (32)</a></li>
+							<li><a href="https://vstinner.github.io/category/linux.html">linux (2)</a></li>
+							<li><a href="https://vstinner.github.io/category/python.html">python (41)</a></li>
+						</ul>
+					</div>
+					<div class="col-md-3">
+						<h4>Links</h4>
+						<ul class="list-unstyled my-list-style">
+							<li><a href="http://vstinner.readthedocs.org/">Victor Stinner's Notes</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</footer>
+<div class="container">
+	<div class="row">
+		<div class="col-md-12 text-center center-block aw-bottom">
+			<p>&copy; Victor Stinner 2016</p>
+			<p>Powered by Pelican</p>
+		</div>
+	</div>
+</div>
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+<script type="text/javascript">
+jQuery(document).ready(function($) {
+	$("div.collapseheader").click(function () {
+		$header = $(this).children("span").first();
+		$codearea = $(this).children(".input_area");
+		$codearea.slideToggle(500, function () {
+			$header.text(function () {
+				return $codearea.is(":visible") ? "Collapse Code" : "Expand Code";
+			});
+		});
+	});
+});
+</script>
+</body>
+</html>
