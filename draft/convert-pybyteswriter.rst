@@ -1,24 +1,24 @@
-++++++++++++++++++++++++++++++++++++++++++
-Convert C functions to PyBytesWriter C API
-++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Optimize PyBytesWriter and PyUnicodeWriter implementation
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 :date: 2027-10-10 19:00
 :tags: c-api, cpython
 :category: cpython
-:slug: convert-to-pybyteswriter-c-api
+:slug: optimize-pybyteswriter-pyunicodewriter-implementation
 :authors: Victor Stinner
 
 This article describes my recent work on ``PyBytesWriter`` and
 ``PyUnicodeWriter``, bugfixes, optimizations, documentation changes, with some
 references to older work.
 
-``PyBytesWriter`` is now **1.28x faster** on a micro-benchmark creating the
-string ``b'abc'``.  ``PyUnicodeWriter`` can now avoid memory copies in some
-cases.
+``PyBytesWriter`` is now **1.28x faster** than Python 3.15 on a micro-benchmark
+creating the string ``b'abc'``.  ``PyUnicodeWriter`` can now avoid memory
+copies in some cases.
 
 In debug mode, ``PyBytesWriter`` and ``PyUnicodeWriter`` can now detect buffer
 overflows, and Python checks if singletons have been modified by mistake at
-exit (detect silent memory corruption).
+exit to detect bugs in C extensions (detect silent memory corruption).
 
 ``PyBytesWriter`` has been fixed to handle properly memory allocation failure.
 
@@ -51,11 +51,11 @@ In the current main branch, excluding tests and doc, there are:
 * 23 calls to soft deprecated ``PyBytes_FromStringAndSize(NULL, size)``
 * 18 calls to soft deprecated ``_PyBytes_Resize()``
 
-So the majority of functions creating ``bytes`` objects now use the new
+So the majority of stdlib functions creating ``bytes`` objects now use the new
 ``PyBytesWriter_Create()`` API.
 
-The UTF-32 keeps a code path using ``PyBytes_FromStringAndSize(NULL, size)``:
-fast path if the input string kind is UCS-1.
+The UTF-32 encoder keeps a code path using ``PyBytes_FromStringAndSize(NULL,
+size)``: fast path if the input string kind is UCS-1.
 
 When I modified the UTF-7 encoder, I had some concerns about performance, but
 hopefully I found `optimization opportunities
@@ -63,7 +63,7 @@ hopefully I found `optimization opportunities
 faster** in average.
 
 In two cases, ``PyBytes_FromStringAndSize(NULL, size)`` was replaced with
-``PyMem_Malloc()`` since no Python ``bytes`` object is needed:
+``PyMem_Malloc()`` when no Python ``bytes`` object is needed:
 ``decode_unicode_with_escapes()`` and ``memoryview.hex()``.
 
 See also `issue gh-139156 <https://github.com/python/cpython/issues/139156>`_
@@ -73,8 +73,8 @@ See also `issue gh-139156 <https://github.com/python/cpython/issues/139156>`_
 Documentation
 =============
 
-I added the following note to `PyBytesObject documentation
-<https://docs.python.org/dev/c-api/bytes.html#bytes-objects>`_:
+I added the following note on trailing null byte to `PyBytesObject
+documentation <https://docs.python.org/dev/c-api/bytes.html#bytes-objects>`_:
 
     **CPython implementation detail:** The internal buffer of PyBytesObject
     always includes an **extra trailing null byte** for compatibility with null
@@ -132,10 +132,11 @@ that:
 
 For example, the check is used in ``_PyBytes_Resize()`` to make sure that it's
 safe to resize an object in-place. It's also used by ``PyBytesWriter`` to check
-that we are not modifying a singleton.
+that no singleton is being modified.
 
-I added a similar ``_PyUnicodeWriter_CanWrite()`` for ``PyUnicodeWriter``. For
-example, it checks that the internal buffer is not read-only.
+I added a similar ``_PyUnicodeWriter_CanWrite()`` check for
+``PyUnicodeWriter``. For example, it checks that the internal buffer is not
+read-only.
 
 
 Detect buffer overflow in PyBytesWriter
@@ -143,8 +144,8 @@ Detect buffer overflow in PyBytesWriter
 
 I modified ``PyBytesWriter`` to detect buffer overflow in debug mode. It writes
 a canary byte (``0xDD``) at the end of the buffer, and checks if this byte has
-been overwritten. When the buffer uses a ``bytes`` or ``bytearray`` object,
-use the trailing null byte as the canary byte.
+been overwritten. When the buffer uses a ``bytes`` or ``bytearray`` object, use
+the trailing null byte of these objects as the canary byte.
 
 Previously, debug hooks on Python memory allocators already reported buffer
 overflow, but not when the trailing null byte was overwritten.
@@ -162,19 +163,20 @@ modified by mistake to detect bugs in C extensions: `commit
 <https://github.com/python/cpython/commit/8bcbcf8cfc73844154f87c29b37ebb51cd8cb9b7>`__.
 Add tests corrupting bytes, str, bool and int singleton objects.
 
-I wrote this new generic debug feature after I saw a bug report from Serhiy
-**Storchaka** where `sqlite3 corrupts a bytes singleton object
+I wrote this new generic debug feature after I saw a bug report from **Serhiy
+Storchaka** where `sqlite3 corrupts a bytes singleton object
 <https://github.com/python/cpython/issues/155702>`_. Such memory corruption
 is silent and can remain unnoticed for a long time. The checks that I added
-make sure that the corruption is detected at Python exit.
+make sure that the corruption is detected at least at Python exit.
 
 
 Fix MemoryError handling
 ========================
 
 There was also a tricky bug in ``PyBytesWriter_Resize()`` on ``MemoryError``. I
-added ``_PyBytes_ResizeKeepOnError()`` which leaves the bytes object unchanged
-on memory allocation failure; ``PyBytesWriter_Resize()`` now calls it.
+added ``_PyBytes_ResizeKeepOnError()`` function which leaves the bytes object
+unchanged on memory allocation failure; ``PyBytesWriter_Resize()`` now calls
+it.
 
 Other similar fixes:
 
@@ -187,7 +189,7 @@ Bug fixes
 * Check size in ``PyBytesWriter_FinishWithSize()``.
 * Fix ``struct.pack('0p', bytes)`` and  ``xmlcharrefreplace()``: don't write
   a null byte outside the buffer.
-* Fix ``set_nomemory()``, so it can be run on ``Py_TRACE_REFS`` builds
+* Fix ``set_nomemory()``, so it can be run on ``Py_TRACE_REFS`` debug builds
   (`commit <https://github.com/python/cpython/commit/051b168e63af80872222a2d91d43af4de16980b1>`__).
 * Use ``const char*`` for ``PyBytes_AS_STRING()`` since ``bytes`` is immutable.
 
@@ -198,7 +200,7 @@ Optimizations
 ^^^^^^^^^^^^^^^^^
 
 ``PyBytesWriter_FinishWithSize()`` now returns a single byte singleton
-when a ``bytes`` was allocated.
+when a ``bytes`` buffer was allocated.
 
 I also `optimized mashal
 <https://github.com/python/cpython/commit/658612ae770aac8e1e5e060922d3364a4be7e547>`_
@@ -223,8 +225,8 @@ buffer is now allocated at the first write.
 
 If no buffer is allocated yet, ``PyUnicodeWriter_WriteStr()`` stores the
 ``str`` object as a read-only buffer to avoid memory copy. In the same way,
-``PyUnicodeWriter_WriteChar()`` stores a single character singleton for
-characters in range U+0000-U+00ff (ASCII and Latin1 characters).
+``PyUnicodeWriter_WriteChar()`` stores a read-only single character singleton
+for characters in range U+0000-U+00ff (ASCII and Latin1 characters).
 
 
 Tests
