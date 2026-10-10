@@ -12,6 +12,18 @@ This article describes my recent work on ``PyBytesWriter`` and
 ``PyUnicodeWriter``, bugfixes, optimizations, documentation changes, with some
 references to older work.
 
+``PyBytesWriter`` is now **1.28x faster** on a micro-benchmark creating the
+string ``b'abc'``.  ``PyUnicodeWriter`` can now avoid memory copies in some
+cases.
+
+In debug mode, ``PyBytesWriter`` and ``PyUnicodeWriter`` can now detect buffer
+overflows, and Python checks if singletons have been modified by mistake at
+exit (detect silent memory corruption).
+
+``PyBytesWriter`` has been fixed to handle properly memory allocation failure.
+
+I also made documentation and tests enhancements.
+
 See also the previous article: `PEP 782 – Add PyBytesWriter C API
 <{filename}/pep-782-pybyteswriter.rst>`_.
 
@@ -172,13 +184,12 @@ Other similar fixes:
 Bug fixes
 =========
 
-* Use ``const char*`` for ``PyBytes_AS_STRING()`` since ``bytes`` is immutable.
+* Check size in ``PyBytesWriter_FinishWithSize()``.
 * Fix ``struct.pack('0p', bytes)`` and  ``xmlcharrefreplace()``: don't write
   a null byte outside the buffer.
-* Check size in ``PyBytesWriter_FinishWithSize()``.
-* Fix ``set_nomemory()`` so it can be run on ``Py_TRACE_REFS`` builds
+* Fix ``set_nomemory()``, so it can be run on ``Py_TRACE_REFS`` builds
   (`commit <https://github.com/python/cpython/commit/051b168e63af80872222a2d91d43af4de16980b1>`__).
-
+* Use ``const char*`` for ``PyBytes_AS_STRING()`` since ``bytes`` is immutable.
 
 Optimizations
 =============
