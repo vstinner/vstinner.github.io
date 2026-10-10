@@ -8,13 +8,17 @@ Optimize PyBytesWriter and PyUnicodeWriter implementation
 :slug: optimize-pybyteswriter-pyunicodewriter-implementation
 :authors: Victor Stinner
 
+.. image:: {static}/images/matisse-luxe.jpg
+   :alt: Luxe, Calme et Volupté, by Henri Matisse
+   :target: https://en.wikipedia.org/wiki/Luxe,_Calme_et_Volupt%C3%A9
+
 This article describes my recent work on ``PyBytesWriter`` and
-``PyUnicodeWriter``, bugfixes, optimizations, documentation changes, with some
-references to older work.
+``PyUnicodeWriter`` C API, bugfixes, optimizations, documentation changes, with
+some references to older work.
 
 ``PyBytesWriter`` is now **1.28x faster** than Python 3.15 on a micro-benchmark
 creating the string ``b'abc'``.  ``PyUnicodeWriter`` can now avoid memory
-copies in some cases.
+copies in some cases (read-only buffer).
 
 In debug mode, ``PyBytesWriter`` and ``PyUnicodeWriter`` can now detect buffer
 overflows, and Python checks if singletons have been modified by mistake at
@@ -26,6 +30,8 @@ I also made documentation and tests enhancements.
 
 See also the previous article: `PEP 782 – Add PyBytesWriter C API
 <{filename}/pep-782-pybyteswriter.rst>`_.
+
+*Painting: Luxe, Calme et Volupté (1904), by Henri Matisse.*
 
 Convert to PyBytesWriter
 ========================
